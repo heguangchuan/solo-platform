@@ -6,6 +6,8 @@ import com.solo.entity.SysRole;
 import com.solo.request.RolePageRequest;
 import com.solo.request.RoleRequest;
 
+import java.util.List;
+
 /**
  * 系统角色服务接口
  * 提供角色分页查询及角色CRUD相关业务逻辑
@@ -31,4 +33,9 @@ public interface SysRoleService extends IService<SysRole> {
      * 删除角色及关联关系
      */
     void deleteRole(Long id);
+
+    /**
+     * 批量删除角色及关联关系
+     */
+    void deleteBatch(List<Long> ids);
 }

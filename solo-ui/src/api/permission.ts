@@ -28,3 +28,7 @@ export function editPermissionApi(id: number, data: PermissionRequest) {
 export function deletePermissionApi(id: number) {
   return del<void>(`/system/permission/${id}`)
 }
+
+export function deletePermissionBatchApi(ids: number[]) {
+  return del<void>('/system/permission/batch', { data: ids })
+}

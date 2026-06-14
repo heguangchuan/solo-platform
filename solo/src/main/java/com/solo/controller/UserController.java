@@ -63,6 +63,16 @@ public class UserController {
     }
 
     /**
+     * 批量删除用户
+     */
+    @DeleteMapping("/batch")
+    @RequirePermission({"system:user:delete"})
+    public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
+        sysUserService.deleteBatch(ids);
+        return Result.success();
+    }
+
+    /**
      * 删除用户
      */
     @DeleteMapping("/{id}")

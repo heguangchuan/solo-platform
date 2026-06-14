@@ -53,6 +53,16 @@ public class RoleController {
     }
 
     /**
+     * 批量删除角色
+     */
+    @DeleteMapping("/batch")
+    @RequirePermission({"system:role:delete"})
+    public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
+        sysRoleService.deleteBatch(ids);
+        return Result.success();
+    }
+
+    /**
      * 删除角色
      */
     @DeleteMapping("/{id}")

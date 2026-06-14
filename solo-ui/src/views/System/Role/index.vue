@@ -2,10 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysRole, RoleRequest, RolePageRequest } from '@/types/api'
-import { getRolePageApi, addRoleApi, deleteRoleApi } from '@/api/role'
+import { getRolePageApi, addRoleApi, deleteRoleApi, deleteRoleBatchApi } from '@/api/role'
 
 const loading = ref(false)
 const tableData = ref<SysRole[]>([])
+const selectedRows = ref<SysRole[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -97,6 +98,25 @@ async function handleConfirm() {
   }
 }
 
+function handleSelectionChange(rows: SysRole[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) {
+    ElMessage.warning('请选择要删除的数据')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 条数据吗？`, '提示', { type: 'warning' })
+    await deleteRoleBatchApi(selectedRows.value.map((row) => row.id))
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled or error
+  }
+}
+
 async function handleDelete(row: SysRole) {
   try {
     await ElMessageBox.confirm(`确定要删除角色 "${row.roleName}" 吗？`, '提示', { type: 'warning' })
@@ -137,13 +157,16 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <span>角色列表</span>
-          <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增角色</el-button>
+        <div class="card-header">
+          <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增</el-button>
+          <el-button v-permission="'system:role:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+          <el-button type="primary">导入</el-button>
+          <el-button type="primary">导出</el-button>
         </div>
       </template>
 
-      <el-table :data="tableData" v-loading="loading" border stripe>
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="roleCode" label="角色编码" width="150" />
         <el-table-column prop="roleName" label="角色名称" width="150" />
@@ -207,6 +230,12 @@ onMounted(() => {
 <style scoped>
 .search-card {
   margin-bottom: 0;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pagination {

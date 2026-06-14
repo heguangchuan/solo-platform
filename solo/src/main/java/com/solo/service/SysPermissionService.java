@@ -38,6 +38,11 @@ public interface SysPermissionService extends IService<SysPermission> {
     void deletePermission(Long id);
 
     /**
+     * 批量删除权限
+     */
+    void deleteBatch(List<Long> ids);
+
+    /**
      * 递归构建树形结构
      *
      * @param allPermissions 完整权限列表

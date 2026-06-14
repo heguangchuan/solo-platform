@@ -76,13 +76,23 @@ public class PermissionController {
     }
 
     /**
+     * 批量删除权限
+     */
+    @DeleteMapping("/batch")
+    @RequirePermission({"system:permission:delete"})
+    public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
+        sysPermissionService.deleteBatch(ids);
+        return Result.success();
+    }
+
+    /**
      * 删除权限
      *
      * @param id 权限ID
      * @return 删除成功响应
      */
     @DeleteMapping("/{id}")
-    @RequirePermission({"system:permission:list"})
+    @RequirePermission({"system:permission:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         sysPermissionService.deletePermission(id);
         return Result.success();
