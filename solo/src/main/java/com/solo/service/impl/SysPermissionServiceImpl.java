@@ -70,6 +70,11 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
     }
 
     @Override
+    public void deleteBatch(List<Long> ids) {
+        removeByIds(ids);
+    }
+
+    @Override
     public List<SysPermission> buildTree(List<SysPermission> allPermissions, Long parentId) {
         return TreeUtils.build(
                 allPermissions,

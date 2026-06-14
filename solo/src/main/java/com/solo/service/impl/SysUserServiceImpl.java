@@ -130,6 +130,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    public void deleteBatch(List<Long> ids) {
+        removeByIds(ids);
+    }
+
+    @Override
     public List<UserAuthResponse> auth(Long userId) {
         return getBaseMapper().auth(userId);
     }

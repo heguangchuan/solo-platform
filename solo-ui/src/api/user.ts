@@ -32,3 +32,7 @@ export function switchUserStatusApi(id: number, status: number) {
 export function deleteUserApi(id: number) {
   return del<void>(`/system/user/${id}`)
 }
+
+export function deleteUserBatchApi(ids: number[]) {
+  return del<void>('/system/user/batch', { data: ids })
+}

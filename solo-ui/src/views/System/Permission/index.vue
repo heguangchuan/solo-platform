@@ -2,10 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysPermission, PermissionRequest } from '@/types/api'
-import { getPermissionTreeApi, addPermissionApi, editPermissionApi, deletePermissionApi } from '@/api/permission'
+import { getPermissionTreeApi, addPermissionApi, editPermissionApi, deletePermissionApi, deletePermissionBatchApi } from '@/api/permission'
 
 const loading = ref(false)
 const treeData = ref<SysPermission[]>([])
+const selectedRows = ref<SysPermission[]>([])
 
 // 对话框
 const dialogVisible = ref(false)
@@ -115,6 +116,25 @@ async function handleConfirm() {
   }
 }
 
+function handleSelectionChange(rows: SysPermission[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) {
+    ElMessage.warning('请选择要删除的数据')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 条数据吗？`, '提示', { type: 'warning' })
+    await deletePermissionBatchApi(selectedRows.value.map((row) => row.id))
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled or error
+  }
+}
+
 async function handleDelete(row: SysPermission) {
   try {
     await ElMessageBox.confirm(
@@ -143,9 +163,11 @@ onMounted(() => {
   <div>
     <el-card shadow="hover">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
-          <span>权限管理</span>
-          <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增顶级权限</el-button>
+        <div class="card-header">
+          <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
+          <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+          <el-button type="primary">导入</el-button>
+          <el-button type="primary">导出</el-button>
         </div>
       </template>
 
@@ -157,7 +179,9 @@ onMounted(() => {
         :tree-props="{ children: 'children' }"
         default-expand-all
         style="width: 100%"
+        @selection-change="handleSelectionChange"
       >
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="permissionName" label="权限名称" min-width="200">
           <template #default="{ row }">
             <el-tag v-if="row.type === 1" type="primary" size="small">M</el-tag>
@@ -259,5 +283,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .text-muted { color: #c0c4cc; }
 </style>

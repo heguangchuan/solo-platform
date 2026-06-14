@@ -28,3 +28,7 @@ export function editRoleApi(id: number, data: RoleRequest) {
 export function deleteRoleApi(id: number) {
   return del<void>(`/system/role/${id}`)
 }
+
+export function deleteRoleBatchApi(ids: number[]) {
+  return del<void>('/system/role/batch', { data: ids })
+}

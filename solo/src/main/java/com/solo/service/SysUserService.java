@@ -62,4 +62,9 @@ public interface SysUserService extends IService<SysUser> {
      * 删除用户及关联角色关系
      */
     void deleteUser(Long id);
+
+    /**
+     * 批量删除用户
+     */
+    void deleteBatch(List<Long> ids);
 }

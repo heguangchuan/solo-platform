@@ -2,10 +2,11 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysUser, UserRequest, UserPageRequest } from '@/types/api'
-import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi } from '@/api/user'
+import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi, deleteUserBatchApi } from '@/api/user'
 
 const loading = ref(false)
 const tableData = ref<SysUser[]>([])
+const selectedRows = ref<SysUser[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -138,6 +139,27 @@ async function handleToggleStatus(row: SysUser) {
   }
 }
 
+function handleSelectionChange(rows: SysUser[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) {
+    ElMessage.warning('请选择要删除的数据')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 条数据吗？`, '提示', {
+      type: 'warning',
+    })
+    await deleteUserBatchApi(selectedRows.value.map((row) => row.id))
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled or error
+  }
+}
+
 async function handleDelete(row: SysUser) {
   try {
     await ElMessageBox.confirm(`确定要删除用户 "${row.nickname}" 吗？`, '提示', {
@@ -187,12 +209,15 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <template #header>
         <div class="card-header">
-          <span>用户列表</span>
-          <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">新增用户</el-button>
+          <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">新增</el-button>
+          <el-button v-permission="'system:user:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+          <el-button type="primary">导入</el-button>
+          <el-button type="primary">导出</el-button>
         </div>
       </template>
 
-      <el-table :data="tableData" v-loading="loading" border stripe>
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" width="150" />
         <el-table-column prop="nickname" label="昵称" width="150" />
@@ -291,8 +316,8 @@ onMounted(() => {
 
 .card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 8px;
 }
 
 .pagination {
