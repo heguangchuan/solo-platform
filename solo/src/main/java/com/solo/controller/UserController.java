@@ -5,11 +5,18 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.SysUser;
+import com.solo.request.UserExportRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.request.UserRequest;
+import com.solo.response.UserExcelResponse;
 import com.solo.service.SysUserService;
+import com.solo.utils.ExcelUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * 用户管理控制器
@@ -30,6 +37,38 @@ public class UserController {
     public Result<PageResult<SysUser>> getPage(@RequestBody UserPageRequest req) {
         Page<SysUser> page = sysUserService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 导出用户列表
+     */
+    @PostMapping("/export")
+    @RequirePermission({"system:user:export"})
+    public void export(@RequestBody UserExportRequest request, HttpServletResponse response) throws IOException {
+        List<SysUser> users = queryExportUsers(request);
+        List<UserExcelResponse> data = users.stream().map(this::toExcelResponse).toList();
+        ExcelUtils.export(response, "用户列表", "用户列表", data, UserExcelResponse.class);
+    }
+
+    private List<SysUser> queryExportUsers(UserExportRequest request) {
+        if (request.getIds() != null && !request.getIds().isEmpty()) {
+            return sysUserService.listByIds(request.getIds());
+        }
+        request.setPage(1L);
+        request.setPageSize(Long.MAX_VALUE);
+        return sysUserService.pageQuery(request).getRecords();
+    }
+
+    private UserExcelResponse toExcelResponse(SysUser user) {
+        UserExcelResponse response = new UserExcelResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setNickname(user.getNickname());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setStatus(user.getStatus() != null && user.getStatus() == 1 ? "启用" : "禁用");
+        response.setCreateTime(user.getCreateTime() == null ? null : user.getCreateTime().toString());
+        return response;
     }
 
     /**
