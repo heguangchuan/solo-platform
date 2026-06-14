@@ -38,8 +38,7 @@ public class RoleController {
     @PostMapping
     @RequirePermission({"system:role:add"})
     public Result<Void> save(@RequestBody RoleRequest request) {
-        sysRoleService.createRole(request.getRoleCode(), request.getRoleName(),
-                request.getDescription(), request.getStatus());
+        sysRoleService.createRole(request);
         return Result.success();
     }
 
@@ -49,7 +48,7 @@ public class RoleController {
     @PutMapping("/{id}")
     @RequirePermission({"system:role:edit"})
     public Result<Void> update(@PathVariable Long id, @RequestBody RoleRequest request) {
-        sysRoleService.updateRole(id, request.getRoleName(), request.getDescription(), request.getStatus());
+        sysRoleService.updateRole(id, request);
         return Result.success();
     }
 

@@ -43,9 +43,7 @@ public class PermissionController {
     @PostMapping
     @RequirePermission({"system:permission:list"})
     public Result<Void> save(@RequestBody PermissionRequest request) {
-        sysPermissionService.createPermission(request.getPermissionName(), request.getPermissionCode(),
-                request.getUrl(), request.getType(), request.getParentId(), request.getSort(),
-                request.getIcon(), request.getStatus());
+        sysPermissionService.createPermission(request);
         return Result.success();
     }
 
@@ -73,9 +71,7 @@ public class PermissionController {
     @PutMapping("/{id}")
     @RequirePermission({"system:permission:list"})
     public Result<Void> update(@PathVariable Long id, @RequestBody PermissionRequest request) {
-        sysPermissionService.updatePermission(id, request.getPermissionName(), request.getPermissionCode(),
-                request.getUrl(), request.getType(), request.getParentId(), request.getSort(),
-                request.getIcon(), request.getStatus());
+        sysPermissionService.updatePermission(id, request);
         return Result.success();
     }
 

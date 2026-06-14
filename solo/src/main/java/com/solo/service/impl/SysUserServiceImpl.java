@@ -9,6 +9,7 @@ import com.solo.common.SystemConstants;
 import com.solo.entity.SysUser;
 import com.solo.mapper.SysUserMapper;
 import com.solo.request.UserPageRequest;
+import com.solo.request.UserRequest;
 import com.solo.response.LoginResponse;
 import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
@@ -63,7 +64,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
 
-
     @Override
     public Page<SysUser> pageQuery(UserPageRequest req) {
         Long page = req.getPage() != null ? req.getPage() : 1L;
@@ -84,35 +84,33 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public void createUser(String username, String nickname, String email, String phone, String avatar, Integer status) {
-        SysUser existing = getByUsername(username);
+    public void createUser(UserRequest request) {
+        SysUser existing = getByUsername(request.getUsername());
         if (existing != null) {
             throw new ServiceException("用户名已存在");
         }
         SysUser user = new SysUser();
-        user.setUsername(username);
+        user.setUsername(request.getUsername());
         user.setPassword(SystemConstants.DEFAULT_PASSWORD);
-        user.setNickname(nickname);
-        user.setEmail(email);
-        user.setPhone(phone);
-        user.setAvatar(avatar);
-        user.setStatus(status != null ? status : SystemConstants.STATUS_ENABLED);
+        user.setNickname(request.getNickname());
+        user.setEmail(request.getEmail());
+        user.setPhone(request.getPhone());
+        user.setAvatar(request.getAvatar());
+        user.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
         save(user);
     }
 
     @Override
-    public void updateUser(Long id, String nickname, String email, String phone, String avatar, Integer status) {
+    public void updateUser(Long id, UserRequest request) {
         SysUser user = getById(id);
         if (user == null) {
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
         }
-        user.setNickname(nickname);
-        user.setEmail(email);
-        user.setPhone(phone);
-        user.setAvatar(avatar);
-        if (status != null) {
-            user.setStatus(status);
-        }
+        if (request.getNickname() != null) user.setNickname(request.getNickname());
+        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getPhone() != null) user.setPhone(request.getPhone());
+        if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
+        if (request.getStatus() != null) user.setStatus(request.getStatus());
         updateById(user);
     }
 

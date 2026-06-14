@@ -38,8 +38,7 @@ public class UserController {
     @PostMapping
     @RequirePermission({"system:user:add"})
     public Result<Void> save(@RequestBody UserRequest request) {
-        sysUserService.createUser(request.getUsername(), request.getNickname(),
-                request.getEmail(), request.getPhone(), request.getAvatar(), request.getStatus());
+        sysUserService.createUser(request);
         return Result.success();
     }
 
@@ -49,8 +48,7 @@ public class UserController {
     @PutMapping("/{id}")
     @RequirePermission({"system:user:edit"})
     public Result<Void> update(@PathVariable Long id, @RequestBody UserRequest request) {
-        sysUserService.updateUser(id, request.getNickname(), request.getEmail(),
-                request.getPhone(), request.getAvatar(), request.getStatus());
+        sysUserService.updateUser(id, request);
         return Result.success();
     }
 
