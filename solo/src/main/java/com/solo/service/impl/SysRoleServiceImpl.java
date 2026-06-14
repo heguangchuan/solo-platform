@@ -12,6 +12,7 @@ import com.solo.mapper.SysRoleMapper;
 import com.solo.mapper.SysRolePermissionMapper;
 import com.solo.mapper.SysUserRoleMapper;
 import com.solo.request.RolePageRequest;
+import com.solo.request.RoleRequest;
 import com.solo.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -44,30 +45,28 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     }
 
     @Override
-    public void createRole(String roleCode, String roleName, String description, Integer status) {
-        SysRole existing = getOne(new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, roleCode));
+    public void createRole(RoleRequest request) {
+        SysRole existing = getOne(new LambdaQueryWrapper<SysRole>().eq(SysRole::getRoleCode, request.getRoleCode()));
         if (existing != null) {
             throw new ServiceException("角色编码已存在");
         }
         SysRole role = new SysRole();
-        role.setRoleCode(roleCode);
-        role.setRoleName(roleName);
-        role.setDescription(description);
-        role.setStatus(status != null ? status : SystemConstants.STATUS_ENABLED);
+        role.setRoleCode(request.getRoleCode());
+        role.setRoleName(request.getRoleName());
+        role.setDescription(request.getDescription());
+        role.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
         save(role);
     }
 
     @Override
-    public void updateRole(Long id, String roleName, String description, Integer status) {
+    public void updateRole(Long id, RoleRequest request) {
         SysRole role = getById(id);
         if (role == null) {
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "角色不存在");
         }
-        role.setRoleName(roleName);
-        role.setDescription(description);
-        if (status != null) {
-            role.setStatus(status);
-        }
+        if (request.getRoleName() != null) role.setRoleName(request.getRoleName());
+        if (request.getDescription() != null) role.setDescription(request.getDescription());
+        if (request.getStatus() != null) role.setStatus(request.getStatus());
         updateById(role);
     }
 

@@ -1,6 +1,6 @@
 package com.solo.service;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.solo.request.PermissionRequest;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.common.ServiceException;
 import com.solo.entity.SysPermission;
@@ -22,35 +22,13 @@ public interface SysPermissionService extends IService<SysPermission> {
 
     /**
      * 新增权限
-     * 校验权限编码唯一性
-     *
-     * @param permissionName 权限名称
-     * @param permissionCode 权限编码
-     * @param url            关联URL
-     * @param type           类型
-     * @param parentId       父级ID
-     * @param sort           排序
-     * @param icon           图标
-     * @param status         状态
      */
-    void createPermission(String permissionName, String permissionCode, String url, Integer type,
-                          Long parentId, Integer sort, String icon, Integer status);
+    void createPermission(PermissionRequest request);
 
     /**
      * 修改权限信息
-     *
-     * @param id             权限ID
-     * @param permissionName 权限名称
-     * @param permissionCode 权限编码
-     * @param url            关联URL
-     * @param type           类型
-     * @param parentId       父级ID
-     * @param sort           排序
-     * @param icon           图标
-     * @param status         状态
      */
-    void updatePermission(Long id, String permissionName, String permissionCode, String url,
-                          Integer type, Long parentId, Integer sort, String icon, Integer status);
+    void updatePermission(Long id, PermissionRequest request);
 
     /**
      * 删除权限

@@ -6,6 +6,7 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.entity.SysRole;
 import com.solo.entity.SysUser;
+import com.solo.request.UserRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.response.UserAuthResponse;
 
@@ -45,12 +46,12 @@ public interface SysUserService extends IService<SysUser> {
     /**
      * 新增用户
      */
-    void createUser(String username, String nickname, String email, String phone, String avatar, Integer status);
+    void createUser(UserRequest request);
 
     /**
      * 修改用户信息
      */
-    void updateUser(Long id, String nickname, String email, String phone, String avatar, Integer status);
+    void updateUser(Long id, UserRequest request);
 
     /**
      * 删除用户及关联角色关系

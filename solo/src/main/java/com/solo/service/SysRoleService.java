@@ -19,12 +19,12 @@ public interface SysRoleService extends IService<SysRole> {
     /**
      * 新增角色
      */
-    void createRole(String roleCode, String roleName, String description, Integer status);
+    void createRole(RoleRequest request);
 
     /**
      * 修改角色信息
      */
-    void updateRole(Long id, String roleName, String description, Integer status);
+    void updateRole(Long id, RoleRequest request);
 
     /**
      * 删除角色及关联关系
