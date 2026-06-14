@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysUser, UserRequest, UserPageRequest } from '@/types/api'
-import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi, deleteUserBatchApi } from '@/api/user'
+import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi, deleteUserBatchApi, exportUserApi } from '@/api/user'
+import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
 const tableData = ref<SysUser[]>([])
@@ -160,6 +161,12 @@ async function handleBatchDelete() {
   }
 }
 
+async function handleExport() {
+  const ids = selectedRows.value.map((row) => row.id)
+  const res = await exportUserApi({ ...searchForm.value, ids: ids.length ? ids : undefined })
+  downloadBlob(res.data, '用户列表.xlsx')
+}
+
 async function handleDelete(row: SysUser) {
   try {
     await ElMessageBox.confirm(`确定要删除用户 "${row.nickname}" 吗？`, '提示', {
@@ -212,7 +219,7 @@ onMounted(() => {
           <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">新增</el-button>
           <el-button v-permission="'system:user:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
           <el-button type="primary">导入</el-button>
-          <el-button type="primary">导出</el-button>
+          <el-button v-permission="'system:user:export'" type="primary" @click="handleExport">导出</el-button>
         </div>
       </template>
 

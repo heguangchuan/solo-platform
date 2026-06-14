@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysPermission, PermissionRequest } from '@/types/api'
-import { getPermissionTreeApi, addPermissionApi, editPermissionApi, deletePermissionApi, deletePermissionBatchApi } from '@/api/permission'
+import { getPermissionTreeApi, addPermissionApi, editPermissionApi, deletePermissionApi, deletePermissionBatchApi, exportPermissionApi } from '@/api/permission'
+import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
 const treeData = ref<SysPermission[]>([])
@@ -38,7 +39,7 @@ const typeLabelMap: Record<number, string> = {
 const allPermissions = ref<SysPermission[]>([])
 
 // 记录正在编辑的行 id
-const editingId = ref<number>(0)
+const editingId = ref<string>('')
 
 // 收集所有权限为一维列表（供上级选择器用）
 function flattenTree(nodes: SysPermission[]): SysPermission[] {
@@ -66,9 +67,9 @@ async function fetchData() {
   }
 }
 
-function handleAdd(parentId?: number) {
+function handleAdd(parentId?: string) {
   dialogTitle.value = '新增权限'
-  editingId.value = 0
+  editingId.value = ''
   form.value = {
     permissionName: '',
     permissionCode: '',
@@ -103,7 +104,7 @@ async function handleConfirm() {
   if (!valid) return
 
   try {
-    if (editingId.value === 0) {
+    if (!editingId.value) {
       await addPermissionApi(form.value)
     } else {
       await editPermissionApi(editingId.value, form.value)
@@ -133,6 +134,12 @@ async function handleBatchDelete() {
   } catch {
     // cancelled or error
   }
+}
+
+async function handleExport() {
+  const ids = selectedRows.value.map((row) => row.id)
+  const res = await exportPermissionApi({ ids: ids.length ? ids : undefined })
+  downloadBlob(res.data, '权限列表.xlsx')
 }
 
 async function handleDelete(row: SysPermission) {
@@ -166,8 +173,6 @@ onMounted(() => {
         <div class="card-header">
           <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
           <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-          <el-button type="primary">导入</el-button>
-          <el-button type="primary">导出</el-button>
         </div>
       </template>
 

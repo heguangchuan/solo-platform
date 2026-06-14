@@ -1,9 +1,11 @@
 package com.solo.entity;
 
-import com.baomidou.mybatisplus.annotation.*;
+import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
-
-import java.time.LocalDateTime;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 /**
  * 角色权限关联实体类
@@ -16,22 +18,20 @@ public class SysRolePermission {
     /**
      * 关联ID，主键，自增
      */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     /**
      * 角色ID，外键关联 sys_role.id
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long roleId;
 
     /**
      * 权限ID，外键关联 sys_permission.id
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long permissionId;
 
-    /**
-     * 创建时间，插入时自动填充
-     */
-    @TableField(fill = FieldFill.INSERT)
-    private LocalDateTime createTime;
 }

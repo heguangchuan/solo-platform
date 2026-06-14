@@ -3,11 +3,16 @@ package com.solo.controller;
 import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.entity.SysPermission;
+import com.solo.request.PermissionExportRequest;
 import com.solo.request.PermissionRequest;
+import com.solo.response.PermissionExcelResponse;
 import com.solo.service.SysPermissionService;
+import com.solo.utils.ExcelUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -35,13 +40,55 @@ public class PermissionController {
     }
 
     /**
+     * 导出权限列表
+     */
+    @PostMapping("/export")
+    @RequirePermission({"system:permission:export"})
+    public void export(@RequestBody PermissionExportRequest request, HttpServletResponse response) throws IOException {
+        List<SysPermission> permissions = queryExportPermissions(request);
+        List<PermissionExcelResponse> data = permissions.stream().map(this::toExcelResponse).toList();
+        ExcelUtils.export(response, "权限列表", "权限列表", data, PermissionExcelResponse.class);
+    }
+
+    private List<SysPermission> queryExportPermissions(PermissionExportRequest request) {
+        if (request.getIds() != null && !request.getIds().isEmpty()) {
+            return sysPermissionService.listByIds(request.getIds());
+        }
+        return sysPermissionService.lambdaQuery()
+                .like(request.getPermissionName() != null && !request.getPermissionName().isBlank(), SysPermission::getPermissionName, request.getPermissionName())
+                .like(request.getPermissionCode() != null && !request.getPermissionCode().isBlank(), SysPermission::getPermissionCode, request.getPermissionCode())
+                .eq(request.getType() != null, SysPermission::getType, request.getType())
+                .eq(request.getStatus() != null, SysPermission::getStatus, request.getStatus())
+                .orderByAsc(SysPermission::getSort)
+                .list();
+    }
+
+    private PermissionExcelResponse toExcelResponse(SysPermission permission) {
+        PermissionExcelResponse response = new PermissionExcelResponse();
+        response.setId(permission.getId());
+        response.setPermissionName(permission.getPermissionName());
+        response.setPermissionCode(permission.getPermissionCode());
+        response.setUrl(permission.getUrl());
+        response.setType(switch (permission.getType() == null ? 0 : permission.getType()) {
+            case 1 -> "菜单";
+            case 2 -> "按钮";
+            case 3 -> "接口";
+            default -> "未知";
+        });
+        response.setParentId(permission.getParentId());
+        response.setSort(permission.getSort());
+        response.setStatus(permission.getStatus() != null && permission.getStatus() == 1 ? "启用" : "禁用");
+        return response;
+    }
+
+    /**
      * 新增权限
      *
      * @param request 权限信息请求体
      * @return 创建成功响应
      */
     @PostMapping
-    @RequirePermission({"system:permission:list"})
+    @RequirePermission({"system:permission:add"})
     public Result<Void> save(@RequestBody PermissionRequest request) {
         sysPermissionService.createPermission(request);
         return Result.success();
@@ -69,7 +116,7 @@ public class PermissionController {
      * @return 修改成功响应
      */
     @PutMapping("/{id}")
-    @RequirePermission({"system:permission:list"})
+    @RequirePermission({"system:permission:edit"})
     public Result<Void> update(@PathVariable Long id, @RequestBody PermissionRequest request) {
         sysPermissionService.updatePermission(id, request);
         return Result.success();

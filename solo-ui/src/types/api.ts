@@ -29,7 +29,7 @@ export interface LoginRequest {
  * 用户信息 VO
  */
 export interface UserInfoVO {
-  id: number
+  id: string
   username: string
   nickname: string
   email: string
@@ -50,10 +50,10 @@ export interface LoginResponse {
  * 权限树节点（认证返回）
  */
 export interface UserAuthResponse {
-  id: number
+  id: string
   permissionName: string
   icon: string
-  parentId: number
+  parentId: string | number
   sort: number
   url: string
   children?: UserAuthResponse[]
@@ -97,7 +97,7 @@ export interface UserRequest {
  * 用户列表项
  */
 export interface SysUser {
-  id: number
+  id: string
   username: string
   nickname: string
   email: string
@@ -106,7 +106,6 @@ export interface SysUser {
   status: number
   createTime: string
   updateTime: string
-  createBy?: number
 }
 
 // ==================== 角色管理 ====================
@@ -135,7 +134,7 @@ export interface RoleRequest {
  * 角色列表项
  */
 export interface SysRole {
-  id: number
+  id: string
   roleCode: string
   roleName: string
   description: string
@@ -154,7 +153,7 @@ export interface PermissionRequest {
   permissionCode: string
   url: string
   type: number
-  parentId: number
+  parentId: string | number
   sort: number
   icon: string
   status: number
@@ -164,12 +163,12 @@ export interface PermissionRequest {
  * 权限列表项
  */
 export interface SysPermission {
-  id: number
+  id: string
   permissionName: string
   permissionCode: string
   url: string
   type: number
-  parentId: number
+  parentId: string | number
   sort: number
   icon: string
   status: number

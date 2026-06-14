@@ -2,7 +2,8 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysRole, RoleRequest, RolePageRequest } from '@/types/api'
-import { getRolePageApi, addRoleApi, deleteRoleApi, deleteRoleBatchApi } from '@/api/role'
+import { getRolePageApi, addRoleApi, deleteRoleApi, deleteRoleBatchApi, exportRoleApi } from '@/api/role'
+import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
 const tableData = ref<SysRole[]>([])
@@ -117,6 +118,12 @@ async function handleBatchDelete() {
   }
 }
 
+async function handleExport() {
+  const ids = selectedRows.value.map((row) => row.id)
+  const res = await exportRoleApi({ ...searchForm.value, ids: ids.length ? ids : undefined })
+  downloadBlob(res.data, '角色列表.xlsx')
+}
+
 async function handleDelete(row: SysRole) {
   try {
     await ElMessageBox.confirm(`确定要删除角色 "${row.roleName}" 吗？`, '提示', { type: 'warning' })
@@ -161,7 +168,7 @@ onMounted(() => {
           <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增</el-button>
           <el-button v-permission="'system:role:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
           <el-button type="primary">导入</el-button>
-          <el-button type="primary">导出</el-button>
+          <el-button v-permission="'system:role:export'" type="primary" @click="handleExport">导出</el-button>
         </div>
       </template>
 

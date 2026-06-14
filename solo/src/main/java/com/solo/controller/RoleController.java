@@ -5,11 +5,18 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.SysRole;
+import com.solo.request.RoleExportRequest;
 import com.solo.request.RolePageRequest;
 import com.solo.request.RoleRequest;
+import com.solo.response.RoleExcelResponse;
 import com.solo.service.SysRoleService;
+import com.solo.utils.ExcelUtils;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+
+import java.io.IOException;
+import java.util.List;
 
 /**
  * 角色管理控制器
@@ -30,6 +37,37 @@ public class RoleController {
     public Result<PageResult<SysRole>> getPage(@RequestBody RolePageRequest req) {
         Page<SysRole> page = sysRoleService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 导出角色列表
+     */
+    @PostMapping("/export")
+    @RequirePermission({"system:role:export"})
+    public void export(@RequestBody RoleExportRequest request, HttpServletResponse response) throws IOException {
+        List<SysRole> roles = queryExportRoles(request);
+        List<RoleExcelResponse> data = roles.stream().map(this::toExcelResponse).toList();
+        ExcelUtils.export(response, "角色列表", "角色列表", data, RoleExcelResponse.class);
+    }
+
+    private List<SysRole> queryExportRoles(RoleExportRequest request) {
+        if (request.getIds() != null && !request.getIds().isEmpty()) {
+            return sysRoleService.listByIds(request.getIds());
+        }
+        request.setPage(1L);
+        request.setPageSize(Long.MAX_VALUE);
+        return sysRoleService.pageQuery(request).getRecords();
+    }
+
+    private RoleExcelResponse toExcelResponse(SysRole role) {
+        RoleExcelResponse response = new RoleExcelResponse();
+        response.setId(role.getId());
+        response.setRoleCode(role.getRoleCode());
+        response.setRoleName(role.getRoleName());
+        response.setDescription(role.getDescription());
+        response.setStatus(role.getStatus() != null && role.getStatus() == 1 ? "启用" : "禁用");
+        response.setCreateTime(role.getCreateTime() == null ? null : role.getCreateTime().toString());
+        return response;
     }
 
     /**
