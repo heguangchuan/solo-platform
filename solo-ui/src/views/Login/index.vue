@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { loginApi, getAuthMenusApi } from '@/api/auth'
@@ -9,12 +9,10 @@ import { dynamicRouteConfig } from '@/router'
 const router = useRouter()
 const userStore = useUserStore()
 const loading = ref(false)
-const activeTab = ref('password')
 
 const form = reactive({
   username: '',
   password: '',
-  remember: false,
 })
 
 const rules = {
@@ -31,18 +29,16 @@ const rules = {
 async function handleLogin() {
   loading.value = true
   try {
-    // 1. 登录
     const loginRes = await loginApi(form)
     userStore.loginSuccess(loginRes.data)
 
-    // 2. 拉取用户菜单树
     const menuRes = await getAuthMenusApi()
     const menus = menuRes.data
     if (menus?.length) {
       dynamicRouteConfig.registerAll(menus)
     }
 
-    ElMessage.success('欢迎回来，' + (loginRes.data.user.nickname || loginRes.data.user.username))
+    ElMessage.success('欢迎回来')
     router.push('/')
   } catch {
     // handled by interceptor
@@ -50,138 +46,124 @@ async function handleLogin() {
     loading.value = false
   }
 }
-
-// 粒子背景动画 — 纯 CSS 实现
-function startParticles() {
-  const container = document.querySelector('.particles-bg')
-  if (!container) return
-  for (let i = 0; i < 50; i++) {
-    const particle = document.createElement('div')
-    particle.className = 'particle'
-    const size = Math.random() * 4 + 2
-    particle.style.width = size + 'px'
-    particle.style.height = size + 'px'
-    particle.style.left = Math.random() * 100 + '%'
-    particle.style.animationDuration = (Math.random() * 15 + 10) + 's'
-    particle.style.animationDelay = (Math.random() * 10).toFixed(2) + 's'
-    particle.style.opacity = (Math.random() * 0.5 + 0.1).toFixed(2)
-    container.appendChild(particle)
-  }
-}
-
-function stopParticles() {
-  const container = document.querySelector('.particles-bg')
-  container?.querySelectorAll('.particle').forEach((p) => p.remove())
-}
-
-onMounted(() => {
-  startParticles()
-})
-
-onUnmounted(() => {
-  stopParticles()
-})
 </script>
 
 <template>
   <div class="login-wrapper">
-    <!-- 动态粒子背景 -->
-    <div class="particles-bg"></div>
-    <div class="glow glow-1"></div>
-    <div class="glow glow-2"></div>
-    <div class="glow glow-3"></div>
-
-    <div class="login-body">
-      <!-- 左侧品牌展示区 -->
+    <!-- 页面整体居中卡片容器 -->
+    <div class="book-container">
+      <!-- 左屏：品牌展示 -->
       <div class="login-brand">
+        <div class="deco-circle deco-circle-1"></div>
+        <div class="deco-circle deco-circle-2"></div>
+        <div class="particles">
+          <span v-for="n in 15" :key="n" class="particle" :style="{
+            left: (n * 6.7) + '%',
+            animationDelay: (n * 0.4) + 's',
+            animationDuration: (10 + n * 0.3) + 's',
+          }"></span>
+        </div>
+
         <div class="brand-content">
           <div class="brand-logo">
             <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#667eea" />
-                  <stop offset="100%" style="stop-color:#764ba2" />
+                  <stop offset="0%" style="stop-color:#fff" stop-opacity="0.9" />
+                  <stop offset="100%" style="stop-color:#fff" stop-opacity="0.6" />
+                </linearGradient>
+                <linearGradient id="borderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" style="stop-color:rgba(255,255,255,0.8)" />
+                  <stop offset="100%" style="stop-color:rgba(255,255,255,0.2)" />
                 </linearGradient>
               </defs>
-              <circle cx="60" cy="60" r="55" stroke="url(#logoGrad)" stroke-width="4" fill="none" />
-              <text x="60" y="72" text-anchor="middle" fill="white" font-size="48" font-weight="bold" font-family="Arial">S</text>
+              <circle cx="60" cy="60" r="52" stroke="url(#borderGrad)" stroke-width="2" fill="none" />
+              <circle cx="60" cy="60" r="40" stroke="url(#borderGrad)" stroke-width="1" fill="none" opacity="0.3" />
+              <text x="60" y="68" text-anchor="middle" fill="url(#logoGrad)" font-size="42" font-weight="700" font-family="'SF Pro Display', Arial, sans-serif">Solo</text>
             </svg>
           </div>
-          <h1 class="brand-title">Solo 后台管理系统</h1>
-          <p class="brand-desc">基于 Spring Boot + Vue 3 构建的现代化权限管理平台</p>
-          <div class="brand-features">
-            <div class="feature-item">
-              <el-icon :size="20"><Shield /></el-icon>
-              <span>RBAC 权限控制</span>
+          <h1 class="brand-title">权限管理平台</h1>
+          <p class="brand-desc">Spring Boot + Vue 3<br />完整 RBAC 权限管理方案</p>
+          <div class="brand-stats">
+            <div class="stat-item">
+              <div class="stat-value">Spring Boot</div>
+              <div class="stat-label">后端</div>
             </div>
-            <div class="feature-item">
-              <el-icon :size="20"><Connection /></el-icon>
-              <span>JWT 安全认证</span>
+            <div class="stat-item">
+              <div class="stat-value">Vue 3</div>
+              <div class="stat-label">前端</div>
             </div>
-            <div class="feature-item">
-              <el-icon :size="20"><Monitor /></el-icon>
-              <span>实时数据统计</span>
-            </div>
-            <div class="feature-item">
-              <el-icon :size="20"><Cpu /></el-icon>
-              <span>前后端分离架构</span>
+            <div class="stat-item">
+              <div class="stat-value">RBAC</div>
+              <div class="stat-label">权限</div>
             </div>
           </div>
         </div>
+
+        <div class="bottom-line"></div>
       </div>
 
-      <!-- 右侧登录表单区 -->
+      <!-- 右屏：登录表单 -->
       <div class="login-form-area">
-        <el-card class="login-card" shadow="never">
-          <div class="login-header">
-            <h2 class="login-title">欢迎回来</h2>
-            <p class="login-subtitle">请登录您的管理员账户</p>
+        <div class="form-inner">
+          <div class="form-header">
+            <div class="form-logo">
+              <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="40" height="40" rx="10" fill="url(#formLogoGrad)" />
+                <text x="20" y="27" text-anchor="middle" fill="white" font-size="18" font-weight="700">S</text>
+                <defs>
+                  <linearGradient id="formLogoGrad" x1="0" y1="0" x2="40" y2="40">
+                    <stop offset="0%" style="stop-color:#667eea" />
+                    <stop offset="100%" style="stop-color:#764ba2" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            <h2 class="form-title">欢迎回来</h2>
+            <p class="form-subtitle">登录您的管理员账户</p>
           </div>
 
-          <el-tabs v-model="activeTab" class="login-tabs">
-            <el-tab-pane label="账号密码登录" name="password">
-              <el-form
-                ref="formRef"
-                :model="form"
-                :rules="rules"
-                size="large"
-                @keyup.enter="handleLogin"
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            size="large"
+            @keyup.enter="handleLogin"
+          >
+            <el-form-item prop="username">
+              <el-input
+                v-model="form.username"
+                placeholder="用户名"
+                prefix-icon="User"
+                :autofocus="true"
+              />
+            </el-form-item>
+            <el-form-item prop="password">
+              <el-input
+                v-model="form.password"
+                type="password"
+                placeholder="请输入密码"
+                prefix-icon="Lock"
+                show-password
+              />
+            </el-form-item>
+
+            <div class="form-options">
+              <el-checkbox>记住我</el-checkbox>
+            </div>
+
+            <el-form-item>
+              <el-button
+                type="primary"
+                :loading="loading"
+                class="login-btn"
+                @click="handleLogin"
               >
-                <el-form-item prop="username">
-                  <el-input
-                    v-model="form.username"
-                    placeholder="请输入用户名"
-                    prefix-icon="User"
-                  />
-                </el-form-item>
-                <el-form-item prop="password">
-                  <el-input
-                    v-model="form.password"
-                    type="password"
-                    placeholder="请输入密码"
-                    prefix-icon="Lock"
-                    show-password
-                  />
-                </el-form-item>
-
-                <div class="form-options">
-                  <el-checkbox v-model="form.remember">记住我</el-checkbox>
-                </div>
-
-                <el-form-item>
-                  <el-button
-                    type="primary"
-                    :loading="loading"
-                    class="login-btn"
-                    @click="handleLogin"
-                  >
-                    <el-icon v-if="!loading" :size="18"><ArrowRight /></el-icon>
-                    登 录
-                  </el-button>
-                </el-form-item>
-              </el-form>
-            </el-tab-pane>
-          </el-tabs>
+                <el-icon v-if="!loading" :size="18"><ArrowRight /></el-icon>
+                登 录
+              </el-button>
+            </el-form-item>
+          </el-form>
 
           <div class="login-footer">
             <el-alert
@@ -189,13 +171,12 @@ onUnmounted(() => {
               type="info"
               :closable="false"
               show-icon
-              class="demo-account"
             />
           </div>
-        </el-card>
 
-        <div class="copyright">
-          © 2025 Solo Platform · Powered by Vue 3 + Spring Boot
+          <div class="copyright">
+            © 2025 Solo Platform · All rights reserved.
+          </div>
         </div>
       </div>
     </div>
@@ -204,273 +185,270 @@ onUnmounted(() => {
 
 <style scoped>
 .login-wrapper {
-  position: relative;
   display: flex;
-  align-items: stretch;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   height: 100vh;
+  background: #e8eaf0;
   overflow: hidden;
 }
 
-.particles-bg {
+/* ===== 居中卡片（书本效果） ===== */
+.book-container {
+  width: 960px;
+  max-width: calc(100vw - 40px);
+  height: 600px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow:
+    0 20px 60px rgba(0, 0, 0, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+/* ===== 左屏 ===== */
+.login-brand {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%);
+  overflow: hidden;
+}
+
+.deco-circle {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.deco-circle-1 {
+  width: 500px;
+  height: 500px;
+  top: -200px;
+  right: -200px;
+  animation: spin-slow 30s linear infinite;
+}
+
+.deco-circle-2 {
+  width: 350px;
+  height: 350px;
+  bottom: -100px;
+  left: -100px;
+  animation: spin-slow 25s linear infinite reverse;
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.particles {
   position: absolute;
   inset: 0;
-  z-index: 0;
   pointer-events: none;
 }
 
 .particle {
   position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  background: rgba(102, 126, 234, 0.5);
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  animation: float linear infinite;
+  animation: float-up linear infinite;
 }
 
-@keyframes float {
-  0% { transform: translateY(0) rotate(0deg); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(-100vh) rotate(720deg); opacity: 0; }
+@keyframes float-up {
+  0% {
+    transform: translateY(0) scale(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(-80%) scale(1);
+  }
+  90% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translateY(-110%) scale(0.5);
+    opacity: 0;
+  }
 }
 
-.glow {
+.bottom-line {
   position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-  pointer-events: none;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #667eea);
+  background-size: 300% 100%;
+  animation: gradient-move 6s linear infinite;
 }
 
-.glow-1 {
-  width: 500px;
-  height: 500px;
-  background: rgba(102, 126, 234, 0.3);
-  top: -150px;
-  right: -100px;
-  animation: pulse-glow 6s ease-in-out infinite alternate;
-}
-
-.glow-2 {
-  width: 400px;
-  height: 400px;
-  background: rgba(118, 75, 162, 0.25);
-  bottom: -100px;
-  left: -50px;
-  animation: pulse-glow 8s ease-in-out infinite alternate-reverse;
-}
-
-.glow-3 {
-  width: 300px;
-  height: 300px;
-  background: rgba(72, 187, 120, 0.2);
-  top: 50%;
-  left: 40%;
-  animation: pulse-glow 7s ease-in-out infinite alternate;
-}
-
-@keyframes pulse-glow {
-  0% { transform: scale(1); opacity: 0.5; }
-  100% { transform: scale(1.3); opacity: 0.8; }
-}
-
-.login-body {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  width: 100%;
-  height: 100%;
-}
-
-.login-brand {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 60px;
-  background: linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%);
-  backdrop-filter: blur(10px);
-  position: relative;
-  overflow: hidden;
-}
-
-.login-brand::before {
-  content: '';
-  position: absolute;
-  width: 600px;
-  height: 600px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  top: -200px;
-  left: -200px;
-}
-
-.login-brand::after {
-  content: '';
-  position: absolute;
-  width: 400px;
-  height: 400px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.03);
-  bottom: -100px;
-  right: -100px;
+@keyframes gradient-move {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
 }
 
 .brand-content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   text-align: center;
   color: #fff;
+  padding: 32px;
 }
 
 .brand-logo svg {
-  width: 100px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   margin-bottom: 24px;
-  filter: drop-shadow(0 4px 20px rgba(0, 0, 0, 0.2));
+  filter: drop-shadow(0 4px 20px rgba(102, 126, 234, 0.3));
+  animation: logo-float 3s ease-in-out infinite alternate;
+}
+
+@keyframes logo-float {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(-8px); }
 }
 
 .brand-title {
-  font-size: 36px;
-  font-weight: 800;
-  margin: 0 0 12px;
-  letter-spacing: 2px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-size: 26px;
+  font-weight: 700;
+  margin: 0 0 10px;
+  letter-spacing: 3px;
 }
 
 .brand-desc {
+  font-size: 13px;
+  opacity: 0.5;
+  margin: 0 0 36px;
+  line-height: 1.8;
+  white-space: pre-line;
+}
+
+.brand-stats {
+  display: flex;
+  gap: 28px;
+  justify-content: center;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
   font-size: 16px;
-  opacity: 0.85;
-  margin: 0 0 40px;
-  line-height: 1.6;
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, #667eea, #f093fb);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
-.brand-features {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  max-width: 400px;
-  margin: 0 auto;
+.stat-label {
+  font-size: 11px;
+  opacity: 0.4;
+  margin-top: 4px;
 }
 
-.feature-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.12);
-  border-radius: 12px;
-  backdrop-filter: blur(4px);
-  font-size: 14px;
-  transition: all 0.3s;
-}
-
-.feature-item:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: translateY(-2px);
-}
-
+/* ===== 右屏 ===== */
 .login-form-area {
-  width: 520px;
-  min-width: 480px;
+  flex: 1;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 40px;
-  background: #f7f8fc;
+  background: #fff;
 }
 
-.login-card {
+.form-inner {
   width: 100%;
-  max-width: 400px;
-  border: none;
-  border-radius: 20px;
-  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.08);
+  max-width: 320px;
 }
 
-:deep(.el-card__body) {
-  padding: 40px 32px 24px;
-}
-
-.login-header {
+.form-header {
   text-align: center;
-  margin-bottom: 28px;
+  margin-bottom: 32px;
 }
 
-.login-title {
-  font-size: 28px;
+.form-logo {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 16px;
+}
+
+.form-title {
+  font-size: 22px;
   font-weight: 700;
   color: #1a1a2e;
-  margin: 0 0 8px;
+  margin: 0 0 6px;
 }
 
-.login-subtitle {
-  font-size: 14px;
+.form-subtitle {
+  font-size: 13px;
   color: #909399;
   margin: 0;
 }
 
-.login-tabs {
-  margin-top: 8px;
-}
-
 .form-options {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 8px;
 }
 
 .login-btn {
   width: 100%;
-  height: 48px;
-  font-size: 16px;
+  height: 44px;
+  font-size: 15px;
   letter-spacing: 8px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: none;
   transition: all 0.3s;
 }
 
 .login-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.45);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.35);
 }
 
 .login-footer {
   margin-top: 20px;
 }
 
-.demo-account {
-  margin: 0;
-}
-
-:deep(.demo-account .el-alert__content) {
-  font-size: 13px;
+:deep(.login-footer .el-alert__content) {
+  font-size: 12px;
 }
 
 .copyright {
-  margin-top: 32px;
+  margin-top: 28px;
   text-align: center;
-  color: #c0c4cc;
-  font-size: 12px;
-  letter-spacing: 1px;
+  color: #d0d0d0;
+  font-size: 11px;
+  letter-spacing: 0.5px;
 }
 
+/* ===== 响应式 ===== */
 @media (max-width: 1024px) {
+  .book-container {
+    flex-direction: column;
+    width: calc(100vw - 32px);
+    height: auto;
+    max-height: 90vh;
+  }
+
   .login-brand {
     display: none;
   }
 
   .login-form-area {
-    width: 100%;
-    min-width: unset;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  }
-
-  .login-card {
-    background: rgba(255, 255, 255, 0.95);
-    backdrop-filter: blur(10px);
+    flex: 1;
+    padding: 40px 24px;
   }
 }
 </style>
