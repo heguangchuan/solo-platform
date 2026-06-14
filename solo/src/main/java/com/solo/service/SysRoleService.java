@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.entity.SysRole;
 import com.solo.request.RolePageRequest;
+import com.solo.request.RoleRequest;
 
 /**
  * 系统角色服务接口
