@@ -58,6 +58,14 @@ public class AuthController {
     }
 
     /**
+     * 获取当前用户权限编码列表
+     */
+    @GetMapping("/permissions")
+    public Result<List<String>> permissions() {
+        return Result.success(sysUserService.getPermissionCodes(UserHolderUtils.getCurrentUserId()));
+    }
+
+    /**
      * 获取系统统计信息
      *
      * @return 包含用户、角色、权限总数的响应

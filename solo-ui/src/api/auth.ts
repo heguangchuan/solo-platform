@@ -9,6 +9,10 @@ export function getAuthMenusApi() {
   return get<UserAuthResponse[]>('/auth/me')
 }
 
+export function getAuthPermissionsApi() {
+  return get<string[]>('/auth/permissions')
+}
+
 export function getStatsApi() {
   return get<StatResponse>('/auth/stats')
 }

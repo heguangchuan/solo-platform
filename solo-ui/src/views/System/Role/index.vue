@@ -129,7 +129,7 @@ onMounted(() => {
           <el-input v-model="searchForm.roleName" placeholder="请输入角色名称" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button v-permission="'system:role:list'" type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -139,7 +139,7 @@ onMounted(() => {
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>角色列表</span>
-          <el-button type="primary" @click="handleAdd">新增角色</el-button>
+          <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增角色</el-button>
         </div>
       </template>
 
@@ -158,8 +158,8 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:role:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:role:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

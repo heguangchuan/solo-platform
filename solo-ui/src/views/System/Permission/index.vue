@@ -145,7 +145,7 @@ onMounted(() => {
       <template #header>
         <div style="display: flex; justify-content: space-between; align-items: center">
           <span>权限管理</span>
-          <el-button type="primary" @click="handleAdd()">新增顶级权限</el-button>
+          <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增顶级权限</el-button>
         </div>
       </template>
 
@@ -191,9 +191,9 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="success" link @click="handleAdd(row.id)">添加子项</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:permission:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:permission:add'" type="success" link @click="handleAdd(row.id)">添加子项</el-button>
+            <el-button v-permission="'system:permission:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

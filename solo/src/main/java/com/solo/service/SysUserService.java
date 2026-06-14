@@ -54,6 +54,11 @@ public interface SysUserService extends IService<SysUser> {
     void updateUser(Long id, UserRequest request);
 
     /**
+     * 切换用户状态
+     */
+    void switchStatus(Long id, Integer status);
+
+    /**
      * 删除用户及关联角色关系
      */
     void deleteUser(Long id);

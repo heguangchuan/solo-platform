@@ -2,7 +2,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { loginApi, getAuthMenusApi } from '@/api/auth'
+import { loginApi, getAuthMenusApi, getAuthPermissionsApi } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import { dynamicRouteConfig } from '@/router'
 
@@ -32,11 +32,15 @@ async function handleLogin() {
     const loginRes = await loginApi(form)
     userStore.loginSuccess(loginRes.data)
 
-    const menuRes = await getAuthMenusApi()
+    const [menuRes, permissionRes] = await Promise.all([
+      getAuthMenusApi(),
+      getAuthPermissionsApi(),
+    ])
     const menus = menuRes.data
     if (menus?.length) {
       dynamicRouteConfig.registerAll(menus)
     }
+    userStore.setPermissions(permissionRes.data)
 
     ElMessage.success('欢迎回来')
     router.push('/')
