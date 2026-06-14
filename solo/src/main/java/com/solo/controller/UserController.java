@@ -53,6 +53,16 @@ public class UserController {
     }
 
     /**
+     * 切换用户状态
+     */
+    @PutMapping("/{id}/status/{status}")
+    @RequirePermission({"system:user:switch"})
+    public Result<Void> switchStatus(@PathVariable Long id, @PathVariable Integer status) {
+        sysUserService.switchStatus(id, status);
+        return Result.success();
+    }
+
+    /**
      * 删除用户
      */
     @DeleteMapping("/{id}")

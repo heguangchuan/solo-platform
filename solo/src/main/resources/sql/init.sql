@@ -93,7 +93,8 @@ INSERT INTO sys_permission (permission_name, permission_code, type, parent_id, s
 ('用户查询', 'system:user:list', 2, 2, 1),
 ('用户新增', 'system:user:add', 2, 2, 2),
 ('用户编辑', 'system:user:edit', 2, 2, 3),
-('用户删除', 'system:user:delete', 2, 2, 4);
+('用户删除', 'system:user:delete', 2, 2, 4),
+('用户启停', 'system:user:switch', 2, 2, 5);
 
 -- 角色管理按钮权限
 INSERT INTO sys_permission (permission_name, permission_code, type, parent_id, sort) VALUES

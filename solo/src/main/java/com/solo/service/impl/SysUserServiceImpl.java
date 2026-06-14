@@ -115,6 +115,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    public void switchStatus(Long id, Integer status) {
+        SysUser user = getById(id);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        user.setStatus(status);
+        updateById(user);
+    }
+
+    @Override
     public void deleteUser(Long id) {
         removeById(id);
     }

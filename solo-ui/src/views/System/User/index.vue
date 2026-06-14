@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysUser, UserRequest, UserPageRequest } from '@/types/api'
-import { getUserPageApi, addUserApi, deleteUserApi } from '@/api/user'
+import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi } from '@/api/user'
 
 const loading = ref(false)
 const tableData = ref<SysUser[]>([])
@@ -10,14 +10,14 @@ const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
 
-// 搜索表单
 const searchForm = ref<UserPageRequest>({ page: 1, pageSize: 10 })
 
-// 对话框
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref()
+const avatarPreview = ref('')
 const form = ref<UserRequest>({
+  username: '',
   nickname: '',
   email: '',
   phone: '',
@@ -26,6 +26,7 @@ const form = ref<UserRequest>({
 })
 
 const rules = {
+  username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   nickname: [{ required: true, message: '请输入昵称', trigger: 'blur' }],
   email: [
     { required: true, message: '请输入邮箱', trigger: 'blur' },
@@ -68,21 +69,29 @@ function handleSizeChange(size: number) {
   fetchData()
 }
 
-function handleAdd() {
-  dialogTitle.value = '新增用户'
+function resetForm() {
+  avatarPreview.value = ''
   form.value = {
+    username: '',
     nickname: '',
     email: '',
     phone: '',
     avatar: '',
     status: 1,
   }
+}
+
+function handleAdd() {
+  dialogTitle.value = '新增用户'
+  resetForm()
   dialogVisible.value = true
 }
 
 function handleEdit(row: SysUser) {
   dialogTitle.value = '编辑用户'
+  avatarPreview.value = row.avatar
   form.value = {
+    username: row.username,
     nickname: row.nickname,
     email: row.email,
     phone: row.phone,
@@ -92,18 +101,37 @@ function handleEdit(row: SysUser) {
   dialogVisible.value = true
 }
 
+function handleAvatarSelect(file: any) {
+  avatarPreview.value = URL.createObjectURL(file.raw)
+  return false
+}
+
 async function handleConfirm() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
 
   try {
     if (dialogTitle.value === '新增用户') {
-      await addUserApi({ ...form.value, username: '' })
+      await addUserApi(form.value)
     } else {
-      // 编辑逻辑需要根据实际业务调整
+      const current = tableData.value.find((item) => item.username === form.value.username)
+      if (current) {
+        await editUserApi(current.id, form.value)
+      }
     }
     ElMessage.success('操作成功')
     dialogVisible.value = false
+    fetchData()
+  } catch {
+    // handled
+  }
+}
+
+async function handleToggleStatus(row: SysUser) {
+  const nextStatus = row.status === 1 ? 0 : 1
+  try {
+    await switchUserStatusApi(row.id, nextStatus)
+    ElMessage.success(nextStatus === 1 ? '已启用' : '已禁用')
     fetchData()
   } catch {
     // handled
@@ -135,7 +163,6 @@ onMounted(() => {
 
 <template>
   <div>
-    <!-- 搜索栏 -->
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="用户名">
@@ -151,18 +178,17 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button v-permission="'system:user:list'" type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <!-- 表格 -->
     <el-card shadow="hover" style="margin-top: 16px">
       <template #header>
-        <div style="display: flex; justify-content: space-between; align-items: center">
+        <div class="card-header">
           <span>用户列表</span>
-          <el-button type="primary" @click="handleAdd">新增用户</el-button>
+          <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">新增用户</el-button>
         </div>
       </template>
 
@@ -180,10 +206,18 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:user:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button
+              v-permission="'system:user:switch'"
+              :type="row.status === 1 ? 'warning' : 'success'"
+              link
+              @click="handleToggleStatus(row)"
+            >
+              {{ row.status === 1 ? '禁用' : '启用' }}
+            </el-button>
+            <el-button v-permission="'system:user:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -200,29 +234,48 @@ onMounted(() => {
       />
     </el-card>
 
-    <!-- 新增/编辑对话框 -->
     <el-dialog
       v-model="dialogVisible"
       :title="dialogTitle"
-      width="500px"
+      width="680px"
+      destroy-on-close
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="form.nickname" placeholder="请输入昵称" />
-        </el-form-item>
-        <el-form-item label="邮箱" prop="email">
-          <el-input v-model="form.email" placeholder="请输入邮箱" />
-        </el-form-item>
-        <el-form-item label="手机号">
-          <el-input v-model="form.phone" placeholder="请输入手机号" />
-        </el-form-item>
-        <el-form-item label="头像URL">
-          <el-input v-model="form.avatar" placeholder="请输入头像地址" />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-      </el-form>
+      <div class="user-form-layout">
+        <div class="avatar-panel">
+          <el-upload
+            class="avatar-uploader"
+            action="#"
+            :show-file-list="false"
+            :before-upload="handleAvatarSelect"
+          >
+            <div class="avatar-box">
+              <el-avatar v-if="avatarPreview" :size="88" :src="avatarPreview" />
+              <el-icon v-else class="avatar-placeholder"><Plus /></el-icon>
+            </div>
+          </el-upload>
+          <div class="avatar-title">用户头像</div>
+          <div class="avatar-tip">点击上传头像，当前仅展示样式</div>
+        </div>
+
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="86px" class="user-form">
+          <el-form-item label="账号" prop="username">
+            <el-input
+              v-model="form.username"
+              placeholder="请输入登录账号"
+              :disabled="dialogTitle === '编辑用户'"
+            />
+          </el-form-item>
+          <el-form-item label="昵称" prop="nickname">
+            <el-input v-model="form.nickname" placeholder="请输入用户昵称" />
+          </el-form-item>
+          <el-form-item label="邮箱" prop="email">
+            <el-input v-model="form.email" placeholder="请输入邮箱地址" />
+          </el-form-item>
+          <el-form-item label="手机号">
+            <el-input v-model="form.phone" placeholder="请输入手机号码" />
+          </el-form-item>
+        </el-form>
+      </div>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleConfirm">确定</el-button>
@@ -236,9 +289,76 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .pagination {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.user-form-layout {
+  display: flex;
+  gap: 32px;
+  padding: 8px 4px 0;
+}
+
+.avatar-panel {
+  width: 180px;
+  padding: 24px 20px;
+  border-radius: 12px;
+  background: #f7f8fb;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.avatar-uploader {
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-box {
+  width: 104px;
+  height: 104px;
+  border: 1px dashed #c8d0dd;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.avatar-box:hover {
+  border-color: #409eff;
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.12);
+}
+
+.avatar-placeholder {
+  font-size: 28px;
+  color: #9aa6b2;
+}
+
+.avatar-title {
+  margin-top: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.avatar-tip {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #909399;
+}
+
+.user-form {
+  flex: 1;
+  padding-right: 8px;
 }
 </style>

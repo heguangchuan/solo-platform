@@ -22,6 +22,10 @@ export function editUserApi(id: number, data: UserRequest) {
   return put<void>(`/system/user/${id}`, data)
 }
 
+export function switchUserStatusApi(id: number, status: number) {
+  return put<void>(`/system/user/${id}/status/${status}`)
+}
+
 /**
  * 删除用户
  */
