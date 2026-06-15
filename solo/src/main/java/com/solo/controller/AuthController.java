@@ -1,6 +1,8 @@
 package com.solo.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.BusinessType;
 import com.solo.common.Result;
 import com.solo.request.LoginRequest;
 import com.solo.response.LoginResponse;
@@ -37,6 +39,7 @@ public class AuthController {
      * @return 包含Token和用户信息的响应
      */
     @PostMapping("/login")
+    @OperationLog(module = "登录认证", type = BusinessType.LOGIN, description = "用户登录", recordParam = false)
     public Result<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         return sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword());
     }

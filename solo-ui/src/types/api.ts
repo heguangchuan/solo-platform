@@ -260,3 +260,40 @@ export interface SysDictData {
   createTime: string
   updateTime: string
 }
+
+// ==================== 操作日志 ====================
+
+export interface LogPageRequest {
+  page?: number
+  pageSize?: number
+  operatorName?: string
+  module?: string
+  businessType?: string
+  responseStatus?: number
+  clientSource?: string
+  startTime?: string
+  endTime?: string
+}
+
+export interface LogExportRequest extends LogPageRequest {
+  ids?: string[]
+}
+
+export interface SysLog {
+  id: string
+  module: string
+  businessType: string
+  description: string
+  requestMethod: string
+  requestUrl: string
+  requestParam: string
+  responseStatus: number
+  errorMsg: string
+  costMs: number
+  operatorId: string
+  operatorName: string
+  clientSource: string
+  clientIp: string
+  userAgent: string
+  createTime: string
+}

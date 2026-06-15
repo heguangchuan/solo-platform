@@ -1,7 +1,9 @@
 package com.solo.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.SysDictData;
@@ -40,6 +42,7 @@ public class DictDataController {
 
     @PostMapping
     @RequirePermission({"system:dict:data:add"})
+    @OperationLog(module = "字典数据", type = BusinessType.ADD, description = "新增字典数据")
     public Result<Void> save(@RequestBody DictDataRequest request) {
         sysDictDataService.createDictData(request);
         return Result.success();
@@ -47,6 +50,7 @@ public class DictDataController {
 
     @PutMapping("/{id}")
     @RequirePermission({"system:dict:data:edit"})
+    @OperationLog(module = "字典数据", type = BusinessType.EDIT, description = "修改字典数据")
     public Result<Void> update(@PathVariable Long id, @RequestBody DictDataRequest request) {
         sysDictDataService.updateDictData(id, request);
         return Result.success();
@@ -54,6 +58,7 @@ public class DictDataController {
 
     @DeleteMapping("/batch")
     @RequirePermission({"system:dict:data:delete"})
+    @OperationLog(module = "字典数据", type = BusinessType.DELETE, description = "批量删除字典数据")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         sysDictDataService.deleteBatch(ids);
         return Result.success();
@@ -61,6 +66,7 @@ public class DictDataController {
 
     @DeleteMapping("/{id}")
     @RequirePermission({"system:dict:data:delete"})
+    @OperationLog(module = "字典数据", type = BusinessType.DELETE, description = "删除字典数据")
     public Result<Void> delete(@PathVariable Long id) {
         sysDictDataService.deleteDictData(id);
         return Result.success();

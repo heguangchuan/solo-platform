@@ -82,7 +82,11 @@ insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`ty
 (39,'字典数据查询','system:dict:data:list',NULL,2,29,5,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (40,'字典数据新增','system:dict:data:add',NULL,2,29,6,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (41,'字典数据编辑','system:dict:data:edit',NULL,2,29,7,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(42,'字典数据删除','system:dict:data:delete',NULL,2,29,8,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02');
+(42,'字典数据删除','system:dict:data:delete',NULL,2,29,8,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(43,'日志管理','system:log','/system/log',1,1,4,'el-icon-document',1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
+(44,'日志查询','system:log:list',NULL,2,43,1,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
+(45,'日志删除','system:log:delete',NULL,2,43,2,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
+(46,'日志导出','system:log:export',NULL,2,43,3,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00');
 
 /*Table structure for table `sys_role` */
 
@@ -166,7 +170,11 @@ insert  into `sys_role_permission`(`id`,`role_id`,`permission_id`) values
 (53,1,39),
 (54,1,40),
 (55,1,41),
-(56,1,42);
+(56,1,42),
+(57,1,43),
+(58,1,44),
+(59,1,45),
+(60,1,46);
 
 /*Table structure for table `sys_user` */
 
@@ -251,6 +259,33 @@ CREATE TABLE `sys_dict_data` (
   PRIMARY KEY (`id`),
   KEY `idx_dict_type` (`dict_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='字典数据表';
+
+/*Table structure for table `sys_log` */
+
+DROP TABLE IF EXISTS `sys_log`;
+
+CREATE TABLE `sys_log` (
+  `id` bigint NOT NULL COMMENT '日志ID',
+  `module` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '模块名',
+  `business_type` varchar(16) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '业务类型: ADD/EDIT/DELETE/EXPORT/IMPORT/LOGIN/LOGOUT/OTHER',
+  `description` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '操作描述',
+  `request_method` varchar(8) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'HTTP方法',
+  `request_url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '请求URL',
+  `request_param` text COLLATE utf8mb4_unicode_ci COMMENT '请求参数JSON',
+  `response_status` tinyint NOT NULL DEFAULT '1' COMMENT '响应状态: 0失败 1成功',
+  `error_msg` varchar(2000) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '错误信息',
+  `cost_ms` bigint DEFAULT NULL COMMENT '耗时(毫秒)',
+  `operator_id` bigint DEFAULT NULL COMMENT '操作人ID',
+  `operator_name` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '操作人用户名',
+  `client_source` varchar(16) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '客户端来源: web/app/...',
+  `client_ip` varchar(64) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '客户端IP',
+  `user_agent` varchar(500) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'User-Agent',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '操作时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_create_time` (`create_time`),
+  KEY `idx_operator_name` (`operator_name`),
+  KEY `idx_module_type` (`module`,`business_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
 
 /*Table structure for table `sys_user_role` */
 

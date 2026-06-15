@@ -11,6 +11,7 @@ const menuRouteComponents: Record<string, any> = {
   SystemPermission: () => import('@/views/System/Permission/index.vue'),
   SystemConfig: () => import('@/views/System/Config/index.vue'),
   SystemDict: () => import('@/views/System/Dict/index.vue'),
+  SystemLog: () => import('@/views/System/Log/index.vue'),
 }
 
 function generateRouteName(path: string): string {
