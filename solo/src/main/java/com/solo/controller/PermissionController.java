@@ -97,13 +97,15 @@ public class PermissionController {
     /**
      * 获取权限树形结构
      *
+     * @param type 可选的权限类型过滤（1菜单 / 2按钮 / 3接口），不传则返回全量
      * @return 权限树
      */
     @GetMapping("/tree")
     @RequirePermission({"system:permission:list"})
-    public Result<List<SysPermission>> getTree() {
+    public Result<List<SysPermission>> getTree(@RequestParam(required = false) Integer type) {
         List<SysPermission> all = sysPermissionService.list(
                 new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<SysPermission>()
+                        .eq(type != null, SysPermission::getType, type)
                         .orderByAsc(SysPermission::getSort));
         return Result.success(sysPermissionService.buildTree(all, 0L));
     }

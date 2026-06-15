@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { SysPermission, PermissionRequest } from '@/types/api'
-import { getPermissionTreeApi, addPermissionApi, editPermissionApi, deletePermissionApi, deletePermissionBatchApi, exportPermissionApi } from '@/api/permission'
+import {
+  getPermissionTreeApi,
+  addPermissionApi,
+  editPermissionApi,
+  deletePermissionApi,
+  deletePermissionBatchApi,
+  exportPermissionApi,
+} from '@/api/permission'
 import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
@@ -35,31 +42,39 @@ const typeLabelMap: Record<number, string> = {
   3: '接口',
 }
 
-// 所有权限（一维列表，用于上级选择器）
-const allPermissions = ref<SysPermission[]>([])
+// 菜单级别权限树（用于"上级权限"选择器）
+const menuTree = ref<SysPermission[]>([])
+
+// 上级权限的树形数据，前面挂一个"顶级权限"的虚拟根节点
+const parentTreeData = computed(() => {
+  return [
+    {
+      id: 0 as unknown as string,
+      permissionName: '顶级权限',
+      permissionCode: '',
+      url: '',
+      type: 0,
+      parentId: -1 as unknown as string,
+      sort: 0,
+      icon: '',
+      status: 1,
+      children: menuTree.value,
+    } as unknown as SysPermission,
+  ]
+})
 
 // 记录正在编辑的行 id
 const editingId = ref<string>('')
 
-// 收集所有权限为一维列表（供上级选择器用）
-function flattenTree(nodes: SysPermission[]): SysPermission[] {
-  const result: SysPermission[] = []
-  function walk(list: SysPermission[]) {
-    list.forEach((node) => {
-      result.push(node)
-      if (node.children?.length) walk(node.children)
-    })
-  }
-  walk(nodes)
-  return result
-}
-
 async function fetchData() {
   loading.value = true
   try {
-    const res = await getPermissionTreeApi()
-    treeData.value = res.data
-    allPermissions.value = flattenTree(res.data)
+    const [treeRes, menuRes] = await Promise.all([
+      getPermissionTreeApi(),
+      getPermissionTreeApi(1),
+    ])
+    treeData.value = treeRes.data
+    menuTree.value = menuRes.data
   } catch {
     // handled
   } finally {
@@ -253,21 +268,17 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="上级权限">
-          <el-select
+          <el-tree-select
             v-model="form.parentId"
+            :data="parentTreeData"
+            :props="{ label: 'permissionName', value: 'id', children: 'children' }"
+            node-key="id"
             placeholder="请选择上级权限"
-            clearable
+            check-strictly
+            default-expand-all
             filterable
             style="width: 100%"
-          >
-            <el-option label="顶级权限" :value="0" />
-            <el-option
-              v-for="item in allPermissions"
-              :key="item.id"
-              :label="item.permissionName"
-              :value="item.id"
-            />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="图标">
           <el-input v-model="form.icon" placeholder="Element Plus 图标名" />
