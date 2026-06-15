@@ -66,6 +66,12 @@ public class SysPermission {
     private Integer status;
 
     /**
+     * 逻辑删除标识：0-未删除，1-已删除
+     */
+    @TableLogic
+    private Integer deleted;
+
+    /**
      * 创建时间，插入时自动填充
      */
     @TableField(fill = FieldFill.INSERT)
