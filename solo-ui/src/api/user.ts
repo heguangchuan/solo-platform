@@ -1,5 +1,5 @@
 import type { SysUser, UserPageRequest, UserRequest, PageResult } from '@/types/api'
-import { post, put, del } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 import service from '@/utils/request'
 
 /**
@@ -40,4 +40,18 @@ export function deleteUserApi(id: string) {
 
 export function deleteUserBatchApi(ids: string[]) {
   return del<void>('/system/user/batch', { data: ids })
+}
+
+/**
+ * 查询用户已分配的角色ID列表
+ */
+export function getUserAssignedRolesApi(userId: string) {
+  return get<string[]>(`/system/user/r2u/${userId}`)
+}
+
+/**
+ * 给用户分配角色
+ */
+export function assignUserRolesApi(userId: string, roleIds: string[]) {
+  return post<void>('/system/user/r2u', { userId, roleIds })
 }

@@ -7,7 +7,9 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.common.SystemConstants;
 import com.solo.entity.SysUser;
+import com.solo.entity.SysUserRole;
 import com.solo.mapper.SysUserMapper;
+import com.solo.mapper.SysUserRoleMapper;
 import com.solo.request.UserPageRequest;
 import com.solo.request.UserRequest;
 import com.solo.response.LoginResponse;
@@ -17,9 +19,11 @@ import com.solo.service.SysUserService;
 import com.solo.utils.JwtUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,6 +35,7 @@ import java.util.List;
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
 
     private final JwtUtils jwtUtils;
+    private final SysUserRoleMapper sysUserRoleMapper;
 
     @Override
     public SysUser getByUsername(String username) {
@@ -126,12 +131,43 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public void deleteUser(Long id) {
+        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
         removeById(id);
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
+        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, ids));
         removeByIds(ids);
+    }
+
+    @Override
+    public List<Long> listRoleIds(Long userId) {
+        if (userId == null) return new ArrayList<>();
+        List<SysUserRole> list = sysUserRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        return list.stream().map(SysUserRole::getRoleId).toList();
+    }
+
+    @Override
+    @Transactional
+    public void assignRoles(Long userId, List<Long> roleIds) {
+        if (userId == null) {
+            throw new ServiceException("用户ID不能为空");
+        }
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
+        if (roleIds == null || roleIds.isEmpty()) return;
+        for (Long roleId : roleIds) {
+            if (roleId == null) continue;
+            SysUserRole entry = new SysUserRole();
+            entry.setUserId(userId);
+            entry.setRoleId(roleId);
+            sysUserRoleMapper.insert(entry);
+        }
     }
 
     @Override

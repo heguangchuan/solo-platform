@@ -1,5 +1,5 @@
 import type { SysRole, RolePageRequest, RoleRequest, PageResult } from '@/types/api'
-import { post, put, del } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 import service from '@/utils/request'
 
 /**
@@ -7,6 +7,13 @@ import service from '@/utils/request'
  */
 export function getRolePageApi(data: RolePageRequest) {
   return post<PageResult<SysRole>>('/system/role/page', data)
+}
+
+/**
+ * 获取全部启用角色（用于授权选择）
+ */
+export function getRoleListApi() {
+  return get<SysRole[]>('/system/role/list')
 }
 
 export function exportRoleApi(data: RolePageRequest & { ids?: string[] }) {

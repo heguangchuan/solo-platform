@@ -8,6 +8,7 @@ import com.solo.entity.SysUser;
 import com.solo.request.UserExportRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.request.UserRequest;
+import com.solo.request.UserRoleAssignRequest;
 import com.solo.response.UserExcelResponse;
 import com.solo.service.SysUserService;
 import com.solo.utils.ExcelUtils;
@@ -121,6 +122,25 @@ public class UserController {
     @RequirePermission({"system:user:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         sysUserService.deleteUser(id);
+        return Result.success();
+    }
+
+    /**
+     * 查询用户已分配的角色ID列表
+     */
+    @GetMapping("/r2u/{userId}")
+    @RequirePermission({"system:user:r2u"})
+    public Result<List<Long>> listAssignedRoles(@PathVariable Long userId) {
+        return Result.success(sysUserService.listRoleIds(userId));
+    }
+
+    /**
+     * 给用户分配角色
+     */
+    @PostMapping("/r2u")
+    @RequirePermission({"system:user:r2u"})
+    public Result<Void> assignRoles(@RequestBody UserRoleAssignRequest request) {
+        sysUserService.assignRoles(request.getUserId(), request.getRoleIds());
         return Result.success();
     }
 }
