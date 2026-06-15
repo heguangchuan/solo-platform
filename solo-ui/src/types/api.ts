@@ -174,3 +174,89 @@ export interface SysPermission {
   status: number
   children?: SysPermission[]
 }
+
+// ==================== 系统参数 ====================
+
+export interface ConfigPageRequest {
+  page?: number
+  pageSize?: number
+  configName?: string
+  configKey?: string
+}
+
+export interface ConfigRequest {
+  configName: string
+  configKey: string
+  configValue: string
+  configType?: number
+  remark?: string
+}
+
+export interface SysConfig {
+  id: string
+  configName: string
+  configKey: string
+  configValue: string
+  configType: number
+  remark: string
+  createTime: string
+  updateTime: string
+}
+
+// ==================== 字典管理 ====================
+
+export interface DictTypePageRequest {
+  page?: number
+  pageSize?: number
+  dictName?: string
+  dictType?: string
+  status?: number
+}
+
+export interface DictTypeRequest {
+  dictName: string
+  dictType: string
+  status: number
+  remark?: string
+}
+
+export interface SysDictType {
+  id: string
+  dictName: string
+  dictType: string
+  status: number
+  remark: string
+  createTime: string
+  updateTime: string
+}
+
+export interface DictDataPageRequest {
+  page?: number
+  pageSize?: number
+  dictType?: string
+  dictLabel?: string
+  status?: number
+}
+
+export interface DictDataRequest {
+  dictType: string
+  dictLabel: string
+  dictValue: string
+  sort?: number
+  cssClass?: string
+  status: number
+  remark?: string
+}
+
+export interface SysDictData {
+  id: string
+  dictType: string
+  dictLabel: string
+  dictValue: string
+  sort: number
+  cssClass: string
+  status: number
+  remark: string
+  createTime: string
+  updateTime: string
+}

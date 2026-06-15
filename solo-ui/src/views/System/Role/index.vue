@@ -163,18 +163,15 @@ onMounted(() => {
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
-      <template #header>
-        <div class="card-header">
-          <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增</el-button>
-          <el-button v-permission="'system:role:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-          <el-button type="primary">导入</el-button>
-          <el-button v-permission="'system:role:export'" type="primary" @click="handleExport">导出</el-button>
-        </div>
-      </template>
+      <div class="table-toolbar">
+        <el-button v-permission="'system:role:add'" type="primary" size="small" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'system:role:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
+        <el-button type="primary" size="small">导入</el-button>
+        <el-button v-permission="'system:role:export'" type="primary" size="small" @click="handleExport">导出</el-button>
+      </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="roleCode" label="角色编码" width="150" />
         <el-table-column prop="roleName" label="角色名称" width="150" />
         <el-table-column prop="description" label="描述" min-width="200" />
@@ -239,10 +236,11 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
-.card-header {
+.table-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
 .pagination {
