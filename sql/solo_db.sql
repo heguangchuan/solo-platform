@@ -66,7 +66,23 @@ insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`ty
 (23,'用户授权','system:user:r2u',NULL,2,2,5,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (24,'权限新增','system:permission:add','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:02'),
 (25,'权限修改','system:permission:update','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:03'),
-(26,'权限删除','system:permission:delete','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:04');
+(26,'权限删除','system:permission:delete','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:04'),
+(27,'系统设置','setting',NULL,1,0,2,'el-icon-tools',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(28,'参数管理','system:config','/system/config',1,27,1,'el-icon-set-up',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(29,'字典管理','system:dict','/system/dict',1,27,2,'el-icon-collection',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(30,'参数查询','system:config:list',NULL,2,28,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(31,'参数新增','system:config:add',NULL,2,28,2,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(32,'参数编辑','system:config:edit',NULL,2,28,3,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(33,'参数删除','system:config:delete',NULL,2,28,4,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(34,'参数导出','system:config:export',NULL,2,28,5,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(35,'字典类型查询','system:dict:type:list',NULL,2,29,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(36,'字典类型新增','system:dict:type:add',NULL,2,29,2,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(37,'字典类型编辑','system:dict:type:edit',NULL,2,29,3,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(38,'字典类型删除','system:dict:type:delete',NULL,2,29,4,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(39,'字典数据查询','system:dict:data:list',NULL,2,29,5,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(40,'字典数据新增','system:dict:data:add',NULL,2,29,6,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(41,'字典数据编辑','system:dict:data:edit',NULL,2,29,7,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(42,'字典数据删除','system:dict:data:delete',NULL,2,29,8,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02');
 
 /*Table structure for table `sys_role` */
 
@@ -134,7 +150,23 @@ insert  into `sys_role_permission`(`id`,`role_id`,`permission_id`) values
 (19,1,23),
 (20,1,24),
 (39,1,25),
-(40,1,26);
+(40,1,26),
+(41,1,27),
+(42,1,28),
+(43,1,29),
+(44,1,30),
+(45,1,31),
+(46,1,32),
+(47,1,33),
+(48,1,34),
+(49,1,35),
+(50,1,36),
+(51,1,37),
+(52,1,38),
+(53,1,39),
+(54,1,40),
+(55,1,41),
+(56,1,42);
 
 /*Table structure for table `sys_user` */
 
@@ -162,6 +194,63 @@ CREATE TABLE `sys_user` (
 
 insert  into `sys_user`(`id`,`username`,`password`,`nickname`,`email`,`phone`,`avatar`,`status`,`create_time`,`update_time`) values 
 (1,'admin','0192023a7bbd73250516f069df18b500','管理员',NULL,NULL,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02');
+
+/*Table structure for table `sys_config` */
+
+DROP TABLE IF EXISTS `sys_config`;
+
+CREATE TABLE `sys_config` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '参数ID',
+  `config_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数名称',
+  `config_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数键',
+  `config_value` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数值',
+  `config_type` tinyint NOT NULL DEFAULT '0' COMMENT '是否系统内置: 0否 1是',
+  `remark` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
+  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`),
+  KEY `idx_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统参数表';
+
+/*Table structure for table `sys_dict_type` */
+
+DROP TABLE IF EXISTS `sys_dict_type`;
+
+CREATE TABLE `sys_dict_type` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '字典类型ID',
+  `dict_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '字典名称',
+  `dict_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '字典类型编码',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '状态: 0禁用 1启用',
+  `remark` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
+  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_dict_type` (`dict_type`),
+  KEY `idx_dict_type` (`dict_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='字典类型表';
+
+/*Table structure for table `sys_dict_data` */
+
+DROP TABLE IF EXISTS `sys_dict_data`;
+
+CREATE TABLE `sys_dict_data` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '字典数据ID',
+  `dict_type` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '字典类型编码',
+  `dict_label` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '字典标签',
+  `dict_value` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '字典键值',
+  `sort` int NOT NULL DEFAULT '0' COMMENT '排序',
+  `css_class` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '回显样式（如 success/danger/warning/info）',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '状态: 0禁用 1启用',
+  `remark` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
+  `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+  `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_dict_type` (`dict_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='字典数据表';
 
 /*Table structure for table `sys_user_role` */
 

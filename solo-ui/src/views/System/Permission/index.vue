@@ -201,12 +201,10 @@ onMounted(() => {
 <template>
   <div>
     <el-card shadow="hover">
-      <template #header>
-        <div class="card-header">
-          <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
-          <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-        </div>
-      </template>
+      <div class="table-toolbar">
+        <el-button v-permission="'system:permission:add'" type="primary" size="small" @click="handleAdd()">新增</el-button>
+        <el-button v-permission="'system:permission:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
+      </div>
 
       <el-table
         :data="treeData"
@@ -364,10 +362,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.card-header {
+.table-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
 .text-muted { color: #c0c4cc; }

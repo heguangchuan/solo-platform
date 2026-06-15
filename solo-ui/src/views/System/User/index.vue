@@ -260,18 +260,15 @@ onMounted(() => {
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
-      <template #header>
-        <div class="card-header">
-          <el-button v-permission="'system:user:add'" type="primary" @click="handleAdd">新增</el-button>
-          <el-button v-permission="'system:user:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-          <el-button type="primary">导入</el-button>
-          <el-button v-permission="'system:user:export'" type="primary" @click="handleExport">导出</el-button>
-        </div>
-      </template>
+      <div class="table-toolbar">
+        <el-button v-permission="'system:user:add'" type="primary" size="small" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'system:user:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
+        <el-button type="primary" size="small">导入</el-button>
+        <el-button v-permission="'system:user:export'" type="primary" size="small" @click="handleExport">导出</el-button>
+      </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="id" label="ID" width="80" />
         <el-table-column prop="username" label="用户名" width="150" />
         <el-table-column prop="nickname" label="昵称" width="150" />
         <el-table-column prop="email" label="邮箱" min-width="180" />
@@ -392,10 +389,11 @@ onMounted(() => {
   margin-bottom: 0;
 }
 
-.card-header {
+.table-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
 }
 
 .pagination {
