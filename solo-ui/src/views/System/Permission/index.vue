@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import type { SysPermission, PermissionRequest } from '@/types/api'
 import {
   getPermissionTreeApi,
@@ -44,6 +45,23 @@ const typeLabelMap: Record<number, string> = {
 
 // 菜单级别权限树（用于"上级权限"选择器）
 const menuTree = ref<SysPermission[]>([])
+
+// Element Plus 图标列表（kebab-case 名，例如 'el-icon-user' 风格不在 EP 中，这里用 PascalCase 名直接渲染）
+const iconOptions = Object.keys(ElementPlusIconsVue)
+
+const iconPickerVisible = ref(false)
+const iconKeyword = ref('')
+
+const filteredIcons = computed(() => {
+  const kw = iconKeyword.value.trim().toLowerCase()
+  if (!kw) return iconOptions
+  return iconOptions.filter((name) => name.toLowerCase().includes(kw))
+})
+
+function selectIcon(name: string) {
+  form.value.icon = name
+  iconPickerVisible.value = false
+}
 
 // 上级权限的树形数据，前面挂一个"顶级权限"的虚拟根节点
 const parentTreeData = computed(() => {
@@ -281,7 +299,57 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item label="图标">
-          <el-input v-model="form.icon" placeholder="Element Plus 图标名" />
+          <el-popover
+            v-model:visible="iconPickerVisible"
+            placement="bottom-start"
+            :width="380"
+            trigger="click"
+          >
+            <template #reference>
+              <div class="icon-picker-input">
+                <el-input
+                  :model-value="form.icon"
+                  placeholder="请选择图标"
+                  readonly
+                  clearable
+                  @clear="form.icon = ''"
+                >
+                  <template #prefix>
+                    <el-icon v-if="form.icon"><component :is="form.icon" /></el-icon>
+                  </template>
+                  <template #suffix>
+                    <el-icon><ArrowDown /></el-icon>
+                  </template>
+                </el-input>
+              </div>
+            </template>
+            <div class="icon-picker-panel">
+              <el-input
+                v-model="iconKeyword"
+                placeholder="搜索图标"
+                clearable
+                size="small"
+                class="icon-search"
+              >
+                <template #prefix>
+                  <el-icon><Search /></el-icon>
+                </template>
+              </el-input>
+              <div class="icon-grid">
+                <div
+                  v-for="name in filteredIcons"
+                  :key="name"
+                  class="icon-cell"
+                  :class="{ active: form.icon === name }"
+                  :title="name"
+                  @click="selectIcon(name)"
+                >
+                  <el-icon :size="20"><component :is="name" /></el-icon>
+                </div>
+                <div v-if="!filteredIcons.length" class="icon-empty">未找到匹配图标</div>
+              </div>
+            </div>
+          </el-popover>
         </el-form-item>
         <el-form-item label="排序">
           <el-input-number v-model="form.sort" :min="0" controls-position="right" style="width: 100%" />
@@ -306,4 +374,59 @@ onMounted(() => {
 }
 
 .text-muted { color: #c0c4cc; }
+
+.icon-picker-input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.icon-picker-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.icon-search {
+  width: 100%;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 4px;
+}
+
+.icon-cell {
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+  transition: all 0.15s;
+}
+
+.icon-cell:hover {
+  background: var(--el-color-primary-light-9);
+  color: var(--el-color-primary);
+}
+
+.icon-cell.active {
+  background: var(--el-color-primary);
+  color: #fff;
+}
+
+.icon-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 24px 0;
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
 </style>
