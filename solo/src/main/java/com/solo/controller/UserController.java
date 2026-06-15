@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -26,6 +27,8 @@ import java.util.List;
 @RequestMapping("/api/system/user")
 @RequiredArgsConstructor
 public class UserController {
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final SysUserService sysUserService;
 
@@ -67,7 +70,7 @@ public class UserController {
         response.setEmail(user.getEmail());
         response.setPhone(user.getPhone());
         response.setStatus(user.getStatus() != null && user.getStatus() == 1 ? "启用" : "禁用");
-        response.setCreateTime(user.getCreateTime() == null ? null : user.getCreateTime().toString());
+        response.setCreateTime(user.getCreateTime() == null ? null : user.getCreateTime().format(DATE_TIME_FORMATTER));
         return response;
     }
 
