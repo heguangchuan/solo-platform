@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
@@ -26,6 +27,8 @@ import java.util.List;
 @RequestMapping("/api/system/role")
 @RequiredArgsConstructor
 public class RoleController {
+
+    private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final SysRoleService sysRoleService;
 
@@ -66,7 +69,7 @@ public class RoleController {
         response.setRoleName(role.getRoleName());
         response.setDescription(role.getDescription());
         response.setStatus(role.getStatus() != null && role.getStatus() == 1 ? "启用" : "禁用");
-        response.setCreateTime(role.getCreateTime() == null ? null : role.getCreateTime().toString());
+        response.setCreateTime(role.getCreateTime() == null ? null : role.getCreateTime().format(DATE_TIME_FORMATTER));
         return response;
     }
 
