@@ -24,6 +24,7 @@ service.interceptors.request.use(
     if (token && !WHITE_LIST.some((path) => config.url?.startsWith(path))) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    config.headers['X-Client-Source'] = 'web'
     return config
   },
   (error) => {

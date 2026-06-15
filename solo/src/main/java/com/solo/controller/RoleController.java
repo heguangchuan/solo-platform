@@ -1,7 +1,9 @@
 package com.solo.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.SysRole;
@@ -47,6 +49,7 @@ public class RoleController {
      */
     @PostMapping("/export")
     @RequirePermission({"system:role:export"})
+    @OperationLog(module = "角色管理", type = BusinessType.EXPORT, description = "导出角色")
     public void export(@RequestBody RoleExportRequest request, HttpServletResponse response) throws IOException {
         List<SysRole> roles = queryExportRoles(request);
         List<RoleExcelResponse> data = roles.stream().map(this::toExcelResponse).toList();
@@ -78,6 +81,7 @@ public class RoleController {
      */
     @PostMapping
     @RequirePermission({"system:role:add"})
+    @OperationLog(module = "角色管理", type = BusinessType.ADD, description = "新增角色")
     public Result<Void> save(@RequestBody RoleRequest request) {
         sysRoleService.createRole(request);
         return Result.success();
@@ -88,6 +92,7 @@ public class RoleController {
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:role:edit"})
+    @OperationLog(module = "角色管理", type = BusinessType.EDIT, description = "修改角色")
     public Result<Void> update(@PathVariable Long id, @RequestBody RoleRequest request) {
         sysRoleService.updateRole(id, request);
         return Result.success();
@@ -98,6 +103,7 @@ public class RoleController {
      */
     @DeleteMapping("/batch")
     @RequirePermission({"system:role:delete"})
+    @OperationLog(module = "角色管理", type = BusinessType.DELETE, description = "批量删除角色")
     public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
         sysRoleService.deleteBatch(ids);
         return Result.success();
@@ -121,6 +127,7 @@ public class RoleController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:role:delete"})
+    @OperationLog(module = "角色管理", type = BusinessType.DELETE, description = "删除角色")
     public Result<Void> delete(@PathVariable Long id) {
         sysRoleService.deleteRole(id);
         return Result.success();

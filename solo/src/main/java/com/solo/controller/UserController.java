@@ -1,7 +1,9 @@
 package com.solo.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.SysUser;
@@ -48,6 +50,7 @@ public class UserController {
      */
     @PostMapping("/export")
     @RequirePermission({"system:user:export"})
+    @OperationLog(module = "用户管理", type = BusinessType.EXPORT, description = "导出用户")
     public void export(@RequestBody UserExportRequest request, HttpServletResponse response) throws IOException {
         List<SysUser> users = queryExportUsers(request);
         List<UserExcelResponse> data = users.stream().map(this::toExcelResponse).toList();
@@ -80,6 +83,7 @@ public class UserController {
      */
     @PostMapping
     @RequirePermission({"system:user:add"})
+    @OperationLog(module = "用户管理", type = BusinessType.ADD, description = "新增用户")
     public Result<Void> save(@RequestBody UserRequest request) {
         sysUserService.createUser(request);
         return Result.success();
@@ -90,6 +94,7 @@ public class UserController {
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:user:edit"})
+    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "修改用户")
     public Result<Void> update(@PathVariable Long id, @RequestBody UserRequest request) {
         sysUserService.updateUser(id, request);
         return Result.success();
@@ -100,6 +105,7 @@ public class UserController {
      */
     @PutMapping("/{id}/status/{status}")
     @RequirePermission({"system:user:switch"})
+    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "切换用户状态")
     public Result<Void> switchStatus(@PathVariable Long id, @PathVariable Integer status) {
         sysUserService.switchStatus(id, status);
         return Result.success();
@@ -110,6 +116,7 @@ public class UserController {
      */
     @DeleteMapping("/batch")
     @RequirePermission({"system:user:delete"})
+    @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "批量删除用户")
     public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
         sysUserService.deleteBatch(ids);
         return Result.success();
@@ -120,6 +127,7 @@ public class UserController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:user:delete"})
+    @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "删除用户")
     public Result<Void> delete(@PathVariable Long id) {
         sysUserService.deleteUser(id);
         return Result.success();
@@ -139,6 +147,7 @@ public class UserController {
      */
     @PostMapping("/r2u")
     @RequirePermission({"system:user:r2u"})
+    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "用户授权")
     public Result<Void> assignRoles(@RequestBody UserRoleAssignRequest request) {
         sysUserService.assignRoles(request.getUserId(), request.getRoleIds());
         return Result.success();

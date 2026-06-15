@@ -1,6 +1,8 @@
 package com.solo.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.BusinessType;
 import com.solo.common.Result;
 import com.solo.entity.SysPermission;
 import com.solo.request.PermissionExportRequest;
@@ -44,6 +46,7 @@ public class PermissionController {
      */
     @PostMapping("/export")
     @RequirePermission({"system:permission:export"})
+    @OperationLog(module = "权限管理", type = BusinessType.EXPORT, description = "导出权限")
     public void export(@RequestBody PermissionExportRequest request, HttpServletResponse response) throws IOException {
         List<SysPermission> permissions = queryExportPermissions(request);
         List<PermissionExcelResponse> data = permissions.stream().map(this::toExcelResponse).toList();
@@ -88,6 +91,7 @@ public class PermissionController {
      */
     @PostMapping
     @RequirePermission({"system:permission:add"})
+    @OperationLog(module = "权限管理", type = BusinessType.ADD, description = "新增权限")
     public Result<Void> save(@RequestBody PermissionRequest request) {
         sysPermissionService.createPermission(request);
         return Result.success();
@@ -118,6 +122,7 @@ public class PermissionController {
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:permission:edit"})
+    @OperationLog(module = "权限管理", type = BusinessType.EDIT, description = "修改权限")
     public Result<Void> update(@PathVariable Long id, @RequestBody PermissionRequest request) {
         sysPermissionService.updatePermission(id, request);
         return Result.success();
@@ -128,6 +133,7 @@ public class PermissionController {
      */
     @DeleteMapping("/batch")
     @RequirePermission({"system:permission:delete"})
+    @OperationLog(module = "权限管理", type = BusinessType.DELETE, description = "批量删除权限")
     public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
         sysPermissionService.deleteBatch(ids);
         return Result.success();
@@ -141,6 +147,7 @@ public class PermissionController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:permission:delete"})
+    @OperationLog(module = "权限管理", type = BusinessType.DELETE, description = "删除权限")
     public Result<Void> delete(@PathVariable Long id) {
         sysPermissionService.deletePermission(id);
         return Result.success();
