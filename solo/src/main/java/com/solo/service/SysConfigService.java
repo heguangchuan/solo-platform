@@ -1,0 +1,25 @@
+package com.solo.service;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.solo.entity.SysConfig;
+import com.solo.request.ConfigPageRequest;
+import com.solo.request.ConfigRequest;
+
+import java.util.List;
+
+/**
+ * 系统参数服务接口
+ */
+public interface SysConfigService extends IService<SysConfig> {
+
+    Page<SysConfig> pageQuery(ConfigPageRequest req);
+
+    void createConfig(ConfigRequest request);
+
+    void updateConfig(Long id, ConfigRequest request);
+
+    void deleteConfig(Long id);
+
+    void deleteBatch(List<Long> ids);
+}
