@@ -8,6 +8,19 @@ const route = useRoute()
 const userStore = useUserStore()
 const appStore = useAppStore()
 
+const presetColors = [
+  '#409eff',
+  '#1890ff',
+  '#52c41a',
+  '#13c2c2',
+  '#722ed1',
+  '#eb2f96',
+  '#f5222d',
+  '#fa8c16',
+  '#faad14',
+  '#2f54eb',
+]
+
 const breadcrumbs = computed(() => {
   const matched = route.matched.filter((item: any) => item.meta.title)
   return matched.map((item: any) => ({
@@ -23,7 +36,7 @@ function handleLogout() {
 </script>
 
 <template>
-  <el-header class="layout-header">
+  <el-header class="layout-header" :class="{ 'is-dark': appStore.isDark }">
     <div class="header-left">
       <el-icon class="collapse-btn" @click="appStore.toggleSidebar">
         <Expand v-if="appStore.sidebarCollapsed" />
@@ -37,6 +50,43 @@ function handleLogout() {
       </el-breadcrumb>
     </div>
     <div class="header-right">
+      <el-tooltip :content="appStore.isDark ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
+        <span class="header-action" @click="appStore.toggleDark">
+          <el-icon>
+            <Sunny v-if="appStore.isDark" />
+            <Moon v-else />
+          </el-icon>
+        </span>
+      </el-tooltip>
+      <el-popover placement="bottom" :width="240" trigger="click">
+        <template #reference>
+          <span class="header-action" title="主题颜色">
+            <el-icon><Brush /></el-icon>
+          </span>
+        </template>
+        <div class="theme-color-panel">
+          <div class="theme-color-title">主题颜色</div>
+          <div class="theme-color-list">
+            <span
+              v-for="color in presetColors"
+              :key="color"
+              class="theme-color-item"
+              :class="{ active: appStore.primaryColor.toLowerCase() === color.toLowerCase() }"
+              :style="{ background: color }"
+              @click="appStore.setPrimaryColor(color)"
+            >
+              <el-icon v-if="appStore.primaryColor.toLowerCase() === color.toLowerCase()"><Check /></el-icon>
+            </span>
+          </div>
+          <div class="theme-color-custom">
+            <span>自定义</span>
+            <el-color-picker
+              :model-value="appStore.primaryColor"
+              @change="(c: string) => appStore.setPrimaryColor(c || '#409eff')"
+            />
+          </div>
+        </div>
+      </el-popover>
       <el-dropdown trigger="click">
         <span class="user-dropdown">
           <el-icon><Avatar /></el-icon>
@@ -61,9 +111,20 @@ function handleLogout() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fff;
-  border-bottom: 1px solid #e6e6e6;
+  background: var(--el-bg-color);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   padding: 0 20px;
+}
+
+.layout-header.is-dark {
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+:global(html.dark) .layout-header {
+  border-bottom-color: transparent;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .header-left {
@@ -75,11 +136,26 @@ function handleLogout() {
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
+  color: var(--el-text-color-primary);
 }
 
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+.header-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+}
+
+.header-action:hover {
+  color: var(--el-color-primary);
 }
 
 .user-dropdown {
@@ -87,10 +163,59 @@ function handleLogout() {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  color: #606266;
+  color: var(--el-text-color-regular);
 }
 
 .user-dropdown:hover {
-  color: #409eff;
+  color: var(--el-color-primary);
+}
+
+.theme-color-panel {
+  padding: 4px;
+}
+
+.theme-color-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 12px;
+  color: var(--el-text-color-primary);
+}
+
+.theme-color-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.theme-color-item {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  transition: transform 0.2s;
+}
+
+.theme-color-item:hover {
+  transform: scale(1.1);
+}
+
+.theme-color-item.active {
+  box-shadow: 0 0 0 2px var(--el-bg-color), 0 0 0 4px var(--el-color-primary);
+}
+
+.theme-color-custom {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--el-border-color-lighter);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--el-text-color-regular);
 }
 </style>

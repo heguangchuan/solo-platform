@@ -28,7 +28,7 @@ import LayoutHeader from './components/LayoutHeader.vue'
 }
 
 .layout-main {
-  background-color: #f0f2f5;
+  background-color: var(--el-bg-color-page);
   padding: 20px;
 }
 </style>
