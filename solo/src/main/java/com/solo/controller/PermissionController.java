@@ -72,7 +72,6 @@ public class PermissionController {
         response.setType(switch (permission.getType() == null ? 0 : permission.getType()) {
             case 1 -> "菜单";
             case 2 -> "按钮";
-            case 3 -> "接口";
             default -> "未知";
         });
         response.setParentId(permission.getParentId());
@@ -97,7 +96,7 @@ public class PermissionController {
     /**
      * 获取权限树形结构
      *
-     * @param type 可选的权限类型过滤（1菜单 / 2按钮 / 3接口），不传则返回全量
+     * @param type 可选的权限类型过滤（1菜单 / 2按钮），不传则返回全量
      * @return 权限树
      */
     @GetMapping("/tree")

@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 系统权限实体类
- * 对应数据库表 sys_permission，存储菜单、按钮、接口权限的定义
+ * 对应数据库表 sys_permission，存储菜单、按钮权限的定义
  */
 @Data
 @TableName("sys_permission")
@@ -40,7 +40,7 @@ public class SysPermission {
     private String url;
 
     /**
-     * 权限类型：1-菜单，2-按钮，3-接口
+     * 权限类型：1-菜单，2-按钮
      */
     private Integer type;
 

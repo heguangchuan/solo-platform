@@ -25,7 +25,7 @@ public class PermissionRequest {
     private String url;
 
     /**
-     * 权限类型：1-菜单，2-按钮，3-接口
+     * 权限类型：1-菜单，2-按钮
      */
     private Integer type;
 

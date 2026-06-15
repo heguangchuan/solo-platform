@@ -40,7 +40,6 @@ const rules = {
 const typeLabelMap: Record<number, string> = {
   1: '菜单',
   2: '按钮',
-  3: '接口',
 }
 
 // 菜单级别权限树（用于"上级权限"选择器）
@@ -224,7 +223,6 @@ onMounted(() => {
           <template #default="{ row }">
             <el-tag v-if="row.type === 1" type="primary" size="small">M</el-tag>
             <el-tag v-else-if="row.type === 2" type="success" size="small">B</el-tag>
-            <el-tag v-else type="warning" size="small">A</el-tag>
             {{ row.permissionName }}
           </template>
         </el-table-column>
@@ -282,7 +280,6 @@ onMounted(() => {
           <el-select v-model="form.type" placeholder="请选择类型" style="width: 100%">
             <el-option label="菜单" :value="1" />
             <el-option label="按钮" :value="2" />
-            <el-option label="接口" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="上级权限">
