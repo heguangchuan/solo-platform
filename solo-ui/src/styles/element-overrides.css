@@ -1,0 +1,28 @@
+/* ==================== el-table 表头突出 ==================== */
+
+/* 浅色模式 */
+.el-table thead {
+  font-weight: 600;
+}
+
+.el-table thead th.el-table__cell {
+  background-color: var(--el-fill-color-light) !important;
+  color: var(--el-text-color-primary);
+  font-weight: 600;
+  border-bottom: 1px solid var(--el-border-color);
+}
+
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: var(--el-fill-color-lighter);
+}
+
+/* 暗色模式适配（Element Plus 暗色主题挂在 html.dark 上） */
+html.dark .el-table thead th.el-table__cell {
+  background-color: var(--el-bg-color-page) !important;
+  color: var(--el-text-color-primary);
+  border-bottom: 1px solid var(--el-border-color-lighter);
+}
+
+html.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: var(--el-fill-color-darker);
+}
