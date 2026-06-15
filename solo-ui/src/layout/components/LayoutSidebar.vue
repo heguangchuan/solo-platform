@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { dynamicRouteConfig } from '@/router'
@@ -6,6 +7,9 @@ import LayoutLogo from './LayoutLogo.vue'
 
 const route = useRoute()
 const appStore = useAppStore()
+
+const sidebarBg = computed(() => (appStore.isDark ? '#1d1e1f' : '#304156'))
+const sidebarText = computed(() => (appStore.isDark ? '#cfd3dc' : '#bfcbd9'))
 
 function extractMenuItems(): any[] {
   const menus = dynamicRouteConfig.getMenus()
@@ -15,15 +19,16 @@ function extractMenuItems(): any[] {
 </script>
 
 <template>
-  <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="layout-aside">
+  <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="layout-aside" :style="{ backgroundColor: sidebarBg }">
     <LayoutLogo />
     <el-menu
       :default-active="route.path"
       router
       :collapse="appStore.sidebarCollapsed"
-      background-color="#304156"
-      text-color="#bfcbd9"
-      active-text-color="#409eff"
+      :background-color="sidebarBg"
+      :text-color="sidebarText"
+      :active-text-color="appStore.primaryColor"
+      class="layout-menu"
     >
       <el-menu-item index="/dashboard">
         <el-icon><Odometer /></el-icon>
@@ -58,8 +63,12 @@ function extractMenuItems(): any[] {
 
 <style scoped>
 .layout-aside {
-  background-color: #304156;
-  transition: width 0.3s;
+  transition: width 0.3s, background-color 0.3s;
   overflow: hidden;
+  border-right: none;
+}
+
+.layout-menu {
+  border-right: none !important;
 }
 </style>
