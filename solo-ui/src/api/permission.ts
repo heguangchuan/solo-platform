@@ -4,7 +4,7 @@ import service from '@/utils/request'
 
 /**
  * 获取权限树
- * @param type 可选的权限类型过滤（1菜单 / 2按钮 / 3接口），不传则返回全量
+ * @param type 可选的权限类型过滤（1菜单 / 2按钮），不传则返回全量
  */
 export function getPermissionTreeApi(type?: number) {
   return get<SysPermission[]>('/system/permission/tree', { params: type != null ? { type } : undefined })

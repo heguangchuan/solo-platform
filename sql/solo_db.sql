@@ -25,7 +25,7 @@ CREATE TABLE `sys_permission` (
   `permission_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '权限名称',
   `permission_code` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '权限编码',
   `url` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '关联URL',
-  `type` tinyint NOT NULL COMMENT '类型: 1菜单 2按钮 3接口',
+  `type` tinyint NOT NULL COMMENT '类型: 1菜单 2按钮',
   `parent_id` bigint NOT NULL DEFAULT '0' COMMENT '父级ID',
   `sort` int NOT NULL DEFAULT '0' COMMENT '排序',
   `icon` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '图标',
@@ -55,18 +55,18 @@ insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`ty
 (11,'角色新增','system:role:add',NULL,2,3,2,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (12,'角色编辑','system:role:edit',NULL,2,3,3,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (13,'角色删除','system:role:delete',NULL,2,3,4,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(15,'获取用户信息','user/info','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:23'),
-(16,'用户分页列表','system:user:page','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:24'),
-(17,'角色分页列表','system:role:page','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:25'),
-(18,'权限列表','system:permission:list','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:28'),
+(15,'获取用户信息','user/info','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:23'),
+(16,'用户分页列表','system:user:page','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:24'),
+(17,'角色分页列表','system:role:page','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:25'),
+(18,'权限列表','system:permission:list','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:28'),
 (19,'用户导入','system:user:import',NULL,2,2,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (20,'用户导出','system:user:export',NULL,2,2,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (21,'角色导入','system:role:import',NULL,2,3,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (22,'角色导出','system:role:export',NULL,2,3,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (23,'用户授权','system:user:r2u',NULL,2,2,5,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(24,'权限新增','system:permission:add','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:02'),
-(25,'权限修改','system:permission:update','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:03'),
-(26,'权限删除','system:permission:delete','',3,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:04');
+(24,'权限新增','system:permission:add','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:02'),
+(25,'权限修改','system:permission:update','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:03'),
+(26,'权限删除','system:permission:delete','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:04');
 
 /*Table structure for table `sys_role` */
 
