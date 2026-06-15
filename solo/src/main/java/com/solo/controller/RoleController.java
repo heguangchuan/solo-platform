@@ -104,6 +104,19 @@ public class RoleController {
     }
 
     /**
+     * 查询全部启用角色（用于选择）
+     */
+    @GetMapping("/list")
+    @RequirePermission({"system:role:list"})
+    public Result<List<SysRole>> list() {
+        List<SysRole> roles = sysRoleService.lambdaQuery()
+                .eq(SysRole::getStatus, 1)
+                .orderByAsc(SysRole::getId)
+                .list();
+        return Result.success(roles);
+    }
+
+    /**
      * 删除角色
      */
     @DeleteMapping("/{id}")

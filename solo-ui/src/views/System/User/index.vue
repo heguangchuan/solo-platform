@@ -1,8 +1,19 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { SysUser, UserRequest, UserPageRequest } from '@/types/api'
-import { getUserPageApi, addUserApi, editUserApi, switchUserStatusApi, deleteUserApi, deleteUserBatchApi, exportUserApi } from '@/api/user'
+import type { SysUser, SysRole, UserRequest, UserPageRequest } from '@/types/api'
+import {
+  getUserPageApi,
+  addUserApi,
+  editUserApi,
+  switchUserStatusApi,
+  deleteUserApi,
+  deleteUserBatchApi,
+  exportUserApi,
+  getUserAssignedRolesApi,
+  assignUserRolesApi,
+} from '@/api/user'
+import { getRoleListApi } from '@/api/role'
 import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
@@ -180,6 +191,41 @@ async function handleDelete(row: SysUser) {
   }
 }
 
+const r2uVisible = ref(false)
+const r2uUser = ref<SysUser | null>(null)
+const r2uLoading = ref(false)
+const allRoles = ref<SysRole[]>([])
+const selectedRoleIds = ref<string[]>([])
+
+async function handleAssignRoles(row: SysUser) {
+  r2uUser.value = row
+  r2uVisible.value = true
+  r2uLoading.value = true
+  try {
+    const [rolesRes, assignedRes] = await Promise.all([
+      getRoleListApi(),
+      getUserAssignedRolesApi(row.id),
+    ])
+    allRoles.value = rolesRes.data || []
+    selectedRoleIds.value = (assignedRes.data || []).map((id) => String(id))
+  } catch {
+    // handled
+  } finally {
+    r2uLoading.value = false
+  }
+}
+
+async function handleConfirmAssign() {
+  if (!r2uUser.value) return
+  try {
+    await assignUserRolesApi(r2uUser.value.id, selectedRoleIds.value)
+    ElMessage.success('授权成功')
+    r2uVisible.value = false
+  } catch {
+    // handled
+  }
+}
+
 const statusTypeMap: Record<number, string> = {
   1: 'success',
   0: 'danger',
@@ -238,9 +284,10 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:user:r2u'" type="primary" link @click="handleAssignRoles(row)">授权</el-button>
             <el-button
               v-permission="'system:user:switch'"
               :type="row.status === 1 ? 'warning' : 'success'"
@@ -311,6 +358,30 @@ onMounted(() => {
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleConfirm">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="r2uVisible"
+      :title="`分配角色 - ${r2uUser?.nickname || r2uUser?.username || ''}`"
+      width="520px"
+      destroy-on-close
+    >
+      <div v-loading="r2uLoading" class="r2u-panel">
+        <el-empty v-if="!r2uLoading && !allRoles.length" description="暂无可分配的角色" />
+        <el-checkbox-group v-else v-model="selectedRoleIds">
+          <div v-for="role in allRoles" :key="role.id" class="r2u-item">
+            <el-checkbox :value="role.id">
+              <span class="r2u-name">{{ role.roleName }}</span>
+              <span class="r2u-code">{{ role.roleCode }}</span>
+            </el-checkbox>
+            <div v-if="role.description" class="r2u-desc">{{ role.description }}</div>
+          </div>
+        </el-checkbox-group>
+      </div>
+      <template #footer>
+        <el-button @click="r2uVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleConfirmAssign">确定</el-button>
       </template>
     </el-dialog>
   </div>
@@ -392,5 +463,40 @@ onMounted(() => {
 .user-form {
   flex: 1;
   padding-right: 8px;
+}
+
+.r2u-panel {
+  min-height: 80px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 4px 4px 0;
+}
+
+.r2u-item {
+  padding: 8px 12px;
+  border: 1px solid var(--el-border-color-lighter);
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.r2u-item:last-child {
+  margin-bottom: 0;
+}
+
+.r2u-name {
+  font-weight: 600;
+  margin-right: 8px;
+}
+
+.r2u-code {
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+}
+
+.r2u-desc {
+  margin-top: 4px;
+  margin-left: 24px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>

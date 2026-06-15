@@ -67,4 +67,14 @@ public interface SysUserService extends IService<SysUser> {
      * 批量删除用户
      */
     void deleteBatch(List<Long> ids);
+
+    /**
+     * 查询用户已分配的角色ID列表
+     */
+    List<Long> listRoleIds(Long userId);
+
+    /**
+     * 给用户分配角色（覆盖式）
+     */
+    void assignRoles(Long userId, List<Long> roleIds);
 }
