@@ -1,6 +1,30 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import LayoutSidebar from './components/LayoutSidebar.vue'
 import LayoutHeader from './components/LayoutHeader.vue'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
+const router = useRouter()
+
+// 强制改密弹窗：v-model 必须可写，因此通过 computed 同步到 store
+const forceChangeVisible = computed({
+  get: () => userStore.pwdResetRequired,
+  set: (v) => {
+    if (!v) userStore.clearPwdResetRequired()
+    else userStore.pwdResetRequired = true
+  },
+})
+
+function onPasswordChanged() {
+  // 改密成功：踢回登录页用新密码登录
+  userStore.logout()
+  ElMessage.info('密码已更新，请使用新密码重新登录')
+  router.replace('/login')
+}
 </script>
 
 <template>
@@ -12,6 +36,11 @@ import LayoutHeader from './components/LayoutHeader.vue'
         <router-view />
       </el-main>
     </el-container>
+    <ChangePasswordDialog
+      v-model="forceChangeVisible"
+      forced
+      @success="onPasswordChanged"
+    />
   </el-container>
 </template>
 

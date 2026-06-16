@@ -8,19 +8,19 @@ public class UserExcelResponse {
     @ExcelProperty("用户ID")
     private Long id;
 
-    @ExcelProperty("用户名")
+    @ExcelProperty("用户账号")
     private String username;
 
-    @ExcelProperty("昵称")
+    @ExcelProperty("用户昵称")
     private String nickname;
 
-    @ExcelProperty("邮箱")
+    @ExcelProperty("邮箱地址")
     private String email;
 
-    @ExcelProperty("手机号")
+    @ExcelProperty("手机号码")
     private String phone;
 
-    @ExcelProperty("状态")
+    @ExcelProperty("用户状态")
     private String status;
 
     @ExcelProperty("创建时间")

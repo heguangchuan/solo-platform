@@ -174,8 +174,8 @@ onMounted(() => {
         <el-table-column type="selection" width="55" />
         <el-table-column prop="roleCode" label="角色编码" width="150" />
         <el-table-column prop="roleName" label="角色名称" width="150" />
-        <el-table-column prop="description" label="描述" min-width="200" />
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column prop="description" label="角色描述" min-width="200" />
+        <el-table-column label="角色状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
@@ -211,7 +211,7 @@ onMounted(() => {
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
         </el-form-item>
-        <el-form-item label="描述">
+        <el-form-item label="角色描述">
           <el-input
             v-model="form.description"
             type="textarea"
@@ -219,7 +219,7 @@ onMounted(() => {
             placeholder="请输入角色描述"
           />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="角色状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
       </el-form>

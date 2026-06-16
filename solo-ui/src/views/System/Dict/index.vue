@@ -338,8 +338,8 @@ onMounted(() => {
         <el-form-item label="字典名称">
           <el-input v-model="typeSearch.dictName" placeholder="请输入字典名称" clearable />
         </el-form-item>
-        <el-form-item label="类型编码">
-          <el-input v-model="typeSearch.dictType" placeholder="请输入类型编码" clearable />
+        <el-form-item label="字典编码">
+          <el-input v-model="typeSearch.dictType" placeholder="请输入字典编码" clearable />
         </el-form-item>
         <el-form-item>
           <el-button v-permission="'system:dict:type:list'" type="primary" @click="handleTypeSearch">查询</el-button>
@@ -363,15 +363,15 @@ onMounted(() => {
       >
         <el-table-column type="selection" width="55" />
         <el-table-column prop="dictName" label="字典名称" min-width="160" />
-        <el-table-column prop="dictType" label="类型编码" min-width="180" />
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column prop="dictType" label="字典编码" min-width="180" />
+        <el-table-column label="字典状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="remark" label="字典备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
@@ -421,13 +421,13 @@ onMounted(() => {
         <el-form-item label="字典名称" prop="dictName">
           <el-input v-model="typeForm.dictName" placeholder="如：用户性别" />
         </el-form-item>
-        <el-form-item label="类型编码" prop="dictType">
+        <el-form-item label="字典编码" prop="dictType">
           <el-input v-model="typeForm.dictType" placeholder="如：sys_user_sex" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="字典状态">
           <el-switch v-model="typeForm.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="字典备注">
           <el-input v-model="typeForm.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
@@ -449,7 +449,7 @@ onMounted(() => {
         <el-form-item label="字典标签">
           <el-input v-model="dataSearch.dictLabel" placeholder="请输入字典标签" clearable />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="数据状态">
           <el-select v-model="dataSearch.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
@@ -484,16 +484,16 @@ onMounted(() => {
             <span v-else>{{ row.dictLabel }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="dictValue" label="键值" min-width="120" />
-        <el-table-column prop="sort" label="排序" width="80" align="center" />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="dictValue" label="字典键值" min-width="120" />
+        <el-table-column prop="sort" label="显示排序" width="80" align="center" />
+        <el-table-column label="数据状态" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="remark" label="数据备注" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button
@@ -543,10 +543,10 @@ onMounted(() => {
         <el-form-item label="字典标签" prop="dictLabel">
           <el-input v-model="dataForm.dictLabel" placeholder="如：男" />
         </el-form-item>
-        <el-form-item label="键值" prop="dictValue">
+        <el-form-item label="字典键值" prop="dictValue">
           <el-input v-model="dataForm.dictValue" placeholder="如：1" />
         </el-form-item>
-        <el-form-item label="排序">
+        <el-form-item label="显示排序">
           <el-input-number v-model="dataForm.sort" :min="0" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="回显样式">
@@ -554,10 +554,10 @@ onMounted(() => {
             <el-option v-for="opt in cssClassOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="数据状态">
           <el-switch v-model="dataForm.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="数据备注">
           <el-input v-model="dataForm.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>

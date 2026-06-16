@@ -4,10 +4,12 @@ import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
 import com.solo.common.BusinessType;
 import com.solo.common.Result;
+import com.solo.request.ChangePasswordRequest;
 import com.solo.request.LoginRequest;
 import com.solo.response.LoginResponse;
 import com.solo.response.StatResponse;
 import com.solo.response.UserAuthResponse;
+import com.solo.response.UserInfoVO;
 import com.solo.service.SysPermissionService;
 import com.solo.service.SysRoleService;
 import com.solo.service.SysUserService;
@@ -81,5 +83,26 @@ public class AuthController {
         stats.setRoleCount(sysRoleService.count());
         stats.setPermissionCount(sysPermissionService.count());
         return Result.success(stats);
+    }
+
+    /**
+     * 修改当前登录用户的密码（首次登录强制改密也走该接口）
+     */
+    @PostMapping("/password")
+    @OperationLog(module = "登录认证", type = BusinessType.EDIT, description = "修改密码", recordParam = false)
+    public Result<Void> changePassword(@RequestBody ChangePasswordRequest request) {
+        sysUserService.changePassword(
+                UserHolderUtils.getCurrentUserId(),
+                request.getOldPassword(),
+                request.getNewPassword());
+        return Result.success();
+    }
+
+    /**
+     * 获取当前登录用户档案（含是否需要强制改密的标记）
+     */
+    @GetMapping("/profile")
+    public Result<UserInfoVO> profile() {
+        return Result.success(sysUserService.getProfile(UserHolderUtils.getCurrentUserId()));
     }
 }

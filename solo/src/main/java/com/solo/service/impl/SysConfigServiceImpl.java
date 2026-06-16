@@ -47,7 +47,6 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
         config.setConfigName(request.getConfigName());
         config.setConfigKey(request.getConfigKey());
         config.setConfigValue(request.getConfigValue());
-        config.setConfigType(request.getConfigType() != null ? request.getConfigType() : 0);
         config.setRemark(request.getRemark());
         save(config);
     }
@@ -60,7 +59,6 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
         }
         if (request.getConfigName() != null) config.setConfigName(request.getConfigName());
         if (request.getConfigValue() != null) config.setConfigValue(request.getConfigValue());
-        if (request.getConfigType() != null) config.setConfigType(request.getConfigType());
         if (request.getRemark() != null) config.setRemark(request.getRemark());
         updateById(config);
     }
@@ -71,20 +69,11 @@ public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig
         if (config == null) {
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "参数不存在");
         }
-        if (config.getConfigType() != null && config.getConfigType() == 1) {
-            throw new ServiceException("系统内置参数不允许删除");
-        }
         removeById(id);
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
-        List<SysConfig> configs = listByIds(ids);
-        boolean hasBuiltin = configs.stream()
-                .anyMatch(c -> c.getConfigType() != null && c.getConfigType() == 1);
-        if (hasBuiltin) {
-            throw new ServiceException("选中数据包含系统内置参数，不允许删除");
-        }
         removeByIds(ids);
     }
 }

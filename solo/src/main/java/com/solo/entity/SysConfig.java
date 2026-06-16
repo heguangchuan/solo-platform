@@ -26,11 +26,6 @@ public class SysConfig {
 
     private String configValue;
 
-    /**
-     * 是否系统内置：0-否，1-是（内置不允许删除）
-     */
-    private Integer configType;
-
     private String remark;
 
     @TableLogic

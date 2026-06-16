@@ -189,6 +189,7 @@ CREATE TABLE `sys_user` (
   `phone` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '手机号',
   `avatar` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '头像URL',
   `status` tinyint NOT NULL DEFAULT '1' COMMENT '状态: 0禁用 1启用',
+  `pwd_reset_required` tinyint NOT NULL DEFAULT '0' COMMENT '是否首次登录强制改密: 0否 1是',
   `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -200,8 +201,8 @@ CREATE TABLE `sys_user` (
 
 /*Data for the table `sys_user` */
 
-insert  into `sys_user`(`id`,`username`,`password`,`nickname`,`email`,`phone`,`avatar`,`status`,`create_time`,`update_time`) values 
-(1,'admin','0192023a7bbd73250516f069df18b500','管理员',NULL,NULL,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02');
+insert  into `sys_user`(`id`,`username`,`password`,`nickname`,`email`,`phone`,`avatar`,`status`,`pwd_reset_required`,`create_time`,`update_time`) values
+(1,'admin','0192023a7bbd73250516f069df18b500','管理员',NULL,NULL,NULL,1,0,'2026-06-14 22:35:02','2026-06-14 22:35:02');
 
 /*Table structure for table `sys_config` */
 
@@ -212,7 +213,6 @@ CREATE TABLE `sys_config` (
   `config_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数名称',
   `config_key` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数键',
   `config_value` varchar(500) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '参数值',
-  `config_type` tinyint NOT NULL DEFAULT '0' COMMENT '是否系统内置: 0否 1是',
   `remark` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '备注',
   `deleted` tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
   `create_time` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -319,6 +319,14 @@ UPDATE `sys_permission` SET `icon` = 'Tools'      WHERE `id` = 27;
 UPDATE `sys_permission` SET `icon` = 'SetUp'      WHERE `id` = 28;
 UPDATE `sys_permission` SET `icon` = 'Collection' WHERE `id` = 29;
 UPDATE `sys_permission` SET `icon` = 'Document'   WHERE `id` = 43;
+
+/* 增量字段：是否首次登录强制改密 */
+ALTER TABLE `sys_user`
+    ADD COLUMN `pwd_reset_required` tinyint NOT NULL DEFAULT 0
+    COMMENT '是否首次登录强制改密: 0否 1是' AFTER `status`;
+
+/* 移除"是否系统内置"字段（参数管理） */
+ALTER TABLE `sys_config` DROP COLUMN `config_type`;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
