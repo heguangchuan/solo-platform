@@ -380,7 +380,7 @@ onMounted(() => {
           <template #default="{ row }">
             <el-button
               v-permission="'system:dict:data:list'"
-              type="success"
+              type="primary"
               link
               @click="handleOpenData(row)"
             >
@@ -396,7 +396,7 @@ onMounted(() => {
             </el-button>
             <el-button
               v-permission="'system:dict:type:delete'"
-              type="danger"
+              type="primary"
               link
               @click="handleDeleteType(row)"
             >
@@ -509,7 +509,7 @@ onMounted(() => {
             </el-button>
             <el-button
               v-permission="'system:dict:data:delete'"
-              type="danger"
+              type="primary"
               link
               @click="handleDeleteData(row)"
             >

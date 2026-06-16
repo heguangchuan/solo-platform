@@ -194,6 +194,22 @@ async function handleDelete(row: SysPermission) {
   }
 }
 
+async function handleToggleStatus(row: SysPermission) {
+  const nextStatus = row.status === 1 ? 0 : 1
+  await editPermissionApi(row.id, {
+    permissionName: row.permissionName,
+    permissionCode: row.permissionCode,
+    url: row.url,
+    type: row.type,
+    parentId: row.parentId,
+    sort: row.sort,
+    icon: row.icon,
+    status: nextStatus,
+  })
+  ElMessage.success(nextStatus === 1 ? '已启用' : '已禁用')
+  fetchData()
+}
+
 function getTypeTag(type: number) {
   return typeLabelMap[type] || '未知'
 }
@@ -229,7 +245,7 @@ onMounted(() => {
       <div class="table-toolbar">
         <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
         <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-        <el-button @click="toggleExpandAll">
+        <el-button type="primary" @click="toggleExpandAll">
           <el-icon class="btn-icon"><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
           {{ allExpanded ? '全部折叠' : '全部展开' }}
         </el-button>
@@ -271,7 +287,12 @@ onMounted(() => {
         <el-table-column prop="sort" label="显示排序" width="100" align="center" />
         <el-table-column label="权限状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+            <el-tag
+              :type="row.status === 1 ? 'success' : 'danger'"
+              size="small"
+              class="status-tag"
+              @click="handleToggleStatus(row)"
+            >
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
@@ -279,8 +300,8 @@ onMounted(() => {
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:permission:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:permission:add'" type="success" link @click="handleAdd(row.id)">添加子项</el-button>
-            <el-button v-permission="'system:permission:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:permission:add'" type="primary" link @click="handleAdd(row.id)">添加子项</el-button>
+            <el-button v-permission="'system:permission:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -404,6 +425,10 @@ onMounted(() => {
 }
 
 .text-muted { color: #c0c4cc; }
+
+.status-tag {
+  cursor: pointer;
+}
 
 .icon-picker-input {
   width: 100%;
