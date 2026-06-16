@@ -4,15 +4,39 @@ import { getAuthMenusApi, getAuthPermissionsApi, getProfileApi } from '@/api/aut
 
 const mainRouteName = 'Main'
 
-const menuRouteComponents: Record<string, any> = {
-  Dashboard: () => import('@/views/Dashboard/index.vue'),
-  SystemUser: () => import('@/views/System/User/index.vue'),
-  SystemRole: () => import('@/views/System/Role/index.vue'),
-  SystemPermission: () => import('@/views/System/Permission/index.vue'),
-  SystemConfig: () => import('@/views/System/Config/index.vue'),
-  SystemDict: () => import('@/views/System/Dict/index.vue'),
-  SystemLog: () => import('@/views/System/Log/index.vue'),
-  SystemOnline: () => import('@/views/System/Online/index.vue'),
+/**
+ * 约定式视图加载：
+ *
+ * 通过 import.meta.glob 把 `views/**​/index.vue` 全部纳入；菜单的 url 直接映射到目录路径。
+ * 例如菜单 url = '/system/user'，对应 'src/views/System/User/index.vue'。
+ *
+ * 这样新增菜单只需要：
+ *   1) 在 sys_permission 里加一条数据，url 写正确
+ *   2) 按 PascalCase 在 views 下放好同名目录的 index.vue
+ *
+ * 不再需要在前端代码里维护"菜单 → 组件"的映射表。
+ */
+const viewModules = import.meta.glob('@/views/**/index.vue')
+
+/** 把 url 段（lower-case 或 kebab-case）转成 PascalCase 目录名，与 views 下的命名约定保持一致 */
+function toPascalSegment(seg: string): string {
+  return seg
+    .split('-')
+    .filter(Boolean)
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('')
+}
+
+/** 根据菜单 url 查找对应的 view 组件，找不到时落到 404 */
+function resolveViewComponent(url: string): () => Promise<unknown> {
+  const segments = url.replace(/^\//, '').split('/').filter(Boolean).map(toPascalSegment)
+  if (!segments.length) return () => import('@/views/Error/404.vue')
+  const target = `/src/views/${segments.join('/')}/index.vue`
+  const loader = viewModules[target]
+  if (loader) return loader as () => Promise<unknown>
+  // eslint-disable-next-line no-console
+  console.warn(`[router] 未找到菜单视图组件：url="${url}"，期望路径："${target}"`)
+  return () => import('@/views/Error/404.vue')
 }
 
 function generateRouteName(path: string): string {
@@ -37,7 +61,7 @@ function registerMenuRoutes(menus: any[]) {
       router.addRoute(mainRouteName, {
         path: routePath,
         name: routeName,
-        component: menuRouteComponents[routeName] || (() => import('@/views/Error/404.vue')),
+        component: resolveViewComponent(menu.url),
         meta: {
           title: menu.permissionName,
           icon: menu.icon,
