@@ -19,12 +19,18 @@ import com.solo.response.UserInfoVO;
 import com.solo.service.SysUserService;
 import com.solo.utils.JwtUtils;
 import com.solo.utils.PasswordUtils;
+import com.solo.utils.WebUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 系统用户服务实现类
@@ -63,9 +69,28 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         String token = jwtUtils.generateToken(user.getUsername());
         loginResponse.setToken(token);
         loginResponse.setUser(buildUserInfoVO(user));
-        // 将Token存入Redis
-        jwtUtils.saveToken(user.getUsername(), token);
+        // 将Token及会话元数据存入Redis，供"在线用户"查询
+        jwtUtils.saveSession(user.getUsername(), token, buildSessionMeta(user));
         return Result.success(loginResponse);
+    }
+
+    /** 抓取登录请求的 IP / 来源 / UA 等元数据，与 token 一并写入 Redis */
+    private Map<String, Object> buildSessionMeta(SysUser user) {
+        Map<String, Object> meta = new HashMap<>();
+        meta.put(JwtUtils.FIELD_USER_ID, String.valueOf(user.getId()));
+        meta.put(JwtUtils.FIELD_NICKNAME, user.getNickname() == null ? "" : user.getNickname());
+        meta.put(JwtUtils.FIELD_LOGIN_TIME, LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        HttpServletRequest request = WebUtils.currentRequest();
+        if (request != null) {
+            meta.put(JwtUtils.FIELD_LOGIN_IP, nullToEmpty(WebUtils.getClientIp(request)));
+            meta.put(JwtUtils.FIELD_USER_AGENT, nullToEmpty(WebUtils.getUserAgent(request)));
+            meta.put(JwtUtils.FIELD_CLIENT_SOURCE, nullToEmpty(WebUtils.getClientSource(request)));
+        }
+        return meta;
+    }
+
+    private String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 
 

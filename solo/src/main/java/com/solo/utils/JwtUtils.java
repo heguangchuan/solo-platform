@@ -9,14 +9,38 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.TimeUnit;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 /**
  * JWT工具类，负责生成、解析和验证JWT Token
+ *
+ * <p>Redis 数据结构：
+ * <ul>
+ *   <li>{@code auth:online:{username}}：Hash，存放当前会话信息（token / userId / nickname / loginTime / loginIp / userAgent / clientSource）</li>
+ *   <li>{@code auth:online}：Set，所有在线 username 的索引，便于枚举在线用户</li>
+ * </ul>
  */
 @Component
 public class JwtUtils {
+
+    /** 单个用户在线信息 hash 的 key 前缀 */
+    public static final String ONLINE_KEY_PREFIX = "auth:online:";
+    /** 在线用户名集合 key */
+    public static final String ONLINE_INDEX_KEY = "auth:online";
+
+    /** Hash 字段名 */
+    public static final String FIELD_TOKEN = "token";
+    public static final String FIELD_USER_ID = "userId";
+    public static final String FIELD_NICKNAME = "nickname";
+    public static final String FIELD_LOGIN_TIME = "loginTime";
+    public static final String FIELD_LOGIN_IP = "loginIp";
+    public static final String FIELD_USER_AGENT = "userAgent";
+    public static final String FIELD_CLIENT_SOURCE = "clientSource";
 
     private final RedisTemplate<String, Object> redisTemplate;
 
@@ -39,9 +63,6 @@ public class JwtUtils {
 
     /**
      * 生成JWT Token
-     *
-     * @param username 用户名
-     * @return JWT Token字符串
      */
     public String generateToken(String username) {
         return Jwts.builder()
@@ -54,9 +75,6 @@ public class JwtUtils {
 
     /**
      * 从Token中获取用户名
-     *
-     * @param token JWT Token
-     * @return 用户名
      */
     public String getUsernameFromToken(String token) {
         return getClaims(token).getSubject();
@@ -64,9 +82,6 @@ public class JwtUtils {
 
     /**
      * 从Token中获取过期时间
-     *
-     * @param token JWT Token
-     * @return 过期时间
      */
     public Date getExpirationFromToken(String token) {
         return getClaims(token).getExpiration();
@@ -81,10 +96,6 @@ public class JwtUtils {
 
     /**
      * 验证Token是否有效
-     *
-     * @param token    JWT Token
-     * @param username 用户名（用于比对）
-     * @return 是否有效
      */
     public boolean validateToken(String token, String username) {
         String tokenUsername = getUsernameFromToken(token);
@@ -93,9 +104,6 @@ public class JwtUtils {
 
     /**
      * 判断Token是否过期
-     *
-     * @param token JWT Token
-     * @return 是否已过期
      */
     public boolean isTokenExpired(String token) {
         return getClaims(token).getExpiration().before(new Date());
@@ -103,9 +111,6 @@ public class JwtUtils {
 
     /**
      * 解析Token获取Claims
-     *
-     * @param token JWT Token
-     * @return Claims对象
      */
     private Claims getClaims(String token) {
         return Jwts.parser()
@@ -115,36 +120,61 @@ public class JwtUtils {
                 .getPayload();
     }
 
+    /* ============================== 会话存储 ============================== */
+
     /**
-     * 将Token存入Redis（登录时调用）
-     *
-     * @param username 用户名
-     * @param token    JWT Token
+     * 保存会话信息（登录时调用）
      */
-    public void saveToken(String username, String token) {
-        String key = "auth:token:" + username;
-        redisTemplate.opsForValue().set(key, token, expiration, TimeUnit.MILLISECONDS);
+    public void saveSession(String username, String token, Map<String, Object> meta) {
+        String key = ONLINE_KEY_PREFIX + username;
+        Map<String, Object> data = new HashMap<>();
+        data.put(FIELD_TOKEN, token);
+        if (meta != null) data.putAll(meta);
+        redisTemplate.opsForHash().putAll(key, data);
+        redisTemplate.expire(key, expiration, TimeUnit.MILLISECONDS);
+        redisTemplate.opsForSet().add(ONLINE_INDEX_KEY, username);
     }
 
     /**
-     * 根据用户名获取当前Token（拦截器校验时调用）
-     *
-     * @param username 用户名
-     * @return Token字符串，不存在则返回null
+     * 简化版：仅写 token，无元数据。保留兼容旧调用。
+     */
+    public void saveToken(String username, String token) {
+        saveSession(username, token, null);
+    }
+
+    /**
+     * 根据用户名获取当前Token
      */
     public String getToken(String username) {
-        String key = "auth:token:" + username;
-        Object token = redisTemplate.opsForValue().get(key);
+        Object token = redisTemplate.opsForHash().get(ONLINE_KEY_PREFIX + username, FIELD_TOKEN);
         return token != null ? token.toString() : null;
     }
 
     /**
-     * 删除用户的Token（踢人下线时调用）
-     *
-     * @param username 用户名
+     * 获取整张会话 hash（用于在线用户列表）
+     */
+    public Map<Object, Object> getSession(String username) {
+        return redisTemplate.opsForHash().entries(ONLINE_KEY_PREFIX + username);
+    }
+
+    /**
+     * 枚举所有在线用户名
+     */
+    public Set<String> listOnlineUsernames() {
+        Set<Object> raw = redisTemplate.opsForSet().members(ONLINE_INDEX_KEY);
+        Set<String> result = new LinkedHashSet<>();
+        if (raw == null) return result;
+        for (Object o : raw) {
+            if (o != null) result.add(o.toString());
+        }
+        return result;
+    }
+
+    /**
+     * 删除用户的Token及在线索引（踢人下线 / 自主登出时调用）
      */
     public void removeToken(String username) {
-        String key = "auth:token:" + username;
-        redisTemplate.delete(key);
+        redisTemplate.delete(ONLINE_KEY_PREFIX + username);
+        redisTemplate.opsForSet().remove(ONLINE_INDEX_KEY, username);
     }
 }

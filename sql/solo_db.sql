@@ -109,6 +109,7 @@ INSERT INTO `sys_permission` (`id`,`permission_name`,`permission_code`,`url`,`ty
 (3, '角色管理', 'system:role',           '/system/role',          1, 1,  2, 'UserFilled', 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
 (4, '权限管理', 'system:permission',     '/system/permission',    1, 1,  3, 'Lock',       1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
 (43,'日志管理', 'system:log',            '/system/log',           1, 1,  4, 'Document',   1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+(48,'在线用户', 'system:online',         '/system/online',        1, 1,  5, 'Connection', 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 
 /* —— 用户管理 → 按钮 —— */
 (5, '用户查询',     'system:user:list',   NULL, 2, 2,  1, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
@@ -142,6 +143,10 @@ INSERT INTO `sys_permission` (`id`,`permission_name`,`permission_code`,`url`,`ty
 (44,'日志查询', 'system:log:list',   NULL, 2, 43, 1, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 (45,'日志删除', 'system:log:delete', NULL, 2, 43, 2, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 (46,'日志导出', 'system:log:export', NULL, 2, 43, 3, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+
+/* —— 在线用户 → 按钮 —— */
+(49,'在线查询', 'system:online:list',  NULL, 2, 48, 1, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+(50,'强制下线', 'system:online:kick',  NULL, 2, 48, 2, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 
 /* —— 系统设置 → 子菜单 —— */
 (28,'参数管理', 'system:config', '/system/config', 1, 27, 1, 'SetUp',      1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),

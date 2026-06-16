@@ -279,6 +279,18 @@ export interface SysDictData {
   updateTime: string
 }
 
+// ==================== 在线用户 ====================
+
+export interface OnlineUser {
+  userId: string
+  username: string
+  nickname: string
+  loginTime: string
+  loginIp: string
+  clientSource: string
+  userAgent: string
+}
+
 // ==================== 操作日志 ====================
 
 export interface LogPageRequest {
