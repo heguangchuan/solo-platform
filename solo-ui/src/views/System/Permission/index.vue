@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import type { SysPermission, PermissionRequest } from '@/types/api'
@@ -16,6 +16,8 @@ import { downloadBlob } from '@/utils/download'
 const loading = ref(false)
 const treeData = ref<SysPermission[]>([])
 const selectedRows = ref<SysPermission[]>([])
+const tableRef = ref()
+const allExpanded = ref(false)
 
 // 对话框
 const dialogVisible = ref(false)
@@ -193,6 +195,26 @@ function getTypeTag(type: number) {
   return typeLabelMap[type] || '未知'
 }
 
+/**
+ * 递归遍历树，按目标展开状态调用 toggleRowExpansion，
+ * 实现"一键全部展开 / 全部折叠"。
+ */
+function setTreeExpanded(rows: SysPermission[] | undefined, expanded: boolean) {
+  if (!rows?.length) return
+  rows.forEach((row) => {
+    if (row.children?.length) {
+      tableRef.value?.toggleRowExpansion(row, expanded)
+      setTreeExpanded(row.children, expanded)
+    }
+  })
+}
+
+async function toggleExpandAll() {
+  allExpanded.value = !allExpanded.value
+  await nextTick()
+  setTreeExpanded(treeData.value, allExpanded.value)
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -204,9 +226,14 @@ onMounted(() => {
       <div class="table-toolbar">
         <el-button v-permission="'system:permission:add'" type="primary" size="small" @click="handleAdd()">新增</el-button>
         <el-button v-permission="'system:permission:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
+        <el-button size="small" @click="toggleExpandAll">
+          <el-icon class="btn-icon"><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
+          {{ allExpanded ? '全部折叠' : '全部展开' }}
+        </el-button>
       </div>
 
       <el-table
+        ref="tableRef"
         :data="treeData"
         v-loading="loading"
         border
@@ -366,6 +393,11 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.btn-icon {
+  margin-right: 4px;
+  vertical-align: -2px;
 }
 
 .text-muted { color: #c0c4cc; }
