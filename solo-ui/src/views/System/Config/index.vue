@@ -1,3 +1,6 @@
+<script lang="ts">
+export default { name: 'SystemConfig' }
+</script>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'

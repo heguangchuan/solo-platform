@@ -1,3 +1,6 @@
+<script lang="ts">
+export default { name: 'Profile' }
+</script>
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
