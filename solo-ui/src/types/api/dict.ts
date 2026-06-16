@@ -12,7 +12,6 @@ export interface DictTypeRequest {
   dictName: string
   dictType: string
   status: number
-  remark?: string
 }
 
 export interface SysDictType {
@@ -20,7 +19,6 @@ export interface SysDictType {
   dictName: string
   dictType: string
   status: number
-  remark: string
   createTime: string
   updateTime: string
 }
@@ -37,9 +35,7 @@ export interface DictDataRequest {
   dictLabel: string
   dictValue: string
   sort?: number
-  cssClass?: string
   status: number
-  remark?: string
 }
 
 export interface SysDictData {
@@ -48,9 +44,7 @@ export interface SysDictData {
   dictLabel: string
   dictValue: string
   sort: number
-  cssClass: string
   status: number
-  remark: string
   createTime: string
   updateTime: string
 }

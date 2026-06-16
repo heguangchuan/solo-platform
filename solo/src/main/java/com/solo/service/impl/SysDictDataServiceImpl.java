@@ -54,9 +54,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         data.setDictLabel(request.getDictLabel());
         data.setDictValue(request.getDictValue());
         data.setSort(request.getSort() != null ? request.getSort() : SystemConstants.DEFAULT_SORT);
-        data.setCssClass(request.getCssClass());
         data.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
-        data.setRemark(request.getRemark());
         save(data);
     }
 
@@ -70,9 +68,7 @@ public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDi
         if (request.getDictLabel() != null) data.setDictLabel(request.getDictLabel());
         if (request.getDictValue() != null) data.setDictValue(request.getDictValue());
         if (request.getSort() != null) data.setSort(request.getSort());
-        if (request.getCssClass() != null) data.setCssClass(request.getCssClass());
         if (request.getStatus() != null) data.setStatus(request.getStatus());
-        if (request.getRemark() != null) data.setRemark(request.getRemark());
         updateById(data);
     }
 

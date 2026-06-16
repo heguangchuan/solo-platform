@@ -29,8 +29,6 @@ public class SysDictType {
      */
     private Integer status;
 
-    private String remark;
-
     @TableLogic
     private Integer deleted;
 

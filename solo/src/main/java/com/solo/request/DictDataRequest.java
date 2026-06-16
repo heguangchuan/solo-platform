@@ -11,7 +11,5 @@ public class DictDataRequest {
     private String dictLabel;
     private String dictValue;
     private Integer sort;
-    private String cssClass;
     private Integer status;
-    private String remark;
 }
