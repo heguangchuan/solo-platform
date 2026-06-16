@@ -300,7 +300,7 @@ onMounted(() => {
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:permission:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:permission:add'" type="primary" link @click="handleAdd(row.id)">添加子项</el-button>
+            <el-button v-permission="'system:permission:add'" type="primary" link @click="handleAdd(row.id)">新增</el-button>
             <el-button v-permission="'system:permission:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
