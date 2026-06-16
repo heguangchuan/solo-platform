@@ -1,3 +1,6 @@
+<script lang="ts">
+export default { name: 'SystemRole' }
+</script>
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'

@@ -1,3 +1,6 @@
+<script lang="ts">
+export default { name: 'SystemUser' }
+</script>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'

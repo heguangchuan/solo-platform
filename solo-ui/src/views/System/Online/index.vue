@@ -1,3 +1,6 @@
+<script lang="ts">
+export default { name: 'SystemOnline' }
+</script>
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'

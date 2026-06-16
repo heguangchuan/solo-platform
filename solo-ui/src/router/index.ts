@@ -150,6 +150,13 @@ const routes: RouteRecordRaw[] = [
         // hidden: true 让侧边栏不展示，仅作为头像下拉的跳转目标
         meta: { title: '个人中心', icon: 'UserFilled', hidden: true },
       },
+      {
+        // 用于 Tag 刷新等"先跳走再跳回"的场景，自身不进 Tag
+        path: 'redirect',
+        name: 'Redirect',
+        component: () => import('@/views/Redirect/index.vue'),
+        meta: { hidden: true },
+      },
     ],
   },
 ]

@@ -4,10 +4,13 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import LayoutSidebar from './components/LayoutSidebar.vue'
 import LayoutHeader from './components/LayoutHeader.vue'
+import LayoutTagsView from './components/LayoutTagsView.vue'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import { useUserStore } from '@/stores/user'
+import { useTagsStore } from '@/stores/tags'
 
 const userStore = useUserStore()
+const tagsStore = useTagsStore()
 const router = useRouter()
 
 // 强制改密弹窗：v-model 必须可写，因此通过 computed 同步到 store
@@ -32,8 +35,13 @@ function onPasswordChanged() {
     <LayoutSidebar />
     <el-container class="layout-body" direction="vertical">
       <LayoutHeader />
+      <LayoutTagsView />
       <el-main class="layout-main">
-        <router-view />
+        <router-view v-slot="{ Component, route }">
+          <keep-alive :include="tagsStore.cachedNames">
+            <component :is="Component" :key="route.fullPath" />
+          </keep-alive>
+        </router-view>
       </el-main>
     </el-container>
     <ChangePasswordDialog

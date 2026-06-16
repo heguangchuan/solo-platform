@@ -3,11 +3,13 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
+import { useTagsStore } from '@/stores/tags'
 
 const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
+const tagsStore = useTagsStore()
 
 const presetColors = [
   '#409eff',
@@ -31,6 +33,7 @@ const breadcrumbs = computed(() => {
 })
 
 function handleLogout() {
+  tagsStore.reset()
   userStore.logout()
   window.location.href = '/login'
 }
