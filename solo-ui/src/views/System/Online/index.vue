@@ -131,12 +131,12 @@ onMounted(() => {
           <template #default="{ row }">
             <el-button
               v-permission="'system:online:kick'"
-              type="danger"
+              type="primary"
               link
               :disabled="row.username === userStore.user?.username"
               @click="handleKick(row)"
             >
-              强制下线
+              强踢
             </el-button>
           </template>
         </el-table-column>

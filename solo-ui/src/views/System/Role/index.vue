@@ -289,7 +289,7 @@ onMounted(() => {
           <template #default="{ row }">
             <el-button v-permission="'system:role:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:role:p2r'" type="primary" link @click="handleAssignPermissions(row)">授权</el-button>
-            <el-button v-permission="'system:role:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:role:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

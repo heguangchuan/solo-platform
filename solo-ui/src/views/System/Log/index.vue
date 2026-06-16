@@ -223,7 +223,7 @@ onMounted(() => {
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">详情</el-button>
-            <el-button v-permission="'system:log:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:log:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>

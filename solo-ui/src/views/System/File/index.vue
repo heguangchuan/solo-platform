@@ -152,9 +152,9 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'system:file:upload'" type="primary" @click="openUploadDialog">
-          上传
+          新增
         </el-button>
-        <el-button v-permission="'system:file:delete'" type="danger" @click="handleBatchDelete">
+        <el-button v-permission="'system:file:delete'" type="primary" @click="handleBatchDelete">
           删除
         </el-button>
       </div>
@@ -175,7 +175,7 @@ onMounted(() => {
         <el-table-column label="操作" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleCopyUrl(row)">复制链接</el-button>
-            <el-button v-permission="'system:file:delete'" type="danger" link @click="handleDelete(row)">
+            <el-button v-permission="'system:file:delete'" type="primary" link @click="handleDelete(row)">
               删除
             </el-button>
           </template>

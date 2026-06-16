@@ -290,13 +290,13 @@ onMounted(() => {
             <el-button v-permission="'system:user:r2u'" type="primary" link @click="handleAssignRoles(row)">授权</el-button>
             <el-button
               v-permission="'system:user:switch'"
-              :type="row.status === 1 ? 'warning' : 'success'"
+              type="primary"
               link
               @click="handleToggleStatus(row)"
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
-            <el-button v-permission="'system:user:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'system:user:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
