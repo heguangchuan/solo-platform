@@ -57,7 +57,6 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
         type.setDictName(request.getDictName());
         type.setDictType(request.getDictType());
         type.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
-        type.setRemark(request.getRemark());
         save(type);
     }
 
@@ -71,7 +70,6 @@ public class SysDictTypeServiceImpl extends ServiceImpl<SysDictTypeMapper, SysDi
         if (request.getDictName() != null) type.setDictName(request.getDictName());
         if (request.getDictType() != null) type.setDictType(request.getDictType());
         if (request.getStatus() != null) type.setStatus(request.getStatus());
-        if (request.getRemark() != null) type.setRemark(request.getRemark());
         updateById(type);
         // 类型编码变更时，同步刷新关联字典数据
         if (request.getDictType() != null && !request.getDictType().equals(oldDictType)) {

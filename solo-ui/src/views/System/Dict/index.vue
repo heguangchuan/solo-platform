@@ -24,6 +24,7 @@ import {
   deleteDictDataApi,
   deleteDictDataBatchApi,
 } from '@/api/dict'
+import { clearDictCache } from '@/composables/useDict'
 
 // ====== 字典类型 ======
 const typeLoading = ref(false)
@@ -42,7 +43,6 @@ const typeForm = ref<DictTypeRequest>({
   dictName: '',
   dictType: '',
   status: 1,
-  remark: '',
 })
 const typeRules = {
   dictName: [{ required: true, message: '请输入字典名称', trigger: 'blur' }],
@@ -91,7 +91,7 @@ function handleTypeSelectionChange(rows: SysDictType[]) {
 function handleAddType() {
   typeDialogTitle.value = '新增字典类型'
   typeEditingId.value = ''
-  typeForm.value = { dictName: '', dictType: '', status: 1, remark: '' }
+  typeForm.value = { dictName: '', dictType: '', status: 1 }
   typeDialogVisible.value = true
 }
 
@@ -102,7 +102,6 @@ function handleEditType(row: SysDictType) {
     dictName: row.dictName,
     dictType: row.dictType,
     status: row.status,
-    remark: row.remark,
   }
   typeDialogVisible.value = true
 }
@@ -178,23 +177,13 @@ const dataForm = ref<DictDataRequest>({
   dictType: '',
   dictLabel: '',
   dictValue: '',
-  sort: 0,
-  cssClass: '',
+  sort: 1,
   status: 1,
-  remark: '',
 })
 const dataRules = {
   dictLabel: [{ required: true, message: '请输入字典标签', trigger: 'blur' }],
   dictValue: [{ required: true, message: '请输入字典键值', trigger: 'blur' }],
 }
-
-const cssClassOptions = [
-  { label: '默认', value: '' },
-  { label: '成功', value: 'success' },
-  { label: '警告', value: 'warning' },
-  { label: '危险', value: 'danger' },
-  { label: '信息', value: 'info' },
-]
 
 function handleOpenData(row: SysDictType) {
   activeType.value = row
@@ -259,10 +248,8 @@ function handleAddData() {
     dictType: activeType.value.dictType,
     dictLabel: '',
     dictValue: '',
-    sort: 0,
-    cssClass: '',
+    sort: 1,
     status: 1,
-    remark: '',
   }
   dataDialogVisible.value = true
 }
@@ -275,11 +262,14 @@ function handleEditData(row: SysDictData) {
     dictLabel: row.dictLabel,
     dictValue: row.dictValue,
     sort: row.sort,
-    cssClass: row.cssClass,
     status: row.status,
-    remark: row.remark,
   }
   dataDialogVisible.value = true
+}
+
+function refreshDataAfterChange() {
+  if (activeType.value) clearDictCache(activeType.value.dictType)
+  fetchData()
 }
 
 async function handleConfirmData() {
@@ -293,7 +283,7 @@ async function handleConfirmData() {
     }
     ElMessage.success('操作成功')
     dataDialogVisible.value = false
-    fetchData()
+    refreshDataAfterChange()
   } catch {
     // handled
   }
@@ -304,7 +294,7 @@ async function handleDeleteData(row: SysDictData) {
     await ElMessageBox.confirm(`确定要删除字典项 "${row.dictLabel}" 吗？`, '提示', { type: 'warning' })
     await deleteDictDataApi(row.id)
     ElMessage.success('删除成功')
-    fetchData()
+    refreshDataAfterChange()
   } catch {
     // cancelled
   }
@@ -321,7 +311,7 @@ async function handleBatchDeleteData() {
     })
     await deleteDictDataBatchApi(dataSelected.value.map((row) => row.id))
     ElMessage.success('删除成功')
-    fetchData()
+    refreshDataAfterChange()
   } catch {
     // cancelled
   }
@@ -374,7 +364,6 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="字典备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
@@ -430,9 +419,6 @@ onMounted(() => {
         <el-form-item label="字典状态">
           <el-switch v-model="typeForm.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="字典备注">
-          <el-input v-model="typeForm.remark" type="textarea" :rows="3" placeholder="请输入备注" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="typeDialogVisible = false">取消</el-button>
@@ -443,8 +429,6 @@ onMounted(() => {
     <!-- 字典数据 dialog -->
     <el-dialog
       v-model="dataDrawerVisible"
-      :title="`字典数据 - ${activeType?.dictName ?? ''}（${activeType?.dictType ?? ''}）`"
-      width="900px"
       destroy-on-close
       append-to-body
     >
@@ -481,22 +465,16 @@ onMounted(() => {
         @selection-change="handleDataSelectionChange"
       >
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="dictLabel" label="字典标签" min-width="140">
-          <template #default="{ row }">
-            <el-tag v-if="row.cssClass" :type="row.cssClass">{{ row.dictLabel }}</el-tag>
-            <span v-else>{{ row.dictLabel }}</span>
-          </template>
-        </el-table-column>
+        <el-table-column prop="dictLabel" label="字典标签" min-width="120" />
         <el-table-column prop="dictValue" label="字典键值" min-width="120" />
-        <el-table-column prop="sort" label="显示排序" width="80" align="center" />
-        <el-table-column label="数据状态" width="80" align="center">
+        <el-table-column prop="sort" label="显示排序" align="center" />
+        <el-table-column label="数据状态" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="数据备注" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button
@@ -550,18 +528,10 @@ onMounted(() => {
           <el-input v-model="dataForm.dictValue" placeholder="如：1" />
         </el-form-item>
         <el-form-item label="显示排序">
-          <el-input-number v-model="dataForm.sort" :min="0" controls-position="right" style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="回显样式">
-          <el-select v-model="dataForm.cssClass" placeholder="请选择样式" style="width: 100%">
-            <el-option v-for="opt in cssClassOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
+          <el-input-number v-model="dataForm.sort" :min="1" controls-position="right" style="width: 100%" />
         </el-form-item>
         <el-form-item label="数据状态">
           <el-switch v-model="dataForm.status" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-        <el-form-item label="数据备注">
-          <el-input v-model="dataForm.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -585,7 +555,7 @@ onMounted(() => {
 }
 
 .search-form {
-  margin-bottom: 8px;
+  margin-bottom: 20px;
 }
 
 .dialog-actions {

@@ -29,16 +29,9 @@ public class SysDictData {
     private Integer sort;
 
     /**
-     * 回显样式（success / danger / warning / info / 空）
-     */
-    private String cssClass;
-
-    /**
      * 状态：0-禁用，1-启用
      */
     private Integer status;
-
-    private String remark;
 
     @TableLogic
     private Integer deleted;

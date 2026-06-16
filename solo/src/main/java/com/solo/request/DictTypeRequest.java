@@ -10,5 +10,4 @@ public class DictTypeRequest {
     private String dictName;
     private String dictType;
     private Integer status;
-    private String remark;
 }
