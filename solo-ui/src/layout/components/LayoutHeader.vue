@@ -41,6 +41,14 @@ function handleLogout() {
 function goProfile() {
   router.push('/profile')
 }
+
+function toggleFullscreen() {
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+    return
+  }
+  document.documentElement.requestFullscreen()
+}
 </script>
 
 <template>
@@ -64,6 +72,11 @@ function goProfile() {
             <Sunny v-if="appStore.isDark" />
             <Moon v-else />
           </el-icon>
+        </span>
+      </el-tooltip>
+      <el-tooltip content="全屏" placement="bottom">
+        <span class="header-action" @click="toggleFullscreen">
+          <el-icon><FullScreen /></el-icon>
         </span>
       </el-tooltip>
       <el-popover placement="bottom" :width="240" trigger="click">
