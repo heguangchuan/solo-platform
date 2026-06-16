@@ -110,6 +110,7 @@ INSERT INTO `sys_permission` (`id`,`permission_name`,`permission_code`,`url`,`ty
 (4, '权限管理', 'system:permission',     '/system/permission',    1, 1,  3, 'Lock',       1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
 (43,'日志管理', 'system:log',            '/system/log',           1, 1,  4, 'Document',   1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 (48,'在线用户', 'system:online',         '/system/online',        1, 1,  5, 'Connection', 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+(51,'文件管理', 'system:file',           '/system/file',          1, 1,  6, 'Files',      1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 
 /* —— 用户管理 → 按钮 —— */
 (5, '用户查询',     'system:user:list',   NULL, 2, 2,  1, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
@@ -147,6 +148,11 @@ INSERT INTO `sys_permission` (`id`,`permission_name`,`permission_code`,`url`,`ty
 /* —— 在线用户 → 按钮 —— */
 (49,'在线查询', 'system:online:list',  NULL, 2, 48, 1, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 (50,'强制下线', 'system:online:kick',  NULL, 2, 48, 2, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+
+/* —— 文件管理 → 按钮 —— */
+(52,'文件查询', 'system:file:list',   NULL, 2, 51, 1, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+(53,'文件上传', 'system:file:upload', NULL, 2, 51, 2, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
+(54,'文件删除', 'system:file:delete', NULL, 2, 51, 3, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 
 /* —— 系统设置 → 子菜单 —— */
 (28,'参数管理', 'system:config', '/system/config', 1, 27, 1, 'SetUp',      1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
@@ -292,6 +298,29 @@ CREATE TABLE `sys_log` (
   KEY `idx_operator_name` (`operator_name`),
   KEY `idx_module_type` (`module`,`business_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+
+/* =====================================================================
+ * 10. sys_file — 文件管理表
+ * ===================================================================== */
+DROP TABLE IF EXISTS `sys_file`;
+CREATE TABLE `sys_file` (
+  `id`             bigint        NOT NULL AUTO_INCREMENT COMMENT '文件ID',
+  `original_name`  varchar(255)  COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '上传时的原始文件名',
+  `storage_name`   varchar(255)  COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '存储路径名（含哈希，避免重名）',
+  `url`            varchar(500)  COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '可访问URL（相对路径或绝对URL）',
+  `ext`            varchar(20)   COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '扩展名（小写，不带点）',
+  `mime_type`      varchar(100)  COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT 'Content-Type',
+  `size`           bigint        NOT NULL COMMENT '字节数',
+  `uploader_id`    bigint        DEFAULT NULL COMMENT '上传人ID',
+  `uploader_name`  varchar(50)   COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '上传人账号',
+  `deleted`        tinyint       NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+  `create_time`    datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time`    datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_uploader` (`uploader_id`),
+  KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件管理表';
 
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

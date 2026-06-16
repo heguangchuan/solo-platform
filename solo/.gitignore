@@ -33,3 +33,5 @@ build/
 .vscode/
 .claude
 
+### 本地上传目录 ###
+uploads/

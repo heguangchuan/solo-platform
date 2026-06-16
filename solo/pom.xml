@@ -60,6 +60,15 @@
             <version>1.1.0</version>
         </dependency>
 
+        <!-- MinIO（可选）：仅当配置 file.storage.type=minio 时启用 MinioFileStorage 实现。
+             不使用 MinIO 的项目可在依赖管理中通过 exclusion 移除，或仅作运行时缺失即可。 -->
+        <dependency>
+            <groupId>io.minio</groupId>
+            <artifactId>minio</artifactId>
+            <version>8.5.17</version>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
