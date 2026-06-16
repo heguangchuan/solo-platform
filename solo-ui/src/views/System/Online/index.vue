@@ -99,7 +99,7 @@ onMounted(() => {
         <span class="online-count">
           当前在线：<strong>{{ tableData.length }}</strong> 人
         </span>
-        <el-button size="small" @click="fetchData">
+        <el-button @click="fetchData">
           <el-icon class="btn-icon"><Refresh /></el-icon>
           刷新
         </el-button>

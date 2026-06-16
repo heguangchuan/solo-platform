@@ -151,10 +151,10 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:file:upload'" type="primary" size="small" @click="openUploadDialog">
+        <el-button v-permission="'system:file:upload'" type="primary" @click="openUploadDialog">
           上传
         </el-button>
-        <el-button v-permission="'system:file:delete'" type="danger" size="small" @click="handleBatchDelete">
+        <el-button v-permission="'system:file:delete'" type="danger" @click="handleBatchDelete">
           删除
         </el-button>
       </div>
