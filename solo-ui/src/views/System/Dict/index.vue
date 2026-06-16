@@ -353,8 +353,8 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:dict:type:add'" type="primary" size="small" @click="handleAddType">新增</el-button>
-        <el-button v-permission="'system:dict:type:delete'" type="primary" size="small" @click="handleBatchDeleteType">删除</el-button>
+        <el-button v-permission="'system:dict:type:add'" type="primary" @click="handleAddType">新增</el-button>
+        <el-button v-permission="'system:dict:type:delete'" type="primary" @click="handleBatchDeleteType">删除</el-button>
       </div>
 
       <el-table
@@ -467,8 +467,8 @@ onMounted(() => {
       </el-form>
 
       <div class="dialog-actions">
-        <el-button v-permission="'system:dict:data:add'" type="primary" size="small" @click="handleAddData">新增</el-button>
-        <el-button v-permission="'system:dict:data:delete'" type="primary" size="small" @click="handleBatchDeleteData">
+        <el-button v-permission="'system:dict:data:add'" type="primary" @click="handleAddData">新增</el-button>
+        <el-button v-permission="'system:dict:data:delete'" type="primary" @click="handleBatchDeleteData">
           删除
         </el-button>
       </div>

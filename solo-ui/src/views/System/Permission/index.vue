@@ -227,9 +227,9 @@ onMounted(() => {
   <div>
     <el-card shadow="hover">
       <div class="table-toolbar">
-        <el-button v-permission="'system:permission:add'" type="primary" size="small" @click="handleAdd()">新增</el-button>
-        <el-button v-permission="'system:permission:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
-        <el-button size="small" @click="toggleExpandAll">
+        <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
+        <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button @click="toggleExpandAll">
           <el-icon class="btn-icon"><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
           {{ allExpanded ? '全部折叠' : '全部展开' }}
         </el-button>

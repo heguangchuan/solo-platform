@@ -180,9 +180,9 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:config:add'" type="primary" size="small" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:config:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
-        <el-button v-permission="'system:config:export'" type="primary" size="small" @click="handleExport">导出</el-button>
+        <el-button v-permission="'system:config:add'" type="primary" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'system:config:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:config:export'" type="primary" @click="handleExport">导出</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">

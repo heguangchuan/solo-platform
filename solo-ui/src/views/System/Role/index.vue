@@ -266,10 +266,10 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:role:add'" type="primary" size="small" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:role:delete'" type="primary" size="small" @click="handleBatchDelete">删除</el-button>
-        <el-button type="primary" size="small">导入</el-button>
-        <el-button v-permission="'system:role:export'" type="primary" size="small" @click="handleExport">导出</el-button>
+        <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'system:role:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button type="primary">导入</el-button>
+        <el-button v-permission="'system:role:export'" type="primary" @click="handleExport">导出</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
@@ -342,8 +342,8 @@ onMounted(() => {
         <div class="p2r-toolbar">
           <el-checkbox v-model="p2rStrictly">父子节点独立</el-checkbox>
           <div class="p2r-actions">
-            <el-button size="small" @click="expandAllPermissions(true)">全部展开</el-button>
-            <el-button size="small" @click="expandAllPermissions(false)">全部折叠</el-button>
+            <el-button @click="expandAllPermissions(true)">全部展开</el-button>
+            <el-button @click="expandAllPermissions(false)">全部折叠</el-button>
           </div>
         </div>
         <el-tree
