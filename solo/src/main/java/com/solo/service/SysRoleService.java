@@ -38,4 +38,14 @@ public interface SysRoleService extends IService<SysRole> {
      * 批量删除角色及关联关系
      */
     void deleteBatch(List<Long> ids);
+
+    /**
+     * 查询角色已分配的权限ID列表
+     */
+    List<Long> listPermissionIds(Long roleId);
+
+    /**
+     * 给角色分配权限（覆盖式：先全清，再写入）
+     */
+    void assignPermissions(Long roleId, List<Long> permissionIds);
 }

@@ -1,8 +1,18 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { SysRole, RoleRequest, RolePageRequest } from '@/types/api'
-import { getRolePageApi, addRoleApi, deleteRoleApi, deleteRoleBatchApi, exportRoleApi } from '@/api/role'
+import type { SysRole, SysPermission, RoleRequest, RolePageRequest } from '@/types/api'
+import {
+  getRolePageApi,
+  addRoleApi,
+  editRoleApi,
+  deleteRoleApi,
+  deleteRoleBatchApi,
+  exportRoleApi,
+  getRoleAssignedPermissionsApi,
+  assignRolePermissionsApi,
+} from '@/api/role'
+import { getPermissionTreeApi } from '@/api/permission'
 import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
@@ -17,6 +27,7 @@ const searchForm = ref<RolePageRequest>({ page: 1, pageSize: 10 })
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref()
+const editingId = ref<string>('')
 const form = ref<RoleRequest>({
   roleCode: '',
   roleName: '',
@@ -66,12 +77,14 @@ function handleSizeChange(size: number) {
 
 function handleAdd() {
   dialogTitle.value = '新增角色'
+  editingId.value = ''
   form.value = { roleCode: '', roleName: '', description: '', status: 1 }
   dialogVisible.value = true
 }
 
 function handleEdit(row: SysRole) {
   dialogTitle.value = '编辑角色'
+  editingId.value = row.id
   form.value = {
     roleCode: row.roleCode,
     roleName: row.roleName,
@@ -86,10 +99,10 @@ async function handleConfirm() {
   if (!valid) return
 
   try {
-    if (dialogTitle.value === '新增角色') {
+    if (!editingId.value) {
       await addRoleApi(form.value)
     } else {
-      // 需要在路由中补充编辑端点的处理
+      await editRoleApi(editingId.value, form.value)
     }
     ElMessage.success('操作成功')
     dialogVisible.value = false
@@ -140,6 +153,92 @@ const statusTypeMap: Record<number, string> = {
   0: 'danger',
 }
 
+/* ========================== 角色授权（p2r） ========================== */
+const p2rVisible = ref(false)
+const p2rRole = ref<SysRole | null>(null)
+const p2rLoading = ref(false)
+const p2rSubmitting = ref(false)
+const p2rTreeRef = ref<any>()
+const p2rStrictly = ref(false)
+const permissionTree = ref<SysPermission[]>([])
+const treeProps = { label: 'permissionName', children: 'children' }
+
+/**
+ * 收集树中所有"叶子节点"的 ID。
+ * el-tree 在非严格模式下，半选/全选父节点时，getCheckedKeys 仅返回叶子，
+ * 但我们前端把"已分配"完整 ID 列表回填，需要先过滤出叶子来 setCheckedKeys，
+ * 否则父节点会被强制勾选，影响子节点状态。
+ */
+function collectLeafIds(nodes: SysPermission[] | undefined, into: Set<string>) {
+  if (!nodes?.length) return
+  nodes.forEach((n) => {
+    if (n.children?.length) collectLeafIds(n.children, into)
+    else into.add(n.id)
+  })
+}
+
+async function handleAssignPermissions(row: SysRole) {
+  p2rRole.value = row
+  p2rVisible.value = true
+  p2rLoading.value = true
+  p2rStrictly.value = false
+  let assignedLeaves: string[] = []
+  try {
+    if (!permissionTree.value.length) {
+      const treeRes = await getPermissionTreeApi()
+      permissionTree.value = treeRes.data
+    }
+    const assignedRes = await getRoleAssignedPermissionsApi(row.id)
+
+    // 后端 List<Long> 直接序列化为 number；权限树的 id 经 ToStringSerializer 是 string。
+    // 必须在前端把已分配的 ID 转成 string，否则 setCheckedKeys 全部匹配不上 node-key
+    const assignedAll = (assignedRes.data || []).map((v) => String(v))
+
+    // 只保留叶子节点 ID。non-strict 模式下，setCheckedKeys 传入父节点会强制
+    // 勾选其全部子节点，从而把"父分配但只勾了部分子节点"的真实状态吃掉。
+    const leafSet = new Set<string>()
+    collectLeafIds(permissionTree.value, leafSet)
+    assignedLeaves = assignedAll.filter((id) => leafSet.has(id))
+  } finally {
+    p2rLoading.value = false
+  }
+  // loading=false 之后 v-if 才会渲染 el-tree；必须等 DOM 更新完再回填
+  await nextTick()
+  // 切换角色时先清空，避免上一次的勾选残留（尤其在 strict / non-strict 切换时）
+  p2rTreeRef.value?.setCheckedKeys([])
+  p2rTreeRef.value?.setCheckedKeys(assignedLeaves)
+}
+
+async function handleConfirmAssignPermissions() {
+  if (!p2rRole.value) return
+  // getCheckedKeys + getHalfCheckedKeys：父节点被半选时也得算上，
+  // 否则保存后再次打开会丢父节点本身的权限点。
+  const checked = p2rTreeRef.value?.getCheckedKeys() || []
+  const half = p2rTreeRef.value?.getHalfCheckedKeys() || []
+  const all = [...checked, ...half] as string[]
+  p2rSubmitting.value = true
+  try {
+    await assignRolePermissionsApi(p2rRole.value.id, all)
+    ElMessage.success('授权成功')
+    p2rVisible.value = false
+  } finally {
+    p2rSubmitting.value = false
+  }
+}
+
+function expandAllPermissions(expand: boolean) {
+  // 通过修改 store，直接重渲染时让所有节点 default-expand-all
+  // 这里直接调用内部 store 节点
+  const tree = p2rTreeRef.value
+  if (!tree) return
+  const nodes = tree.store?.nodesMap || {}
+  Object.keys(nodes).forEach((k) => (nodes[k].expanded = expand))
+}
+
+const p2rDialogTitle = computed(
+  () => `角色授权 - ${p2rRole.value?.roleName || p2rRole.value?.roleCode || ''}`,
+)
+
 onMounted(() => {
   fetchData()
 })
@@ -183,9 +282,10 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'system:role:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'system:role:p2r'" type="primary" link @click="handleAssignPermissions(row)">授权</el-button>
             <el-button v-permission="'system:role:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -206,7 +306,7 @@ onMounted(() => {
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="角色编码" prop="roleCode">
-          <el-input v-model="form.roleCode" placeholder="如：ADMIN、USER" />
+          <el-input v-model="form.roleCode" placeholder="如：ADMIN、USER" :disabled="!!editingId" />
         </el-form-item>
         <el-form-item label="角色名称" prop="roleName">
           <el-input v-model="form.roleName" placeholder="请输入角色名称" />
@@ -228,6 +328,36 @@ onMounted(() => {
         <el-button type="primary" @click="handleConfirm">确定</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="p2rVisible"
+      :title="p2rDialogTitle"
+      width="560px"
+      destroy-on-close
+    >
+      <div v-loading="p2rLoading" class="p2r-panel">
+        <div class="p2r-toolbar">
+          <el-checkbox v-model="p2rStrictly">父子节点独立</el-checkbox>
+          <div class="p2r-actions">
+            <el-button size="small" @click="expandAllPermissions(true)">全部展开</el-button>
+            <el-button size="small" @click="expandAllPermissions(false)">全部折叠</el-button>
+          </div>
+        </div>
+        <el-tree
+          ref="p2rTreeRef"
+          :data="permissionTree"
+          :props="treeProps"
+          node-key="id"
+          show-checkbox
+          :check-strictly="p2rStrictly"
+          class="p2r-tree"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="p2rVisible = false">取消</el-button>
+        <el-button type="primary" :loading="p2rSubmitting" @click="handleConfirmAssignPermissions">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -247,5 +377,29 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.p2r-panel {
+  min-height: 360px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.p2r-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  margin-bottom: 8px;
+}
+
+.p2r-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.p2r-tree {
+  padding-top: 4px;
 }
 </style>
