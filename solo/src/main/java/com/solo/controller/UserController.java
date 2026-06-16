@@ -138,8 +138,12 @@ public class UserController {
      */
     @GetMapping("/r2u/{userId}")
     @RequirePermission({"system:user:r2u"})
-    public Result<List<Long>> listAssignedRoles(@PathVariable Long userId) {
-        return Result.success(sysUserService.listRoleIds(userId));
+    public Result<List<String>> listAssignedRoles(@PathVariable Long userId) {
+        // 与角色列表里 id（ToStringSerializer 序列化为 string）保持类型一致
+        List<String> ids = sysUserService.listRoleIds(userId).stream()
+                .map(String::valueOf)
+                .toList();
+        return Result.success(ids);
     }
 
     /**

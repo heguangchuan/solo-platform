@@ -16,6 +16,10 @@ import com.solo.request.RoleRequest;
 import com.solo.service.SysRoleService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 系统角色服务实现类
@@ -82,5 +86,35 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getRoleId, ids));
         sysRolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().in(SysRolePermission::getRoleId, ids));
         removeByIds(ids);
+    }
+
+    @Override
+    public List<Long> listPermissionIds(Long roleId) {
+        if (roleId == null) return new ArrayList<>();
+        List<SysRolePermission> list = sysRolePermissionMapper.selectList(
+                new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, roleId));
+        return list.stream().map(SysRolePermission::getPermissionId).toList();
+    }
+
+    @Override
+    @Transactional
+    public void assignPermissions(Long roleId, List<Long> permissionIds) {
+        if (roleId == null) {
+            throw new ServiceException("角色ID不能为空");
+        }
+        SysRole role = getById(roleId);
+        if (role == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "角色不存在");
+        }
+        sysRolePermissionMapper.delete(
+                new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, roleId));
+        if (permissionIds == null || permissionIds.isEmpty()) return;
+        for (Long permissionId : permissionIds) {
+            if (permissionId == null) continue;
+            SysRolePermission entry = new SysRolePermission();
+            entry.setRoleId(roleId);
+            entry.setPermissionId(permissionId);
+            sysRolePermissionMapper.insert(entry);
+        }
     }
 }

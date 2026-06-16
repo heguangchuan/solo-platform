@@ -44,3 +44,17 @@ export function deleteRoleApi(id: string) {
 export function deleteRoleBatchApi(ids: string[]) {
   return del<void>('/system/role/batch', { data: ids })
 }
+
+/**
+ * 查询角色已分配的权限ID列表
+ */
+export function getRoleAssignedPermissionsApi(roleId: string) {
+  return get<string[]>(`/system/role/p2r/${roleId}`)
+}
+
+/**
+ * 给角色分配权限
+ */
+export function assignRolePermissionsApi(roleId: string, permissionIds: string[]) {
+  return post<void>('/system/role/p2r', { roleId, permissionIds })
+}

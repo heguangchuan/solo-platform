@@ -9,6 +9,7 @@ import com.solo.common.Result;
 import com.solo.entity.SysRole;
 import com.solo.request.RoleExportRequest;
 import com.solo.request.RolePageRequest;
+import com.solo.request.RolePermissionAssignRequest;
 import com.solo.request.RoleRequest;
 import com.solo.response.RoleExcelResponse;
 import com.solo.service.SysRoleService;
@@ -130,6 +131,31 @@ public class RoleController {
     @OperationLog(module = "角色管理", type = BusinessType.DELETE, description = "删除角色")
     public Result<Void> delete(@PathVariable Long id) {
         sysRoleService.deleteRole(id);
+        return Result.success();
+    }
+
+    /**
+     * 查询角色已分配的权限ID列表
+     */
+    @GetMapping("/p2r/{roleId}")
+    @RequirePermission({"system:role:p2r"})
+    public Result<List<String>> listAssignedPermissions(@PathVariable Long roleId) {
+        // 与权限树里 id（ToStringSerializer 序列化为 string）保持类型一致，
+        // 前端可直接 setCheckedKeys，无需再次 String() 转换
+        List<String> ids = sysRoleService.listPermissionIds(roleId).stream()
+                .map(String::valueOf)
+                .toList();
+        return Result.success(ids);
+    }
+
+    /**
+     * 给角色分配权限
+     */
+    @PostMapping("/p2r")
+    @RequirePermission({"system:role:p2r"})
+    @OperationLog(module = "角色管理", type = BusinessType.EDIT, description = "角色授权")
+    public Result<Void> assignPermissions(@RequestBody RolePermissionAssignRequest request) {
+        sysRoleService.assignPermissions(request.getRoleId(), request.getPermissionIds());
         return Result.success();
     }
 }
