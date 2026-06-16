@@ -4,9 +4,8 @@ export default { name: 'SystemFile' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { UploadFile } from 'element-plus'
 import type { FilePageRequest, SysFile } from '@/types/api'
-import { deleteFileApi, deleteFileBatchApi, getFilePageApi, uploadFileApi } from '@/api/file'
+import { deleteFileApi, deleteFileBatchApi, getFilePageApi } from '@/api/file'
 
 const loading = ref(false)
 const tableData = ref<SysFile[]>([])
@@ -56,27 +55,14 @@ function handleSelectionChange(rows: SysFile[]) {
 
 /* ============ 上传弹窗 ============ */
 const uploadVisible = ref(false)
-const uploadSubmitting = ref(false)
-const uploadFile = ref<File | null>(null)
 
 function openUploadDialog() {
-  uploadFile.value = null
-  uploadSubmitting.value = false
   uploadVisible.value = true
 }
 
-async function handleUploadChange(file: UploadFile) {
-  if (!file.raw) return
-  uploadFile.value = file.raw
-  uploadSubmitting.value = true
-  try {
-    await uploadFileApi(file.raw)
-    ElMessage.success('上传成功')
-    uploadVisible.value = false
-    fetchData()
-  } finally {
-    uploadSubmitting.value = false
-  }
+function handleUploadSuccess() {
+  uploadVisible.value = false
+  fetchData()
 }
 
 /* ============ 行操作 ============ */
@@ -196,17 +182,7 @@ onMounted(() => {
 
     <!-- 上传弹窗 -->
     <el-dialog v-model="uploadVisible" title="上传文件" destroy-on-close>
-      <el-upload :on-change="handleUploadChange" :show-file-list="false" :auto-upload="false" :limit="1">
-        <el-button type="primary" plain :loading="uploadSubmitting">
-          <el-icon class="btn-icon"><Upload /></el-icon>
-          选择并上传
-        </el-button>
-        <template #tip>
-          <div class="upload-tip">
-            {{ uploadFile ? `已选择：${uploadFile.name}（${formatSize(uploadFile.size)}）` : '选择文件后会自动上传' }}
-          </div>
-        </template>
-      </el-upload>
+      <FileUpload button-text="选择并上传" plain :show-file-name="false" @success="handleUploadSuccess" />
     </el-dialog>
   </div>
 </template>
@@ -227,16 +203,5 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-.btn-icon {
-  margin-right: 4px;
-  vertical-align: -2px;
-}
-
-.upload-tip {
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
 }
 </style>

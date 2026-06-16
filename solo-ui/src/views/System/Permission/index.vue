@@ -12,9 +12,7 @@ import {
   editPermissionApi,
   deletePermissionApi,
   deletePermissionBatchApi,
-  exportPermissionApi,
 } from '@/api/permission'
-import { downloadBlob } from '@/utils/download'
 
 const loading = ref(false)
 const treeData = ref<SysPermission[]>([])
@@ -171,12 +169,6 @@ async function handleBatchDelete() {
   } catch {
     // cancelled or error
   }
-}
-
-async function handleExport() {
-  const ids = selectedRows.value.map((row) => row.id)
-  const res = await exportPermissionApi({ ids: ids.length ? ids : undefined })
-  downloadBlob(res.data, '权限列表.xlsx')
 }
 
 async function handleDelete(row: SysPermission) {
