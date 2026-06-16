@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 
 const route = useRoute()
+const router = useRouter()
 const userStore = useUserStore()
 const appStore = useAppStore()
 
@@ -32,6 +33,10 @@ const breadcrumbs = computed(() => {
 function handleLogout() {
   userStore.logout()
   window.location.href = '/login'
+}
+
+function goProfile() {
+  router.push('/profile')
 }
 </script>
 
@@ -98,7 +103,14 @@ function handleLogout() {
             <el-dropdown-item disabled>
               {{ userStore.user?.username }}
             </el-dropdown-item>
-            <el-dropdown-item divided @click="handleLogout">退出登录</el-dropdown-item>
+            <el-dropdown-item divided @click="goProfile">
+              <el-icon style="margin-right: 6px"><UserFilled /></el-icon>
+              个人中心
+            </el-dropdown-item>
+            <el-dropdown-item @click="handleLogout">
+              <el-icon style="margin-right: 6px"><SwitchButton /></el-icon>
+              退出登录
+            </el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

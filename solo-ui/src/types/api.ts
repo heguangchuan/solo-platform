@@ -57,6 +57,16 @@ export interface ChangePasswordRequest {
 }
 
 /**
+ * 个人资料更新请求
+ */
+export interface ProfileUpdateRequest {
+  nickname?: string
+  email?: string
+  phone?: string
+  avatar?: string
+}
+
+/**
  * 权限树节点（认证返回）
  */
 export interface UserAuthResponse {

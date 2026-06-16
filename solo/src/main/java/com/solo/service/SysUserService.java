@@ -8,6 +8,7 @@ import com.solo.entity.SysRole;
 import com.solo.entity.SysUser;
 import com.solo.request.UserRequest;
 import com.solo.request.UserPageRequest;
+import com.solo.request.ProfileUpdateRequest;
 import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
 
@@ -88,4 +89,9 @@ public interface SysUserService extends IService<SysUser> {
      * 获取当前登录用户的精简档案（含强制改密标记）
      */
     UserInfoVO getProfile(Long userId);
+
+    /**
+     * 当前登录用户更新自身资料（仅可修改昵称/邮箱/手机号/头像）
+     */
+    void updateProfile(Long userId, ProfileUpdateRequest request);
 }
