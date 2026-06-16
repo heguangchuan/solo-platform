@@ -36,6 +36,8 @@ export interface UserInfoVO {
   phone: string
   avatar: string
   status: number
+  /** 是否首次登录强制改密：0-否 1-是 */
+  pwdResetRequired: number
 }
 
 /**
@@ -44,6 +46,14 @@ export interface UserInfoVO {
 export interface LoginResponse {
   token: string
   user: UserInfoVO
+}
+
+/**
+ * 修改密码请求
+ */
+export interface ChangePasswordRequest {
+  oldPassword: string
+  newPassword: string
 }
 
 /**
@@ -188,7 +198,6 @@ export interface ConfigRequest {
   configName: string
   configKey: string
   configValue: string
-  configType?: number
   remark?: string
 }
 
@@ -197,7 +206,6 @@ export interface SysConfig {
   configName: string
   configKey: string
   configValue: string
-  configType: number
   remark: string
   createTime: string
   updateTime: string

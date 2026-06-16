@@ -13,9 +13,20 @@ public final class SystemConstants {
     public static final int STATUS_ENABLED = 1;
 
     /**
-     * 默认密码（MD5加密后的 admin123）
+     * 默认密码（MD5加密后的 admin123）—— 仅 admin 账号的初始密码使用
      */
     public static final String DEFAULT_PASSWORD = "0192023a7bbd73250516f069df18b500";
+
+    /**
+     * 普通账号默认密码模板：{username}@123456
+     */
+    public static final String DEFAULT_PASSWORD_TEMPLATE = "%s@123456";
+
+    /**
+     * 是否首次登录强制改密
+     */
+    public static final int PWD_RESET_NOT_REQUIRED = 0;
+    public static final int PWD_RESET_REQUIRED = 1;
 
     /**
      * HTTP 状态码

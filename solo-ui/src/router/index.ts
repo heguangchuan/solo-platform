@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { ref } from 'vue'
-import { getAuthMenusApi, getAuthPermissionsApi } from '@/api/auth'
+import { getAuthMenusApi, getAuthPermissionsApi, getProfileApi } from '@/api/auth'
 
 const mainRouteName = 'Main'
 
@@ -68,9 +68,10 @@ export const dynamicRouteConfig = {
   },
   async refreshRoutes() {
     if (isRoutesRegistered) return
-    const [menuRes, permissionRes] = await Promise.all([
+    const [menuRes, permissionRes, profileRes] = await Promise.all([
       getAuthMenusApi(),
       getAuthPermissionsApi(),
+      getProfileApi(),
     ])
     const menus = menuRes.data
     if (menus?.length) {
@@ -80,7 +81,9 @@ export const dynamicRouteConfig = {
       isRoutesRegistered = true
     }
     const { useUserStore } = await import('@/stores/user')
-    useUserStore().setPermissions(permissionRes.data)
+    const userStore = useUserStore()
+    userStore.setPermissions(permissionRes.data)
+    if (profileRes?.data) userStore.setUser(profileRes.data)
   },
 }
 

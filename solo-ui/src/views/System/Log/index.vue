@@ -145,24 +145,24 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="操作人">
-          <el-input v-model="searchForm.operatorName" placeholder="请输入操作人" clearable />
+        <el-form-item label="操作人员">
+          <el-input v-model="searchForm.operatorName" placeholder="请输入操作人员" clearable />
         </el-form-item>
-        <el-form-item label="模块">
-          <el-input v-model="searchForm.module" placeholder="请输入模块名" clearable />
+        <el-form-item label="业务模块">
+          <el-input v-model="searchForm.module" placeholder="请输入业务模块" clearable />
         </el-form-item>
         <el-form-item label="业务类型">
           <el-select v-model="searchForm.businessType" placeholder="全部" clearable style="width: 140px">
             <el-option v-for="opt in businessTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="响应状态">
           <el-select v-model="searchForm.responseStatus" placeholder="全部" clearable style="width: 120px">
             <el-option label="成功" :value="1" />
             <el-option label="失败" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item label="来源">
+        <el-form-item label="客户来源">
           <el-select v-model="searchForm.clientSource" placeholder="全部" clearable style="width: 120px">
             <el-option label="web" value="web" />
             <el-option label="app" value="app" />
@@ -193,8 +193,8 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="operatorName" label="操作人" min-width="120" />
-        <el-table-column prop="module" label="模块" min-width="120" />
+        <el-table-column prop="operatorName" label="操作人员" min-width="120" />
+        <el-table-column prop="module" label="业务模块" min-width="120" />
         <el-table-column label="业务类型" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="(businessTypeMap[row.businessType] || { type: 'info' }).type" size="small">
@@ -202,18 +202,20 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="描述" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="requestUrl" label="请求URL" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="description" label="操作描述" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="requestUrl" label="请求地址" min-width="200" show-overflow-tooltip />
+        <el-table-column label="响应状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.responseStatus === 1 ? 'success' : 'danger'" size="small">
               {{ row.responseStatus === 1 ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="costMs" label="耗时(ms)" width="100" align="right" />
-        <el-table-column prop="clientSource" label="来源" width="80" align="center" />
-        <el-table-column prop="clientIp" label="IP" min-width="140" />
+        <el-table-column prop="costMs" label="响应耗时" width="100" align="right">
+          <template #default="{ row }">{{ row.costMs }} ms</template>
+        </el-table-column>
+        <el-table-column prop="clientSource" label="客户来源" width="90" align="center" />
+        <el-table-column prop="clientIp" label="客户地址" min-width="140" />
         <el-table-column prop="createTime" label="操作时间" min-width="170" />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
@@ -237,22 +239,22 @@ onMounted(() => {
 
     <el-dialog v-model="detailVisible" title="日志详情" width="720px" destroy-on-close>
       <el-descriptions v-if="detailRow" :column="2" border>
-        <el-descriptions-item label="操作人">{{ detailRow.operatorName }}</el-descriptions-item>
+        <el-descriptions-item label="操作人员">{{ detailRow.operatorName }}</el-descriptions-item>
         <el-descriptions-item label="操作时间">{{ detailRow.createTime }}</el-descriptions-item>
-        <el-descriptions-item label="模块">{{ detailRow.module }}</el-descriptions-item>
+        <el-descriptions-item label="业务模块">{{ detailRow.module }}</el-descriptions-item>
         <el-descriptions-item label="业务类型">
           {{ (businessTypeMap[detailRow.businessType] || { label: detailRow.businessType }).label }}
         </el-descriptions-item>
-        <el-descriptions-item label="描述" :span="2">{{ detailRow.description }}</el-descriptions-item>
-        <el-descriptions-item label="请求方法">{{ detailRow.requestMethod }}</el-descriptions-item>
-        <el-descriptions-item label="请求URL">{{ detailRow.requestUrl }}</el-descriptions-item>
-        <el-descriptions-item label="状态">
+        <el-descriptions-item label="操作描述" :span="2">{{ detailRow.description }}</el-descriptions-item>
+        <el-descriptions-item label="请求方式">{{ detailRow.requestMethod }}</el-descriptions-item>
+        <el-descriptions-item label="请求地址">{{ detailRow.requestUrl }}</el-descriptions-item>
+        <el-descriptions-item label="响应状态">
           {{ detailRow.responseStatus === 1 ? '成功' : '失败' }}
         </el-descriptions-item>
-        <el-descriptions-item label="耗时">{{ detailRow.costMs }} ms</el-descriptions-item>
-        <el-descriptions-item label="来源">{{ detailRow.clientSource }}</el-descriptions-item>
-        <el-descriptions-item label="IP">{{ detailRow.clientIp }}</el-descriptions-item>
-        <el-descriptions-item label="User-Agent" :span="2">{{ detailRow.userAgent }}</el-descriptions-item>
+        <el-descriptions-item label="响应耗时">{{ detailRow.costMs }} ms</el-descriptions-item>
+        <el-descriptions-item label="客户来源">{{ detailRow.clientSource }}</el-descriptions-item>
+        <el-descriptions-item label="客户地址">{{ detailRow.clientIp }}</el-descriptions-item>
+        <el-descriptions-item label="客户标识" :span="2">{{ detailRow.userAgent }}</el-descriptions-item>
         <el-descriptions-item label="请求参数" :span="2">
           <pre class="param-block">{{ detailRow.requestParam || '—' }}</pre>
         </el-descriptions-item>

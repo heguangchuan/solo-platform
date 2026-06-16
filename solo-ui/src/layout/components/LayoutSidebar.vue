@@ -24,6 +24,7 @@ function extractMenuItems(): any[] {
     <el-menu
       :default-active="route.path"
       router
+      unique-opened
       :collapse="appStore.sidebarCollapsed"
       :background-color="sidebarBg"
       :text-color="sidebarText"

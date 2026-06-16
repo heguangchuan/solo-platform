@@ -17,12 +17,11 @@ import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
 import com.solo.service.SysUserService;
 import com.solo.utils.JwtUtils;
+import com.solo.utils.PasswordUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -56,7 +55,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (user.getStatus() == SystemConstants.STATUS_DISABLED) {
             return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "账户已被禁用");
         }
-        if (!md5Encode(password).equals(user.getPassword())) {
+        if (!PasswordUtils.md5(password).equals(user.getPassword())) {
             return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
         }
         LoginResponse loginResponse = new LoginResponse();
@@ -96,12 +95,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         SysUser user = new SysUser();
         user.setUsername(request.getUsername());
-        user.setPassword(SystemConstants.DEFAULT_PASSWORD);
+        user.setPassword(PasswordUtils.defaultPasswordHashOf(request.getUsername()));
         user.setNickname(request.getNickname());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
         user.setAvatar(request.getAvatar());
         user.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
+        user.setPwdResetRequired(SystemConstants.PWD_RESET_REQUIRED);
         save(user);
     }
 
@@ -175,18 +175,38 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         return getBaseMapper().auth(userId);
     }
 
-    private String md5Encode(String source) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(source.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : digest) {
-                sb.append(String.format("%02x", b));
-            }
-            return sb.toString();
-        } catch (Exception e) {
-            throw new ServiceException("密码加密失败");
+    @Override
+    public UserInfoVO getProfile(Long userId) {
+        if (userId == null) {
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
         }
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        return buildUserInfoVO(user);
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        if (userId == null) {
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
+        }
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        if (oldPassword == null || !PasswordUtils.md5(oldPassword).equals(user.getPassword())) {
+            throw new ServiceException("原密码不正确");
+        }
+        if (newPassword != null && newPassword.equals(oldPassword)) {
+            throw new ServiceException("新密码不能与原密码相同");
+        }
+        PasswordUtils.requireStrong(newPassword);
+        user.setPassword(PasswordUtils.md5(newPassword));
+        user.setPwdResetRequired(SystemConstants.PWD_RESET_NOT_REQUIRED);
+        updateById(user);
     }
 
     private UserInfoVO buildUserInfoVO(SysUser user) {
@@ -198,6 +218,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         vo.setPhone(user.getPhone());
         vo.setAvatar(user.getAvatar());
         vo.setStatus(user.getStatus());
+        Integer flag = user.getPwdResetRequired();
+        // 兜底：若 DB 标记为 0 但密码仍是默认密码，仍视为需要强制改密
+        boolean required = flag != null && flag == SystemConstants.PWD_RESET_REQUIRED
+                || PasswordUtils.isDefaultPassword(user.getUsername(), user.getPassword());
+        vo.setPwdResetRequired(required ? SystemConstants.PWD_RESET_REQUIRED : SystemConstants.PWD_RESET_NOT_REQUIRED);
         return vo;
     }
 }

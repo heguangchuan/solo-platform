@@ -12,6 +12,11 @@
   border-bottom: 1px solid var(--el-border-color);
 }
 
+/* 表头文字始终一行展示，避免列宽不够时被强行折成两行 */
+.el-table thead th.el-table__cell .cell {
+  white-space: nowrap;
+}
+
 .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
   background-color: var(--el-fill-color-lighter);
 }

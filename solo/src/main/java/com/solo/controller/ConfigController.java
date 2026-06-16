@@ -64,7 +64,6 @@ public class ConfigController {
         response.setConfigName(config.getConfigName());
         response.setConfigKey(config.getConfigKey());
         response.setConfigValue(config.getConfigValue());
-        response.setConfigType(config.getConfigType() != null && config.getConfigType() == 1 ? "是" : "否");
         response.setRemark(config.getRemark());
         response.setCreateTime(config.getCreateTime() == null ? null : config.getCreateTime().format(DATE_TIME_FORMATTER));
         return response;

@@ -10,6 +10,5 @@ public class ConfigRequest {
     private String configName;
     private String configKey;
     private String configValue;
-    private Integer configType;
     private String remark;
 }

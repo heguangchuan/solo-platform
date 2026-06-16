@@ -212,7 +212,6 @@ onMounted(() => {
         border
         row-key="id"
         :tree-props="{ children: 'children' }"
-        default-expand-all
         style="width: 100%"
         @selection-change="handleSelectionChange"
       >
@@ -225,13 +224,13 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="permissionCode" label="权限编码" min-width="200" />
-        <el-table-column prop="url" label="URL" min-width="180" />
-        <el-table-column label="类型" width="90" align="center">
+        <el-table-column prop="url" label="路由地址" min-width="180" />
+        <el-table-column label="权限类型" width="100" align="center">
           <template #default="{ row }">
             {{ getTypeTag(row.type) }}
           </template>
         </el-table-column>
-        <el-table-column label="图标" width="80" align="center">
+        <el-table-column label="菜单图标" width="100" align="center">
           <template #default="{ row }">
             <el-tooltip :content="row.icon || '无'" v-if="row.icon">
               <el-icon :size="18"><component :is="row.icon" /></el-icon>
@@ -239,8 +238,8 @@ onMounted(() => {
             <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sort" label="排序" width="80" align="center" />
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column prop="sort" label="显示排序" width="100" align="center" />
+        <el-table-column label="权限状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
@@ -271,10 +270,10 @@ onMounted(() => {
         <el-form-item label="权限编码" prop="permissionCode">
           <el-input v-model="form.permissionCode" placeholder="如：system:user:list" />
         </el-form-item>
-        <el-form-item label="URL">
+        <el-form-item label="路由地址">
           <el-input v-model="form.url" placeholder="前端路由路径" />
         </el-form-item>
-        <el-form-item label="类型">
+        <el-form-item label="权限类型">
           <el-select v-model="form.type" placeholder="请选择类型" style="width: 100%">
             <el-option label="菜单" :value="1" />
             <el-option label="按钮" :value="2" />
@@ -293,7 +292,7 @@ onMounted(() => {
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="图标">
+        <el-form-item label="菜单图标">
           <el-popover
             v-model:visible="iconPickerVisible"
             placement="bottom-start"
@@ -346,10 +345,10 @@ onMounted(() => {
             </div>
           </el-popover>
         </el-form-item>
-        <el-form-item label="排序">
+        <el-form-item label="显示排序">
           <el-input-number v-model="form.sort" :min="0" controls-position="right" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="权限状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
       </el-form>

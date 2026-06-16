@@ -7,6 +7,7 @@ export const useUserStore = defineStore('user', () => {
   const user = ref<UserInfoVO | null>(null)
   const roles = ref<string[]>([])
   const permissions = ref<string[]>([])
+  const pwdResetRequired = ref<boolean>(false)
 
   function setToken(t: string) {
     token.value = t
@@ -14,6 +15,7 @@ export const useUserStore = defineStore('user', () => {
 
   function setUser(u: UserInfoVO) {
     user.value = u
+    pwdResetRequired.value = u?.pwdResetRequired === 1
   }
 
   function setRoles(r: string[]) {
@@ -24,11 +26,17 @@ export const useUserStore = defineStore('user', () => {
     permissions.value = p
   }
 
+  function clearPwdResetRequired() {
+    pwdResetRequired.value = false
+    if (user.value) user.value.pwdResetRequired = 0
+  }
+
   function resetAll() {
     token.value = ''
     user.value = null
     roles.value = []
     permissions.value = []
+    pwdResetRequired.value = false
     localStorage.removeItem('solo-token')
   }
 
@@ -36,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
   function loginSuccess(result: { token: string; user: UserInfoVO }) {
     token.value = result.token
     user.value = result.user
+    pwdResetRequired.value = result.user?.pwdResetRequired === 1
     localStorage.setItem('solo-token', result.token)
   }
 
@@ -56,10 +65,12 @@ export const useUserStore = defineStore('user', () => {
     user,
     roles,
     permissions,
+    pwdResetRequired,
     setToken,
     setUser,
     setRoles,
     setPermissions,
+    clearPwdResetRequired,
     loginSuccess,
     logout,
     initFromStorage,

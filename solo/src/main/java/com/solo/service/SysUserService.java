@@ -9,6 +9,7 @@ import com.solo.entity.SysUser;
 import com.solo.request.UserRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.response.UserAuthResponse;
+import com.solo.response.UserInfoVO;
 
 import java.util.List;
 
@@ -77,4 +78,14 @@ public interface SysUserService extends IService<SysUser> {
      * 给用户分配角色（覆盖式）
      */
     void assignRoles(Long userId, List<Long> roleIds);
+
+    /**
+     * 修改当前登录用户的密码（强密码校验、清除强制改密标记）
+     */
+    void changePassword(Long userId, String oldPassword, String newPassword);
+
+    /**
+     * 获取当前登录用户的精简档案（含强制改密标记）
+     */
+    UserInfoVO getProfile(Long userId);
 }

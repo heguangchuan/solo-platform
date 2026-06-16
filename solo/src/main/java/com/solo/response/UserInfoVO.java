@@ -43,4 +43,9 @@ public class UserInfoVO {
      * 用户状态：0-禁用，1-启用
      */
     private Integer status;
+
+    /**
+     * 是否首次登录强制改密：0-否，1-是
+     */
+    private Integer pwdResetRequired;
 }

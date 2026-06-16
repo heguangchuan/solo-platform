@@ -59,6 +59,11 @@ public class SysUser {
     private Integer status;
 
     /**
+     * 是否首次登录强制改密：0-否，1-是
+     */
+    private Integer pwdResetRequired;
+
+    /**
      * 逻辑删除标识：0-未删除，1-已删除
      */
     @TableLogic

@@ -5,6 +5,7 @@ import { ElMessage } from 'element-plus'
 import { loginApi, getAuthMenusApi, getAuthPermissionsApi } from '@/api/auth'
 import { useUserStore } from '@/stores/user'
 import { dynamicRouteConfig } from '@/router'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -22,8 +23,25 @@ const rules = {
   ],
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 3, max: 20, message: '长度在 3 到 20 个字符', trigger: 'blur' },
+    { min: 3, max: 32, message: '长度在 3 到 32 个字符', trigger: 'blur' },
   ],
+}
+
+// 强制改密对话框
+const forceChangeVisible = ref(false)
+
+async function loadAuthAndEnter() {
+  const [menuRes, permissionRes] = await Promise.all([
+    getAuthMenusApi(),
+    getAuthPermissionsApi(),
+  ])
+  const menus = menuRes.data
+  if (menus?.length) {
+    dynamicRouteConfig.registerAll(menus)
+  }
+  userStore.setPermissions(permissionRes.data)
+  ElMessage.success('欢迎回来')
+  router.push('/')
 }
 
 async function handleLogin() {
@@ -32,23 +50,28 @@ async function handleLogin() {
     const loginRes = await loginApi(form)
     userStore.loginSuccess(loginRes.data)
 
-    const [menuRes, permissionRes] = await Promise.all([
-      getAuthMenusApi(),
-      getAuthPermissionsApi(),
-    ])
-    const menus = menuRes.data
-    if (menus?.length) {
-      dynamicRouteConfig.registerAll(menus)
+    // 命中强制改密：阻止进入主页面，弹出改密对话框
+    if (loginRes.data.user?.pwdResetRequired === 1) {
+      forceChangeVisible.value = true
+      return
     }
-    userStore.setPermissions(permissionRes.data)
 
-    ElMessage.success('欢迎回来')
-    router.push('/')
+    await loadAuthAndEnter()
   } catch {
     // handled by interceptor
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * 强制改密成功：清掉 token 让用户用新密码重新登录，
+ * 这样能保证密码、Token、首屏权限的一致性。
+ */
+function onPasswordChanged() {
+  userStore.logout()
+  form.password = ''
+  ElMessage.info('密码已更新，请使用新密码重新登录')
 }
 </script>
 
@@ -184,6 +207,12 @@ async function handleLogin() {
         </div>
       </div>
     </div>
+
+    <ChangePasswordDialog
+      v-model="forceChangeVisible"
+      forced
+      @success="onPasswordChanged"
+    />
   </div>
 </template>
 

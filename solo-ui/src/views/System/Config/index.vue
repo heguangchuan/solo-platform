@@ -29,14 +29,13 @@ const form = ref<ConfigRequest>({
   configName: '',
   configKey: '',
   configValue: '',
-  configType: 0,
   remark: '',
 })
 
 const rules = {
   configName: [{ required: true, message: '请输入参数名称', trigger: 'blur' }],
-  configKey: [{ required: true, message: '请输入参数键', trigger: 'blur' }],
-  configValue: [{ required: true, message: '请输入参数值', trigger: 'blur' }],
+  configKey: [{ required: true, message: '请输入参数编码', trigger: 'blur' }],
+  configValue: [{ required: true, message: '请输入参数取值', trigger: 'blur' }],
 }
 
 function handleSearch() {
@@ -81,7 +80,6 @@ function handleAdd() {
     configName: '',
     configKey: '',
     configValue: '',
-    configType: 0,
     remark: '',
   }
   dialogVisible.value = true
@@ -94,7 +92,6 @@ function handleEdit(row: SysConfig) {
     configName: row.configName,
     configKey: row.configKey,
     configValue: row.configValue,
-    configType: row.configType,
     remark: row.remark,
   }
   dialogVisible.value = true
@@ -168,8 +165,8 @@ onMounted(() => {
         <el-form-item label="参数名称">
           <el-input v-model="searchForm.configName" placeholder="请输入参数名称" clearable />
         </el-form-item>
-        <el-form-item label="参数键">
-          <el-input v-model="searchForm.configKey" placeholder="请输入参数键" clearable />
+        <el-form-item label="参数编码">
+          <el-input v-model="searchForm.configKey" placeholder="请输入参数编码" clearable />
         </el-form-item>
         <el-form-item>
           <el-button v-permission="'system:config:list'" type="primary" @click="handleSearch">查询</el-button>
@@ -188,15 +185,9 @@ onMounted(() => {
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
         <el-table-column prop="configName" label="参数名称" min-width="160" />
-        <el-table-column prop="configKey" label="参数键" min-width="180" />
-        <el-table-column prop="configValue" label="参数值" min-width="200" show-overflow-tooltip />
-        <el-table-column label="是否内置" width="100" align="center">
-          <template #default="{ row }">
-            <el-tag v-if="row.configType === 1" type="warning">是</el-tag>
-            <el-tag v-else type="info">否</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="configKey" label="参数编码" min-width="180" />
+        <el-table-column prop="configValue" label="参数取值" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="remark" label="参数备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
@@ -205,7 +196,6 @@ onMounted(() => {
               v-permission="'system:config:delete'"
               type="danger"
               link
-              :disabled="row.configType === 1"
               @click="handleDelete(row)"
             >
               删除
@@ -231,17 +221,13 @@ onMounted(() => {
         <el-form-item label="参数名称" prop="configName">
           <el-input v-model="form.configName" placeholder="请输入参数名称" />
         </el-form-item>
-        <el-form-item label="参数键" prop="configKey">
+        <el-form-item label="参数编码" prop="configKey">
           <el-input v-model="form.configKey" placeholder="如：sys.title" :disabled="!!editingId" />
         </el-form-item>
-        <el-form-item label="参数值" prop="configValue">
-          <el-input v-model="form.configValue" placeholder="请输入参数值" />
+        <el-form-item label="参数取值" prop="configValue">
+          <el-input v-model="form.configValue" placeholder="请输入参数取值" />
         </el-form-item>
-        <el-form-item label="是否内置">
-          <el-switch v-model="form.configType" :active-value="1" :inactive-value="0" />
-          <span class="form-tip">内置参数禁止删除</span>
-        </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="参数备注">
           <el-input v-model="form.remark" type="textarea" :rows="3" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
@@ -269,11 +255,5 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
-}
-
-.form-tip {
-  margin-left: 12px;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
 }
 </style>

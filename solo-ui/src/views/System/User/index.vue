@@ -240,13 +240,13 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="用户名">
-          <el-input v-model="searchForm.username" placeholder="请输入用户名" clearable />
+        <el-form-item label="用户账号">
+          <el-input v-model="searchForm.username" placeholder="请输入用户账号" clearable />
         </el-form-item>
-        <el-form-item label="昵称">
-          <el-input v-model="searchForm.nickname" placeholder="请输入昵称" clearable />
+        <el-form-item label="用户昵称">
+          <el-input v-model="searchForm.nickname" placeholder="请输入用户昵称" clearable />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="用户状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
@@ -269,11 +269,11 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="username" label="用户名" width="150" />
-        <el-table-column prop="nickname" label="昵称" width="150" />
-        <el-table-column prop="email" label="邮箱" min-width="180" />
-        <el-table-column prop="phone" label="手机号" width="150" />
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column prop="username" label="用户账号" width="150" />
+        <el-table-column prop="nickname" label="用户昵称" width="150" />
+        <el-table-column prop="email" label="邮箱地址" min-width="180" />
+        <el-table-column prop="phone" label="手机号码" width="150" />
+        <el-table-column label="用户状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
@@ -316,6 +316,18 @@ onMounted(() => {
       width="680px"
       destroy-on-close
     >
+      <el-alert
+        v-if="dialogTitle === '新增用户'"
+        type="info"
+        :closable="false"
+        show-icon
+        class="default-pwd-tip"
+      >
+        <template #default>
+          初始密码为「<strong>{{ (form.username || '账号').trim() || '账号' }}@123456</strong>」，用户首次登录将被强制修改密码。
+        </template>
+      </el-alert>
+
       <div class="user-form-layout">
         <div class="avatar-panel">
           <el-upload
@@ -333,21 +345,21 @@ onMounted(() => {
           <div class="avatar-tip">点击上传头像，当前仅展示样式</div>
         </div>
 
-        <el-form ref="formRef" :model="form" :rules="rules" label-width="86px" class="user-form">
-          <el-form-item label="账号" prop="username">
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" class="user-form">
+          <el-form-item label="用户账号" prop="username">
             <el-input
               v-model="form.username"
               placeholder="请输入登录账号"
               :disabled="dialogTitle === '编辑用户'"
             />
           </el-form-item>
-          <el-form-item label="昵称" prop="nickname">
+          <el-form-item label="用户昵称" prop="nickname">
             <el-input v-model="form.nickname" placeholder="请输入用户昵称" />
           </el-form-item>
-          <el-form-item label="邮箱" prop="email">
+          <el-form-item label="邮箱地址" prop="email">
             <el-input v-model="form.email" placeholder="请输入邮箱地址" />
           </el-form-item>
-          <el-form-item label="手机号">
+          <el-form-item label="手机号码">
             <el-input v-model="form.phone" placeholder="请输入手机号码" />
           </el-form-item>
         </el-form>
@@ -461,6 +473,17 @@ onMounted(() => {
 .user-form {
   flex: 1;
   padding-right: 8px;
+}
+
+.default-pwd-tip {
+  margin-bottom: 16px;
+}
+
+.default-pwd-tip :deep(.el-alert__content) {
+  /* 文案过长时正常换行，避免被弹框裁切 */
+  white-space: normal;
+  word-break: break-all;
+  line-height: 1.6;
 }
 
 .r2u-panel {
