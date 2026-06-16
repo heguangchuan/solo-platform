@@ -42,10 +42,10 @@ CREATE TABLE `sys_permission` (
 /*Data for the table `sys_permission` */
 
 insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`type`,`parent_id`,`sort`,`icon`,`status`,`create_time`,`update_time`) values 
-(1,'系统管理','system',NULL,1,0,1,'el-icon-setting',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(2,'用户管理','system:user','/system/user',1,1,1,'el-icon-user',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(3,'角色管理','system:role','/system/role',1,1,2,'el-icon-user-solid',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(4,'权限管理','system:permission','/system/permission',1,1,3,'el-icon-lock',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(1,'系统管理','system',NULL,1,0,1,'Setting',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(2,'用户管理','system:user','/system/user',1,1,1,'User',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(3,'角色管理','system:role','/system/role',1,1,2,'UserFilled',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(4,'权限管理','system:permission','/system/permission',1,1,3,'Lock',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (5,'用户查询','system:user:list',NULL,2,2,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (6,'用户新增','system:user:add',NULL,2,2,2,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (7,'用户编辑','system:user:edit',NULL,2,2,3,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
@@ -67,9 +67,9 @@ insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`ty
 (24,'权限新增','system:permission:add','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:02'),
 (25,'权限修改','system:permission:update','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:03'),
 (26,'权限删除','system:permission:delete','',2,0,0,NULL,1,'2026-06-14 22:35:02','2026-06-15 23:03:04'),
-(27,'系统设置','setting',NULL,1,0,2,'el-icon-tools',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(28,'参数管理','system:config','/system/config',1,27,1,'el-icon-set-up',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(29,'字典管理','system:dict','/system/dict',1,27,2,'el-icon-collection',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(27,'系统设置','setting',NULL,1,0,2,'Tools',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(28,'参数管理','system:config','/system/config',1,27,1,'SetUp',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
+(29,'字典管理','system:dict','/system/dict',1,27,2,'Collection',1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (30,'参数查询','system:config:list',NULL,2,28,1,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (31,'参数新增','system:config:add',NULL,2,28,2,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (32,'参数编辑','system:config:edit',NULL,2,28,3,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
@@ -83,7 +83,7 @@ insert  into `sys_permission`(`id`,`permission_name`,`permission_code`,`url`,`ty
 (40,'字典数据新增','system:dict:data:add',NULL,2,29,6,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (41,'字典数据编辑','system:dict:data:edit',NULL,2,29,7,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
 (42,'字典数据删除','system:dict:data:delete',NULL,2,29,8,NULL,1,'2026-06-14 22:35:02','2026-06-14 22:35:02'),
-(43,'日志管理','system:log','/system/log',1,1,4,'el-icon-document',1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
+(43,'日志管理','system:log','/system/log',1,1,4,'Document',1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
 (44,'日志查询','system:log:list',NULL,2,43,1,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
 (45,'日志删除','system:log:delete',NULL,2,43,2,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00'),
 (46,'日志导出','system:log:export',NULL,2,43,3,NULL,1,'2026-06-16 09:00:00','2026-06-16 09:00:00');
@@ -303,8 +303,22 @@ CREATE TABLE `sys_user_role` (
 
 /*Data for the table `sys_user_role` */
 
-insert  into `sys_user_role`(`id`,`user_id`,`role_id`) values 
+insert  into `sys_user_role`(`id`,`user_id`,`role_id`) values
 (1,1,1);
+
+/* ============================================================
+   菜单图标升级脚本：将旧版 element-ui class（el-icon-xxx）
+   迁移为 @element-plus/icons-vue 的 PascalCase 组件名。
+   已存在的库可直接执行下面的 UPDATE。
+   ============================================================ */
+UPDATE `sys_permission` SET `icon` = 'Setting'    WHERE `id` = 1;
+UPDATE `sys_permission` SET `icon` = 'User'       WHERE `id` = 2;
+UPDATE `sys_permission` SET `icon` = 'UserFilled' WHERE `id` = 3;
+UPDATE `sys_permission` SET `icon` = 'Lock'       WHERE `id` = 4;
+UPDATE `sys_permission` SET `icon` = 'Tools'      WHERE `id` = 27;
+UPDATE `sys_permission` SET `icon` = 'SetUp'      WHERE `id` = 28;
+UPDATE `sys_permission` SET `icon` = 'Collection' WHERE `id` = 29;
+UPDATE `sys_permission` SET `icon` = 'Document'   WHERE `id` = 43;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
