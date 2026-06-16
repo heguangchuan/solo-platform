@@ -118,6 +118,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Dashboard/index.vue'),
         meta: { title: '首页', icon: 'Odometer' },
       },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile/index.vue'),
+        // hidden: true 让侧边栏不展示，仅作为头像下拉的跳转目标
+        meta: { title: '个人中心', icon: 'UserFilled', hidden: true },
+      },
     ],
   },
 ]

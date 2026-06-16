@@ -6,10 +6,12 @@ import com.solo.common.BusinessType;
 import com.solo.common.Result;
 import com.solo.request.ChangePasswordRequest;
 import com.solo.request.LoginRequest;
+import com.solo.request.ProfileUpdateRequest;
 import com.solo.response.LoginResponse;
 import com.solo.response.StatResponse;
 import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
+import com.solo.entity.SysRole;
 import com.solo.service.SysPermissionService;
 import com.solo.service.SysRoleService;
 import com.solo.service.SysUserService;
@@ -104,5 +106,26 @@ public class AuthController {
     @GetMapping("/profile")
     public Result<UserInfoVO> profile() {
         return Result.success(sysUserService.getProfile(UserHolderUtils.getCurrentUserId()));
+    }
+
+    /**
+     * 当前登录用户更新自身资料（仅可修改昵称/邮箱/手机号/头像）
+     */
+    @PutMapping("/profile")
+    @OperationLog(module = "个人中心", type = BusinessType.EDIT, description = "更新个人资料")
+    public Result<Void> updateProfile(@RequestBody ProfileUpdateRequest request) {
+        sysUserService.updateProfile(UserHolderUtils.getCurrentUserId(), request);
+        return Result.success();
+    }
+
+    /**
+     * 获取当前登录用户的角色列表（个人中心展示用）
+     */
+    @GetMapping("/roles")
+    public Result<List<SysRole>> myRoles() {
+        Long userId = UserHolderUtils.getCurrentUserId();
+        List<Long> roleIds = sysUserService.listRoleIds(userId);
+        if (roleIds == null || roleIds.isEmpty()) return Result.success(List.of());
+        return Result.success(sysRoleService.listByIds(roleIds));
     }
 }

@@ -10,6 +10,7 @@ import com.solo.entity.SysUser;
 import com.solo.entity.SysUserRole;
 import com.solo.mapper.SysUserMapper;
 import com.solo.mapper.SysUserRoleMapper;
+import com.solo.request.ProfileUpdateRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.request.UserRequest;
 import com.solo.response.LoginResponse;
@@ -185,6 +186,22 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
         }
         return buildUserInfoVO(user);
+    }
+
+    @Override
+    public void updateProfile(Long userId, ProfileUpdateRequest request) {
+        if (userId == null) {
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
+        }
+        SysUser user = getById(userId);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        if (request.getNickname() != null) user.setNickname(request.getNickname());
+        if (request.getEmail() != null) user.setEmail(request.getEmail());
+        if (request.getPhone() != null) user.setPhone(request.getPhone());
+        if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
+        updateById(user);
     }
 
     @Override
