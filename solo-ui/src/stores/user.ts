@@ -62,9 +62,21 @@ export const useUserStore = defineStore('user', () => {
     pwdResetRequired.value = result.user?.pwdResetRequired === 1
     localStorage.setItem(TOKEN_KEY, result.token)
     localStorage.setItem(REFRESH_TOKEN_KEY, result.refreshToken)
+
+    // 登录成功后初始化消息中心
+    import('./message').then(({ useMessageStore }) => {
+      const messageStore = useMessageStore()
+      messageStore.init()
+      messageStore.requestNotificationPermission()
+    })
   }
 
   function logout() {
+    // 登出时清理消息中心连接
+    import('./message').then(({ useMessageStore }) => {
+      const messageStore = useMessageStore()
+      messageStore.clear()
+    })
     resetAll()
   }
 

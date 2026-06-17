@@ -349,10 +349,33 @@ CREATE TABLE `sys_file`
     KEY             `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件管理表';
 
+
+/* =====================================================================
+ * 11. sys_message — 系统消息表
+ * ===================================================================== */
+DROP TABLE IF EXISTS `sys_message`;
+CREATE TABLE `sys_message`
+(
+    `id`          bigint                                  NOT NULL AUTO_INCREMENT COMMENT '消息ID',
+    `username`    varchar(64) COLLATE utf8mb4_unicode_ci  NOT NULL COMMENT '接收用户名',
+    `title`       varchar(200) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '消息标题',
+    `content`     text COLLATE utf8mb4_unicode_ci COMMENT '消息内容',
+    `type`        varchar(32) COLLATE utf8mb4_unicode_ci          DEFAULT 'SYSTEM' COMMENT '消息类型: SYSTEM系统通知,NOTICE公告,REMINDER提醒',
+    `level`       varchar(32) COLLATE utf8mb4_unicode_ci          DEFAULT 'INFO' COMMENT '消息级别: INFO普通,WARNING警告,ERROR错误,IMPORTANT重要',
+    `read_flag`   tinyint                                 NOT NULL DEFAULT '0' COMMENT '是否已读: 0未读 1已读',
+    `route`       varchar(200) COLLATE utf8mb4_unicode_ci         DEFAULT NULL COMMENT '跳转路由',
+    `create_time` datetime                                NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY           `idx_username` (`username`),
+    KEY           `idx_read_flag` (`read_flag`),
+    KEY           `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统消息表';
+
+
 INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `sort`, `status`, `deleted`, `create_time`,
                              `update_time`)
 VALUES ('2066820557811949570', 'sys_file_types', 'mp4', '1', 2, 1, 0, '2026-06-16 17:49:55', '2026-06-16 17:49:55'),
-       ('2066820617408815105', 'sys_file_types', 'png', '2', 1, 1, 0, '2026-06-16 17:50:10', '2026-06-16 17:50:10');
+       ('2066820617408815105', 'sys_file_types', 'png', '2', 1, 1, 0, '2026-06-16 17:49:10', '2026-06-16 17:50:10');
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
 /*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
 /*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;

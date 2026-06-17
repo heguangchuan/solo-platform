@@ -72,17 +72,28 @@ public class RateLimiterAspect {
      * <p>TTL 策略：首次创建时设置为窗口的 2 倍（避免临界点雪崩），后续不续期。
      * 只要一个完整窗口内有任何请求，key 就不会过期；极端冷数据最终会被清理。
      * <p>防御性兜底：如果 ZSet 大小超过 max_count * 10，强制清理旧数据（应对时钟回拨等异常场景）
+     * <p>类型兼容：所有数值参数先用字符串传递，Lua 内部转换后再使用，避免 Redis 序列化类型问题
      */
     private static final String LUA_SCRIPT = """
             local key = KEYS[1]
-            local window_start = tonumber(ARGV[1])
-            local now = tonumber(ARGV[2])
-            local max_count = tonumber(ARGV[3])
-            local expire_ms = tonumber(ARGV[4])
+            local window_start_str = ARGV[1]
+            local now_str = ARGV[2]
+            local max_count_str = ARGV[3]
+            local expire_ms_str = ARGV[4]
             local request_id = ARGV[5]
 
+            -- 显式转换并验证参数有效性（转换失败直接放行，极端降级策略）
+            local window_start = tonumber(window_start_str)
+            local now = tonumber(now_str)
+            local max_count = tonumber(max_count_str)
+            local expire_ms = tonumber(expire_ms_str)
+
+            if window_start == nil or now == nil or max_count == nil or expire_ms == nil then
+                return 0
+            end
+
             -- 1. 移除窗口外的旧记录（滑动窗口核心）
-            redis.call('ZREMRANGEBYSCORE', key, 0, window_start)
+            redis.call('ZREMRANGEBYSCORE', key, 0, window_start_str)
 
             -- 2. 统计当前窗口内的请求数
             local current_count = redis.call('ZCARD', key)
@@ -105,14 +116,14 @@ public class RateLimiterAspect {
             end
 
             -- 5. 添加当前请求记录
-            redis.call('ZADD', key, now, request_id)
+            redis.call('ZADD', key, now_str, request_id)
 
             -- 6. 仅当 key 不存在 TTL（首次创建）时设置过期
             -- TTL 设置为窗口 × 2，留出足够余量避免临界点雪崩
             -- 后续不续期：只要一个窗口内有任何请求，数据就不会丢失；冷数据最终自动清理
             local ttl = redis.call('PTTL', key)
             if ttl < 0 then
-                redis.call('PEXPIRE', key, expire_ms)
+                redis.call('PEXPIRE', key, expire_ms_str)
             end
 
             return 0
@@ -125,7 +136,7 @@ public class RateLimiterAspect {
         rateLimitScript.setResultType(Long.class);
         // 主动预热脚本到 Redis，消除首请求延迟毛刺（避免第一个请求承担 SCRIPT LOAD 开销）
         try {
-            redisTemplate.execute(rateLimitScript, Collections.singletonList("_warmup_dummy_key"), 0L, 0L, 1, 1000L, "");
+            redisTemplate.execute(rateLimitScript, java.util.Collections.singletonList("_warmup_dummy_key"), "0", "0", "1", "1000", "");
             // 预热后清理临时 key（可选，TTL 也会自动清理）
             redisTemplate.delete("_warmup_dummy_key");
         } catch (Exception e) {
@@ -155,13 +166,15 @@ public class RateLimiterAspect {
 
         // Lua 脚本原子执行限流判断
         try {
+            // 🔴 所有数字参数统一转为字符串传递，避免 Spring Data Redis 序列化与 Lua tonumber 的类型兼容性问题
+            // 这是 Redis Lua 脚本在不同 JDK/Redis 版本下的经典坑：long 可能被序列化为非纯数字字符串
             Long result = redisTemplate.execute(
                     rateLimitScript,
                     Collections.singletonList(limitKey),
-                    windowStart,
-                    now,
-                    rateLimiter.maxCount(),
-                    expireMs,
+                    String.valueOf(windowStart),
+                    String.valueOf(now),
+                    String.valueOf(rateLimiter.maxCount()),
+                    String.valueOf(expireMs),
                     requestId
             );
 
