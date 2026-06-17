@@ -99,6 +99,9 @@ service.interceptors.response.use(
           }
           break
         }
+        case 429:
+          ElMessage.warning(response.data?.message || '请求过于频繁，请稍后再试')
+          break
         case 403:
           ElMessage.error('没有权限访问')
           break

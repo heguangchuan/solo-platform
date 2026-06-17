@@ -37,6 +37,7 @@ public final class SystemConstants {
     public static final int HTTP_NOT_FOUND = 404;
     public static final int HTTP_BAD_REQUEST = 400;
     public static final int HTTP_INTERNAL_ERROR = 500;
+    public static final int HTTP_TOO_MANY_REQUESTS = 429;
 
     /**
      * Token 响应头

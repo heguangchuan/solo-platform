@@ -5,7 +5,7 @@ import com.solo.entity.SysLog;
 import com.solo.request.LoginRequest;
 import com.solo.service.SysLogService;
 import com.solo.utils.UserHolderUtils;
-import jakarta.servlet.http.HttpServletRequest;
+import com.solo.utils.WebUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -109,8 +109,8 @@ public class OperationLogAspect {
         if (request != null) {
             sysLog.setRequestMethod(request.getMethod());
             sysLog.setRequestUrl(truncate(request.getRequestURI(), 255));
-            sysLog.setClientIp(getClientIp(request));
-            sysLog.setUserAgent(truncate(request.getHeader("User-Agent"), 500));
+            sysLog.setClientIp(WebUtils.getClientIp(request));
+            sysLog.setUserAgent(WebUtils.getUserAgent(request));
             sysLog.setClientSource(resolveClientSource(request));
         }
 
@@ -137,19 +137,6 @@ public class OperationLogAspect {
         } catch (Exception ignored) {
         }
         return null;
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            int comma = ip.indexOf(',');
-            return truncate(comma > 0 ? ip.substring(0, comma).trim() : ip.trim(), 64);
-        }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            return truncate(ip, 64);
-        }
-        return truncate(request.getRemoteAddr(), 64);
     }
 
     private String resolveClientSource(HttpServletRequest request) {

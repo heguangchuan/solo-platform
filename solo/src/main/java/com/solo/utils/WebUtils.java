@@ -7,9 +7,24 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Web 请求相关工具：客户端 IP、来源、UA 提取。
- * 与 {@link com.solo.aop.OperationLogAspect} 中的实现保持一致，便于在非切面场景复用。
+ * <p>IP 获取兼容主流反向代理 / CDN / WAF 场景。
  */
 public final class WebUtils {
+
+    private static final String UNKNOWN = "unknown";
+    private static final String[] IP_HEADERS = {
+            "X-Forwarded-For",
+            "X-Real-IP",
+            "Proxy-Client-IP",
+            "WL-Proxy-Client-IP",
+            "HTTP_CLIENT_IP",
+            "HTTP_X_FORWARDED_FOR",
+            "HTTP_X_FORWARDED",
+            "HTTP_X_CLUSTER_CLIENT_IP",
+            "HTTP_FORWARDED_FOR",
+            "HTTP_FORWARDED",
+            "X-Cluster-Client-IP"
+    };
 
     private WebUtils() {
     }
@@ -26,19 +41,58 @@ public final class WebUtils {
         return null;
     }
 
-    /** 提取客户端真实 IP（兼容反代头） */
+    /**
+     * 提取客户端真实 IP（兼容反代 / CDN / WAF 场景）
+     * <p>按优先级依次尝试 11 种常见代理头，最终 fallback 到 getRemoteAddr()
+     * <p>多级代理时取第一个有效 IP（最左侧）
+     *
+     * @param request HTTP 请求
+     * @return IP 地址（自动截断至 64 字符），获取失败返回 "unknown"
+     */
     public static String getClientIp(HttpServletRequest request) {
-        if (request == null) return null;
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            int comma = ip.indexOf(',');
-            return truncate(comma > 0 ? ip.substring(0, comma).trim() : ip.trim(), 64);
+        if (request == null) {
+            return UNKNOWN;
         }
-        ip = request.getHeader("X-Real-IP");
-        if (ip != null && !ip.isBlank() && !"unknown".equalsIgnoreCase(ip)) {
-            return truncate(ip, 64);
+
+        String ip = null;
+        for (String header : IP_HEADERS) {
+            ip = request.getHeader(header);
+            if (isValidIp(ip)) {
+                break;
+            }
         }
-        return truncate(request.getRemoteAddr(), 64);
+
+        // 都没拿到，fallback 到 remoteAddr
+        if (!isValidIp(ip)) {
+            ip = request.getRemoteAddr();
+        }
+
+        // 多级代理时 X-Forwarded-For 格式为：clientIp, proxy1, proxy2...
+        // 遍历找到第一个有效 IP
+        if (ip != null && ip.contains(",")) {
+            String[] ips = ip.split(",");
+            for (String s : ips) {
+                String trimmed = s.trim();
+                if (isValidIp(trimmed)) {
+                    ip = trimmed;
+                    break;
+                }
+            }
+        }
+
+        // IPv6 本地回环转成 IPv4 格式
+        if ("0:0:0:0:0:0:0:1".equals(ip)) {
+            ip = "127.0.0.1";
+        }
+
+        return truncate(ip != null ? ip : UNKNOWN, 64);
+    }
+
+    /**
+     * 从当前线程绑定的请求中提取客户端 IP
+     */
+    public static String getClientIp() {
+        return getClientIp(currentRequest());
     }
 
     /** 提取自定义客户端来源标识（X-Client-Source 头），缺省 null */
@@ -58,5 +112,9 @@ public final class WebUtils {
     public static String truncate(String s, int max) {
         if (s == null) return null;
         return s.length() > max ? s.substring(0, max) : s;
+    }
+
+    private static boolean isValidIp(String ip) {
+        return ip != null && !ip.isEmpty() && !UNKNOWN.equalsIgnoreCase(ip);
     }
 }

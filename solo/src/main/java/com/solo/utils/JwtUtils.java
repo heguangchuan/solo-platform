@@ -9,12 +9,12 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 /**
  * JWT工具类，负责生成、解析和验证 access / refresh Token
@@ -199,7 +199,7 @@ public class JwtUtils {
         data.put(FIELD_TOKEN, token);
         if (meta != null) data.putAll(meta);
         redisTemplate.opsForHash().putAll(key, data);
-        redisTemplate.expire(key, accessExpiration, TimeUnit.MILLISECONDS);
+        redisTemplate.expire(key, Duration.ofMillis(accessExpiration));
         redisTemplate.opsForSet().add(ONLINE_INDEX_KEY, username);
     }
 
@@ -256,8 +256,7 @@ public class JwtUtils {
         redisTemplate.opsForValue().set(
                 REFRESH_KEY_PREFIX + username,
                 refreshToken,
-                refreshExpiration,
-                TimeUnit.MILLISECONDS);
+                Duration.ofMillis(refreshExpiration));
     }
 
     /**
