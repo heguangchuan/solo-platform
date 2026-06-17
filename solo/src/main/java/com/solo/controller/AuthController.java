@@ -1,6 +1,7 @@
 package com.solo.controller;
 
 import com.solo.aop.OperationLog;
+import com.solo.aop.RateLimiter;
 import com.solo.aop.RequirePermission;
 import com.solo.common.BusinessType;
 import com.solo.common.Result;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 认证控制器
@@ -46,6 +48,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     @OperationLog(module = "登录认证", type = BusinessType.LOGIN, description = "用户登录", recordParam = false)
+    @RateLimiter(maxCount = 5, time = 1, timeUnit = TimeUnit.MINUTES, message = "登录次数过多，请1分钟后再试")
     public Result<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
         return sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword());
     }
@@ -56,6 +59,7 @@ public class AuthController {
      * 不走 JwtInterceptor —— refresh 时 access token 通常已过期
      */
     @PostMapping("/refresh")
+    @RateLimiter(maxCount = 10, time = 1, timeUnit = TimeUnit.MINUTES, message = "刷新过于频繁，请稍后再试")
     public Result<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
         return sysUserService.refresh(request.getRefreshToken());
     }
