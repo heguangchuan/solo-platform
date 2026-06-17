@@ -14,6 +14,7 @@ import com.solo.request.ProfileUpdateRequest;
 import com.solo.request.UserPageRequest;
 import com.solo.request.UserRequest;
 import com.solo.response.LoginResponse;
+import com.solo.response.RefreshTokenResponse;
 import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
 import com.solo.service.SysUserService;
@@ -67,11 +68,47 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         LoginResponse loginResponse = new LoginResponse();
         String token = jwtUtils.generateToken(user.getUsername());
+        String refreshToken = jwtUtils.generateRefreshToken(user.getUsername());
         loginResponse.setToken(token);
+        loginResponse.setRefreshToken(refreshToken);
         loginResponse.setUser(buildUserInfoVO(user));
-        // 将Token及会话元数据存入Redis，供"在线用户"查询
+        // 将 access token 及会话元数据存入 Redis，供"在线用户"查询
         jwtUtils.saveSession(user.getUsername(), token, buildSessionMeta(user));
+        // 单独保存 refresh token，TTL 与 refresh 有效期一致，每次刷新会被覆盖（滚动失效）
+        jwtUtils.saveRefreshToken(user.getUsername(), refreshToken);
         return Result.success(loginResponse);
+    }
+
+    @Override
+    public Result<RefreshTokenResponse> refresh(String refreshToken) {
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+        }
+        // 解析用户名（签名/格式异常 → 401）
+        String username;
+        try {
+            username = jwtUtils.getUsernameFromToken(refreshToken);
+        } catch (Exception e) {
+            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+        }
+        // 校验签名 + 过期 + type=refresh + Redis 一致性
+        if (!jwtUtils.validateRefreshToken(refreshToken, username)) {
+            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+        }
+        // 用户仍存在且未被禁用
+        SysUser user = getByUsername(username);
+        if (user == null || user.getStatus() == SystemConstants.STATUS_DISABLED) {
+            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+        }
+        // 滚动：换发一对全新的 access / refresh token，旧 refresh 因 Redis 被覆盖而失效
+        String newAccess = jwtUtils.generateToken(username);
+        String newRefresh = jwtUtils.generateRefreshToken(username);
+        jwtUtils.saveSession(username, newAccess, buildSessionMeta(user));
+        jwtUtils.saveRefreshToken(username, newRefresh);
+        RefreshTokenResponse resp = new RefreshTokenResponse();
+        resp.setToken(newAccess);
+        resp.setRefreshToken(newRefresh);
+        return Result.success(resp);
     }
 
     /** 抓取登录请求的 IP / 来源 / UA 等元数据，与 token 一并写入 Redis */

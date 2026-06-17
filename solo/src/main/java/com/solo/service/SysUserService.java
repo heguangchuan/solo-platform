@@ -41,6 +41,11 @@ public interface SysUserService extends IService<SysUser> {
     Result<com.solo.response.LoginResponse> login(String username, String password);
 
     /**
+     * 用 refresh token 换发新的 access / refresh token（滚动刷新）
+     */
+    Result<com.solo.response.RefreshTokenResponse> refresh(String refreshToken);
+
+    /**
      * 分页查询用户列表
      */
     Page<SysUser> pageQuery(UserPageRequest req);
