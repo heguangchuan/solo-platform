@@ -30,7 +30,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         var reg = registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/api/auth/login");
+                .excludePathPatterns("/api/auth/login", "/api/auth/refresh");
 
         if (isLocalStorage()) {
             String prefix = sanitizePrefix(fileProps.getLocal().getPublicPrefix());

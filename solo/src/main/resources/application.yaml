@@ -33,7 +33,10 @@ mybatis-plus:
 
 jwt:
   secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGVhc2UtdXNlLWEtbG9uZy1zZWNyZXQ=
-  expiration: 86400000
+  # access token 30 分钟
+  access-expiration: 1800000
+  # refresh token 7 天
+  refresh-expiration: 604800000
 
 # 文件存储：local（默认）/ minio
 # 切换到 minio：file.storage.type=minio + 配置 file.minio.* + 引入 io.minio:minio 依赖

@@ -7,7 +7,9 @@ import com.solo.common.Result;
 import com.solo.request.ChangePasswordRequest;
 import com.solo.request.LoginRequest;
 import com.solo.request.ProfileUpdateRequest;
+import com.solo.request.RefreshTokenRequest;
 import com.solo.response.LoginResponse;
+import com.solo.response.RefreshTokenResponse;
 import com.solo.response.StatResponse;
 import com.solo.response.UserAuthResponse;
 import com.solo.response.UserInfoVO;
@@ -49,6 +51,16 @@ public class AuthController {
     }
 
     /**
+     * 刷新 Token 接口
+     * 使用 refresh token 换取新的 access / refresh token（滚动刷新，旧 refresh 自动失效）
+     * 不走 JwtInterceptor —— refresh 时 access token 通常已过期
+     */
+    @PostMapping("/refresh")
+    public Result<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
+        return sysUserService.refresh(request.getRefreshToken());
+    }
+
+    /**
      * 获取当前用户权限树（仅菜单 type=1，直接返回渲染所需字段）
      */
     @GetMapping("/me")
@@ -60,7 +72,7 @@ public class AuthController {
                 UserAuthResponse::getParentId,
                 UserAuthResponse::getId,
                 p -> p.getParentId() != null && p.getParentId().equals(0L),
-                (node, children) -> node.setChildren(children)
+                UserAuthResponse::setChildren
         ));
     }
 

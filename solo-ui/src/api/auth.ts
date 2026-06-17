@@ -1,6 +1,8 @@
 import type {
   LoginRequest,
   LoginResponse,
+  RefreshTokenRequest,
+  RefreshTokenResponse,
   UserAuthResponse,
   UserInfoVO,
   StatResponse,
@@ -12,6 +14,11 @@ import { post, get, put } from '@/utils/request'
 
 export function loginApi(data: LoginRequest) {
   return post<LoginResponse>('/auth/login', data)
+}
+
+/** 用 refresh token 换取新的 access / refresh token（滚动刷新） */
+export function refreshTokenApi(data: RefreshTokenRequest) {
+  return post<RefreshTokenResponse>('/auth/refresh', data)
 }
 
 export function getAuthMenusApi() {

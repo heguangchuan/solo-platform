@@ -24,7 +24,20 @@ export interface UserInfoVO {
 /** 登录响应 */
 export interface LoginResponse {
   token: string
+  /** 刷新 Token，用于 access 过期后无感换发 */
+  refreshToken: string
   user: UserInfoVO
+}
+
+/** 刷新 Token 请求 */
+export interface RefreshTokenRequest {
+  refreshToken: string
+}
+
+/** 刷新 Token 响应：滚动刷新，同时返回新的 access / refresh */
+export interface RefreshTokenResponse {
+  token: string
+  refreshToken: string
 }
 
 /** 修改密码请求 */
