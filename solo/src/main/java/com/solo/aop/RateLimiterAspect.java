@@ -192,7 +192,8 @@ public class RateLimiterAspect {
      * 根据限流类型构建对应的 Redis key
      */
     private String buildLimitKey(RateLimiter rateLimiter, Method method) {
-        String methodKey = method.getDeclaringClass().getSimpleName() + "." + method.getName();
+        // 🔴 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
+        String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
         String baseKey = rateLimiter.key() + methodKey;
 
         return switch (rateLimiter.limitType()) {
