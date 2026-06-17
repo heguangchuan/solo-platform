@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import LayoutSidebar from './components/LayoutSidebar.vue'
@@ -8,10 +8,19 @@ import LayoutTagsView from './components/LayoutTagsView.vue'
 import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import { useUserStore } from '@/stores/user'
 import { useTagsStore } from '@/stores/tags'
+import { useMessageStore } from '@/stores/message'
 
 const userStore = useUserStore()
 const tagsStore = useTagsStore()
 const router = useRouter()
+
+// 页面加载时初始化消息中心（刷新页面自动重连 WebSocket）
+onMounted(() => {
+  if (userStore.token) {
+    const messageStore = useMessageStore()
+    messageStore.init()
+  }
+})
 
 // 强制改密弹窗：v-model 必须可写，因此通过 computed 同步到 store
 const forceChangeVisible = computed({
