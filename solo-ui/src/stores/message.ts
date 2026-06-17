@@ -33,19 +33,24 @@ export const useMessageStore = defineStore('message', () => {
   function init() {
     if (isInitialized.value) return
 
+    console.log('[MessageStore] 开始初始化消息中心...')
+
     // 连接 WebSocket
     wsClient.connect()
 
     // 订阅新消息
     wsClient.subscribe((msg) => {
+      console.log('[MessageStore] 收到新消息:', msg)
       onNewMessage(msg)
     })
 
     // 拉取未读消息数和消息列表
+    console.log('[MessageStore] 拉取消息数据...')
     fetchUnreadCount()
     fetchMessages()
 
     isInitialized.value = true
+    console.log('[MessageStore] 初始化完成')
   }
 
   /**
@@ -150,6 +155,7 @@ export const useMessageStore = defineStore('message', () => {
     messages,
     unreadCount,
     badgeCount,
+    isInitialized,
     init,
     clear,
     fetchUnreadCount,

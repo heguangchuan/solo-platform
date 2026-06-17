@@ -2,8 +2,11 @@ package com.solo.controller;
 
 import com.solo.common.Result;
 import com.solo.entity.SysMessage;
+import com.solo.request.BroadcastMessageRequest;
+import com.solo.request.SendMessageRequest;
 import com.solo.service.impl.SysMessageService;
 import com.solo.utils.UserHolderUtils;
+import com.solo.websocket.SystemMessageWebSocket;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -63,13 +66,15 @@ public class MessageController {
      * 后台：发送消息给指定用户（需管理员权限）
      */
     @PostMapping("/send")
-    public Result<Void> sendMessage(
-            @RequestParam String username,
-            @RequestParam String title,
-            @RequestParam String content,
-            @RequestParam(defaultValue = "SYSTEM") String type,
-            @RequestParam(defaultValue = "INFO") String level) {
-        messageService.sendMessage(username, title, content, type, level, null);
+    public Result<Void> sendMessage(@RequestBody SendMessageRequest request) {
+        messageService.sendMessage(
+                request.getUsername(),
+                request.getTitle(),
+                request.getContent(),
+                request.getType(),
+                request.getLevel(),
+                request.getRoute()
+        );
         return Result.success();
     }
 
@@ -77,11 +82,16 @@ public class MessageController {
      * 后台：广播消息给所有在线用户（需管理员权限）
      */
     @PostMapping("/broadcast")
-    public Result<Integer> broadcast(
-            @RequestParam String title,
-            @RequestParam String content,
-            @RequestParam(defaultValue = "INFO") String level) {
-        int count = messageService.broadcast(title, content, level);
+    public Result<Integer> broadcast(@RequestBody BroadcastMessageRequest request) {
+        int count = messageService.broadcast(request.getTitle(), request.getContent(), request.getLevel());
         return Result.success(count);
+    }
+
+    /**
+     * 获取 WebSocket 当前在线用户数
+     */
+    @GetMapping("/online-count")
+    public Result<Integer> onlineCount() {
+        return Result.success(SystemMessageWebSocket.getOnlineCount());
     }
 }

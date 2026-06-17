@@ -1,36 +1,33 @@
 package com.solo.config;
 
+import com.solo.websocket.SystemMessageWebSocket;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
-import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
-import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.standard.ServerEndpointExporter;
 
 /**
  * WebSocket 配置
- * <p>支持两种模式：
- * <ul>
- *   <li>@ServerEndpoint 注解模式（连接管理更灵活，支持用户维度会话）</li>
- *   <li>WebSocketHandler 模式（适合简单消息转发）</li>
- * </ul>
+ * 用于注册 @ServerEndpoint 注解的端点
  */
 @Configuration
 @EnableWebSocket
-public class WebSocketConfig implements WebSocketConfigurer {
+public class WebSocketConfig {
 
     /**
-     * 扫描 @ServerEndpoint 注解，让 Spring 托管 WebSocket 端点
+     * 自动注册使用 @ServerEndpoint 注解的 WebSocket 端点
+     * 注意：如果使用外置 Tomcat，这个 bean 不需要注册（由 Tomcat 自动管理）
      */
     @Bean
     public ServerEndpointExporter serverEndpointExporter() {
         return new ServerEndpointExporter();
     }
 
-    @Override
-    public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
-        // 当前使用 @ServerEndpoint 模式，这里留空
-        // 如果需要 Handler 模式，在这里注册：
-        // registry.addHandler(myWebSocketHandler, "/ws/message").setAllowedOrigins("*");
+    /**
+     * 显式注册 WebSocket 端点（确保单例依赖注入正确）
+     */
+    @Bean
+    public SystemMessageWebSocket systemMessageWebSocket() {
+        return new SystemMessageWebSocket();
     }
 }

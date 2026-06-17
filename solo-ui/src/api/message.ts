@@ -1,12 +1,11 @@
 import { get, post } from '@/utils/request'
-import type { Result } from '@/types/api'
 import type { SysMessage } from '@/stores/message'
 
 /**
  * 获取当前用户消息列表
  */
 export function getMessageList(limit = 50) {
-  return get<SysMessage[]>('/message/list', { limit })
+  return get<SysMessage[]>('/message/list', { params: { limit } })
 }
 
 /**
@@ -39,8 +38,9 @@ export function sendMessage(data: {
   content: string
   type?: string
   level?: string
+  route?: string
 }) {
-  return post('/message/send', null, { params: data })
+  return post<void>('/message/send', data)
 }
 
 /**
@@ -51,5 +51,12 @@ export function broadcastMessage(data: {
   content: string
   level?: string
 }) {
-  return post<number>('/message/broadcast', null, { params: data })
+  return post<number>('/message/broadcast', data)
+}
+
+/**
+ * 获取 WebSocket 在线用户数
+ */
+export function getWsOnlineCount() {
+  return get<number>('/message/online-count')
 }

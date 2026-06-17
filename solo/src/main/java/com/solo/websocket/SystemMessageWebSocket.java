@@ -19,7 +19,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 @Component
-@ServerEndpoint("/ws/message")
+@ServerEndpoint("/api/ws/message")
 public class SystemMessageWebSocket {
 
     /**
@@ -50,26 +50,33 @@ public class SystemMessageWebSocket {
      */
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
+        log.info("WebSocket 连接请求：sessionId={}, query={}", session.getId(), session.getQueryString());
+
         // 从 query 参数解析 token 并验证
         String query = session.getQueryString();
         String token = extractToken(query);
 
+        if (token == null || token.isEmpty()) {
+            log.warn("WebSocket 连接失败：token 为空");
+            closeSession(session, "Token 为空");
+            return;
+        }
+
         if (!validateToken(token)) {
-            try {
-                session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Token 无效"));
-            } catch (IOException e) {
-                log.warn("关闭无效连接失败", e);
-            }
+            log.warn("WebSocket 连接失败：token 验证不通过, token={}", token.substring(0, Math.min(20, token.length())) + "...");
+            closeSession(session, "Token 无效");
             return;
         }
 
         this.username = jwtUtils.getUsernameFromToken(token);
+        log.info("WebSocket 连接成功：用户={}, sessionId={}", username, session.getId());
 
         // 如果用户已连接，先关闭旧连接（避免多端重复连接）
         if (SESSION_MAP.containsKey(username)) {
             Session oldSession = SESSION_MAP.get(username);
             try {
                 oldSession.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "新连接建立，旧连接断开"));
+                log.info("关闭用户 {} 的旧 WebSocket 连接", username);
             } catch (IOException e) {
                 log.warn("关闭旧连接失败", e);
             }
@@ -77,7 +84,15 @@ public class SystemMessageWebSocket {
 
         SESSION_MAP.put(username, session);
         ONLINE_COUNT.incrementAndGet();
-        log.info("WebSocket 连接建立：用户={}, 当前在线={}", username, ONLINE_COUNT.get());
+        log.info("WebSocket 当前在线人数：{}", ONLINE_COUNT.get());
+    }
+
+    private void closeSession(Session session, String reason) {
+        try {
+            session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, reason));
+        } catch (IOException e) {
+            log.warn("关闭无效连接失败", e);
+        }
     }
 
     /**
@@ -204,8 +219,11 @@ public class SystemMessageWebSocket {
         }
         try {
             String username = jwtUtils.getUsernameFromToken(token);
-            return username != null && !username.isEmpty();
+            boolean valid = username != null && !username.isEmpty() && !jwtUtils.isTokenExpired(token);
+            log.info("WebSocket token 验证：username={}, valid={}", username, valid);
+            return valid;
         } catch (Exception e) {
+            log.error("WebSocket token 验证异常：{}", e.getMessage(), e);
             return false;
         }
     }
