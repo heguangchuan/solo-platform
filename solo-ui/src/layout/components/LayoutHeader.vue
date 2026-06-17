@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useAppStore } from '@/stores/app'
 import { useTagsStore } from '@/stores/tags'
+import MessageCenter from '@/components/MessageCenter.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -108,6 +109,8 @@ function toggleFullscreen() {
           </div>
         </div>
       </el-popover>
+      <!-- 消息中心 -->
+      <MessageCenter />
       <el-dropdown trigger="click">
         <span class="user-dropdown">
           <el-icon><Avatar /></el-icon>
