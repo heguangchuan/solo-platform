@@ -1,0 +1,12 @@
+package com.solo.request;
+
+import lombok.Data;
+
+@Data
+public class TaskLogPageRequest {
+    private Long page;
+    private Long pageSize;
+    private Long taskId;
+    private String taskCode;
+    private Integer resultStatus;
+}

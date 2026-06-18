@@ -26,7 +26,7 @@ public class DictTypeController {
     private final SysDictTypeService sysDictTypeService;
 
     @PostMapping("/page")
-    @RequirePermission({"system:dict:type:list"})
+    @RequirePermission({"setting:dict:type:list"})
     public Result<PageResult<SysDictType>> getPage(@RequestBody DictTypePageRequest req) {
         Page<SysDictType> page = sysDictTypeService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -36,7 +36,7 @@ public class DictTypeController {
      * 全量启用类型列表（用于字典数据页的类型筛选下拉）
      */
     @GetMapping("/list")
-    @RequirePermission({"system:dict:type:list"})
+    @RequirePermission({"setting:dict:type:list"})
     public Result<List<SysDictType>> list() {
         List<SysDictType> types = sysDictTypeService.lambdaQuery()
                 .eq(SysDictType::getStatus, 1)
@@ -46,7 +46,7 @@ public class DictTypeController {
     }
 
     @PostMapping
-    @RequirePermission({"system:dict:type:add"})
+    @RequirePermission({"setting:dict:type:add"})
     @OperationLog(module = "字典类型", type = BusinessType.ADD, description = "新增字典类型")
     public Result<Void> save(@RequestBody DictTypeRequest request) {
         sysDictTypeService.createDictType(request);
@@ -54,7 +54,7 @@ public class DictTypeController {
     }
 
     @PutMapping("/{id}")
-    @RequirePermission({"system:dict:type:edit"})
+    @RequirePermission({"setting:dict:type:edit"})
     @OperationLog(module = "字典类型", type = BusinessType.EDIT, description = "修改字典类型")
     public Result<Void> update(@PathVariable Long id, @RequestBody DictTypeRequest request) {
         sysDictTypeService.updateDictType(id, request);
@@ -62,7 +62,7 @@ public class DictTypeController {
     }
 
     @DeleteMapping("/batch")
-    @RequirePermission({"system:dict:type:delete"})
+    @RequirePermission({"setting:dict:type:delete"})
     @OperationLog(module = "字典类型", type = BusinessType.DELETE, description = "批量删除字典类型")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         sysDictTypeService.deleteBatch(ids);
@@ -70,7 +70,7 @@ public class DictTypeController {
     }
 
     @DeleteMapping("/{id}")
-    @RequirePermission({"system:dict:type:delete"})
+    @RequirePermission({"setting:dict:type:delete"})
     @OperationLog(module = "字典类型", type = BusinessType.DELETE, description = "删除字典类型")
     public Result<Void> delete(@PathVariable Long id) {
         sysDictTypeService.deleteDictType(id);

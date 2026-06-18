@@ -1,5 +1,5 @@
 <script lang="ts">
-export default { name: 'SystemDict' }
+export default { name: 'SettingDict' }
 </script>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -335,7 +335,7 @@ onMounted(() => {
           <el-input v-model="typeSearch.dictType" placeholder="请输入字典编码" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:dict:type:list'" type="primary" @click="handleTypeSearch">查询</el-button>
+          <el-button v-permission="'setting:dict:type:list'" type="primary" @click="handleTypeSearch">查询</el-button>
           <el-button @click="handleTypeReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -343,8 +343,8 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:dict:type:add'" type="primary" @click="handleAddType">新增</el-button>
-        <el-button v-permission="'system:dict:type:delete'" type="primary" @click="handleBatchDeleteType">删除</el-button>
+        <el-button v-permission="'setting:dict:type:add'" type="primary" @click="handleAddType">新增</el-button>
+        <el-button v-permission="'setting:dict:type:delete'" type="primary" @click="handleBatchDeleteType">删除</el-button>
       </div>
 
       <el-table
@@ -368,7 +368,7 @@ onMounted(() => {
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-permission="'system:dict:data:list'"
+              v-permission="'setting:dict:data:list'"
               type="primary"
               link
               @click="handleOpenData(row)"
@@ -376,7 +376,7 @@ onMounted(() => {
               字典数据
             </el-button>
             <el-button
-              v-permission="'system:dict:type:edit'"
+              v-permission="'setting:dict:type:edit'"
               type="primary"
               link
               @click="handleEditType(row)"
@@ -384,7 +384,7 @@ onMounted(() => {
               编辑
             </el-button>
             <el-button
-              v-permission="'system:dict:type:delete'"
+              v-permission="'setting:dict:type:delete'"
               type="primary"
               link
               @click="handleDeleteType(row)"
@@ -443,7 +443,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:dict:data:list'" type="primary" @click="handleDataSearch">
+          <el-button v-permission="'setting:dict:data:list'" type="primary" @click="handleDataSearch">
             查询
           </el-button>
           <el-button @click="handleDataReset">重置</el-button>
@@ -451,8 +451,8 @@ onMounted(() => {
       </el-form>
 
       <div class="dialog-actions">
-        <el-button v-permission="'system:dict:data:add'" type="primary" @click="handleAddData">新增</el-button>
-        <el-button v-permission="'system:dict:data:delete'" type="primary" @click="handleBatchDeleteData">
+        <el-button v-permission="'setting:dict:data:add'" type="primary" @click="handleAddData">新增</el-button>
+        <el-button v-permission="'setting:dict:data:delete'" type="primary" @click="handleBatchDeleteData">
           删除
         </el-button>
       </div>
@@ -478,7 +478,7 @@ onMounted(() => {
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button
-              v-permission="'system:dict:data:edit'"
+              v-permission="'setting:dict:data:edit'"
               type="primary"
               link
               @click="handleEditData(row)"
@@ -486,7 +486,7 @@ onMounted(() => {
               编辑
             </el-button>
             <el-button
-              v-permission="'system:dict:data:delete'"
+              v-permission="'setting:dict:data:delete'"
               type="primary"
               link
               @click="handleDeleteData(row)"

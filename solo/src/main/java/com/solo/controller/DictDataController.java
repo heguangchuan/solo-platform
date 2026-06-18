@@ -26,7 +26,7 @@ public class DictDataController {
     private final SysDictDataService sysDictDataService;
 
     @PostMapping("/page")
-    @RequirePermission({"system:dict:data:list"})
+    @RequirePermission({"setting:dict:data:list"})
     public Result<PageResult<SysDictData>> getPage(@RequestBody DictDataPageRequest req) {
         Page<SysDictData> page = sysDictDataService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -41,7 +41,7 @@ public class DictDataController {
     }
 
     @PostMapping
-    @RequirePermission({"system:dict:data:add"})
+    @RequirePermission({"setting:dict:data:add"})
     @OperationLog(module = "字典数据", type = BusinessType.ADD, description = "新增字典数据")
     public Result<Void> save(@RequestBody DictDataRequest request) {
         sysDictDataService.createDictData(request);
@@ -49,7 +49,7 @@ public class DictDataController {
     }
 
     @PutMapping("/{id}")
-    @RequirePermission({"system:dict:data:edit"})
+    @RequirePermission({"setting:dict:data:edit"})
     @OperationLog(module = "字典数据", type = BusinessType.EDIT, description = "修改字典数据")
     public Result<Void> update(@PathVariable Long id, @RequestBody DictDataRequest request) {
         sysDictDataService.updateDictData(id, request);
@@ -57,7 +57,7 @@ public class DictDataController {
     }
 
     @DeleteMapping("/batch")
-    @RequirePermission({"system:dict:data:delete"})
+    @RequirePermission({"setting:dict:data:delete"})
     @OperationLog(module = "字典数据", type = BusinessType.DELETE, description = "批量删除字典数据")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         sysDictDataService.deleteBatch(ids);
@@ -65,7 +65,7 @@ public class DictDataController {
     }
 
     @DeleteMapping("/{id}")
-    @RequirePermission({"system:dict:data:delete"})
+    @RequirePermission({"setting:dict:data:delete"})
     @OperationLog(module = "字典数据", type = BusinessType.DELETE, description = "删除字典数据")
     public Result<Void> delete(@PathVariable Long id) {
         sysDictDataService.deleteDictData(id);
