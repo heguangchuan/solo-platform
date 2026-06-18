@@ -22,7 +22,7 @@ import java.util.List;
  * 提供权限列表查询及权限CRUD接口
  */
 @RestController
-@RequestMapping("/api/system/permission")
+@RequestMapping("/api/permission")
 @RequiredArgsConstructor
 public class PermissionController {
 

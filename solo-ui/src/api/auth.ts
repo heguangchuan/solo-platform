@@ -13,40 +13,40 @@ import type {
 import { post, get, put } from '@/utils/request'
 
 export function loginApi(data: LoginRequest) {
-  return post<LoginResponse>('/auth/login', data)
+  return post<LoginResponse>('/api/auth/login', data)
 }
 
 /** 用 refresh token 换取新的 access / refresh token（滚动刷新） */
 export function refreshTokenApi(data: RefreshTokenRequest) {
-  return post<RefreshTokenResponse>('/auth/refresh', data)
+  return post<RefreshTokenResponse>('/api/auth/refresh', data)
 }
 
 export function getAuthMenusApi() {
-  return get<UserAuthResponse[]>('/auth/me')
+  return get<UserAuthResponse[]>('/api/auth/me')
 }
 
 export function getAuthPermissionsApi() {
-  return get<string[]>('/auth/permissions')
+  return get<string[]>('/api/auth/permissions')
 }
 
 export function getStatsApi() {
-  return get<StatResponse>('/auth/stats')
+  return get<StatResponse>('/api/auth/stats')
 }
 
 export function getProfileApi() {
-  return get<UserInfoVO>('/auth/profile')
+  return get<UserInfoVO>('/api/auth/profile')
 }
 
 export function updateProfileApi(data: ProfileUpdateRequest) {
-  return put<void>('/auth/profile', data)
+  return put<void>('/api/auth/profile', data)
 }
 
 export function getMyRolesApi() {
-  return get<SysRole[]>('/auth/roles')
+  return get<SysRole[]>('/api/auth/roles')
 }
 
 export function changePasswordApi(data: ChangePasswordRequest) {
-  return post<void>('/auth/password', data)
+  return post<void>('/api/auth/password', data)
 }
 
 export function logoutApi() {

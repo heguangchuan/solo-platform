@@ -23,7 +23,7 @@ import java.util.List;
  * 仅查询/删除/导出，不写日志（避免对日志表自身的删除/导出再产生日志噪声）
  */
 @RestController
-@RequestMapping("/api/system/log")
+@RequestMapping("/api/log")
 @RequiredArgsConstructor
 public class LogController {
 

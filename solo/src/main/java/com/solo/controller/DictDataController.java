@@ -19,7 +19,7 @@ import java.util.List;
  * 字典数据管理控制器
  */
 @RestController
-@RequestMapping("/api/system/dict/data")
+@RequestMapping("/api/dict/data")
 @RequiredArgsConstructor
 public class DictDataController {
 
