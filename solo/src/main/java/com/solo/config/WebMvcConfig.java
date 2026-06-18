@@ -2,11 +2,13 @@ package com.solo.config;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.io.File;
+import java.util.List;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -20,6 +22,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     private final JwtInterceptor jwtInterceptor;
     private final FileStorageProperties fileProps;
+    private final XssStringArgumentResolver xssStringArgumentResolver;
 
     /**
      * 注册拦截器
@@ -52,6 +55,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
         String location = "file:///" + root.toString().replace(File.separatorChar, '/');
         if (!location.endsWith("/")) location = location + "/";
         registry.addResourceHandler(prefix + "/**").addResourceLocations(location);
+    }
+
+    @Override
+    public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
+        resolvers.add(xssStringArgumentResolver);
     }
 
     private boolean isLocalStorage() {
