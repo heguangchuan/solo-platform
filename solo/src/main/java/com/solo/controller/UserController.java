@@ -27,7 +27,7 @@ import java.util.List;
  * 提供用户列表分页查询、新增、编辑、删除等CRUD接口
  */
 @RestController
-@RequestMapping("/api/system/user")
+@RequestMapping("/api/user")
 @RequiredArgsConstructor
 public class UserController {
 

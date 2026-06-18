@@ -4,6 +4,7 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.common.SystemConstants;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -23,9 +24,18 @@ public class GlobalExceptionHandler {
      * @return 包含错误码和消息的响应
      */
     @ExceptionHandler(ServiceException.class)
-    public Result<Void> handleServiceException(ServiceException e) {
+    public ResponseEntity<Result<Void>> handleServiceException(ServiceException e) {
         log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
-        return Result.error(e.getCode(), e.getMessage());
+        Result<Void> body = Result.error(e.getCode(), e.getMessage());
+        return switch (e.getCode()) {
+            case SystemConstants.HTTP_BAD_REQUEST,
+                 SystemConstants.HTTP_UNAUTHORIZED,
+                 SystemConstants.HTTP_FORBIDDEN,
+                 SystemConstants.HTTP_NOT_FOUND,
+                 SystemConstants.HTTP_TOO_MANY_REQUESTS,
+                 SystemConstants.HTTP_INTERNAL_ERROR -> ResponseEntity.status(e.getCode()).body(body);
+            default -> ResponseEntity.ok(body);
+        };
     }
 
     /**

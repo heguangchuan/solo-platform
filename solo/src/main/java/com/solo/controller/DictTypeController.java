@@ -19,7 +19,7 @@ import java.util.List;
  * 字典类型管理控制器
  */
 @RestController
-@RequestMapping("/api/system/dict/type")
+@RequestMapping("/api/dict/type")
 @RequiredArgsConstructor
 public class DictTypeController {
 

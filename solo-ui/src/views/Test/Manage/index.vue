@@ -6,6 +6,7 @@ import { ref } from 'vue'
 import UploadTest from '@/views/Test/components/UploadTest.vue'
 import DictTest from '@/views/Test/components/DictTest.vue'
 import MessageTest from '@/views/Test/components/MessageTest.vue'
+import RateLimitTest from '@/views/Test/components/RateLimitTest.vue'
 
 const activeTab = ref('upload')
 </script>
@@ -34,6 +35,10 @@ const activeTab = ref('upload')
 
         <el-tab-pane label="消息功能测试" name="message">
           <MessageTest />
+        </el-tab-pane>
+
+        <el-tab-pane label="限流功能测试" name="rateLimit">
+          <RateLimitTest />
         </el-tab-pane>
       </el-tabs>
     </el-card>

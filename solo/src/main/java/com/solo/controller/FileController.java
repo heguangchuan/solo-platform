@@ -20,7 +20,7 @@ import java.util.List;
  * 文件管理：上传、查询、删除。
  */
 @RestController
-@RequestMapping("/api/system/file")
+@RequestMapping("/api/file")
 @RequiredArgsConstructor
 public class FileController {
 

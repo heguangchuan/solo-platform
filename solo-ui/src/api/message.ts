@@ -1,32 +1,32 @@
 import { get, post } from '@/utils/request'
-import type { SysMessage } from '@/stores/message'
+import type { SysMessage } from '@/stores/api'
 
 /**
  * 获取当前用户消息列表
  */
 export function getMessageList(limit = 50) {
-  return get<SysMessage[]>('/message/list', { params: { limit } })
+  return get<SysMessage[]>('/api/message/list', { params: { limit } })
 }
 
 /**
  * 获取未读消息数
  */
 export function getUnreadCount() {
-  return get<number>('/message/unread-count')
+  return get<number>('/api/message/unread-count')
 }
 
 /**
  * 标记单条消息为已读
  */
 export function markMessageRead(id: number) {
-  return post(`/message/${id}/read`)
+  return post(`/api/message/${id}/read`)
 }
 
 /**
  * 标记所有消息为已读
  */
 export function markAllMessagesRead() {
-  return post('/message/read-all')
+  return post('/api/message/read-all')
 }
 
 /**
@@ -40,7 +40,7 @@ export function sendMessage(data: {
   level?: string
   route?: string
 }) {
-  return post<void>('/message/send', data)
+  return post<void>('/api/message/send', data)
 }
 
 /**
@@ -51,12 +51,12 @@ export function broadcastMessage(data: {
   content: string
   level?: string
 }) {
-  return post<number>('/message/broadcast', data)
+  return post<number>('/api/message/broadcast', data)
 }
 
 /**
  * 获取 WebSocket 在线用户数
  */
 export function getWsOnlineCount() {
-  return get<number>('/message/online-count')
+  return get<number>('/api/message/online-count')
 }

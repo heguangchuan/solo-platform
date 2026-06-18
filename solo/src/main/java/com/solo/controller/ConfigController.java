@@ -25,7 +25,7 @@ import java.util.List;
  * 系统参数管理控制器
  */
 @RestController
-@RequestMapping("/api/system/config")
+@RequestMapping("/api/config")
 @RequiredArgsConstructor
 public class ConfigController {
 

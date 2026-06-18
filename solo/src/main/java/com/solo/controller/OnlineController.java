@@ -16,7 +16,7 @@ import java.util.List;
  * 在线用户管理：列出当前在线会话、强制下线
  */
 @RestController
-@RequestMapping("/api/system/online")
+@RequestMapping("/api/online")
 @RequiredArgsConstructor
 public class OnlineController {
 
