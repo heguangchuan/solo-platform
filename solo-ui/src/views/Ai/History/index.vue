@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getTaskListApi, type AiGenerationTask } from '@/api/ai'
 import { ElMessage } from 'element-plus'
 import { Search, Refresh } from '@element-plus/icons-vue'
+import { getTaskListApi, type AiGenerationTask } from '@/api/ai'
 import TaskDetailDialog from './components/TaskDetailDialog.vue'
 
 defineOptions({ name: 'AiHistory' })
 
 const detailDialog = ref<InstanceType<typeof TaskDetailDialog>>()
 const loading = ref(false)
-const tasks = ref<AiGenerationTask[]>([])
+const tableData = ref<AiGenerationTask[]>([])
 const total = ref(0)
 const currentPage = ref(1)
-const pageSize = ref(20)
-const taskType = ref('')
-const status = ref('')
+const pageSize = ref(10)
+
+const searchForm = ref({
+  taskType: '',
+  status: ''
+})
 
 const taskTypeOptions = [
   { label: '全部类型', value: '' },
@@ -32,32 +35,20 @@ const statusOptions = [
   { label: '已取消', value: 'CANCELLED' }
 ]
 
-const getStatusTagType = (status: string) => {
-  switch (status) {
-    case 'SUCCESS':
-      return 'success'
-    case 'FAILED':
-      return 'danger'
-    case 'PROCESSING':
-      return 'warning'
-    case 'PENDING':
-      return 'info'
-    default:
-      return ''
-  }
+const statusTypeMap: Record<string, string> = {
+  SUCCESS: 'success',
+  FAILED: 'danger',
+  PROCESSING: 'warning',
+  PENDING: 'info'
 }
 
-const getStatusText = (status: string) => {
-  const item = statusOptions.find((o) => o.value === status)
-  return item?.label || status
+const taskTypeMap: Record<string, string> = {
+  TEXT: '文本',
+  IMAGE: '图片',
+  VIDEO: '视频'
 }
 
-const getTaskTypeText = (type: string) => {
-  const item = taskTypeOptions.find((o) => o.value === type)
-  return item?.label || type
-}
-
-const formatTime = (timeStr: string) => {
+function formatTime(timeStr: string) {
   if (!timeStr) return '-'
   const date = new Date(timeStr)
   return date.toLocaleString('zh-CN', {
@@ -70,16 +61,29 @@ const formatTime = (timeStr: string) => {
   })
 }
 
-const loadTasks = async () => {
+function handleSearch() {
+  currentPage.value = 1
+  fetchData()
+}
+
+function handleReset() {
+  searchForm.value = {
+    taskType: '',
+    status: ''
+  }
+  handleSearch()
+}
+
+async function fetchData() {
   loading.value = true
   try {
     const res = await getTaskListApi({
       page: currentPage.value,
       pageSize: pageSize.value,
-      taskType: taskType.value || undefined,
-      status: status.value || undefined
+      taskType: searchForm.value.taskType || undefined,
+      status: searchForm.value.status || undefined
     })
-    tasks.value = res.data.records || []
+    tableData.value = res.data.records || []
     total.value = res.data.total || 0
   } catch {
     ElMessage.error('加载任务列表失败')
@@ -88,40 +92,28 @@ const loadTasks = async () => {
   }
 }
 
-const handleSearch = () => {
-  currentPage.value = 1
-  loadTasks()
-}
-
-const handleReset = () => {
-  taskType.value = ''
-  status.value = ''
-  handleSearch()
-}
-
-const handlePageChange = (page: number) => {
+function handlePageChange(page: number) {
   currentPage.value = page
-  loadTasks()
+  fetchData()
 }
 
-const handleSizeChange = (size: number) => {
+function handleSizeChange(size: number) {
   pageSize.value = size
   currentPage.value = 1
-  loadTasks()
+  fetchData()
 }
 
 onMounted(() => {
-  loadTasks()
+  fetchData()
 })
 </script>
 
 <template>
-  <div class="ai-history">
-    <el-card shadow="never">
-      <!-- 搜索栏 -->
-      <el-form :inline="true" class="search-form">
+  <div>
+    <el-card shadow="hover" class="search-card">
+      <el-form :model="searchForm" inline>
         <el-form-item label="任务类型">
-          <el-select v-model="taskType" placeholder="请选择" style="width: 140px">
+          <el-select v-model="searchForm.taskType" placeholder="请选择" clearable style="width: 120px">
             <el-option
               v-for="item in taskTypeOptions"
               :key="item.value"
@@ -131,7 +123,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="status" placeholder="请选择" style="width: 140px">
+          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
             <el-option
               v-for="item in statusOptions"
               :key="item.value"
@@ -145,23 +137,28 @@ onMounted(() => {
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
+    </el-card>
 
-      <!-- 表格 -->
-      <el-table v-loading="loading" :data="tasks" stripe>
+    <el-card shadow="hover" style="margin-top: 16px">
+      <el-table :data="tableData" v-loading="loading" border stripe>
         <el-table-column prop="id" label="任务ID" width="80" align="center" />
         <el-table-column prop="taskType" label="类型" width="100" align="center">
           <template #default="{ row }">
-            <el-tag size="small">{{ getTaskTypeText(row.taskType) }}</el-tag>
+            <el-tag size="small">{{ taskTypeMap[row.taskType] || row.taskType }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
-              {{ getStatusText(row.status) }}
+            <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
+              {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : row.status === 'PROCESSING' ? '处理中' : '待处理' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="modelName" label="模型" width="120" align="center" />
+        <el-table-column prop="modelName" label="模型" width="120" align="center">
+          <template #default="{ row }">
+            {{ row.modelName || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column prop="prompt" label="输入内容" min-width="200" show-overflow-tooltip />
         <el-table-column prop="tokens" label="消耗Token" width="100" align="center">
           <template #default="{ row }">
@@ -185,14 +182,13 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="detailDialog?.open(row)">
+            <el-button type="primary" link @click="detailDialog?.open(row)">
               详情
             </el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 分页 -->
       <div class="pagination-container">
         <el-pagination
           v-model:current-page="currentPage"
@@ -206,21 +202,20 @@ onMounted(() => {
       </div>
     </el-card>
 
-    <!-- 详情弹窗 -->
     <TaskDetailDialog ref="detailDialog" />
   </div>
 </template>
 
 <style scoped lang="scss">
-.ai-history {
-  .search-form {
-    margin-bottom: 16px;
+.search-card {
+  :deep(.el-card__body) {
+    padding-bottom: 0;
   }
+}
 
-  .pagination-container {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 20px;
-  }
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
 }
 </style>

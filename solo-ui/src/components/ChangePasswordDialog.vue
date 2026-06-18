@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { Close, Check } from '@element-plus/icons-vue'
 import { changePasswordApi } from '@/api/auth'
 
 const props = defineProps<{
@@ -117,8 +118,8 @@ function close() {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button v-if="!forced" @click="close">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submit">确认修改</el-button>
+      <el-button v-if="!forced" :icon="Close" @click="close">取消</el-button>
+      <el-button type="primary" :loading="submitting" :icon="Check" @click="submit">确认修改</el-button>
     </template>
   </el-dialog>
 </template>

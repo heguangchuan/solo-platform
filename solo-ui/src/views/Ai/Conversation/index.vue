@@ -12,7 +12,7 @@ import {
   type AiMessage
 } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Promote } from '@element-plus/icons-vue'
 
 const conversations = ref<AiConversation[]>([])
 const currentConversationId = ref<string | null>(null)
@@ -281,7 +281,7 @@ onMounted(async () => {
               :disabled="sending"
             />
             <div class="input-actions">
-              <el-button type="primary" :loading="sending" @click="sendMessage">发送</el-button>
+              <el-button type="primary" :loading="sending" :icon="Promote" @click="sendMessage">发送</el-button>
             </div>
           </div>
         </el-card>

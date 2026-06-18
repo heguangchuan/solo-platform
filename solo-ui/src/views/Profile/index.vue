@@ -4,6 +4,7 @@ export default { name: 'Profile' }
 <script setup lang="ts">
 import { onMounted, reactive, ref, computed } from 'vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { Refresh, Check } from '@element-plus/icons-vue'
 import {
   getProfileApi,
   updateProfileApi,
@@ -243,10 +244,10 @@ onMounted(() => {
                   <el-input v-model="profile.avatar" placeholder="请输入头像URL（可选）" />
                 </el-form-item>
                 <el-form-item>
-                  <el-button type="primary" :loading="profileSubmitting" @click="handleSaveProfile">
+                  <el-button type="primary" :loading="profileSubmitting" :icon="Check" @click="handleSaveProfile">
                     保存修改
                   </el-button>
-                  <el-button @click="loadProfile">重置</el-button>
+                  <el-button :icon="Refresh" @click="loadProfile">重置</el-button>
                 </el-form-item>
               </el-form>
             </el-tab-pane>

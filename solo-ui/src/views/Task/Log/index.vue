@@ -5,6 +5,7 @@ export default { name: 'TaskLog' }
 import { ref, onMounted } from 'vue'
 import type { SysTaskLog, TaskLogPageRequest } from '@/types/api'
 import { getTaskLogPageApi } from '@/api/task'
+import { Search, Refresh } from '@element-plus/icons-vue'
 
 const loading = ref(false)
 const tableData = ref<SysTaskLog[]>([])
@@ -75,8 +76,8 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'task:log:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'task:log:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>

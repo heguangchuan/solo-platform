@@ -4,6 +4,7 @@ export default { name: 'TaskManage' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
 import type { SysTask, TaskPageRequest, TaskRequest } from '@/types/api'
 import {
   getTaskPageApi,
@@ -212,16 +213,16 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'task:manage:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'task:manage:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'task:manage:add'" type="primary" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'task:manage:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'task:manage:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'task:manage:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
@@ -290,8 +291,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button :icon="Close" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
       </template>
     </el-dialog>
   </div>

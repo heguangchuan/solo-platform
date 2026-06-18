@@ -4,6 +4,7 @@ export default { name: 'SettingDict' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
 import type {
   SysDictType,
   DictTypeRequest,
@@ -335,16 +336,16 @@ onMounted(() => {
           <el-input v-model="typeSearch.dictType" placeholder="请输入字典编码" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'setting:dict:type:list'" type="primary" @click="handleTypeSearch">查询</el-button>
-          <el-button @click="handleTypeReset">重置</el-button>
+          <el-button v-permission="'setting:dict:type:list'" type="primary" :icon="Search" @click="handleTypeSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleTypeReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'setting:dict:type:add'" type="primary" @click="handleAddType">新增</el-button>
-        <el-button v-permission="'setting:dict:type:delete'" type="primary" @click="handleBatchDeleteType">删除</el-button>
+        <el-button v-permission="'setting:dict:type:add'" type="primary" :icon="Plus" @click="handleAddType">新增</el-button>
+        <el-button v-permission="'setting:dict:type:delete'" type="primary" :icon="Delete" @click="handleBatchDeleteType">删除</el-button>
       </div>
 
       <el-table
@@ -421,8 +422,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="typeDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmType">确定</el-button>
+        <el-button :icon="Close" @click="typeDialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirmType">确定</el-button>
       </template>
     </el-dialog>
 
@@ -443,16 +444,16 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'setting:dict:data:list'" type="primary" @click="handleDataSearch">
+          <el-button v-permission="'setting:dict:data:list'" type="primary" :icon="Search" @click="handleDataSearch">
             查询
           </el-button>
-          <el-button @click="handleDataReset">重置</el-button>
+          <el-button :icon="Refresh" @click="handleDataReset">重置</el-button>
         </el-form-item>
       </el-form>
 
       <div class="dialog-actions">
-        <el-button v-permission="'setting:dict:data:add'" type="primary" @click="handleAddData">新增</el-button>
-        <el-button v-permission="'setting:dict:data:delete'" type="primary" @click="handleBatchDeleteData">
+        <el-button v-permission="'setting:dict:data:add'" type="primary" :icon="Plus" @click="handleAddData">新增</el-button>
+        <el-button v-permission="'setting:dict:data:delete'" type="primary" :icon="Delete" @click="handleBatchDeleteData">
           删除
         </el-button>
       </div>
@@ -535,8 +536,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dataDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirmData">确定</el-button>
+        <el-button :icon="Close" @click="dataDialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirmData">确定</el-button>
       </template>
     </el-dialog>
   </div>
