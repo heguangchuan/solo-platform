@@ -4,7 +4,7 @@ export default { name: 'TaskManage' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { SysTask, SysTaskLog, TaskLogPageRequest, TaskPageRequest, TaskRequest } from '@/types/api'
+import type { SysTask, TaskPageRequest, TaskRequest } from '@/types/api'
 import {
   getTaskPageApi,
   addTaskApi,
@@ -13,7 +13,6 @@ import {
   deleteTaskBatchApi,
   switchTaskStatusApi,
   runTaskApi,
-  getTaskLogPageApi,
 } from '@/api/task'
 
 const loading = ref(false)
@@ -39,14 +38,6 @@ const form = ref<TaskRequest>({
   remark: '',
 })
 
-const logVisible = ref(false)
-const logLoading = ref(false)
-const logData = ref<SysTaskLog[]>([])
-const logTotal = ref(0)
-const logCurrentPage = ref(1)
-const logPageSize = ref(10)
-const logSearchForm = ref<TaskLogPageRequest>({ page: 1, pageSize: 10 })
-
 const rules = {
   taskName: [{ required: true, message: '请输入任务名称', trigger: 'blur' }],
   taskCode: [{ required: true, message: '请输入任务编码', trigger: 'blur' }],
@@ -55,11 +46,6 @@ const rules = {
 }
 
 const statusTypeMap: Record<number, string> = {
-  1: 'success',
-  0: 'danger',
-}
-
-const resultStatusTypeMap: Record<number, string> = {
   1: 'success',
   0: 'danger',
 }
@@ -204,43 +190,6 @@ async function handleDelete(row: SysTask) {
   }
 }
 
-function handleShowLogs(row: SysTask) {
-  logSearchForm.value = { page: 1, pageSize: 10, taskId: row.id, taskCode: row.taskCode }
-  logCurrentPage.value = 1
-  logVisible.value = true
-  fetchLogs()
-}
-
-function handleLogSearch() {
-  logCurrentPage.value = 1
-  fetchLogs()
-}
-
-async function fetchLogs() {
-  logLoading.value = true
-  try {
-    const params = { ...logSearchForm.value, page: logCurrentPage.value, pageSize: logPageSize.value }
-    const res = await getTaskLogPageApi(params)
-    logData.value = res.data.rows
-    logTotal.value = res.data.total
-  } catch {
-    // handled
-  } finally {
-    logLoading.value = false
-  }
-}
-
-function handleLogPageChange(page: number) {
-  logCurrentPage.value = page
-  fetchLogs()
-}
-
-function handleLogSizeChange(size: number) {
-  logPageSize.value = size
-  logCurrentPage.value = 1
-  fetchLogs()
-}
-
 onMounted(() => {
   fetchData()
 })
@@ -289,14 +238,13 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'task:manage:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'task:manage:switch'" type="primary" link @click="handleToggleStatus(row)">
               {{ row.status === 1 ? '停用' : '启用' }}
             </el-button>
             <el-button v-permission="'task:manage:run'" type="primary" link @click="handleRun(row)">执行</el-button>
-            <el-button v-permission="'task:manage:log:list'" type="primary" link @click="handleShowLogs(row)">日志</el-button>
             <el-button v-permission="'task:manage:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -345,45 +293,6 @@ onMounted(() => {
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleConfirm">确定</el-button>
       </template>
-    </el-dialog>
-
-    <el-dialog v-model="logVisible" title="任务执行日志" width="960px" destroy-on-close>
-      <el-form :model="logSearchForm" inline>
-        <el-form-item label="执行结果">
-          <el-select v-model="logSearchForm.resultStatus" placeholder="请选择" clearable style="width: 120px">
-            <el-option label="成功" :value="1" />
-            <el-option label="失败" :value="0" />
-          </el-select>
-        </el-form-item>
-        <el-form-item>
-          <el-button v-permission="'task:manage:log:list'" type="primary" @click="handleLogSearch">查询</el-button>
-        </el-form-item>
-      </el-form>
-
-      <el-table :data="logData" v-loading="logLoading" border stripe>
-        <el-table-column prop="taskName" label="任务名称" min-width="140" />
-        <el-table-column prop="taskCode" label="任务编码" min-width="150" />
-        <el-table-column prop="handlerName" label="处理器" min-width="130" />
-        <el-table-column prop="executionTime" label="执行时间" min-width="170" />
-        <el-table-column prop="durationMs" label="耗时(ms)" width="110" />
-        <el-table-column label="结果" width="90">
-          <template #default="{ row }">
-            <el-tag :type="resultStatusTypeMap[row.resultStatus]">{{ row.resultStatus === 1 ? '成功' : '失败' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="errorMsg" label="错误信息" min-width="220" show-overflow-tooltip />
-      </el-table>
-
-      <el-pagination
-        v-model:current-page="logCurrentPage"
-        v-model:page-size="logPageSize"
-        :total="logTotal"
-        :page-sizes="[10, 20, 50]"
-        layout="total, sizes, prev, pager, next, jumper"
-        class="pagination"
-        @current-change="handleLogPageChange"
-        @size-change="handleLogSizeChange"
-      />
     </el-dialog>
   </div>
 </template>

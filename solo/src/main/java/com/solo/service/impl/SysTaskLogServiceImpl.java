@@ -21,6 +21,9 @@ public class SysTaskLogServiceImpl extends ServiceImpl<SysTaskLogMapper, SysTask
         if (req.getTaskId() != null) {
             wrapper.eq(SysTaskLog::getTaskId, req.getTaskId());
         }
+        if (req.getTaskName() != null && !req.getTaskName().isBlank()) {
+            wrapper.like(SysTaskLog::getTaskName, req.getTaskName());
+        }
         if (req.getTaskCode() != null && !req.getTaskCode().isBlank()) {
             wrapper.like(SysTaskLog::getTaskCode, req.getTaskCode());
         }

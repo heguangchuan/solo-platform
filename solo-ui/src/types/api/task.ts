@@ -31,6 +31,7 @@ export interface SysTask {
 
 export interface TaskLogPageRequest extends PageRequest {
   taskId?: string
+  taskName?: string
   taskCode?: string
   resultStatus?: number
 }
