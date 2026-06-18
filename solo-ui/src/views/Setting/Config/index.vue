@@ -1,5 +1,5 @@
 <script lang="ts">
-export default { name: 'SystemConfig' }
+export default { name: 'SettingConfig' }
 </script>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -172,7 +172,7 @@ onMounted(() => {
           <el-input v-model="searchForm.configKey" placeholder="请输入参数编码" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:config:list'" type="primary" @click="handleSearch">查询</el-button>
+          <el-button v-permission="'setting:config:list'" type="primary" @click="handleSearch">查询</el-button>
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -180,9 +180,9 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:config:add'" type="primary" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:config:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-        <el-button v-permission="'system:config:export'" type="primary" @click="handleExport">导出</el-button>
+        <el-button v-permission="'setting:config:add'" type="primary" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'setting:config:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'setting:config:export'" type="primary" @click="handleExport">导出</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
@@ -194,9 +194,9 @@ onMounted(() => {
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
         <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'system:config:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'setting:config:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button
-              v-permission="'system:config:delete'"
+              v-permission="'setting:config:delete'"
               type="danger"
               link
               @click="handleDelete(row)"

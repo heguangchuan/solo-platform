@@ -114,6 +114,7 @@ VALUES
     (27, '系统设置', 'setting', NULL, 1, 0, 2, 'Tools', 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
     (55, '测试管理', 'test:manage', '/test/manage', 1, 0, 3, 'Operation', 1, '2026-06-16 09:00:00',
      '2026-06-16 09:00:00'),
+    (56, '任务调度', 'task', NULL, 1, 0, 4, 'Timer', 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
 
 /* —— 系统管理 → 子菜单 —— */
     (2, '用户管理', 'system:user', '/system/user', 1, 1, 1, 'User', 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
@@ -168,33 +169,45 @@ VALUES
     (53, '文件上传', 'system:file:upload', NULL, 2, 51, 2, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
     (54, '文件删除', 'system:file:delete', NULL, 2, 51, 3, NULL, 1, '2026-06-16 09:00:00', '2026-06-16 09:00:00'),
 
+/* —— 任务调度 → 子菜单 —— */
+    (64, '任务管理', 'task:manage', '/task/manage', 1, 56, 1, 'Timer', 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+
+/* —— 任务管理 → 按钮 —— */
+    (57, '任务查询', 'task:manage:list', NULL, 2, 64, 1, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (58, '任务新增', 'task:manage:add', NULL, 2, 64, 2, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (59, '任务编辑', 'task:manage:edit', NULL, 2, 64, 3, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (60, '任务删除', 'task:manage:delete', NULL, 2, 64, 4, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (61, '任务启停', 'task:manage:switch', NULL, 2, 64, 5, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (62, '任务执行', 'task:manage:run', NULL, 2, 64, 6, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+    (63, '任务日志查询', 'task:manage:log:list', NULL, 2, 64, 7, NULL, 1, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
+
 /* —— 系统设置 → 子菜单 —— */
-    (28, '参数管理', 'system:config', '/system/config', 1, 27, 1, 'SetUp', 1, '2026-06-14 22:35:02',
+    (28, '参数管理', 'setting:config', '/setting/config', 1, 27, 1, 'SetUp', 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (29, '字典管理', 'system:dict', '/system/dict', 1, 27, 2, 'Collection', 1, '2026-06-14 22:35:02',
+    (29, '字典管理', 'setting:dict', '/setting/dict', 1, 27, 2, 'Collection', 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
 
 /* —— 参数管理 → 按钮 —— */
-    (30, '参数查询', 'system:config:list', NULL, 2, 28, 1, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (31, '参数新增', 'system:config:add', NULL, 2, 28, 2, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (32, '参数编辑', 'system:config:edit', NULL, 2, 28, 3, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (33, '参数删除', 'system:config:delete', NULL, 2, 28, 4, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (34, '参数导出', 'system:config:export', NULL, 2, 28, 5, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (30, '参数查询', 'setting:config:list', NULL, 2, 28, 1, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (31, '参数新增', 'setting:config:add', NULL, 2, 28, 2, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (32, '参数编辑', 'setting:config:edit', NULL, 2, 28, 3, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (33, '参数删除', 'setting:config:delete', NULL, 2, 28, 4, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (34, '参数导出', 'setting:config:export', NULL, 2, 28, 5, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
 
 /* —— 字典管理 → 按钮 —— */
-    (35, '字典类型查询', 'system:dict:type:list', NULL, 2, 29, 1, NULL, 1, '2026-06-14 22:35:02',
+    (35, '字典类型查询', 'setting:dict:type:list', NULL, 2, 29, 1, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (36, '字典类型新增', 'system:dict:type:add', NULL, 2, 29, 2, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (37, '字典类型编辑', 'system:dict:type:edit', NULL, 2, 29, 3, NULL, 1, '2026-06-14 22:35:02',
+    (36, '字典类型新增', 'setting:dict:type:add', NULL, 2, 29, 2, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (37, '字典类型编辑', 'setting:dict:type:edit', NULL, 2, 29, 3, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (38, '字典类型删除', 'system:dict:type:delete', NULL, 2, 29, 4, NULL, 1, '2026-06-14 22:35:02',
+    (38, '字典类型删除', 'setting:dict:type:delete', NULL, 2, 29, 4, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (39, '字典数据查询', 'system:dict:data:list', NULL, 2, 29, 5, NULL, 1, '2026-06-14 22:35:02',
+    (39, '字典数据查询', 'setting:dict:data:list', NULL, 2, 29, 5, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (40, '字典数据新增', 'system:dict:data:add', NULL, 2, 29, 6, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
-    (41, '字典数据编辑', 'system:dict:data:edit', NULL, 2, 29, 7, NULL, 1, '2026-06-14 22:35:02',
+    (40, '字典数据新增', 'setting:dict:data:add', NULL, 2, 29, 6, NULL, 1, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
+    (41, '字典数据编辑', 'setting:dict:data:edit', NULL, 2, 29, 7, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02'),
-    (42, '字典数据删除', 'system:dict:data:delete', NULL, 2, 29, 8, NULL, 1, '2026-06-14 22:35:02',
+    (42, '字典数据删除', 'setting:dict:data:delete', NULL, 2, 29, 8, NULL, 1, '2026-06-14 22:35:02',
      '2026-06-14 22:35:02');
 
 
@@ -370,6 +383,58 @@ CREATE TABLE `sys_message`
     KEY           `idx_read_flag` (`read_flag`),
     KEY           `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='系统消息表';
+
+
+/* =====================================================================
+ * 12. sys_task — 动态任务表
+ * ===================================================================== */
+DROP TABLE IF EXISTS `sys_task`;
+CREATE TABLE `sys_task`
+(
+    `id`           bigint                                  NOT NULL COMMENT '任务ID',
+    `task_name`    varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务名称',
+    `task_code`    varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务编码',
+    `cron`         varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Cron表达式',
+    `handler_name` varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务处理器名称',
+    `task_params`  text COLLATE utf8mb4_unicode_ci COMMENT '任务参数',
+    `status`       tinyint                                 NOT NULL DEFAULT '0' COMMENT '状态: 0停用 1启用',
+    `remark`       varchar(255) COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '备注',
+    `deleted`      tinyint                                 NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+    `create_time`  datetime                                NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`  datetime                                NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_task_code` (`task_code`),
+    KEY            `idx_status` (`status`),
+    KEY            `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='动态任务表';
+
+INSERT INTO `sys_task` (`id`, `task_name`, `task_code`, `cron`, `handler_name`, `task_params`, `status`, `remark`, `create_time`, `update_time`)
+VALUES (2067200000000000001, '示例动态任务', 'example.dynamic.task', '0/30 * * * * ?', 'exampleTask', '{"source":"init"}', 0,
+        '启用后每30秒写入一条执行日志', '2026-06-18 09:00:00', '2026-06-18 09:00:00');
+
+
+/* =====================================================================
+ * 13. sys_task_log — 动态任务执行日志表
+ * ===================================================================== */
+DROP TABLE IF EXISTS `sys_task_log`;
+CREATE TABLE `sys_task_log`
+(
+    `id`             bigint                                  NOT NULL COMMENT '日志ID',
+    `task_id`        bigint                                  NOT NULL COMMENT '任务ID',
+    `task_name`      varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务名称',
+    `task_code`      varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务编码',
+    `handler_name`   varchar(100) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务处理器名称',
+    `task_params`    text COLLATE utf8mb4_unicode_ci COMMENT '任务参数',
+    `execution_time` datetime                                NOT NULL COMMENT '执行时间',
+    `duration_ms`    bigint                                           DEFAULT NULL COMMENT '执行耗时(毫秒)',
+    `result_status`  tinyint                                 NOT NULL COMMENT '执行结果: 0失败 1成功',
+    `error_msg`      varchar(2000) COLLATE utf8mb4_unicode_ci         DEFAULT NULL COMMENT '错误信息',
+    PRIMARY KEY (`id`),
+    KEY              `idx_task_id` (`task_id`),
+    KEY              `idx_task_code` (`task_code`),
+    KEY              `idx_execution_time` (`execution_time`),
+    KEY              `idx_result_status` (`result_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='动态任务执行日志表';
 
 
 INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `sort`, `status`, `deleted`, `create_time`,

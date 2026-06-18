@@ -34,14 +34,14 @@ public class ConfigController {
     private final SysConfigService sysConfigService;
 
     @PostMapping("/page")
-    @RequirePermission({"system:config:list"})
+    @RequirePermission({"setting:config:list"})
     public Result<PageResult<SysConfig>> getPage(@RequestBody ConfigPageRequest req) {
         Page<SysConfig> page = sysConfigService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
     @PostMapping("/export")
-    @RequirePermission({"system:config:export"})
+    @RequirePermission({"setting:config:export"})
     @OperationLog(module = "参数管理", type = BusinessType.EXPORT, description = "导出参数")
     public void export(@RequestBody ConfigExportRequest request, HttpServletResponse response) throws IOException {
         List<SysConfig> configs = queryExportConfigs(request);
@@ -70,7 +70,7 @@ public class ConfigController {
     }
 
     @PostMapping
-    @RequirePermission({"system:config:add"})
+    @RequirePermission({"setting:config:add"})
     @OperationLog(module = "参数管理", type = BusinessType.ADD, description = "新增参数")
     public Result<Void> save(@RequestBody ConfigRequest request) {
         sysConfigService.createConfig(request);
@@ -78,7 +78,7 @@ public class ConfigController {
     }
 
     @PutMapping("/{id}")
-    @RequirePermission({"system:config:edit"})
+    @RequirePermission({"setting:config:edit"})
     @OperationLog(module = "参数管理", type = BusinessType.EDIT, description = "修改参数")
     public Result<Void> update(@PathVariable Long id, @RequestBody ConfigRequest request) {
         sysConfigService.updateConfig(id, request);
@@ -86,7 +86,7 @@ public class ConfigController {
     }
 
     @DeleteMapping("/batch")
-    @RequirePermission({"system:config:delete"})
+    @RequirePermission({"setting:config:delete"})
     @OperationLog(module = "参数管理", type = BusinessType.DELETE, description = "批量删除参数")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         sysConfigService.deleteBatch(ids);
@@ -94,7 +94,7 @@ public class ConfigController {
     }
 
     @DeleteMapping("/{id}")
-    @RequirePermission({"system:config:delete"})
+    @RequirePermission({"setting:config:delete"})
     @OperationLog(module = "参数管理", type = BusinessType.DELETE, description = "删除参数")
     public Result<Void> delete(@PathVariable Long id) {
         sysConfigService.deleteConfig(id);
