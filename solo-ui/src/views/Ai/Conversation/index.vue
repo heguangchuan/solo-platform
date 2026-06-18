@@ -12,7 +12,7 @@ import {
   type AiMessage
 } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading, Promote } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Position } from '@element-plus/icons-vue'
 
 const conversations = ref<AiConversation[]>([])
 const currentConversationId = ref<string | null>(null)
@@ -186,9 +186,9 @@ onMounted(async () => {
 
 <template>
   <div class="ai-conversation">
-    <el-row :gutter="20" style="height: calc(100vh - 140px)">
+    <el-row :gutter="20" class="conversation-layout">
       <!-- 左侧会话列表 -->
-      <el-col :span="6">
+      <el-col :span="6" class="conversation-column">
         <el-card class="conversation-sidebar" shadow="never">
           <template #header>
             <div class="sidebar-header">
@@ -231,7 +231,7 @@ onMounted(async () => {
       </el-col>
 
       <!-- 右侧聊天区域 -->
-      <el-col :span="18">
+      <el-col :span="18" class="conversation-column">
         <el-card class="chat-panel" shadow="never">
           <template #header>
             <div class="chat-header">
@@ -281,7 +281,7 @@ onMounted(async () => {
               :disabled="sending"
             />
             <div class="input-actions">
-              <el-button type="primary" :loading="sending" :icon="Promote" @click="sendMessage">发送</el-button>
+              <el-button type="primary" :loading="sending" :icon="Position" @click="sendMessage">发送</el-button>
             </div>
           </div>
         </el-card>
@@ -292,16 +292,29 @@ onMounted(async () => {
 
 <style scoped lang="scss">
 .ai-conversation {
+  height: calc(100vh - 138px);
+  min-height: 0;
+}
+
+.conversation-layout {
   height: 100%;
+  min-height: 0;
+}
+
+.conversation-column {
+  height: 100%;
+  min-height: 0;
 }
 
 .conversation-sidebar {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 
   :deep(.el-card__body) {
     flex: 1;
+    min-height: 0;
     padding: 12px 0;
     overflow: hidden;
   }
@@ -365,11 +378,13 @@ onMounted(async () => {
 
 .chat-panel {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 
   :deep(.el-card__body) {
     flex: 1;
+    min-height: 0;
     display: flex;
     flex-direction: column;
     padding: 0;
@@ -385,6 +400,7 @@ onMounted(async () => {
 
   .message-container {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: 20px;
 
@@ -451,6 +467,7 @@ onMounted(async () => {
   }
 
   .input-container {
+    flex-shrink: 0;
     padding: 20px;
     border-top: 1px solid #ebeef5;
 
