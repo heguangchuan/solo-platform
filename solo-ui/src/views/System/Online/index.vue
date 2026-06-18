@@ -4,6 +4,7 @@ export default { name: 'SystemOnline' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import type { OnlineUser } from '@/types/api'
 import { getOnlineListApi, kickOnlineApi } from '@/api/online'
 import { useUserStore } from '@/stores/user'
@@ -88,8 +89,8 @@ onMounted(() => {
           <el-input v-model="searchForm.nickname" placeholder="请输入用户昵称" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:online:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'system:online:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>

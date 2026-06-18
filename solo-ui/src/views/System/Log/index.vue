@@ -4,6 +4,7 @@ export default { name: 'SystemLog' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Delete, Download, Close } from '@element-plus/icons-vue'
 import type { SysLog, LogPageRequest } from '@/types/api'
 import {
   getLogPageApi,
@@ -182,16 +183,16 @@ onMounted(() => {
           />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:log:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'system:log:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:log:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-        <el-button v-permission="'system:log:export'" type="primary" @click="handleExport">导出</el-button>
+        <el-button v-permission="'system:log:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:log:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
@@ -266,7 +267,7 @@ onMounted(() => {
         </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button :icon="Close" @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
   </div>

@@ -4,6 +4,7 @@ export default { name: 'SystemFile' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Delete } from '@element-plus/icons-vue'
 import type { FilePageRequest, SysFile } from '@/types/api'
 import { deleteFileApi, deleteFileBatchApi, getFilePageApi } from '@/api/file'
 
@@ -129,8 +130,8 @@ onMounted(() => {
           <el-input v-model="searchForm.uploaderName" placeholder="请输入上传账号" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:file:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'system:file:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>

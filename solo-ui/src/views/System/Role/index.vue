@@ -4,6 +4,7 @@ export default { name: 'SystemRole' }
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Delete, Upload, Download, Close, Check, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import type { SysRole, SysPermission, RoleRequest, RolePageRequest } from '@/types/api'
 import {
   getRolePageApi,
@@ -258,18 +259,18 @@ onMounted(() => {
           <el-input v-model="searchForm.roleName" placeholder="请输入角色名称" clearable />
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:role:list'" type="primary" @click="handleSearch">查询</el-button>
-          <el-button @click="handleReset">重置</el-button>
+          <el-button v-permission="'system:role:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:role:add'" type="primary" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:role:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
-        <el-button type="primary">导入</el-button>
-        <el-button v-permission="'system:role:export'" type="primary" @click="handleExport">导出</el-button>
+        <el-button v-permission="'system:role:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'system:role:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button type="primary" :icon="Upload">导入</el-button>
+        <el-button v-permission="'system:role:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
@@ -327,8 +328,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button :icon="Close" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
       </template>
     </el-dialog>
 
@@ -342,8 +343,8 @@ onMounted(() => {
         <div class="p2r-toolbar">
           <el-checkbox v-model="p2rStrictly">父子节点独立</el-checkbox>
           <div class="p2r-actions">
-            <el-button @click="expandAllPermissions(true)">全部展开</el-button>
-            <el-button @click="expandAllPermissions(false)">全部折叠</el-button>
+            <el-button :icon="ArrowDown" @click="expandAllPermissions(true)">全部展开</el-button>
+            <el-button :icon="ArrowUp" @click="expandAllPermissions(false)">全部折叠</el-button>
           </div>
         </div>
         <el-tree

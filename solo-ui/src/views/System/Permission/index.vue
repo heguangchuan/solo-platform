@@ -5,6 +5,7 @@ export default { name: 'SystemPermission' }
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import { Plus, Delete, Close, Check } from '@element-plus/icons-vue'
 import type { SysPermission, PermissionRequest } from '@/types/api'
 import {
   getPermissionTreeApi,
@@ -235,8 +236,8 @@ onMounted(() => {
   <div>
     <el-card shadow="hover">
       <div class="table-toolbar">
-        <el-button v-permission="'system:permission:add'" type="primary" @click="handleAdd()">新增</el-button>
-        <el-button v-permission="'system:permission:delete'" type="primary" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:permission:add'" type="primary" :icon="Plus" @click="handleAdd()">新增</el-button>
+        <el-button v-permission="'system:permission:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
         <el-button type="primary" @click="toggleExpandAll">
           <el-icon class="btn-icon"><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
           {{ allExpanded ? '全部折叠' : '全部展开' }}
@@ -396,8 +397,8 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleConfirm">确定</el-button>
+        <el-button :icon="Close" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
       </template>
     </el-dialog>
   </div>
