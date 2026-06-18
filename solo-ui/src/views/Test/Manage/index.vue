@@ -7,6 +7,7 @@ import UploadTest from '@/views/Test/components/UploadTest.vue'
 import DictTest from '@/views/Test/components/DictTest.vue'
 import MessageTest from '@/views/Test/components/MessageTest.vue'
 import RateLimitTest from '@/views/Test/components/RateLimitTest.vue'
+import RepeatSubmitTest from '@/views/Test/components/RepeatSubmitTest.vue'
 
 const activeTab = ref('upload')
 </script>
@@ -39,6 +40,10 @@ const activeTab = ref('upload')
 
         <el-tab-pane label="限流功能测试" name="rateLimit">
           <RateLimitTest />
+        </el-tab-pane>
+
+        <el-tab-pane label="重复提交测试" name="repeatSubmit">
+          <RepeatSubmitTest />
         </el-tab-pane>
       </el-tabs>
     </el-card>
