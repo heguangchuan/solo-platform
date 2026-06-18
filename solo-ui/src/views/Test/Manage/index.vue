@@ -8,6 +8,7 @@ import DictTest from '@/views/Test/components/DictTest.vue'
 import MessageTest from '@/views/Test/components/MessageTest.vue'
 import RateLimitTest from '@/views/Test/components/RateLimitTest.vue'
 import RepeatSubmitTest from '@/views/Test/components/RepeatSubmitTest.vue'
+import XssTest from '@/views/Test/components/XssTest.vue'
 
 const activeTab = ref('upload')
 </script>
@@ -44,6 +45,10 @@ const activeTab = ref('upload')
 
         <el-tab-pane label="重复提交测试" name="repeatSubmit">
           <RepeatSubmitTest />
+        </el-tab-pane>
+
+        <el-tab-pane label="XSS注入测试" name="xss">
+          <XssTest />
         </el-tab-pane>
       </el-tabs>
     </el-card>
