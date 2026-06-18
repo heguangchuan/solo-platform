@@ -82,7 +82,7 @@ public class TaskController {
     }
 
     @PostMapping("/log/page")
-    @RequirePermission({"task:manage:log:list"})
+    @RequirePermission({"task:log:list"})
     public Result<PageResult<SysTaskLog>> logPage(@RequestBody TaskLogPageRequest req) {
         Page<SysTaskLog> page = sysTaskLogService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
