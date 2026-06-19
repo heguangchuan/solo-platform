@@ -15,6 +15,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Loading, Position } from '@element-plus/icons-vue'
 import type { AiModelConfig } from '@/types/api'
 import { useUserStore } from '@/stores/user'
+import { renderMarkdown } from '@/utils/markdown'
 
 const userStore = useUserStore()
 
@@ -363,7 +364,13 @@ onMounted(async () => {
                     }}</span>
                     <span class="message-time">{{ formatTime(message.createTime) }}</span>
                   </div>
-                  <div class="message-text">{{ message.content }}</div>
+                  <div
+                    v-if="message.role === 'ASSISTANT'"
+                    class="message-text markdown-body"
+                    :class="{ 'is-empty': !message.content }"
+                    v-html="message.content ? renderMarkdown(message.content) : '<span class=\'streaming-cursor\'>▍</span>'"
+                  />
+                  <div v-else class="message-text">{{ message.content }}</div>
                 </div>
               </div>
               <div v-if="messages.length === 0 && currentConversationId" class="empty-state">
@@ -565,6 +572,14 @@ onMounted(async () => {
           line-height: 1.6;
           white-space: pre-wrap;
           word-break: break-word;
+
+          &.markdown-body {
+            white-space: normal;
+          }
+
+          &.is-empty {
+            min-width: 24px;
+          }
         }
       }
     }
@@ -588,5 +603,213 @@ onMounted(async () => {
       margin-top: 12px;
     }
   }
+}
+</style>
+
+<style lang="scss">
+/* markdown 渲染样式（非 scoped，因为 v-html 注入的元素不在 scoped 作用域内） */
+.markdown-body {
+  font-size: 14px;
+  line-height: 1.7;
+
+  > *:first-child {
+    margin-top: 0;
+  }
+
+  > *:last-child {
+    margin-bottom: 0;
+  }
+
+  p {
+    margin: 0.5em 0;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    margin: 1em 0 0.5em;
+    font-weight: 600;
+    color: var(--el-text-color-primary);
+    line-height: 1.4;
+  }
+  h1 { font-size: 1.4em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.15em; }
+  h4 { font-size: 1.05em; }
+
+  ul, ol {
+    padding-left: 1.5em;
+    margin: 0.5em 0;
+  }
+
+  li {
+    margin: 0.25em 0;
+  }
+
+  blockquote {
+    margin: 0.5em 0;
+    padding: 4px 12px;
+    border-left: 3px solid var(--el-color-primary);
+    color: var(--el-text-color-regular);
+    background: var(--el-fill-color-lighter);
+    border-radius: 0 4px 4px 0;
+  }
+
+  a {
+    color: var(--el-color-primary);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid var(--el-border-color-lighter);
+    margin: 12px 0;
+  }
+
+  code {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Fira Code', 'Source Code Pro', Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    background: var(--el-fill-color);
+    color: var(--el-color-danger);
+  }
+
+  pre {
+    margin: 0.5em 0;
+    padding: 12px 14px;
+    border-radius: 6px;
+    background: var(--el-fill-color-darker);
+    overflow-x: auto;
+    font-family: 'Fira Code', 'Source Code Pro', Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    line-height: 1.5;
+
+    code {
+      background: transparent;
+      color: var(--el-text-color-primary);
+      padding: 0;
+      border-radius: 0;
+    }
+  }
+
+  table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    width: 100%;
+    border: 1px solid var(--el-border-color-lighter);
+
+    th, td {
+      padding: 6px 12px;
+      border: 1px solid var(--el-border-color-lighter);
+      text-align: left;
+    }
+
+    th {
+      background: var(--el-fill-color-light);
+      font-weight: 600;
+    }
+  }
+
+  img {
+    max-width: 100%;
+    border-radius: 4px;
+  }
+
+  .streaming-cursor {
+    display: inline-block;
+    margin-left: 2px;
+    color: var(--el-color-primary);
+    animation: blink 1s steps(2, start) infinite;
+  }
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* highlight.js 主题：基于 github / github-dark 简化版，使用 EP 变量 */
+.markdown-body .hljs {
+  display: block;
+  overflow-x: auto;
+  background: transparent;
+  color: var(--el-text-color-primary);
+}
+.markdown-body .hljs-comment,
+.markdown-body .hljs-quote {
+  color: #6a737d;
+  font-style: italic;
+}
+.markdown-body .hljs-keyword,
+.markdown-body .hljs-selector-tag,
+.markdown-body .hljs-built_in,
+.markdown-body .hljs-name,
+.markdown-body .hljs-tag {
+  color: #d73a49;
+}
+html.dark .markdown-body .hljs-keyword,
+html.dark .markdown-body .hljs-selector-tag,
+html.dark .markdown-body .hljs-built_in,
+html.dark .markdown-body .hljs-name,
+html.dark .markdown-body .hljs-tag {
+  color: #ff7b72;
+}
+.markdown-body .hljs-string,
+.markdown-body .hljs-attr,
+.markdown-body .hljs-template-tag,
+.markdown-body .hljs-template-variable,
+.markdown-body .hljs-addition {
+  color: #032f62;
+}
+html.dark .markdown-body .hljs-string,
+html.dark .markdown-body .hljs-attr,
+html.dark .markdown-body .hljs-template-tag,
+html.dark .markdown-body .hljs-template-variable,
+html.dark .markdown-body .hljs-addition {
+  color: #a5d6ff;
+}
+.markdown-body .hljs-number,
+.markdown-body .hljs-literal,
+.markdown-body .hljs-symbol,
+.markdown-body .hljs-meta {
+  color: #005cc5;
+}
+html.dark .markdown-body .hljs-number,
+html.dark .markdown-body .hljs-literal,
+html.dark .markdown-body .hljs-symbol,
+html.dark .markdown-body .hljs-meta {
+  color: #79c0ff;
+}
+.markdown-body .hljs-title,
+.markdown-body .hljs-section,
+.markdown-body .hljs-function {
+  color: #6f42c1;
+}
+html.dark .markdown-body .hljs-title,
+html.dark .markdown-body .hljs-section,
+html.dark .markdown-body .hljs-function {
+  color: #d2a8ff;
+}
+.markdown-body .hljs-variable,
+.markdown-body .hljs-attribute {
+  color: #e36209;
+}
+html.dark .markdown-body .hljs-variable,
+html.dark .markdown-body .hljs-attribute {
+  color: #ffa657;
+}
+
+/* 用户气泡使用主色背景，markdown 内的链接/代码颜色需反色显示 */
+.message-item.USER .markdown-body {
+  color: #fff;
+}
+.message-item.USER .markdown-body code,
+.message-item.USER .markdown-body pre {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 </style>
