@@ -39,11 +39,6 @@ public class AiPromptTemplate {
     private String templateType;
 
     /**
-     * 应用场景: 小红书/抖音/广告语/...
-     */
-    private String scene;
-
-    /**
      * 模板内容（支持占位符）
      */
     private String content;

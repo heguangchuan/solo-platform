@@ -5,7 +5,7 @@ import com.solo.entity.AiPromptTemplate;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * Prompt模板Mapper接口
+ * 提示词模板Mapper接口
  */
 @Mapper
 public interface AiPromptTemplateMapper extends BaseMapper<AiPromptTemplate> {

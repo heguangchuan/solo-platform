@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Prompt模板控制器
+ * 提示词模板控制器
  */
 @RestController
 @RequestMapping("/api/ai/prompt-template")
@@ -59,7 +59,7 @@ public class AiPromptTemplateController {
      */
     @PostMapping
     @RequirePermission({"ai:promptTemplate:add"})
-    @OperationLog(module = "Prompt模板", type = BusinessType.ADD, description = "新增模板")
+    @OperationLog(module = "提示词模板", type = BusinessType.ADD, description = "新增模板")
     public Result<Void> save(@RequestBody AiPromptTemplateRequest request) {
         aiPromptTemplateService.createTemplate(request);
         return Result.success();
@@ -70,7 +70,7 @@ public class AiPromptTemplateController {
      */
     @PutMapping("/{id}")
     @RequirePermission({"ai:promptTemplate:edit"})
-    @OperationLog(module = "Prompt模板", type = BusinessType.EDIT, description = "修改模板")
+    @OperationLog(module = "提示词模板", type = BusinessType.EDIT, description = "修改模板")
     public Result<Void> update(@PathVariable Long id, @RequestBody AiPromptTemplateRequest request) {
         aiPromptTemplateService.updateTemplate(id, request);
         return Result.success();
@@ -81,7 +81,7 @@ public class AiPromptTemplateController {
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"ai:promptTemplate:delete"})
-    @OperationLog(module = "Prompt模板", type = BusinessType.DELETE, description = "删除模板")
+    @OperationLog(module = "提示词模板", type = BusinessType.DELETE, description = "删除模板")
     public Result<Void> delete(@PathVariable Long id) {
         aiPromptTemplateService.removeById(id);
         return Result.success();
@@ -92,7 +92,7 @@ public class AiPromptTemplateController {
      */
     @DeleteMapping("/batch")
     @RequirePermission({"ai:promptTemplate:delete"})
-    @OperationLog(module = "Prompt模板", type = BusinessType.DELETE, description = "批量删除模板")
+    @OperationLog(module = "提示词模板", type = BusinessType.DELETE, description = "批量删除模板")
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
         aiPromptTemplateService.removeByIds(ids);
         return Result.success();

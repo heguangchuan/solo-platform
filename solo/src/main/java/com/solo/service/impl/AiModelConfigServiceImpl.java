@@ -52,7 +52,6 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
         config.setModelParams(request.getModelParams());
         config.setStatus(request.getStatus());
         config.setSort(request.getSort());
-        config.setRemark(request.getRemark());
         save(config);
     }
 
@@ -70,7 +69,6 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
         if (request.getModelParams() != null) config.setModelParams(request.getModelParams());
         if (request.getStatus() != null) config.setStatus(request.getStatus());
         if (request.getSort() != null) config.setSort(request.getSort());
-        if (request.getRemark() != null) config.setRemark(request.getRemark());
         updateById(config);
     }
 

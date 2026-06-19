@@ -214,16 +214,16 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="文件名">
-          <el-input v-model="searchForm.fileName" placeholder="请输入文件名" clearable />
+        <el-form-item label="文件名称">
+          <el-input v-model="searchForm.fileName" placeholder="请输入文件名" clearable style="width: 180px" />
         </el-form-item>
         <el-form-item label="素材类型">
-          <el-select v-model="searchForm.assetType" placeholder="请选择素材类型" clearable>
+          <el-select v-model="searchForm.assetType" placeholder="请选择素材类型" clearable style="width: 140px">
             <el-option v-for="opt in assetTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+        <el-form-item label="是否有效">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 120px">
             <el-option label="有效" :value="1" />
             <el-option label="无效" :value="0" />
           </el-select>
@@ -249,8 +249,8 @@ onMounted(() => {
             <el-tag v-else size="small">{{ row.assetType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fileName" label="文件名" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="assetType" label="类型" width="80">
+        <el-table-column prop="fileName" label="文件名称" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="assetType" label="素材类型" width="100">
           <template #default="{ row }">
             <el-tag size="small">{{ assetTypeOptions.find((o) => o.value === row.assetType)?.label || row.assetType }}</el-tag>
           </template>
@@ -262,8 +262,8 @@ onMounted(() => {
           <template #default="{ row }">{{ row.width && row.height ? `${row.width}×${row.height}` : '-' }}</template>
         </el-table-column>
         <el-table-column prop="modelName" label="生成模型" width="120" />
-        <el-table-column prop="prompt" label="生成Prompt" min-width="150" show-overflow-tooltip />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="prompt" label="生成指令" min-width="150" show-overflow-tooltip />
+        <el-table-column label="是否有效" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '有效' : '无效' }}
@@ -294,47 +294,47 @@ onMounted(() => {
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :top="'5vh'" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
         <el-form-item label="素材类型" prop="assetType">
-          <el-select v-model="form.assetType" placeholder="请选择素材类型">
+          <el-select v-model="form.assetType" placeholder="请选择素材类型" style="width: 100%">
             <el-option v-for="opt in assetTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="文件名" prop="fileName">
-          <el-input v-model="form.fileName" placeholder="请输入文件名" />
+        <el-form-item label="文件名称" prop="fileName">
+          <el-input v-model="form.fileName" placeholder="请输入文件名" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="文件URL" prop="fileUrl">
-          <el-input v-model="form.fileUrl" placeholder="请输入文件访问URL" />
+        <el-form-item label="文件地址" prop="fileUrl">
+          <el-input v-model="form.fileUrl" placeholder="请输入文件访问URL" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="封面URL">
-          <el-input v-model="form.coverUrl" placeholder="请输入封面URL" />
+        <el-form-item label="封面地址">
+          <el-input v-model="form.coverUrl" placeholder="请输入封面URL" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="缩略图URL">
-          <el-input v-model="form.thumbnailUrl" placeholder="请输入缩略图URL" />
+        <el-form-item label="缩略图地址">
+          <el-input v-model="form.thumbnailUrl" placeholder="请输入缩略图URL" style="width: 100%" />
         </el-form-item>
         <el-form-item label="MIME类型">
-          <el-input v-model="form.mimeType" placeholder="请输入MIME类型" />
+          <el-input v-model="form.mimeType" placeholder="请输入MIME类型" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="扩展名">
-          <el-input v-model="form.ext" placeholder="请输入文件扩展名" />
+        <el-form-item label="文件扩展名">
+          <el-input v-model="form.ext" placeholder="请输入文件扩展名" style="width: 100%" />
         </el-form-item>
         <el-form-item label="文件大小">
-          <el-input-number v-model="form.size" :min="0" />
+          <el-input-number v-model="form.size" :min="0" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="宽度">
-          <el-input-number v-model="form.width" :min="0" />
+        <el-form-item label="图片宽度">
+          <el-input-number v-model="form.width" :min="0" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="高度">
-          <el-input-number v-model="form.height" :min="0" />
+        <el-form-item label="图片高度">
+          <el-input-number v-model="form.height" :min="0" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="生成Prompt">
-          <el-input v-model="form.prompt" type="textarea" :rows="2" placeholder="请输入生成Prompt" />
+        <el-form-item label="生成指令">
+          <el-input v-model="form.prompt" type="textarea" :rows="2" placeholder="请输入生成指令" />
         </el-form-item>
         <el-form-item label="生成模型">
-          <el-input v-model="form.modelName" placeholder="请输入生成模型名称" />
+          <el-input v-model="form.modelName" placeholder="请输入生成模型名称" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="是否有效">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="备注信息">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
       </el-form>

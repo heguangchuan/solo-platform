@@ -3,14 +3,13 @@ package com.solo.request;
 import lombok.Data;
 
 /**
- * Prompt模板新增/编辑请求体
+ * 提示词模板新增/编辑请求体
  */
 @Data
 public class AiPromptTemplateRequest {
     private String templateName;
     private String templateCode;
     private String templateType;
-    private String scene;
     private String content;
     private String variables;
     private String example;

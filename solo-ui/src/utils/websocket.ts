@@ -6,6 +6,25 @@ import { useUserStore } from '@/stores/user'
 
 type MessageCallback = (msg: any) => void
 
+interface RefreshResponse {
+  code: number
+  message?: string
+  data?: {
+    token: string
+    refreshToken: string
+  }
+}
+
+function isJwtExpired(token: string, skew = 5000): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+    if (!payload.exp) return false
+    return payload.exp * 1000 <= Date.now() + skew
+  } catch {
+    return false
+  }
+}
+
 class WebSocketClient {
   private ws: WebSocket | null = null
   private url: string = ''
@@ -25,6 +44,12 @@ class WebSocketClient {
 
     if (!authToken) {
       console.warn('[WebSocket] 无可用 token，跳过连接')
+      return
+    }
+
+    if (isJwtExpired(authToken)) {
+      console.warn('[WebSocket] token 已过期，尝试刷新后重连')
+      this.refreshAndReconnect()
       return
     }
 
@@ -60,6 +85,10 @@ class WebSocketClient {
       this.ws.onclose = (event) => {
         console.log(`[WebSocket] 连接关闭：code=${event.code}, reason=${event.reason}`)
         this.stopHeartbeat()
+        if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
+          this.refreshAndReconnect()
+          return
+        }
         this.tryReconnect()
       }
 
@@ -151,6 +180,38 @@ class WebSocketClient {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
+    }
+  }
+
+  private async refreshAndReconnect() {
+    const userStore = useUserStore()
+    if (!userStore.refreshToken) {
+      this.isManualClose = true
+      this.stopReconnect()
+      return
+    }
+
+    this.stopReconnect()
+    try {
+      const res = await fetch('/api/auth/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json;charset=UTF-8' },
+        body: JSON.stringify({ refreshToken: userStore.refreshToken }),
+      })
+      if (!res.ok) throw new Error(`refresh failed: ${res.status}`)
+
+      const result: RefreshResponse = await res.json()
+      if (result.code !== 200 || !result.data?.token || !result.data?.refreshToken) {
+        throw new Error(result.message || 'refresh failed')
+      }
+
+      userStore.setTokens(result.data)
+      this.reconnectCount = 0
+      this.connect(result.data.token)
+    } catch (e) {
+      console.warn('[WebSocket] token 刷新失败，停止重连', e)
+      this.isManualClose = true
+      this.stopReconnect()
     }
   }
 

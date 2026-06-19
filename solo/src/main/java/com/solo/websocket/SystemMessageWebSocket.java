@@ -1,6 +1,7 @@
 package com.solo.websocket;
 
 import com.solo.utils.JwtUtils;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
@@ -58,13 +59,13 @@ public class SystemMessageWebSocket {
 
         if (token == null || token.isEmpty()) {
             log.warn("WebSocket 连接失败：token 为空");
-            closeSession(session, "Token 为空");
+            closeSession(session, CloseReason.CloseCodes.CANNOT_ACCEPT, "Token 为空");
             return;
         }
 
         if (!validateToken(token)) {
-            log.warn("WebSocket 连接失败：token 验证不通过, token={}", token.substring(0, Math.min(20, token.length())) + "...");
-            closeSession(session, "Token 无效");
+            log.warn("WebSocket 连接失败：token 验证不通过");
+            closeSession(session, CloseReason.CloseCodes.VIOLATED_POLICY, "Token 无效或已过期");
             return;
         }
 
@@ -87,9 +88,9 @@ public class SystemMessageWebSocket {
         log.info("WebSocket 当前在线人数：{}", ONLINE_COUNT.get());
     }
 
-    private void closeSession(Session session, String reason) {
+    private void closeSession(Session session, CloseReason.CloseCode closeCode, String reason) {
         try {
-            session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, reason));
+            session.close(new CloseReason(closeCode, reason));
         } catch (IOException e) {
             log.warn("关闭无效连接失败", e);
         }
@@ -222,8 +223,11 @@ public class SystemMessageWebSocket {
             boolean valid = username != null && !username.isEmpty() && !jwtUtils.isTokenExpired(token);
             log.info("WebSocket token 验证：username={}, valid={}", username, valid);
             return valid;
+        } catch (ExpiredJwtException e) {
+            log.info("WebSocket token 已过期：{}", e.getMessage());
+            return false;
         } catch (Exception e) {
-            log.error("WebSocket token 验证异常：{}", e.getMessage(), e);
+            log.warn("WebSocket token 验证失败：{}", e.getMessage());
             return false;
         }
     }
