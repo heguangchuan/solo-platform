@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ref, onMounted, nextTick, computed, watch } from 'vue'
 
 defineOptions({ name: 'AiConversation' })
 import {
@@ -9,10 +9,12 @@ import {
   createConversationApi,
   deleteConversationApi,
   type AiConversation,
-  type AiMessage
+  type AiMessage,
+  type ChatAttachmentInput
 } from '@/api/ai'
+import { uploadFileApi } from '@/api/file'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Delete, Loading, Position } from '@element-plus/icons-vue'
+import { Plus, Delete, Loading, Position, Picture, Close as CloseIcon } from '@element-plus/icons-vue'
 import type { AiModelConfig } from '@/types/api'
 import { useUserStore } from '@/stores/user'
 import { renderMarkdown } from '@/utils/markdown'
@@ -28,10 +30,96 @@ const loadingMessages = ref(false)
 const loadingConversations = ref(false)
 const modelOptions = ref<AiModelConfig[]>([])
 const selectedModelConfigId = ref<string>('')
+const pendingImages = ref<ChatAttachmentInput[]>([])
+const fileInputRef = ref<HTMLInputElement | null>(null)
+const uploadingImage = ref(false)
+const MAX_PENDING_IMAGES = 4
 
 const currentConversation = computed(() =>
   conversations.value.find((c) => c.id === currentConversationId.value)
 )
+
+const currentModel = computed(() =>
+  modelOptions.value.find((m) => m.id === selectedModelConfigId.value) || null
+)
+
+const supportsVision = computed(() => (currentModel.value?.supportVision ?? 0) === 1)
+
+interface ParsedAttachment {
+  type: string
+  url: string
+  fileName?: string
+  mimeType?: string
+}
+
+const parseAttachments = (raw: string | undefined | null): ParsedAttachment[] => {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((it) => it && typeof it.url === 'string')
+  } catch {
+    return []
+  }
+}
+
+const messageImages = (msg: AiMessage): string[] =>
+  parseAttachments(msg.attachments)
+    .filter((a) => (a.type || 'IMAGE').toUpperCase() === 'IMAGE')
+    .map((a) => a.url)
+
+const triggerFilePicker = () => {
+  if (uploadingImage.value || sending.value) return
+  if (pendingImages.value.length >= MAX_PENDING_IMAGES) {
+    ElMessage.warning(`最多上传 ${MAX_PENDING_IMAGES} 张图片`)
+    return
+  }
+  fileInputRef.value?.click()
+}
+
+const onFileSelected = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/')) {
+    ElMessage.warning('仅支持上传图片')
+    return
+  }
+  if (pendingImages.value.length >= MAX_PENDING_IMAGES) {
+    ElMessage.warning(`最多上传 ${MAX_PENDING_IMAGES} 张图片`)
+    return
+  }
+  uploadingImage.value = true
+  try {
+    const res = await uploadFileApi(file)
+    const url = res.data?.url
+    if (!url) {
+      ElMessage.error('上传失败')
+      return
+    }
+    pendingImages.value.push({
+      url,
+      fileName: file.name,
+      mimeType: file.type
+    })
+  } catch {
+    ElMessage.error('上传失败')
+  } finally {
+    uploadingImage.value = false
+  }
+}
+
+const removePendingImage = (index: number) => {
+  pendingImages.value.splice(index, 1)
+}
+
+watch(supportsVision, (canVision) => {
+  if (!canVision && pendingImages.value.length > 0) {
+    ElMessage.info('当前模型不支持图片输入，已清空待发送图片')
+    pendingImages.value = []
+  }
+})
 
 const loadModelOptions = async () => {
   try {
@@ -116,12 +204,13 @@ const handleDeleteConversation = async (conversation: AiConversation, event: Eve
 
 const sendMessage = async () => {
   const content = inputText.value.trim()
-  if (!content) return
+  const imagesToSend = pendingImages.value.slice()
+  if (!content && imagesToSend.length === 0) return
   if (sending.value) return
 
   sending.value = true
 
-  // 添加用户消息到界面
+  // 添加用户消息到界面（含附件预览）
   const userMessage: AiMessage = {
     id: 'temp-' + Date.now(),
     conversationId: currentConversationId.value || '',
@@ -130,10 +219,19 @@ const sendMessage = async () => {
     messageType: 'TEXT',
     modelName: '',
     tokens: 0,
+    attachments: imagesToSend.length > 0
+      ? JSON.stringify(imagesToSend.map((img) => ({
+        type: 'IMAGE',
+        url: img.url,
+        fileName: img.fileName,
+        mimeType: img.mimeType
+      })))
+      : undefined,
     createTime: new Date().toISOString()
   }
   messages.value.push(userMessage)
   inputText.value = ''
+  pendingImages.value = []
 
   // 占位的助手消息，用于流式追加
   const assistantMessage: AiMessage = {
@@ -167,7 +265,8 @@ const sendMessage = async () => {
       body: JSON.stringify({
         conversationId: currentConversationId.value || undefined,
         content,
-        modelConfigId: selectedModelConfigId.value || undefined
+        modelConfigId: selectedModelConfigId.value || undefined,
+        images: imagesToSend.length > 0 ? imagesToSend : undefined
       })
     })
 
@@ -362,6 +461,12 @@ onMounted(async () => {
                     <span class="message-role">{{
                       message.role === 'USER' ? '用户' : message.role === 'ASSISTANT' ? 'Agnes' : '系统'
                     }}</span>
+                    <span
+                      v-if="message.role === 'ASSISTANT' && message.modelName"
+                      class="message-model"
+                    >
+                      {{ message.modelName }}
+                    </span>
                     <span class="message-time">{{ formatTime(message.createTime) }}</span>
                   </div>
                   <div
@@ -370,7 +475,21 @@ onMounted(async () => {
                     :class="{ 'is-empty': !message.content }"
                     v-html="message.content ? renderMarkdown(message.content) : '<span class=\'streaming-cursor\'>▍</span>'"
                   />
-                  <div v-else class="message-text">{{ message.content }}</div>
+                  <template v-else>
+                    <div v-if="messageImages(message).length" class="message-images">
+                      <el-image
+                        v-for="(url, idx) in messageImages(message)"
+                        :key="idx"
+                        :src="url"
+                        :preview-src-list="messageImages(message)"
+                        :initial-index="idx"
+                        fit="cover"
+                        class="message-image"
+                        preview-teleported
+                      />
+                    </div>
+                    <div v-if="message.content" class="message-text">{{ message.content }}</div>
+                  </template>
                 </div>
               </div>
               <div v-if="messages.length === 0 && currentConversationId" class="empty-state">
@@ -381,6 +500,18 @@ onMounted(async () => {
 
           <!-- 输入区域 -->
           <div class="input-container">
+            <div v-if="pendingImages.length" class="pending-attachments">
+              <div
+                v-for="(img, idx) in pendingImages"
+                :key="img.url"
+                class="pending-thumb"
+              >
+                <img :src="img.url" :alt="img.fileName" />
+                <button class="thumb-remove" type="button" @click="removePendingImage(idx)">
+                  <el-icon><CloseIcon /></el-icon>
+                </button>
+              </div>
+            </div>
             <el-input
               v-model="inputText"
               type="textarea"
@@ -389,7 +520,23 @@ onMounted(async () => {
               @keydown.ctrl.enter="sendMessage"
               :disabled="sending"
             />
+            <input
+              ref="fileInputRef"
+              type="file"
+              accept="image/*"
+              style="display: none"
+              @change="onFileSelected"
+            />
             <div class="input-actions">
+              <el-button
+                v-if="supportsVision"
+                :icon="Picture"
+                :loading="uploadingImage"
+                :disabled="sending || pendingImages.length >= MAX_PENDING_IMAGES"
+                @click="triggerFilePicker"
+              >
+                上传图片
+              </el-button>
               <el-button type="primary" :loading="sending" :icon="Position" @click="sendMessage">发送</el-button>
             </div>
           </div>
@@ -558,6 +705,16 @@ onMounted(async () => {
             color: var(--el-text-color-primary);
           }
 
+          .message-model {
+            padding: 1px 8px;
+            border: 1px solid var(--el-border-color-lighter);
+            border-radius: 10px;
+            color: var(--el-text-color-regular);
+            background: var(--el-fill-color-lighter);
+            font-size: 11px;
+            line-height: 1.4;
+          }
+
           .message-time {
             color: var(--el-text-color-secondary);
           }
@@ -581,6 +738,23 @@ onMounted(async () => {
             min-width: 24px;
           }
         }
+
+        .message-images {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-bottom: 8px;
+
+          .message-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 8px;
+            border: 1px solid var(--el-border-color-lighter);
+            background: var(--el-fill-color-lighter);
+            cursor: zoom-in;
+            overflow: hidden;
+          }
+        }
       }
     }
 
@@ -597,9 +771,51 @@ onMounted(async () => {
     padding: 20px;
     border-top: 1px solid var(--el-border-color-lighter);
 
+    .pending-attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+
+      .pending-thumb {
+        position: relative;
+        width: 72px;
+        height: 72px;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 1px solid var(--el-border-color-lighter);
+        background: var(--el-fill-color-lighter);
+
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+
+        .thumb-remove {
+          position: absolute;
+          top: 2px;
+          right: 2px;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          background: rgba(0, 0, 0, 0.55);
+          border: none;
+          color: #fff;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+        }
+      }
+    }
+
     .input-actions {
       display: flex;
       justify-content: flex-end;
+      gap: 8px;
       margin-top: 12px;
     }
   }

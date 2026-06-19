@@ -76,6 +76,11 @@ public class AiMessage {
     private String errorMsg;
 
     /**
+     * 附件列表 JSON: [{"type":"IMAGE","url":"...","mimeType":"image/png","fileName":"...","assetId":"..."}]
+     */
+    private String attachments;
+
+    /**
      * 元数据JSON
      */
     private String metadata;

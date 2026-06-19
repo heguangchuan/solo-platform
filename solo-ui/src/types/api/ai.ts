@@ -15,6 +15,7 @@ export interface AiModelConfigRequest {
   apiKey: string
   baseUrl?: string
   modelParams?: string
+  supportVision?: number
   status: number
   sort?: number
 }
@@ -27,6 +28,7 @@ export interface AiModelConfig {
   apiKey: string
   baseUrl?: string
   modelParams?: string
+  supportVision?: number
   status: number
   sort?: number
   createTime: string

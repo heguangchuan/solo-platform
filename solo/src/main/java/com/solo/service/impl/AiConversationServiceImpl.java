@@ -4,7 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.entity.AiConversation;
+import com.solo.entity.AiGenerationTask;
+import com.solo.entity.AiMessage;
 import com.solo.mapper.AiConversationMapper;
+import com.solo.mapper.AiGenerationTaskMapper;
+import com.solo.mapper.AiMessageMapper;
 import com.solo.service.AiConversationService;
 import com.solo.common.ServiceException;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +23,12 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 public class AiConversationServiceImpl extends ServiceImpl<AiConversationMapper, AiConversation> implements AiConversationService {
+
+    /**
+     * 会话删除时直接用 Mapper 级联清理消息和任务，避免与依赖会话服务的 Service 形成循环依赖。
+     */
+    private final AiMessageMapper messageMapper;
+    private final AiGenerationTaskMapper generationTaskMapper;
 
     @Override
     @Transactional
@@ -78,6 +88,11 @@ public class AiConversationServiceImpl extends ServiceImpl<AiConversationMapper,
         if (!conversation.getUserId().equals(userId)) {
             throw new ServiceException("无权删除此会话");
         }
+        // 同时清理会话下的消息和创作任务（均为 @TableLogic 逻辑删除）
+        messageMapper.delete(new LambdaQueryWrapper<AiMessage>()
+                .eq(AiMessage::getConversationId, conversationId));
+        generationTaskMapper.delete(new LambdaQueryWrapper<AiGenerationTask>()
+                .eq(AiGenerationTask::getConversationId, conversationId));
         removeById(conversationId);
     }
 }

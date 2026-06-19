@@ -15,7 +15,15 @@ public final class XssUtils {
             "newpassword",
             "token",
             "refreshtoken",
-            "authorization"
+            "authorization",
+            // 结构化/原文文本字段：避免 JSON、Prompt、用户消息等被 HTML 净化破坏
+            "modelparams",
+            "attachments",
+            "variables",
+            "example",
+            "content",
+            "prompt",
+            "enhancedprompt"
     );
 
     private XssUtils() {

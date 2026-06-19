@@ -21,6 +21,7 @@ export interface AiMessage {
   messageType: string
   modelName: string
   tokens: number
+  attachments?: string
   createTime: string
 }
 
@@ -44,12 +45,19 @@ export interface AiGenerationTask {
   createTime: string
 }
 
+export interface ChatAttachmentInput {
+  url: string
+  fileName?: string
+  mimeType?: string
+}
+
 export interface ChatSendRequest {
   conversationId?: string
   content: string
   modelConfigId?: string
   templateCode?: string
   variables?: Record<string, any>
+  images?: ChatAttachmentInput[]
 }
 
 export interface ConversationCreateRequest {

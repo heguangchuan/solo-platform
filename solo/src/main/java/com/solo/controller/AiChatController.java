@@ -86,6 +86,7 @@ public class AiChatController {
                 AiChatService.StreamResult result = aiChatService.streamChat(
                         request.getConversationId(),
                         content,
+                        request.getImages(),
                         userId,
                         request.getModelConfigId(),
                         chunk -> {

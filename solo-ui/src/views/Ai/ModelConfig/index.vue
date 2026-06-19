@@ -34,6 +34,7 @@ const form = ref<AiModelConfigRequest>({
   apiKey: '',
   baseUrl: '',
   modelParams: '',
+  supportVision: 0,
   status: 1,
   sort: 1,
 })
@@ -98,6 +99,7 @@ function handleAdd() {
     apiKey: '',
     baseUrl: '',
     modelParams: '',
+    supportVision: 0,
     status: 1,
     sort: 1,
   }
@@ -114,6 +116,7 @@ function handleEdit(row: AiModelConfig) {
     apiKey: row.apiKey,
     baseUrl: row.baseUrl,
     modelParams: row.modelParams,
+    supportVision: row.supportVision ?? 0,
     status: row.status,
     sort: row.sort,
   }
@@ -223,6 +226,13 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="baseUrl" label="API地址" min-width="200" show-overflow-tooltip />
         <el-table-column prop="sort" label="模型排序" width="100" />
+        <el-table-column label="支持图片" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.supportVision === 1 ? 'success' : 'info'" size="small">
+              {{ row.supportVision === 1 ? '是' : '否' }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="是否启用" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
@@ -272,6 +282,9 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="模型参数">
           <el-input v-model="form.modelParams" type="textarea" :rows="2" placeholder="请输入JSON格式的模型参数" />
+        </el-form-item>
+        <el-form-item label="支持图片">
+          <el-switch v-model="form.supportVision" :active-value="1" :inactive-value="0" />
         </el-form-item>
         <el-form-item label="模型排序">
           <el-input-number v-model="form.sort" :min="1" style="width: 100%" />

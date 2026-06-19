@@ -13,6 +13,7 @@ public class AiModelConfigRequest {
     private String apiKey;
     private String baseUrl;
     private String modelParams;
+    private Integer supportVision;
     private Integer status;
     private Integer sort;
 }
