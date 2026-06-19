@@ -241,7 +241,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="detailVisible" title="日志详情" width="720px" destroy-on-close>
+    <el-dialog v-model="detailVisible" title="日志详情" width="720px" destroy-on-close :close-on-click-modal="false">
       <el-descriptions v-if="detailRow" :column="2" border>
         <el-descriptions-item label="操作人员">{{ detailRow.operatorName }}</el-descriptions-item>
         <el-descriptions-item label="操作时间">{{ detailRow.createTime }}</el-descriptions-item>

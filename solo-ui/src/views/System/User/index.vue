@@ -319,6 +319,7 @@ onMounted(() => {
       :title="dialogTitle"
       width="680px"
       destroy-on-close
+      :close-on-click-modal="false"
     >
       <el-alert
         v-if="dialogTitle === '新增用户'"
@@ -379,6 +380,7 @@ onMounted(() => {
       :title="`分配角色 - ${r2uUser?.nickname || r2uUser?.username || ''}`"
       width="520px"
       destroy-on-close
+      :close-on-click-modal="false"
     >
       <div v-loading="r2uLoading" class="r2u-panel">
         <el-empty v-if="!r2uLoading && !allRoles.length" description="暂无可分配的角色" />

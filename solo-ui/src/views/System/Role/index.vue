@@ -307,7 +307,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="角色编码" prop="roleCode">
           <el-input v-model="form.roleCode" placeholder="如：ADMIN、USER" :disabled="!!editingId" />
@@ -338,6 +338,7 @@ onMounted(() => {
       :title="p2rDialogTitle"
       width="560px"
       destroy-on-close
+      :close-on-click-modal="false"
     >
       <div v-loading="p2rLoading" class="p2r-panel">
         <div class="p2r-toolbar">

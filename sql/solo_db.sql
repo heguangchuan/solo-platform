@@ -492,14 +492,9 @@ CREATE TABLE `ai_model_config`
     KEY             `idx_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
-INSERT INTO `ai_model_config` (`id`, `provider`, `model_name`, `model_type`, `api_key`, `base_url`, `status`, `sort`, `remark`, `create_time`, `update_time`)
-VALUES (1, 'DEEPSEEK', 'deepseek-chat', 'TEXT', 'sk-your-api-key-here', 'https://api.deepseek.com', 1, 1, 'DeepSeek 对话模型', NOW(), NOW()),
-       (2, 'OPENAI', 'gpt-4o', 'TEXT', 'sk-your-api-key-here', 'https://api.openai.com/v1', 0, 2, 'GPT-4o 对话模型', NOW(), NOW()),
-       (3, 'OPENAI', 'dall-e-3', 'IMAGE', 'sk-your-api-key-here', 'https://api.openai.com/v1', 0, 3, 'DALL-E 3 图片生成', NOW(), NOW());
-
 
 /* =====================================================================
- * 15. ai_prompt_template — Prompt 模板表
+ * 15. ai_prompt_template — 提示词模板表
  * ===================================================================== */
 DROP TABLE IF EXISTS `ai_prompt_template`;
 CREATE TABLE `ai_prompt_template`
@@ -718,6 +713,46 @@ INSERT INTO `sys_dict_data` (`id`, `dict_type`, `dict_label`, `dict_value`, `sor
                              `update_time`)
 VALUES ('2066820557811949570', 'sys_file_types', 'mp4', '1', 2, 1, 0, '2026-06-16 17:49:55', '2026-06-16 17:49:55'),
        ('2066820617408815105', 'sys_file_types', 'png', '2', 1, 1, 0, '2026-06-16 17:49:10', '2026-06-16 17:50:10');
+
+
+-- =====================================================================
+-- AI 模块管理菜单和权限（新增页面，挂在现有AI创作菜单下 id=5）
+-- =====================================================================
+
+-- 模型配置管理（type=1 是菜单，挂在 AI 创作父菜单 id=5 下）
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time)
+VALUES ('2066820557811949601', '模型配置', 'ai:modelConfig', '/ai/model-config', 1, 5, 4, 'Setting', 1, 0, NOW(), NOW());
+
+-- 模型配置按钮权限（type=2 是按钮）
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+('2066820557811949611', '模型配置查看', 'ai:modelConfig:list', NULL, 2, '2066820557811949601', 1, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949612', '模型配置新增', 'ai:modelConfig:add', NULL, 2, '2066820557811949601', 2, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949613', '模型配置编辑', 'ai:modelConfig:edit', NULL, 2, '2066820557811949601', 3, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949614', '模型配置删除', 'ai:modelConfig:delete', NULL, 2, '2066820557811949601', 4, NULL, 1, 0, NOW(), NOW());
+
+-- 提示词模板管理
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time)
+VALUES ('2066820557811949602', '提示词模板', 'ai:promptTemplate', '/ai/prompt-template', 1, 5, 5, 'Document', 1, 0, NOW(), NOW());
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+('2066820557811949621', '提示词模板查看', 'ai:promptTemplate:list', NULL, 2, '2066820557811949602', 1, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949622', '提示词模板新增', 'ai:promptTemplate:add', NULL, 2, '2066820557811949602', 2, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949623', '提示词模板编辑', 'ai:promptTemplate:edit', NULL, 2, '2066820557811949602', 3, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949624', '提示词模板删除', 'ai:promptTemplate:delete', NULL, 2, '2066820557811949602', 4, NULL, 1, 0, NOW(), NOW());
+
+-- 素材管理
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time)
+VALUES ('2066820557811949603', '素材管理', 'ai:asset', '/ai/asset', 1, 5, 6, 'Picture', 1, 0, NOW(), NOW());
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+('2066820557811949631', '素材管理查看', 'ai:asset:list', NULL, 2, '2066820557811949603', 1, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949632', '素材管理新增', 'ai:asset:add', NULL, 2, '2066820557811949603', 2, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949633', '素材管理编辑', 'ai:asset:edit', NULL, 2, '2066820557811949603', 3, NULL, 1, 0, NOW(), NOW()),
+('2066820557811949634', '素材管理删除', 'ai:asset:delete', NULL, 2, '2066820557811949603', 4, NULL, 1, 0, NOW(), NOW());
+
+-- 给超级管理员角色分配这些权限（角色ID为1）
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id >= '2066820557811949601' AND id <= '2066820557811949639' AND deleted = 0;
 
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
