@@ -16,9 +16,9 @@ public interface AiChatService {
     String chat(Long conversationId, String userMessage, Long userId, Long modelConfigId);
 
     /**
-     * 流式发送消息
+     * 流式发送消息，返回最终拼接的回复及会话ID
      */
-    void streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, java.util.function.Consumer<String> consumer);
+    StreamResult streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, java.util.function.Consumer<String> consumer);
 
     /**
      * 使用模板进行对话
@@ -34,4 +34,9 @@ public interface AiChatService {
      * 内部消息类
      */
     record ChatMessage(String role, String content) {}
+
+    /**
+     * 流式对话结果
+     */
+    record StreamResult(Long conversationId, String reply) {}
 }

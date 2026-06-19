@@ -3,7 +3,6 @@ import { ref, onMounted, nextTick, computed } from 'vue'
 
 defineOptions({ name: 'AiConversation' })
 import {
-  sendChatApi,
   getConversationsApi,
   getConversationMessagesApi,
   getModelConfigListApi,
@@ -15,6 +14,9 @@ import {
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Loading, Position } from '@element-plus/icons-vue'
 import type { AiModelConfig } from '@/types/api'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 const conversations = ref<AiConversation[]>([])
 const currentConversationId = ref<string | null>(null)
@@ -132,49 +134,120 @@ const sendMessage = async () => {
   messages.value.push(userMessage)
   inputText.value = ''
 
+  // 占位的助手消息，用于流式追加
+  const assistantMessage: AiMessage = {
+    id: 'assistant-streaming-' + Date.now(),
+    conversationId: currentConversationId.value || '',
+    role: 'ASSISTANT',
+    content: '',
+    messageType: 'TEXT',
+    modelName: '',
+    tokens: 0,
+    createTime: new Date().toISOString()
+  }
+  messages.value.push(assistantMessage)
+
   await nextTick()
   scrollToBottom()
 
+  let streamedConversationId: string | null = currentConversationId.value
+  let receivedAny = false
+  let errorMessage = ''
+
   try {
-    const res = await sendChatApi({
-      conversationId: currentConversationId.value || undefined,
-      content,
-      modelConfigId: selectedModelConfigId.value || undefined
+    const response = await fetch('/api/ai/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json;charset=UTF-8',
+        Accept: 'text/event-stream',
+        Authorization: userStore.token ? `Bearer ${userStore.token}` : '',
+        'X-Client-Source': 'web'
+      },
+      body: JSON.stringify({
+        conversationId: currentConversationId.value || undefined,
+        content,
+        modelConfigId: selectedModelConfigId.value || undefined
+      })
     })
 
-    // 如果是新会话，刷新会话列表
-    if (!currentConversationId.value) {
-      await loadConversations()
-      if (conversations.value.length > 0) {
-        currentConversationId.value = conversations.value[0].id
+    if (!response.ok || !response.body) {
+      throw new Error(`HTTP ${response.status}`)
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder('utf-8')
+    let buffer = ''
+    let currentEvent = 'message'
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+
+      let idx: number
+      while ((idx = buffer.indexOf('\n\n')) !== -1) {
+        const rawEvent = buffer.slice(0, idx)
+        buffer = buffer.slice(idx + 2)
+
+        const dataLines: string[] = []
+        currentEvent = 'message'
+        for (const line of rawEvent.split('\n')) {
+          if (line.startsWith('event:')) {
+            currentEvent = line.slice(6).trim()
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).replace(/^ /, ''))
+          }
+        }
+        const data = dataLines.join('\n')
+        if (!data) continue
+
+        if (currentEvent === 'chunk') {
+          assistantMessage.content += data
+          receivedAny = true
+          await nextTick()
+          scrollToBottom()
+        } else if (currentEvent === 'done') {
+          try {
+            const parsed = JSON.parse(data)
+            if (parsed.conversationId) {
+              streamedConversationId = String(parsed.conversationId)
+            }
+            if (typeof parsed.reply === 'string' && parsed.reply.length > 0) {
+              assistantMessage.content = parsed.reply
+            }
+          } catch {
+            // ignore parse errors
+          }
+        } else if (currentEvent === 'error') {
+          errorMessage = data
+        }
       }
     }
-
-    // 添加助手消息
-    const assistantMessage: AiMessage = {
-      id: 'assistant-' + Date.now(),
-      conversationId: currentConversationId.value || '',
-      role: 'ASSISTANT',
-      content: res.data,
-      messageType: 'TEXT',
-      modelName: '',
-      tokens: 0,
-      createTime: new Date().toISOString()
-    }
-    messages.value.push(assistantMessage)
-
-    // 刷新消息列表
-    if (currentConversationId.value) {
-      await loadMessages(currentConversationId.value)
-    }
-
-    await nextTick()
-    scrollToBottom()
-  } catch {
-    ElMessage.error('发送消息失败')
-  } finally {
-    sending.value = false
+  } catch (e: any) {
+    errorMessage = e?.message || '发送消息失败'
   }
+
+  if (errorMessage && !receivedAny) {
+    assistantMessage.content = ''
+    messages.value = messages.value.filter((m) => m.id !== assistantMessage.id)
+    ElMessage.error(errorMessage || '发送消息失败')
+  } else if (errorMessage) {
+    ElMessage.warning('回复中断：' + errorMessage)
+  }
+
+  sending.value = false
+
+  // 新会话：刷新列表并切换到新会话
+  if (!currentConversationId.value && streamedConversationId) {
+    currentConversationId.value = streamedConversationId
+    await loadConversations()
+  } else if (streamedConversationId) {
+    // 已有会话：刷新最新一条消息及统计
+    await loadConversations()
+  }
+
+  await nextTick()
+  scrollToBottom()
 }
 
 const scrollToBottom = () => {
@@ -368,17 +441,17 @@ onMounted(async () => {
     margin-bottom: 8px;
 
     &:hover {
-      background-color: #f5f7fa;
+      background-color: var(--el-fill-color-light);
     }
 
     &.active {
-      background-color: #ecf5ff;
+      background-color: var(--el-color-primary-light-9);
     }
 
     .conversation-title {
       font-size: 14px;
       font-weight: 500;
-      color: #303133;
+      color: var(--el-text-color-primary);
       margin-bottom: 4px;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -393,14 +466,14 @@ onMounted(async () => {
 
     .message-count {
       font-size: 12px;
-      color: #909399;
+      color: var(--el-text-color-secondary);
     }
   }
 
   .empty-state {
     text-align: center;
     padding: 40px 20px;
-    color: #909399;
+    color: var(--el-text-color-secondary);
     font-size: 14px;
   }
 }
@@ -429,6 +502,7 @@ onMounted(async () => {
     .chat-title {
       font-size: 16px;
       font-weight: 500;
+      color: var(--el-text-color-primary);
     }
   }
 
@@ -451,8 +525,9 @@ onMounted(async () => {
         }
 
         .message-text {
-          background-color: #409eff;
+          background-color: var(--el-color-primary);
           color: #fff;
+          border-color: var(--el-color-primary);
         }
       }
 
@@ -473,17 +548,19 @@ onMounted(async () => {
 
           .message-role {
             font-weight: 500;
-            color: #303133;
+            color: var(--el-text-color-primary);
           }
 
           .message-time {
-            color: #909399;
+            color: var(--el-text-color-secondary);
           }
         }
 
         .message-text {
           padding: 12px 16px;
-          background-color: #f5f7fa;
+          background-color: var(--el-fill-color-light);
+          color: var(--el-text-color-primary);
+          border: 1px solid var(--el-border-color-lighter);
           border-radius: 8px;
           line-height: 1.6;
           white-space: pre-wrap;
@@ -495,7 +572,7 @@ onMounted(async () => {
     .empty-state {
       text-align: center;
       padding: 80px 20px;
-      color: #909399;
+      color: var(--el-text-color-secondary);
       font-size: 14px;
     }
   }
@@ -503,7 +580,7 @@ onMounted(async () => {
   .input-container {
     flex-shrink: 0;
     padding: 20px;
-    border-top: 1px solid #ebeef5;
+    border-top: 1px solid var(--el-border-color-lighter);
 
     .input-actions {
       display: flex;

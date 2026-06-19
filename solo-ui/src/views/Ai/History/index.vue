@@ -83,7 +83,7 @@ async function fetchData() {
       taskType: searchForm.value.taskType || undefined,
       status: searchForm.value.status || undefined
     })
-    tableData.value = res.data.records || []
+    tableData.value = res.data.rows || []
     total.value = res.data.total || 0
   } catch {
     ElMessage.error('加载任务列表失败')
@@ -141,7 +141,6 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="任务ID" width="80" align="center" />
         <el-table-column prop="taskType" label="类型" width="100" align="center">
           <template #default="{ row }">
             <el-tag size="small">{{ taskTypeMap[row.taskType] || row.taskType }}</el-tag>
@@ -154,7 +153,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="modelName" label="模型" width="120" align="center">
+        <el-table-column prop="modelName" label="模型" min-width="180" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.modelName || '-' }}
           </template>

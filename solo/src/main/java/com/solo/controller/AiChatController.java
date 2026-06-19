@@ -13,9 +13,16 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.utils.UserHolderUtils;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 /**
  * AI对话控制器
@@ -23,11 +30,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/ai/chat")
 @RequiredArgsConstructor
+@Slf4j
 public class AiChatController {
 
     private final AiChatService aiChatService;
     private final AiConversationService conversationService;
     private final AiMessageService messageService;
+
+    private static final ExecutorService SSE_EXECUTOR = Executors.newCachedThreadPool(runnable -> {
+        Thread t = new Thread(runnable, "ai-chat-stream");
+        t.setDaemon(true);
+        return t;
+    });
 
     /**
      * 发送消息（同步）
@@ -47,6 +61,56 @@ public class AiChatController {
         }
 
         return Result.success(response);
+    }
+
+    /**
+     * 流式发送消息（SSE）
+     */
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @RequirePermission({"ai:conversation:send"})
+    public SseEmitter stream(@RequestBody ChatSendRequest request) {
+        Long userId = UserHolderUtils.getCurrentUserId();
+        SseEmitter emitter = new SseEmitter(0L);
+
+        SSE_EXECUTOR.execute(() -> {
+            try {
+                String content = request.getContent();
+                if (request.getTemplateCode() != null && !request.getTemplateCode().isEmpty()) {
+                    content = aiChatService.chatWithTemplate(request.getConversationId(), request.getTemplateCode(), request.getVariables(), userId, request.getModelConfigId());
+                    emitter.send(SseEmitter.event().name("chunk").data(content));
+                    emitter.send(SseEmitter.event().name("done").data(Map.of("conversationId", request.getConversationId() == null ? "" : request.getConversationId().toString(), "reply", content)));
+                    emitter.complete();
+                    return;
+                }
+
+                AiChatService.StreamResult result = aiChatService.streamChat(
+                        request.getConversationId(),
+                        content,
+                        userId,
+                        request.getModelConfigId(),
+                        chunk -> {
+                            try {
+                                emitter.send(SseEmitter.event().name("chunk").data(chunk));
+                            } catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        });
+
+                emitter.send(SseEmitter.event().name("done").data(Map.of(
+                        "conversationId", String.valueOf(result.conversationId()),
+                        "reply", result.reply())));
+                emitter.complete();
+            } catch (Exception e) {
+                log.warn("流式对话失败: {}", e.getMessage(), e);
+                try {
+                    emitter.send(SseEmitter.event().name("error").data(e.getMessage() == null ? "对话失败" : e.getMessage()));
+                } catch (IOException ignore) {
+                }
+                emitter.completeWithError(e);
+            }
+        });
+
+        return emitter;
     }
 
     /**
