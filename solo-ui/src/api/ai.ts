@@ -47,6 +47,7 @@ export interface AiGenerationTask {
 export interface ChatSendRequest {
   conversationId?: string
   content: string
+  modelConfigId?: string
   templateCode?: string
   variables?: Record<string, any>
 }

@@ -152,10 +152,12 @@ CREATE TABLE ai_model_config
 -- 初始化模型配置数据
 INSERT INTO ai_model_config (id, provider, model_name, model_type, api_key, base_url, model_params, status, sort, deleted, create_time, update_time)
 VALUES (2067812965232103426, 'agnes', 'agnes-1.5-flash', 'TEXT',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions', '', 1, 1, 0,
+        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions',
+        '{"temperature":0.5,"max_tokens":1024}', 1, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:33:24'),
        (2067812965232103427, 'agnes', 'agnes-2.0-flash', 'TEXT',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions', '', 1, 1, 0,
+        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions',
+        '{"temperature":0.5,"max_tokens":1024}', 1, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:35:11'),
        (2067812965232103428, 'agnes', 'agnes-image-2.0-flash', 'IMAGE',
         'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/images/generations', '', 1, 1, 0,
