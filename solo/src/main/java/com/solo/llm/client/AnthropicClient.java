@@ -3,6 +3,7 @@ package com.solo.llm.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.AttachmentFetcher;
 import com.solo.llm.HttpClientHolder;
 import com.solo.llm.LlmClient;
 import com.solo.service.AiChatService;
@@ -39,7 +40,7 @@ public class AnthropicClient implements LlmClient {
             HttpResponse<String> response = HttpClientHolder.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Anthropic 调用失败：status={}, body={}", response.statusCode(), response.body());
-                throw new ServiceException("AI模型调用失败");
+                throw new ServiceException("AI模型调用失败：HTTP " + response.statusCode());
             }
             JsonNode root = HttpClientHolder.MAPPER.readTree(response.body());
             JsonNode contentArr = root.path("content");
@@ -77,7 +78,7 @@ public class AnthropicClient implements LlmClient {
                     errBody = new String(es.readAllBytes(), StandardCharsets.UTF_8);
                 }
                 log.warn("Anthropic 流式调用失败：status={}, body={}", response.statusCode(), errBody);
-                throw new ServiceException("AI模型流式调用失败");
+                throw new ServiceException("AI模型流式调用失败：HTTP " + response.statusCode());
             }
 
             try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -149,7 +150,8 @@ public class AnthropicClient implements LlmClient {
     }
 
     /**
-     * Anthropic 多模态：content 是 [{type:text,text:...}, {type:image, source:{type:url, url:...}}] 数组
+     * Anthropic 多模态：content 是 [{type:text}, {type:image, source:{type:base64, media_type, data}}] 数组。
+     * 用 base64 内联是为了让模型服务端不需要回头访问我们的图片 URL（私有部署时常常不可达）。
      */
     private Map<String, Object> toAnthropicMessage(AiChatService.ChatMessage msg) {
         if (!"user".equals(msg.role()) || !msg.hasAttachments()) {
@@ -163,9 +165,16 @@ public class AnthropicClient implements LlmClient {
         for (AiChatService.Attachment att : msg.attachments()) {
             if (att.url() == null || att.url().isBlank()) continue;
             if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
+            String dataUri = AttachmentFetcher.toDataUri(att.url(), att.mimeType());
+            if (dataUri == null) continue;
+            int comma = dataUri.indexOf(',');
+            if (comma < 0) continue;
+            String header = dataUri.substring(5, dataUri.indexOf(';')); // skip "data:" 取 mime
+            String base64 = dataUri.substring(comma + 1);
             Map<String, Object> source = new LinkedHashMap<>();
-            source.put("type", "url");
-            source.put("url", att.url());
+            source.put("type", "base64");
+            source.put("media_type", header);
+            source.put("data", base64);
             parts.add(Map.of("type", "image", "source", source));
         }
         return Map.of("role", msg.role(), "content", parts);

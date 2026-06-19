@@ -1,6 +1,7 @@
 package com.solo.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solo.entity.AiConversation;
 import com.solo.entity.AiMessage;
 import com.solo.request.ChatSendRequest;
@@ -43,6 +44,8 @@ public class AiChatController {
         return t;
     });
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     /**
      * 发送消息（同步）
      */
@@ -78,7 +81,9 @@ public class AiChatController {
                 if (request.getTemplateCode() != null && !request.getTemplateCode().isEmpty()) {
                     content = aiChatService.chatWithTemplate(request.getConversationId(), request.getTemplateCode(), request.getVariables(), userId, request.getModelConfigId());
                     emitter.send(SseEmitter.event().name("chunk").data(content));
-                    emitter.send(SseEmitter.event().name("done").data(Map.of("conversationId", request.getConversationId() == null ? "" : request.getConversationId().toString(), "reply", content)));
+                    emitter.send(SseEmitter.event().name("done").data(buildDonePayload(
+                            request.getConversationId() == null ? "" : request.getConversationId().toString(),
+                            content)));
                     emitter.complete();
                     return;
                 }
@@ -97,21 +102,38 @@ public class AiChatController {
                             }
                         });
 
-                emitter.send(SseEmitter.event().name("done").data(Map.of(
-                        "conversationId", String.valueOf(result.conversationId()),
-                        "reply", result.reply())));
+                emitter.send(SseEmitter.event().name("done").data(buildDonePayload(
+                        String.valueOf(result.conversationId()),
+                        result.reply())));
                 emitter.complete();
             } catch (Exception e) {
                 log.warn("流式对话失败: {}", e.getMessage(), e);
+                String message = e.getMessage() == null ? "对话失败" : e.getMessage();
                 try {
-                    emitter.send(SseEmitter.event().name("error").data(e.getMessage() == null ? "对话失败" : e.getMessage()));
+                    emitter.send(SseEmitter.event().name("error").data(message));
                 } catch (IOException ignore) {
                 }
-                emitter.completeWithError(e);
+                // 注意：异常发完后直接 complete()，不要用 completeWithError，
+                // 否则 Spring 会把请求重新调度走 ExceptionHandler，最终用 SSE 的
+                // Content-Type 写 Result，触发 No converter for ... 错误。
+                emitter.complete();
             }
         });
 
         return emitter;
+    }
+
+    /**
+     * SSE 的 done 事件数据用 JSON 字符串，避免 Spring 在 text/event-stream 下找不到 Map 的转换器。
+     */
+    private String buildDonePayload(String conversationId, String reply) {
+        try {
+            return MAPPER.writeValueAsString(Map.of(
+                    "conversationId", conversationId == null ? "" : conversationId,
+                    "reply", reply == null ? "" : reply));
+        } catch (Exception e) {
+            return "{}";
+        }
     }
 
     /**

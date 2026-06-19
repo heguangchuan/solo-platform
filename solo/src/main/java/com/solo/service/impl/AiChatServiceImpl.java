@@ -76,18 +76,31 @@ public class AiChatServiceImpl implements AiChatService {
         List<AiMessage> historyMessages = messageService.getRecentMessages(conversationId, 10);
         List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
 
-        // 5. 调用模型生成回复
-        LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
-        String assistantReply = client.chat(modelConfig, chatMessages);
+        // 5. 提前创建生成任务（PENDING），失败也保留记录
+        AiGenerationTask task = generationTaskService.createTextTask(
+                userId, conversationId, null,
+                userMessage, userMessage,
+                modelConfig.getId(), modelConfig.getModelName());
 
-        // 6. 保存助手消息
+        // 6. 调用模型生成回复
+        LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
+        String assistantReply;
+        try {
+            assistantReply = client.chat(modelConfig, chatMessages);
+        } catch (RuntimeException e) {
+            generationTaskService.markFailed(task.getId(), shortenError(e.getMessage()));
+            throw e;
+        }
+
+        // 7. 保存助手消息
         AiMessage assistantMsg = messageService.addAssistantMessage(conversationId, assistantReply, modelConfig.getModelName(), 0);
 
-        // 7. 创建并完成生成任务
-        AiGenerationTask task = generationTaskService.createTextTask(userId, conversationId, assistantMsg.getId(), userMessage, userMessage, modelConfig.getId(), modelConfig.getModelName());
+        // 8. 关联任务到助手消息并标记成功
+        task.setMessageId(assistantMsg.getId());
+        generationTaskService.updateById(task);
         generationTaskService.markSuccess(task.getId(), assistantReply, 0, BigDecimal.ZERO);
 
-        // 8. 如果是第一条消息，更新会话标题
+        // 9. 如果是第一条消息，更新会话标题
         if (conversation.getMessageCount() <= 2) {
             String newTitle = generateTitle(userMessage);
             conversationService.updateTitle(conversationId, newTitle);
@@ -140,37 +153,50 @@ public class AiChatServiceImpl implements AiChatService {
         List<AiMessage> historyMessages = messageService.getRecentMessages(currentConversationId, 10);
         List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
 
-        // 6. 决定是否走流式
+        // 6. 提前创建生成任务（PENDING），无论模型成功失败都有完整记录
+        AiGenerationTask task = generationTaskService.createTextTask(
+                userId, currentConversationId, null,
+                userMessage, userMessage,
+                modelConfig.getId(), modelConfig.getModelName());
+
+        // 7. 决定是否走流式
         LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
         boolean useStream = client.supportsStreaming() && isStreamEnabled(modelConfig);
 
         StringBuilder buffer = new StringBuilder();
         String reply;
-        if (useStream) {
-            try {
-                reply = client.streamChat(modelConfig, chatMessages, chunk -> {
-                    buffer.append(chunk);
-                    consumer.accept(chunk);
-                });
-            } catch (RuntimeException e) {
-                log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
+        try {
+            if (useStream) {
+                try {
+                    reply = client.streamChat(modelConfig, chatMessages, chunk -> {
+                        buffer.append(chunk);
+                        consumer.accept(chunk);
+                    });
+                } catch (RuntimeException e) {
+                    log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
+                    reply = client.chat(modelConfig, chatMessages);
+                    emitRemainder(buffer.toString(), reply, consumer);
+                }
+            } else {
+                log.debug("模型 {} 不支持流式，直接调用非流式接口", modelConfig.getModelName());
                 reply = client.chat(modelConfig, chatMessages);
-                emitRemainder(buffer.toString(), reply, consumer);
+                emitRemainder("", reply, consumer);
             }
-        } else {
-            log.debug("模型 {} 不支持流式，直接调用非流式接口", modelConfig.getModelName());
-            reply = client.chat(modelConfig, chatMessages);
-            emitRemainder("", reply, consumer);
+        } catch (RuntimeException e) {
+            // 模型调用最终失败：记录失败任务，再把异常抛给上层（SSE 控制器）
+            generationTaskService.markFailed(task.getId(), shortenError(e.getMessage()));
+            throw e;
         }
 
-        // 7. 保存助手消息
+        // 8. 保存助手消息
         AiMessage assistantMsg = messageService.addAssistantMessage(currentConversationId, reply, modelConfig.getModelName(), 0);
 
-        // 8. 创建并完成生成任务
-        AiGenerationTask task = generationTaskService.createTextTask(userId, currentConversationId, assistantMsg.getId(), userMessage, userMessage, modelConfig.getId(), modelConfig.getModelName());
+        // 9. 把任务关联到助手消息并标记成功
+        task.setMessageId(assistantMsg.getId());
+        generationTaskService.updateById(task);
         generationTaskService.markSuccess(task.getId(), reply, 0, BigDecimal.ZERO);
 
-        // 9. 第一条消息时刷新会话标题
+        // 10. 第一条消息时刷新会话标题
         if (conversation.getMessageCount() <= 2) {
             conversationService.updateTitle(currentConversationId, generateTitle(userMessage));
         }
@@ -323,6 +349,14 @@ public class AiChatServiceImpl implements AiChatService {
         } else if (!fullReply.equals(already)) {
             consumer.accept(fullReply);
         }
+    }
+
+    /**
+     * 截断错误信息，避免超过 ai_generation_task.error_msg 长度上限
+     */
+    private String shortenError(String message) {
+        if (message == null || message.isBlank()) return "未知错误";
+        return message.length() > 1000 ? message.substring(0, 1000) : message;
     }
 
     /**

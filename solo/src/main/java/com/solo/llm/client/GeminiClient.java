@@ -3,6 +3,7 @@ package com.solo.llm.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.AttachmentFetcher;
 import com.solo.llm.HttpClientHolder;
 import com.solo.llm.LlmClient;
 import com.solo.service.AiChatService;
@@ -56,7 +57,7 @@ public class GeminiClient implements LlmClient {
             HttpResponse<String> response = HttpClientHolder.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
                 log.warn("Gemini 调用失败：status={}, body={}", response.statusCode(), response.body());
-                throw new ServiceException("AI模型调用失败");
+                throw new ServiceException("AI模型调用失败：HTTP " + response.statusCode());
             }
             JsonNode root = HttpClientHolder.MAPPER.readTree(response.body());
             return extractText(root);
@@ -82,7 +83,7 @@ public class GeminiClient implements LlmClient {
                     errBody = new String(es.readAllBytes(), StandardCharsets.UTF_8);
                 }
                 log.warn("Gemini 流式调用失败：status={}, body={}", response.statusCode(), errBody);
-                throw new ServiceException("AI模型流式调用失败");
+                throw new ServiceException("AI模型流式调用失败：HTTP " + response.statusCode());
             }
 
             try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -146,8 +147,8 @@ public class GeminiClient implements LlmClient {
     }
 
     /**
-     * Gemini parts 数组：text + fileData(URI) 形式承载多模态。
-     * 注意 Gemini 要求图片 URL 公开可达。
+     * Gemini parts 数组：text + inlineData(base64) 形式承载多模态。
+     * 后端先把图片下载下来再 base64 内联，避免 fileUri 在私有部署下不可达。
      */
     private List<Map<String, Object>> buildParts(AiChatService.ChatMessage msg) {
         List<Map<String, Object>> parts = new ArrayList<>();
@@ -159,14 +160,16 @@ public class GeminiClient implements LlmClient {
             for (AiChatService.Attachment att : msg.attachments()) {
                 if (att.url() == null || att.url().isBlank()) continue;
                 if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
-                Map<String, Object> fileData = new LinkedHashMap<>();
-                fileData.put("fileUri", att.url());
-                if (att.mimeType() != null && !att.mimeType().isBlank()) {
-                    fileData.put("mimeType", att.mimeType());
-                } else {
-                    fileData.put("mimeType", "image/png");
-                }
-                parts.add(Map.of("fileData", fileData));
+                String dataUri = AttachmentFetcher.toDataUri(att.url(), att.mimeType());
+                if (dataUri == null) continue;
+                int comma = dataUri.indexOf(',');
+                if (comma < 0) continue;
+                String mime = dataUri.substring(5, dataUri.indexOf(';'));
+                String base64 = dataUri.substring(comma + 1);
+                Map<String, Object> inlineData = new LinkedHashMap<>();
+                inlineData.put("mimeType", mime);
+                inlineData.put("data", base64);
+                parts.add(Map.of("inlineData", inlineData));
             }
         }
         if (parts.isEmpty()) {
