@@ -16,6 +16,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -94,18 +95,71 @@ public class AiChatServiceImpl implements AiChatService {
     }
 
     @Override
-    public void streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, Consumer<String> consumer) {
-        // 流式实现
-        String reply = chat(conversationId, userMessage, userId, modelConfigId);
-        // 模拟流式输出
-        for (char c : reply.toCharArray()) {
-            consumer.accept(String.valueOf(c));
-            try {
-                Thread.sleep(10);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+    public StreamResult streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, Consumer<String> consumer) {
+        // 1. 会话准备：创建或加载
+        AiConversation conversation;
+        if (conversationId == null) {
+            conversation = conversationService.createConversation(userId, "CHAT", generateTitle(userMessage));
+        } else {
+            conversation = conversationService.getById(conversationId);
+            if (conversation == null) {
+                throw new ServiceException("会话不存在");
+            }
+            if (!userId.equals(conversation.getUserId())) {
+                throw new ServiceException("无权访问此会话");
             }
         }
+        Long currentConversationId = conversation.getId();
+
+        // 2. 保存用户消息
+        messageService.addUserMessage(currentConversationId, userMessage);
+
+        // 3. 模型配置
+        AiModelConfig modelConfig = resolveModelConfig(modelConfigId, conversation.getModelConfigId());
+        if (modelConfig == null) {
+            throw new ServiceException("未配置可用的AI模型");
+        }
+        if (conversation.getModelConfigId() == null || !conversation.getModelConfigId().equals(modelConfig.getId())) {
+            conversation.setModelConfigId(modelConfig.getId());
+            conversationService.updateById(conversation);
+        }
+
+        // 4. 上下文
+        List<AiMessage> historyMessages = messageService.getRecentMessages(currentConversationId, 10);
+        List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
+
+        // 5. 流式调用模型
+        StringBuilder buffer = new StringBuilder();
+        String reply;
+        try {
+            reply = streamCallModel(chatMessages, modelConfig, chunk -> {
+                buffer.append(chunk);
+                consumer.accept(chunk);
+            });
+        } catch (RuntimeException e) {
+            log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
+            reply = callModel(chatMessages, modelConfig);
+            String already = buffer.toString();
+            if (reply.length() > already.length() && reply.startsWith(already)) {
+                consumer.accept(reply.substring(already.length()));
+            } else if (already.isEmpty()) {
+                consumer.accept(reply);
+            }
+        }
+
+        // 6. 保存助手消息
+        AiMessage assistantMsg = messageService.addAssistantMessage(currentConversationId, reply, modelConfig.getModelName(), 0);
+
+        // 7. 创建并完成生成任务
+        AiGenerationTask task = generationTaskService.createTextTask(userId, currentConversationId, assistantMsg.getId(), userMessage, userMessage, modelConfig.getId(), modelConfig.getModelName());
+        generationTaskService.markSuccess(task.getId(), reply, 0, BigDecimal.ZERO);
+
+        // 8. 第一条消息时刷新会话标题
+        if (conversation.getMessageCount() <= 2) {
+            conversationService.updateTitle(currentConversationId, generateTitle(userMessage));
+        }
+
+        return new StreamResult(currentConversationId, reply);
     }
 
     @Override
@@ -128,6 +182,74 @@ public class AiChatServiceImpl implements AiChatService {
             result.add(new ChatMessage(role, msg.getContent()));
         }
         return result;
+    }
+
+    private String streamCallModel(List<ChatMessage> messages, AiModelConfig modelConfig, Consumer<String> chunkConsumer) {
+        Map<String, Object> requestBody = new LinkedHashMap<>();
+        requestBody.put("model", modelConfig.getModelName());
+        requestBody.put("messages", messages.stream()
+                .map(msg -> Map.of("role", msg.role(), "content", msg.content()))
+                .toList());
+        applyModelParams(requestBody, modelConfig.getModelParams());
+        requestBody.put("stream", true);
+
+        String body;
+        try {
+            body = MAPPER.writeValueAsString(requestBody);
+        } catch (Exception e) {
+            throw new ServiceException("AI模型请求构建失败", e);
+        }
+
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(modelConfig.getBaseUrl()))
+                .header("Authorization", "Bearer " + modelConfig.getApiKey())
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream")
+                .POST(HttpRequest.BodyPublishers.ofString(body))
+                .build();
+
+        StringBuilder full = new StringBuilder();
+        try {
+            HttpResponse<java.io.InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                String errBody;
+                try (var es = response.body()) {
+                    errBody = new String(es.readAllBytes(), StandardCharsets.UTF_8);
+                }
+                log.warn("AI模型流式调用失败：status={}, body={}", response.statusCode(), errBody);
+                throw new ServiceException("AI模型流式调用失败");
+            }
+
+            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.isEmpty()) continue;
+                    if (!line.startsWith("data:")) continue;
+                    String data = line.substring(5).trim();
+                    if (data.isEmpty()) continue;
+                    if ("[DONE]".equals(data)) break;
+                    try {
+                        JsonNode chunk = MAPPER.readTree(data);
+                        JsonNode delta = chunk.path("choices").path(0).path("delta").path("content");
+                        if (!delta.isMissingNode() && !delta.isNull()) {
+                            String piece = delta.asText();
+                            if (!piece.isEmpty()) {
+                                full.append(piece);
+                                chunkConsumer.accept(piece);
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.debug("流式分片解析失败: {}", ex.getMessage());
+                    }
+                }
+            }
+            return full.toString();
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("AI模型流式调用异常：{}", e.getMessage(), e);
+            throw new ServiceException("AI模型流式调用异常", e);
+        }
     }
 
     /**

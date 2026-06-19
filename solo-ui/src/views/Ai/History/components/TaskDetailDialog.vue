@@ -55,7 +55,6 @@ defineExpose({ open })
 <template>
   <el-dialog v-model="visible" title="任务详情" width="700px" :close-on-click-modal="false">
     <el-descriptions v-if="task" :column="2" border>
-      <el-descriptions-item label="任务ID" :span="2">{{ task.id }}</el-descriptions-item>
       <el-descriptions-item label="任务类型">
         <el-tag size="small">{{ task.taskType }}</el-tag>
       </el-descriptions-item>
