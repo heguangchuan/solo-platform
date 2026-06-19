@@ -42,16 +42,16 @@ jwt:
 # 切换到 minio：file.storage.type=minio + 配置 file.minio.* + 引入 io.minio:minio 依赖
 file:
   storage:
-    type: local
+    type: minio
   local:
     # 本地根目录，绝对或相对路径均可（相对路径相对于应用启动目录）
     root: ./uploads
     # 对外访问前缀，需要与 WebMvcConfig 静态资源映射一致；同时被前端拼成 URL 前缀
     public-prefix: /uploads
   minio:
-    endpoint: http://localhost:9000
-    access-key: minioadmin
-    secret-key: minioadmin
+    endpoint: http://localhost:29000
+    access-key: minio
+    secret-key: minio213
     bucket: solo
     # 可选：对外访问域名（CDN/反代）。留空则使用 endpoint 拼接 URL
     public-url:

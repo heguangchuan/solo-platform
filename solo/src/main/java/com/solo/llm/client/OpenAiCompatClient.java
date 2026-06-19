@@ -3,6 +3,7 @@ package com.solo.llm.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.AttachmentFetcher;
 import com.solo.llm.HttpClientHolder;
 import com.solo.llm.LlmClient;
 import com.solo.service.AiChatService;
@@ -36,8 +37,10 @@ public class OpenAiCompatClient implements LlmClient {
         try {
             HttpResponse<String> response = HttpClientHolder.HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                String summary = summarizeError(response.body());
                 log.warn("OpenAI兼容模型调用失败：status={}, body={}", response.statusCode(), response.body());
-                throw new ServiceException("AI模型调用失败");
+                throw new ServiceException("AI模型调用失败：HTTP " + response.statusCode()
+                        + (summary.isEmpty() ? "" : " - " + summary));
             }
             JsonNode root = HttpClientHolder.MAPPER.readTree(response.body());
             JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
@@ -67,7 +70,9 @@ public class OpenAiCompatClient implements LlmClient {
                     errBody = new String(es.readAllBytes(), StandardCharsets.UTF_8);
                 }
                 log.warn("OpenAI兼容模型流式调用失败：status={}, body={}", response.statusCode(), errBody);
-                throw new ServiceException("AI模型流式调用失败");
+                String summary = summarizeError(errBody);
+                throw new ServiceException("AI模型流式调用失败：HTTP " + response.statusCode()
+                        + (summary.isEmpty() ? "" : " - " + summary));
             }
 
             try (var reader = new BufferedReader(new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
@@ -131,8 +136,10 @@ public class OpenAiCompatClient implements LlmClient {
         for (AiChatService.Attachment att : msg.attachments()) {
             if (att.url() == null || att.url().isBlank()) continue;
             if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
+            String dataUri = AttachmentFetcher.toDataUri(att.url(), att.mimeType());
+            if (dataUri == null) continue;
             Map<String, Object> imageUrl = new LinkedHashMap<>();
-            imageUrl.put("url", att.url());
+            imageUrl.put("url", dataUri);
             parts.add(Map.of("type", "image_url", "image_url", imageUrl));
         }
         return Map.of("role", msg.role(), "content", parts);
@@ -185,5 +192,32 @@ public class OpenAiCompatClient implements LlmClient {
             body.put("temperature", 0.5);
             body.put("max_tokens", 1024);
         }
+    }
+
+    /**
+     * 从供应商错误响应里提取一段简短可读的描述，用于回显前端。
+     */
+    private String summarizeError(String body) {
+        if (body == null || body.isBlank()) return "";
+        try {
+            JsonNode node = HttpClientHolder.MAPPER.readTree(body);
+            JsonNode error = node.path("error");
+            if (!error.isMissingNode()) {
+                String msg = error.path("message").asText("");
+                if (!msg.isEmpty()) return truncate(msg);
+                String code = error.path("code").asText("");
+                if (!code.isEmpty()) return truncate(code);
+            }
+            String message = node.path("message").asText("");
+            if (!message.isEmpty()) return truncate(message);
+        } catch (Exception ignore) {
+            // 非 JSON 直接降级
+        }
+        return truncate(body);
+    }
+
+    private String truncate(String text) {
+        String clean = text.trim().replaceAll("\\s+", " ");
+        return clean.length() > 200 ? clean.substring(0, 200) + "..." : clean;
     }
 }
