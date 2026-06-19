@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Prompt模板服务实现类
+ * 提示词模板服务实现类
  */
 @Service
 public class AiPromptTemplateServiceImpl extends ServiceImpl<AiPromptTemplateMapper, AiPromptTemplate> implements AiPromptTemplateService {
@@ -39,9 +39,6 @@ public class AiPromptTemplateServiceImpl extends ServiceImpl<AiPromptTemplateMap
         if (req.getTemplateType() != null && !req.getTemplateType().isBlank()) {
             wrapper.eq(AiPromptTemplate::getTemplateType, req.getTemplateType());
         }
-        if (req.getScene() != null && !req.getScene().isBlank()) {
-            wrapper.like(AiPromptTemplate::getScene, req.getScene());
-        }
         if (req.getStatus() != null) {
             wrapper.eq(AiPromptTemplate::getStatus, req.getStatus());
         }
@@ -60,7 +57,6 @@ public class AiPromptTemplateServiceImpl extends ServiceImpl<AiPromptTemplateMap
         template.setTemplateName(request.getTemplateName());
         template.setTemplateCode(request.getTemplateCode());
         template.setTemplateType(request.getTemplateType());
-        template.setScene(request.getScene());
         template.setContent(request.getContent());
         template.setVariables(request.getVariables());
         template.setExample(request.getExample());
@@ -79,7 +75,6 @@ public class AiPromptTemplateServiceImpl extends ServiceImpl<AiPromptTemplateMap
         if (request.getTemplateName() != null) template.setTemplateName(request.getTemplateName());
         if (request.getTemplateCode() != null) template.setTemplateCode(request.getTemplateCode());
         if (request.getTemplateType() != null) template.setTemplateType(request.getTemplateType());
-        if (request.getScene() != null) template.setScene(request.getScene());
         if (request.getContent() != null) template.setContent(request.getContent());
         if (request.getVariables() != null) template.setVariables(request.getVariables());
         if (request.getExample() != null) template.setExample(request.getExample());

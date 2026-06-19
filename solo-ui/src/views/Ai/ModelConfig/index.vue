@@ -35,12 +35,11 @@ const form = ref<AiModelConfigRequest>({
   baseUrl: '',
   modelParams: '',
   status: 1,
-  sort: 0,
-  remark: '',
+  sort: 1,
 })
 
 const rules = {
-  provider: [{ required: true, message: '请输入供应商', trigger: 'blur' }],
+  provider: [{ required: true, message: '请输入模型来源', trigger: 'blur' }],
   modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
   modelType: [{ required: true, message: '请选择模型类型', trigger: 'change' }],
   apiKey: [{ required: true, message: '请输入API密钥', trigger: 'blur' }],
@@ -52,13 +51,6 @@ const modelTypeOptions = [
   { label: '视频', value: 'VIDEO' },
   { label: '向量', value: 'EMBEDDING' },
   { label: '音频', value: 'AUDIO' },
-]
-
-const providerOptions = [
-  { label: 'OPENAI', value: 'OPENAI' },
-  { label: 'DEEPSEEK', value: 'DEEPSEEK' },
-  { label: 'ANTHROPIC', value: 'ANTHROPIC' },
-  { label: '自定义', value: 'CUSTOM' },
 ]
 
 function handleSearch() {
@@ -107,8 +99,7 @@ function handleAdd() {
     baseUrl: '',
     modelParams: '',
     status: 1,
-    sort: 0,
-    remark: '',
+    sort: 1,
   }
   dialogVisible.value = true
 }
@@ -125,7 +116,6 @@ function handleEdit(row: AiModelConfig) {
     modelParams: row.modelParams,
     status: row.status,
     sort: row.sort,
-    remark: row.remark,
   }
   dialogVisible.value = true
 }
@@ -192,21 +182,19 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="供应商">
-          <el-select v-model="searchForm.provider" placeholder="请选择供应商" clearable>
-            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
+        <el-form-item label="模型来源">
+          <el-input v-model="searchForm.provider" placeholder="请输入模型来源" clearable style="width: 160px" />
         </el-form-item>
         <el-form-item label="模型类型">
-          <el-select v-model="searchForm.modelType" placeholder="请选择模型类型" clearable>
+          <el-select v-model="searchForm.modelType" placeholder="请选择模型类型" clearable style="width: 140px">
             <el-option v-for="opt in modelTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="模型名称">
-          <el-input v-model="searchForm.modelName" placeholder="请输入模型名称" clearable />
+          <el-input v-model="searchForm.modelName" placeholder="请输入模型名称" clearable style="width: 160px" />
         </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+        <el-form-item label="是否启用">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 120px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
           </el-select>
@@ -226,23 +214,22 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="provider" label="供应商" width="120" />
+        <el-table-column prop="provider" label="模型来源" width="120" />
         <el-table-column prop="modelName" label="模型名称" width="200" />
-        <el-table-column prop="modelType" label="模型类型" width="100">
+        <el-table-column prop="modelType" label="模型类型" width="110">
           <template #default="{ row }">
             <el-tag>{{ modelTypeOptions.find((o) => o.value === row.modelType)?.label || row.modelType }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="baseUrl" label="API地址" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="sort" label="模型排序" width="100" />
+        <el-table-column label="是否启用" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" width="180" />
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
@@ -266,36 +253,31 @@ onMounted(() => {
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :top="'5vh'" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
-        <el-form-item label="供应商" prop="provider">
-          <el-select v-model="form.provider" placeholder="请选择或输入供应商" clearable>
-            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
-          </el-select>
+        <el-form-item label="模型来源" prop="provider">
+          <el-input v-model="form.provider" placeholder="请输入模型来源，如：OpenAI、Claude、通义千问等" style="width: 100%" />
         </el-form-item>
         <el-form-item label="模型名称" prop="modelName">
-          <el-input v-model="form.modelName" placeholder="请输入模型名称" />
+          <el-input v-model="form.modelName" placeholder="请输入模型名称" style="width: 100%" />
         </el-form-item>
         <el-form-item label="模型类型" prop="modelType">
-          <el-select v-model="form.modelType" placeholder="请选择模型类型">
+          <el-select v-model="form.modelType" placeholder="请选择模型类型" style="width: 100%">
             <el-option v-for="opt in modelTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
         <el-form-item label="API密钥" prop="apiKey">
-          <el-input v-model="form.apiKey" type="password" placeholder="请输入API密钥" show-password />
+          <el-input v-model="form.apiKey" type="password" placeholder="请输入API密钥" show-password style="width: 100%" />
         </el-form-item>
         <el-form-item label="API地址">
-          <el-input v-model="form.baseUrl" placeholder="请输入API基础地址" />
+          <el-input v-model="form.baseUrl" placeholder="请输入API基础地址" style="width: 100%" />
         </el-form-item>
         <el-form-item label="模型参数">
           <el-input v-model="form.modelParams" type="textarea" :rows="2" placeholder="请输入JSON格式的模型参数" />
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort" :min="0" />
+        <el-form-item label="模型排序">
+          <el-input-number v-model="form.sort" :min="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="是否启用">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
       </el-form>
       <template #footer>

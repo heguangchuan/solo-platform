@@ -52,7 +52,7 @@ public class AiGenerationTask {
     private String prompt;
 
     /**
-     * 优化后的Prompt
+     * 优化后的提示词
      */
     private String enhancedPrompt;
 

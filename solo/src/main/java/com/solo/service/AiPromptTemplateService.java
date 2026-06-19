@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Prompt模板服务接口
+ * 提示词模板服务接口
  */
 public interface AiPromptTemplateService extends IService<AiPromptTemplate> {
 

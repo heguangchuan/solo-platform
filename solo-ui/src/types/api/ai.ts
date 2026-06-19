@@ -17,7 +17,6 @@ export interface AiModelConfigRequest {
   modelParams?: string
   status: number
   sort?: number
-  remark?: string
 }
 
 export interface AiModelConfig {
@@ -30,17 +29,15 @@ export interface AiModelConfig {
   modelParams?: string
   status: number
   sort?: number
-  remark?: string
   createTime: string
   updateTime: string
 }
 
-/** Prompt模板相关 */
+/** 提示词模板相关 */
 export interface AiPromptTemplatePageRequest extends PageRequest {
   templateName?: string
   templateCode?: string
   templateType?: string
-  scene?: string
   status?: number
 }
 
@@ -48,7 +45,6 @@ export interface AiPromptTemplateRequest {
   templateName: string
   templateCode: string
   templateType: string
-  scene?: string
   content: string
   variables?: string
   example?: string
@@ -62,7 +58,6 @@ export interface AiPromptTemplate {
   templateName: string
   templateCode: string
   templateType: string
-  scene?: string
   content: string
   variables?: string
   example?: string

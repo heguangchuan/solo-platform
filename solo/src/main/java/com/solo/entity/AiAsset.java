@@ -90,7 +90,7 @@ public class AiAsset {
     private Integer height;
 
     /**
-     * 生成Prompt
+     * 生成指令
      */
     private String prompt;
 

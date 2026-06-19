@@ -3,7 +3,7 @@ package com.solo.request;
 import lombok.Data;
 
 /**
- * Prompt模板分页查询请求参数
+ * 提示词模板分页查询请求参数
  */
 @Data
 public class AiPromptTemplatePageRequest {
@@ -12,6 +12,5 @@ public class AiPromptTemplatePageRequest {
     private String templateName;
     private String templateCode;
     private String templateType;
-    private String scene;
     private Integer status;
 }

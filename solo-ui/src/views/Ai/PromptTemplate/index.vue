@@ -31,12 +31,11 @@ const form = ref<AiPromptTemplateRequest>({
   templateName: '',
   templateCode: '',
   templateType: 'TEXT',
-  scene: '',
   content: '',
   variables: '',
   example: '',
   status: 1,
-  sort: 0,
+  sort: 1,
   remark: '',
 })
 
@@ -100,8 +99,7 @@ function handleAdd() {
     templateName: '',
     templateCode: '',
     templateType: 'CHAT',
-    scene: '',
-    content: '',
+      content: '',
     variables: '',
     example: '',
     status: 1,
@@ -118,7 +116,6 @@ function handleEdit(row: AiPromptTemplate) {
     templateName: row.templateName,
     templateCode: row.templateCode,
     templateType: row.templateType,
-    scene: row.scene,
     content: row.content,
     variables: row.variables,
     example: row.example,
@@ -197,21 +194,18 @@ onMounted(() => {
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="模板名称">
-          <el-input v-model="searchForm.templateName" placeholder="请输入模板名称" clearable />
+          <el-input v-model="searchForm.templateName" placeholder="请输入模板名称" clearable style="width: 160px" />
         </el-form-item>
         <el-form-item label="模板编码">
-          <el-input v-model="searchForm.templateCode" placeholder="请输入模板编码" clearable />
+          <el-input v-model="searchForm.templateCode" placeholder="请输入模板编码" clearable style="width: 160px" />
         </el-form-item>
         <el-form-item label="模板类型">
-          <el-select v-model="searchForm.templateType" placeholder="请选择模板类型" clearable>
+          <el-select v-model="searchForm.templateType" placeholder="请选择模板类型" clearable style="width: 140px">
             <el-option v-for="opt in templateTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="应用场景">
-          <el-input v-model="searchForm.scene" placeholder="请输入应用场景" clearable />
-        </el-form-item>
-        <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+        <el-form-item label="是否启用">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 120px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
           </el-select>
@@ -233,15 +227,14 @@ onMounted(() => {
         <el-table-column type="selection" width="55" />
         <el-table-column prop="templateName" label="模板名称" width="150" />
         <el-table-column prop="templateCode" label="模板编码" width="150" />
-        <el-table-column prop="templateType" label="模板类型" width="100">
+        <el-table-column prop="templateType" label="模板类型" width="110">
           <template #default="{ row }">
             <el-tag>{{ templateTypeOptions.find((o) => o.value === row.templateType)?.label || row.templateType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="scene" label="应用场景" width="120" />
         <el-table-column prop="content" label="模板内容" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="sort" label="排序" width="80" />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="sort" label="模板排序" width="100" />
+        <el-table-column label="是否启用" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
@@ -273,18 +266,15 @@ onMounted(() => {
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px" :top="'5vh'" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
         <el-form-item label="模板名称" prop="templateName">
-          <el-input v-model="form.templateName" placeholder="请输入模板名称" />
+          <el-input v-model="form.templateName" placeholder="请输入模板名称" style="width: 100%" />
         </el-form-item>
         <el-form-item label="模板编码" prop="templateCode">
-          <el-input v-model="form.templateCode" placeholder="请输入模板编码" />
+          <el-input v-model="form.templateCode" placeholder="请输入模板编码" style="width: 100%" />
         </el-form-item>
         <el-form-item label="模板类型" prop="templateType">
-          <el-select v-model="form.templateType" placeholder="请选择模板类型">
+          <el-select v-model="form.templateType" placeholder="请选择模板类型" style="width: 100%">
             <el-option v-for="opt in templateTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
           </el-select>
-        </el-form-item>
-        <el-form-item label="应用场景">
-          <el-input v-model="form.scene" placeholder="如：小红书、抖音、广告语等" />
         </el-form-item>
         <el-form-item label="模板内容" prop="content">
           <el-input v-model="form.content" type="textarea" :rows="4" placeholder="请输入模板内容，支持{{变量名}}占位符" />
@@ -295,13 +285,13 @@ onMounted(() => {
         <el-form-item label="示例输出">
           <el-input v-model="form.example" type="textarea" :rows="2" placeholder="请输入示例输出" />
         </el-form-item>
-        <el-form-item label="排序">
-          <el-input-number v-model="form.sort" :min="0" />
+        <el-form-item label="模板排序">
+          <el-input-number v-model="form.sort" :min="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="是否启用">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="备注信息">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
         </el-form-item>
       </el-form>

@@ -15,5 +15,4 @@ public class AiModelConfigRequest {
     private String modelParams;
     private Integer status;
     private Integer sort;
-    private String remark;
 }

@@ -163,7 +163,7 @@ export function deleteModelConfigBatchApi(ids: string[]) {
   return del<void>('/api/ai/model-config/batch', { data: ids })
 }
 
-/* ==================== Prompt模板管理 ==================== */
+/* ==================== 提示词模板管理 ==================== */
 
 /**
  * 获取模板分页列表

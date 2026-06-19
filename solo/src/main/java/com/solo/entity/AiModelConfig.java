@@ -25,7 +25,7 @@ public class AiModelConfig {
     private Long id;
 
     /**
-     * 模型供应商: OPENAI/ANTHROPIC/DEEPSEEK/...
+     * 模型来源
      */
     private String provider;
 
@@ -63,11 +63,6 @@ public class AiModelConfig {
      * 排序
      */
     private Integer sort;
-
-    /**
-     * 备注
-     */
-    private String remark;
 
     /**
      * 逻辑删除标识: 0未删除 1已删除
