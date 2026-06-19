@@ -45,6 +45,12 @@ const currentModel = computed(() =>
 
 const supportsVision = computed(() => (currentModel.value?.supportVision ?? 0) === 1)
 
+const composerPlaceholder = computed(() => {
+  return supportsVision.value
+    ? '输入消息，按 Ctrl+Enter 发送，可拖拽 / 粘贴图片'
+    : '输入消息，按 Ctrl+Enter 发送'
+})
+
 interface ParsedAttachment {
   type: string
   url: string
@@ -69,6 +75,10 @@ const messageImages = (msg: AiMessage): string[] =>
     .map((a) => a.url)
 
 const triggerFilePicker = () => {
+  if (!supportsVision.value) {
+    ElMessage.info('当前模型不支持图片输入')
+    return
+  }
   if (uploadingImage.value || sending.value) return
   if (pendingImages.value.length >= MAX_PENDING_IMAGES) {
     ElMessage.warning(`最多上传 ${MAX_PENDING_IMAGES} 张图片`)
@@ -77,37 +87,89 @@ const triggerFilePicker = () => {
   fileInputRef.value?.click()
 }
 
+/**
+ * 统一的图片接入路径：文件选择 / 拖拽 / 粘贴 都汇总到这里。
+ */
+const ingestImageFiles = async (files: File[]) => {
+  if (!files.length) return
+  if (!supportsVision.value) {
+    ElMessage.info('当前模型不支持图片输入')
+    return
+  }
+  if (sending.value) return
+
+  for (const file of files) {
+    if (!file.type.startsWith('image/')) continue
+    if (pendingImages.value.length >= MAX_PENDING_IMAGES) {
+      ElMessage.warning(`最多上传 ${MAX_PENDING_IMAGES} 张图片`)
+      break
+    }
+    uploadingImage.value = true
+    try {
+      const res = await uploadFileApi(file)
+      const url = res.data?.url
+      if (!url) {
+        ElMessage.error('上传失败')
+        continue
+      }
+      pendingImages.value.push({
+        url,
+        fileName: file.name || 'image',
+        mimeType: file.type
+      })
+    } catch {
+      ElMessage.error('上传失败')
+    } finally {
+      uploadingImage.value = false
+    }
+  }
+}
+
 const onFileSelected = async (event: Event) => {
   const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
+  const files = Array.from(input.files || [])
   input.value = ''
-  if (!file) return
-  if (!file.type.startsWith('image/')) {
-    ElMessage.warning('仅支持上传图片')
-    return
-  }
-  if (pendingImages.value.length >= MAX_PENDING_IMAGES) {
-    ElMessage.warning(`最多上传 ${MAX_PENDING_IMAGES} 张图片`)
-    return
-  }
-  uploadingImage.value = true
-  try {
-    const res = await uploadFileApi(file)
-    const url = res.data?.url
-    if (!url) {
-      ElMessage.error('上传失败')
-      return
+  await ingestImageFiles(files)
+}
+
+// 拖拽相关
+const isDragOver = ref(false)
+const onInputDragOver = (event: DragEvent) => {
+  if (!supportsVision.value) return
+  if (!event.dataTransfer) return
+  const hasFiles = Array.from(event.dataTransfer.types).includes('Files')
+  if (!hasFiles) return
+  event.preventDefault()
+  event.dataTransfer.dropEffect = 'copy'
+  isDragOver.value = true
+}
+const onInputDragLeave = () => {
+  isDragOver.value = false
+}
+const onInputDrop = async (event: DragEvent) => {
+  isDragOver.value = false
+  if (!event.dataTransfer) return
+  const files = Array.from(event.dataTransfer.files || []).filter((f) => f.type.startsWith('image/'))
+  if (!files.length) return
+  event.preventDefault()
+  await ingestImageFiles(files)
+}
+
+// 粘贴图片
+const onInputPaste = async (event: ClipboardEvent) => {
+  if (!supportsVision.value) return
+  const items = event.clipboardData?.items
+  if (!items) return
+  const files: File[] = []
+  for (const item of Array.from(items)) {
+    if (item.kind === 'file') {
+      const file = item.getAsFile()
+      if (file && file.type.startsWith('image/')) files.push(file)
     }
-    pendingImages.value.push({
-      url,
-      fileName: file.name,
-      mimeType: file.type
-    })
-  } catch {
-    ElMessage.error('上传失败')
-  } finally {
-    uploadingImage.value = false
   }
+  if (!files.length) return
+  event.preventDefault()
+  await ingestImageFiles(files)
 }
 
 const removePendingImage = (index: number) => {
@@ -500,45 +562,68 @@ onMounted(async () => {
 
           <!-- 输入区域 -->
           <div class="input-container">
-            <div v-if="pendingImages.length" class="pending-attachments">
-              <div
-                v-for="(img, idx) in pendingImages"
-                :key="img.url"
-                class="pending-thumb"
-              >
-                <img :src="img.url" :alt="img.fileName" />
-                <button class="thumb-remove" type="button" @click="removePendingImage(idx)">
-                  <el-icon><CloseIcon /></el-icon>
+            <div
+              class="composer"
+              :class="{ 'is-drag-over': isDragOver }"
+              @dragover="onInputDragOver"
+              @dragleave="onInputDragLeave"
+              @drop="onInputDrop"
+            >
+              <div v-if="pendingImages.length" class="pending-attachments">
+                <div
+                  v-for="(img, idx) in pendingImages"
+                  :key="img.url"
+                  class="pending-thumb"
+                >
+                  <img :src="img.url" :alt="img.fileName" />
+                  <button class="thumb-remove" type="button" @click="removePendingImage(idx)">
+                    <el-icon><CloseIcon /></el-icon>
+                  </button>
+                </div>
+              </div>
+
+              <textarea
+                v-model="inputText"
+                class="composer-textarea"
+                :placeholder="composerPlaceholder"
+                rows="3"
+                :disabled="sending"
+                @keydown.ctrl.enter.prevent="sendMessage"
+                @paste="onInputPaste"
+              />
+
+              <div class="composer-toolbar">
+                <button
+                  v-if="supportsVision"
+                  type="button"
+                  class="tool-btn"
+                  :disabled="sending || uploadingImage || pendingImages.length >= MAX_PENDING_IMAGES"
+                  :title="uploadingImage ? '正在上传...' : '上传图片（也可拖拽 / 粘贴）'"
+                  @click="triggerFilePicker"
+                >
+                  <el-icon class="tool-icon"><Loading v-if="uploadingImage" /><Picture v-else /></el-icon>
                 </button>
+                <span v-if="supportsVision" class="composer-tip">
+                  支持拖拽 / 粘贴 / 点击上传图片（最多 {{ MAX_PENDING_IMAGES }} 张）
+                </span>
+                <span class="composer-spacer" />
+                <el-button type="primary" :loading="sending" :icon="Position" @click="sendMessage">发送</el-button>
+              </div>
+
+              <div v-if="isDragOver" class="drop-mask">
+                <el-icon><Picture /></el-icon>
+                <span>松开以上传图片</span>
               </div>
             </div>
-            <el-input
-              v-model="inputText"
-              type="textarea"
-              :rows="3"
-              placeholder="输入消息，按 Ctrl+Enter 发送..."
-              @keydown.ctrl.enter="sendMessage"
-              :disabled="sending"
-            />
+
             <input
               ref="fileInputRef"
               type="file"
               accept="image/*"
+              multiple
               style="display: none"
               @change="onFileSelected"
             />
-            <div class="input-actions">
-              <el-button
-                v-if="supportsVision"
-                :icon="Picture"
-                :loading="uploadingImage"
-                :disabled="sending || pendingImages.length >= MAX_PENDING_IMAGES"
-                @click="triggerFilePicker"
-              >
-                上传图片
-              </el-button>
-              <el-button type="primary" :loading="sending" :icon="Position" @click="sendMessage">发送</el-button>
-            </div>
           </div>
         </el-card>
       </el-col>
@@ -768,19 +853,38 @@ onMounted(async () => {
 
   .input-container {
     flex-shrink: 0;
-    padding: 20px;
+    padding: 16px 20px 20px;
     border-top: 1px solid var(--el-border-color-lighter);
+  }
+
+  .composer {
+    position: relative;
+    border: 1px solid var(--el-border-color);
+    border-radius: 10px;
+    background: var(--el-bg-color);
+    transition: border-color 0.2s, box-shadow 0.2s;
+    padding: 12px 12px 8px;
+
+    &:focus-within {
+      border-color: var(--el-color-primary);
+      box-shadow: 0 0 0 2px var(--el-color-primary-light-9);
+    }
+
+    &.is-drag-over {
+      border-color: var(--el-color-primary);
+      background: var(--el-color-primary-light-9);
+    }
 
     .pending-attachments {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      margin-bottom: 12px;
+      margin-bottom: 8px;
 
       .pending-thumb {
         position: relative;
-        width: 72px;
-        height: 72px;
+        width: 64px;
+        height: 64px;
         border-radius: 8px;
         overflow: hidden;
         border: 1px solid var(--el-border-color-lighter);
@@ -812,11 +916,95 @@ onMounted(async () => {
       }
     }
 
-    .input-actions {
+    .composer-textarea {
+      width: 100%;
+      min-height: 64px;
+      max-height: 200px;
+      resize: vertical;
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--el-text-color-primary);
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 4px 4px 8px;
+      box-sizing: border-box;
+
+      &::placeholder {
+        color: var(--el-text-color-placeholder);
+      }
+
+      &:disabled {
+        color: var(--el-text-color-disabled);
+        cursor: not-allowed;
+      }
+    }
+
+    .composer-toolbar {
       display: flex;
-      justify-content: flex-end;
+      align-items: center;
       gap: 8px;
-      margin-top: 12px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--el-border-color-lighter);
+
+      .tool-btn {
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        border: 1px solid var(--el-border-color-lighter);
+        background: var(--el-fill-color-lighter);
+        color: var(--el-text-color-regular);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+          color: var(--el-color-primary);
+          border-color: var(--el-color-primary);
+          background: var(--el-color-primary-light-9);
+        }
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.6;
+        }
+
+        .tool-icon {
+          font-size: 18px;
+        }
+      }
+
+      .composer-tip {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
+      }
+
+      .composer-spacer {
+        flex: 1;
+      }
+    }
+
+    .drop-mask {
+      position: absolute;
+      inset: 0;
+      border-radius: 10px;
+      background: var(--el-color-primary-light-9);
+      border: 2px dashed var(--el-color-primary);
+      color: var(--el-color-primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 14px;
+      pointer-events: none;
+      z-index: 1;
+
+      .el-icon {
+        font-size: 22px;
+      }
     }
   }
 }
