@@ -5,6 +5,8 @@ import com.solo.entity.AiConversation;
 import com.solo.entity.AiGenerationTask;
 import com.solo.entity.AiMessage;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.LlmClient;
+import com.solo.llm.LlmClientRegistry;
 import com.solo.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,18 +14,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * AI对话服务实现类
@@ -33,14 +27,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final HttpClient HTTP_CLIENT = HttpClient.newHttpClient();
-
     private final AiConversationService conversationService;
     private final AiMessageService messageService;
     private final AiPromptTemplateService promptTemplateService;
     private final AiModelConfigService modelConfigService;
     private final AiGenerationTaskService generationTaskService;
+    private final LlmClientRegistry llmClientRegistry;
 
     @Override
     @Transactional
@@ -76,7 +68,8 @@ public class AiChatServiceImpl implements AiChatService {
         List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
 
         // 5. 调用模型生成回复
-        String assistantReply = callModel(chatMessages, modelConfig);
+        LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
+        String assistantReply = client.chat(modelConfig, chatMessages);
 
         // 6. 保存助手消息
         AiMessage assistantMsg = messageService.addAssistantMessage(conversationId, assistantReply, modelConfig.getModelName(), 0);
@@ -128,17 +121,18 @@ public class AiChatServiceImpl implements AiChatService {
         List<AiMessage> historyMessages = messageService.getRecentMessages(currentConversationId, 10);
         List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
 
-        // 5. 流式调用模型
+        // 5. 流式调用模型，失败时回退非流式
+        LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
         StringBuilder buffer = new StringBuilder();
         String reply;
         try {
-            reply = streamCallModel(chatMessages, modelConfig, chunk -> {
+            reply = client.streamChat(modelConfig, chatMessages, chunk -> {
                 buffer.append(chunk);
                 consumer.accept(chunk);
             });
         } catch (RuntimeException e) {
             log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
-            reply = callModel(chatMessages, modelConfig);
+            reply = client.chat(modelConfig, chatMessages);
             String already = buffer.toString();
             if (reply.length() > already.length() && reply.startsWith(already)) {
                 consumer.accept(reply.substring(already.length()));
@@ -182,130 +176,6 @@ public class AiChatServiceImpl implements AiChatService {
             result.add(new ChatMessage(role, msg.getContent()));
         }
         return result;
-    }
-
-    private String streamCallModel(List<ChatMessage> messages, AiModelConfig modelConfig, Consumer<String> chunkConsumer) {
-        Map<String, Object> requestBody = new LinkedHashMap<>();
-        requestBody.put("model", modelConfig.getModelName());
-        requestBody.put("messages", messages.stream()
-                .map(msg -> Map.of("role", msg.role(), "content", msg.content()))
-                .toList());
-        applyModelParams(requestBody, modelConfig.getModelParams());
-        requestBody.put("stream", true);
-
-        String body;
-        try {
-            body = MAPPER.writeValueAsString(requestBody);
-        } catch (Exception e) {
-            throw new ServiceException("AI模型请求构建失败", e);
-        }
-
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(modelConfig.getBaseUrl()))
-                .header("Authorization", "Bearer " + modelConfig.getApiKey())
-                .header("Content-Type", "application/json")
-                .header("Accept", "text/event-stream")
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
-
-        StringBuilder full = new StringBuilder();
-        try {
-            HttpResponse<java.io.InputStream> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofInputStream());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                String errBody;
-                try (var es = response.body()) {
-                    errBody = new String(es.readAllBytes(), StandardCharsets.UTF_8);
-                }
-                log.warn("AI模型流式调用失败：status={}, body={}", response.statusCode(), errBody);
-                throw new ServiceException("AI模型流式调用失败");
-            }
-
-            try (var reader = new java.io.BufferedReader(new java.io.InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    if (line.isEmpty()) continue;
-                    if (!line.startsWith("data:")) continue;
-                    String data = line.substring(5).trim();
-                    if (data.isEmpty()) continue;
-                    if ("[DONE]".equals(data)) break;
-                    try {
-                        JsonNode chunk = MAPPER.readTree(data);
-                        JsonNode delta = chunk.path("choices").path(0).path("delta").path("content");
-                        if (!delta.isMissingNode() && !delta.isNull()) {
-                            String piece = delta.asText();
-                            if (!piece.isEmpty()) {
-                                full.append(piece);
-                                chunkConsumer.accept(piece);
-                            }
-                        }
-                    } catch (Exception ex) {
-                        log.debug("流式分片解析失败: {}", ex.getMessage());
-                    }
-                }
-            }
-            return full.toString();
-        } catch (ServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("AI模型流式调用异常：{}", e.getMessage(), e);
-            throw new ServiceException("AI模型流式调用异常", e);
-        }
-    }
-
-    /**
-     * 调用 Agnes/OpenAI 兼容 Chat Completions 接口生成回复
-     */
-    private String callModel(List<ChatMessage> messages, AiModelConfig modelConfig) {
-        try {
-            Map<String, Object> requestBody = new LinkedHashMap<>();
-            requestBody.put("model", modelConfig.getModelName());
-            requestBody.put("messages", messages.stream()
-                    .map(msg -> Map.of("role", msg.role(), "content", msg.content()))
-                    .toList());
-            applyModelParams(requestBody, modelConfig.getModelParams());
-
-            String body = MAPPER.writeValueAsString(requestBody);
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(modelConfig.getBaseUrl()))
-                    .header("Authorization", "Bearer " + modelConfig.getApiKey())
-                    .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-
-            HttpResponse<String> response = HTTP_CLIENT.send(request, HttpResponse.BodyHandlers.ofString());
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                log.warn("AI模型调用失败：status={}, body={}", response.statusCode(), response.body());
-                throw new ServiceException("AI模型调用失败");
-            }
-
-            JsonNode root = MAPPER.readTree(response.body());
-            JsonNode contentNode = root.path("choices").path(0).path("message").path("content");
-            if (contentNode.isMissingNode() || contentNode.isNull()) {
-                throw new ServiceException("AI模型响应格式异常");
-            }
-            return contentNode.asText();
-        } catch (ServiceException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("AI模型调用异常：{}", e.getMessage(), e);
-            throw new ServiceException("AI模型调用异常", e);
-        }
-    }
-
-    private void applyModelParams(Map<String, Object> requestBody, String modelParams) {
-        if (modelParams == null || modelParams.isBlank()) {
-            requestBody.put("temperature", 0.5);
-            requestBody.put("max_tokens", 1024);
-            return;
-        }
-        try {
-            JsonNode params = MAPPER.readTree(modelParams);
-            params.fields().forEachRemaining(entry -> requestBody.put(entry.getKey(), MAPPER.convertValue(entry.getValue(), Object.class)));
-        } catch (Exception e) {
-            log.warn("模型参数解析失败，使用默认参数：{}", e.getMessage());
-            requestBody.put("temperature", 0.5);
-            requestBody.put("max_tokens", 1024);
-        }
     }
 
     private AiModelConfig resolveModelConfig(Long requestedModelConfigId, Long conversationModelConfigId) {

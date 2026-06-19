@@ -620,6 +620,16 @@ onMounted(async () => {
     margin-bottom: 0;
   }
 
+  /* KaTeX 渲染出来的块级公式默认会撑满一行，让它居中、上下留点空 */
+  .katex-display {
+    margin: 0.6em 0;
+    overflow-x: auto;
+  }
+
+  .katex {
+    font-size: 1.05em;
+  }
+
   p {
     margin: 0.5em 0;
   }
