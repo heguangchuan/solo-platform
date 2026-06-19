@@ -127,7 +127,7 @@ public class GeminiClient implements LlmClient {
                 String role = "assistant".equals(msg.role()) ? "model" : "user";
                 contents.add(Map.of(
                         "role", role,
-                        "parts", List.of(Map.of("text", msg.content()))
+                        "parts", buildParts(msg)
                 ));
             }
         }
@@ -143,6 +143,36 @@ public class GeminiClient implements LlmClient {
             body.put("generationConfig", generationConfig);
         }
         return body;
+    }
+
+    /**
+     * Gemini parts 数组：text + fileData(URI) 形式承载多模态。
+     * 注意 Gemini 要求图片 URL 公开可达。
+     */
+    private List<Map<String, Object>> buildParts(AiChatService.ChatMessage msg) {
+        List<Map<String, Object>> parts = new ArrayList<>();
+        String text = msg.content() == null ? "" : msg.content();
+        if (!text.isEmpty()) {
+            parts.add(Map.of("text", text));
+        }
+        if (msg.hasAttachments()) {
+            for (AiChatService.Attachment att : msg.attachments()) {
+                if (att.url() == null || att.url().isBlank()) continue;
+                if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
+                Map<String, Object> fileData = new LinkedHashMap<>();
+                fileData.put("fileUri", att.url());
+                if (att.mimeType() != null && !att.mimeType().isBlank()) {
+                    fileData.put("mimeType", att.mimeType());
+                } else {
+                    fileData.put("mimeType", "image/png");
+                }
+                parts.add(Map.of("fileData", fileData));
+            }
+        }
+        if (parts.isEmpty()) {
+            parts.add(Map.of("text", ""));
+        }
+        return parts;
     }
 
     private Map<String, Object> buildGenerationConfig(String modelParams) {

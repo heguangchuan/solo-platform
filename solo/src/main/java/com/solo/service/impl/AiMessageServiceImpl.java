@@ -25,11 +25,20 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
     @Override
     @Transactional
     public AiMessage addUserMessage(Long conversationId, String content) {
+        return addUserMessage(conversationId, content, null);
+    }
+
+    @Override
+    @Transactional
+    public AiMessage addUserMessage(Long conversationId, String content, String attachmentsJson) {
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
         message.setRole("USER");
         message.setContent(content);
         message.setMessageType("TEXT");
+        if (attachmentsJson != null && !attachmentsJson.isBlank()) {
+            message.setAttachments(attachmentsJson);
+        }
         save(message);
 
         conversationService.updateLastMessageTime(conversationId);

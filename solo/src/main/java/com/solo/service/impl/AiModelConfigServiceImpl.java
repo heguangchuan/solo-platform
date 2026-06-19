@@ -50,6 +50,7 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
         config.setApiKey(request.getApiKey());
         config.setBaseUrl(request.getBaseUrl());
         config.setModelParams(request.getModelParams());
+        config.setSupportVision(request.getSupportVision());
         config.setStatus(request.getStatus());
         config.setSort(request.getSort());
         save(config);
@@ -67,6 +68,7 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
         if (request.getApiKey() != null) config.setApiKey(request.getApiKey());
         if (request.getBaseUrl() != null) config.setBaseUrl(request.getBaseUrl());
         if (request.getModelParams() != null) config.setModelParams(request.getModelParams());
+        if (request.getSupportVision() != null) config.setSupportVision(request.getSupportVision());
         if (request.getStatus() != null) config.setStatus(request.getStatus());
         if (request.getSort() != null) config.setSort(request.getSort());
         updateById(config);

@@ -55,6 +55,11 @@ public class AiModelConfig {
     private String modelParams;
 
     /**
+     * 是否支持图片输入: 0否 1是
+     */
+    private Integer supportVision;
+
+    /**
      * 状态: 0禁用 1启用
      */
     private Integer status;

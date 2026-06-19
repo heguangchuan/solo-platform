@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,13 +106,36 @@ public class OpenAiCompatClient implements LlmClient {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("model", cfg.getModelName());
         body.put("messages", messages.stream()
-                .map(msg -> Map.of("role", msg.role(), "content", msg.content()))
+                .map(this::toMessageJson)
                 .toList());
         applyDefaultParams(body, cfg.getModelParams());
         if (stream) {
             body.put("stream", true);
         }
         return body;
+    }
+
+    /**
+     * 用户消息含图片时，content 改为多模态数组：[{type:text}, {type:image_url}...]
+     * 其他情况保持字符串，最大兼容性。
+     */
+    private Map<String, Object> toMessageJson(AiChatService.ChatMessage msg) {
+        if (!"user".equals(msg.role()) || !msg.hasAttachments()) {
+            return Map.of("role", msg.role(), "content", msg.content() == null ? "" : msg.content());
+        }
+        List<Map<String, Object>> parts = new ArrayList<>();
+        String text = msg.content() == null ? "" : msg.content();
+        if (!text.isEmpty()) {
+            parts.add(Map.of("type", "text", "text", text));
+        }
+        for (AiChatService.Attachment att : msg.attachments()) {
+            if (att.url() == null || att.url().isBlank()) continue;
+            if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
+            Map<String, Object> imageUrl = new LinkedHashMap<>();
+            imageUrl.put("url", att.url());
+            parts.add(Map.of("type", "image_url", "image_url", imageUrl));
+        }
+        return Map.of("role", msg.role(), "content", parts);
     }
 
     private HttpRequest buildRequest(AiModelConfig cfg, Map<String, Object> body, boolean stream) {

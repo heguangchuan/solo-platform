@@ -132,7 +132,7 @@ public class AnthropicClient implements LlmClient {
                 if (systemPrompt.length() > 0) systemPrompt.append("\n\n");
                 systemPrompt.append(msg.content());
             } else {
-                chatMessages.add(Map.of("role", msg.role(), "content", msg.content()));
+                chatMessages.add(toAnthropicMessage(msg));
             }
         }
         if (systemPrompt.length() > 0) {
@@ -146,6 +146,29 @@ public class AnthropicClient implements LlmClient {
             body.put("stream", true);
         }
         return body;
+    }
+
+    /**
+     * Anthropic 多模态：content 是 [{type:text,text:...}, {type:image, source:{type:url, url:...}}] 数组
+     */
+    private Map<String, Object> toAnthropicMessage(AiChatService.ChatMessage msg) {
+        if (!"user".equals(msg.role()) || !msg.hasAttachments()) {
+            return Map.of("role", msg.role(), "content", msg.content() == null ? "" : msg.content());
+        }
+        List<Map<String, Object>> parts = new ArrayList<>();
+        String text = msg.content() == null ? "" : msg.content();
+        if (!text.isEmpty()) {
+            parts.add(Map.of("type", "text", "text", text));
+        }
+        for (AiChatService.Attachment att : msg.attachments()) {
+            if (att.url() == null || att.url().isBlank()) continue;
+            if (!"IMAGE".equalsIgnoreCase(att.type())) continue;
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put("type", "url");
+            source.put("url", att.url());
+            parts.add(Map.of("type", "image", "source", source));
+        }
+        return Map.of("role", msg.role(), "content", parts);
     }
 
     private HttpRequest buildRequest(AiModelConfig cfg, Map<String, Object> body, boolean stream) {

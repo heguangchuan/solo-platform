@@ -1,6 +1,7 @@
 package com.solo.service;
 
 import com.solo.entity.AiMessage;
+import com.solo.request.ChatSendRequest;
 
 import java.util.List;
 
@@ -21,6 +22,11 @@ public interface AiChatService {
     StreamResult streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, java.util.function.Consumer<String> consumer);
 
     /**
+     * 流式发送消息（多模态），返回最终拼接的回复及会话ID
+     */
+    StreamResult streamChat(Long conversationId, String userMessage, List<ChatSendRequest.AttachmentInput> images, Long userId, Long modelConfigId, java.util.function.Consumer<String> consumer);
+
+    /**
      * 使用模板进行对话
      */
     String chatWithTemplate(Long conversationId, String templateCode, java.util.Map<String, Object> variables, Long userId, Long modelConfigId);
@@ -33,7 +39,19 @@ public interface AiChatService {
     /**
      * 内部消息类
      */
-    record ChatMessage(String role, String content) {}
+    record ChatMessage(String role, String content, java.util.List<Attachment> attachments) {
+        public static ChatMessage text(String role, String content) {
+            return new ChatMessage(role, content, java.util.List.of());
+        }
+        public boolean hasAttachments() {
+            return attachments != null && !attachments.isEmpty();
+        }
+    }
+
+    /**
+     * 多模态附件，目前仅支持 IMAGE 类型，url 必须可被供应商访问
+     */
+    record Attachment(String type, String url, String mimeType) {}
 
     /**
      * 流式对话结果

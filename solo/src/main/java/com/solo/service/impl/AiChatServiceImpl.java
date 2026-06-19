@@ -1,13 +1,17 @@
 package com.solo.service.impl;
 
 import com.solo.common.ServiceException;
+import com.solo.entity.AiAsset;
 import com.solo.entity.AiConversation;
 import com.solo.entity.AiGenerationTask;
 import com.solo.entity.AiMessage;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.HttpClientHolder;
 import com.solo.llm.LlmClient;
 import com.solo.llm.LlmClientRegistry;
+import com.solo.request.ChatSendRequest;
 import com.solo.service.*;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -15,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -27,11 +32,15 @@ import java.util.function.Consumer;
 @Slf4j
 public class AiChatServiceImpl implements AiChatService {
 
+    /** 上下文中保留图片的最近用户消息条数，更早的消息只保留文本，避免 token 暴涨 */
+    private static final int RECENT_VISION_TURNS = 3;
+
     private final AiConversationService conversationService;
     private final AiMessageService messageService;
     private final AiPromptTemplateService promptTemplateService;
     private final AiModelConfigService modelConfigService;
     private final AiGenerationTaskService generationTaskService;
+    private final AiAssetService assetService;
     private final LlmClientRegistry llmClientRegistry;
 
     @Override
@@ -51,7 +60,7 @@ public class AiChatServiceImpl implements AiChatService {
         }
 
         // 2. 保存用户消息
-        AiMessage userMsg = messageService.addUserMessage(conversationId, userMessage);
+        messageService.addUserMessage(conversationId, userMessage);
 
         // 3. 获取模型配置
         AiModelConfig modelConfig = resolveModelConfig(modelConfigId, conversation.getModelConfigId());
@@ -89,6 +98,12 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public StreamResult streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, Consumer<String> consumer) {
+        return streamChat(conversationId, userMessage, null, userId, modelConfigId, consumer);
+    }
+
+    @Override
+    public StreamResult streamChat(Long conversationId, String userMessage, List<ChatSendRequest.AttachmentInput> images,
+                                   Long userId, Long modelConfigId, Consumer<String> consumer) {
         // 1. 会话准备：创建或加载
         AiConversation conversation;
         if (conversationId == null) {
@@ -104,10 +119,14 @@ public class AiChatServiceImpl implements AiChatService {
         }
         Long currentConversationId = conversation.getId();
 
-        // 2. 保存用户消息
-        messageService.addUserMessage(currentConversationId, userMessage);
+        // 2. 处理附件：落库 ai_asset，构造给消息保存的 attachments JSON
+        List<Map<String, Object>> attachmentEntries = persistAttachments(images, userId);
+        String attachmentsJson = serializeAttachments(attachmentEntries);
 
-        // 3. 模型配置
+        // 3. 保存用户消息（含附件）
+        messageService.addUserMessage(currentConversationId, userMessage, attachmentsJson);
+
+        // 4. 模型配置
         AiModelConfig modelConfig = resolveModelConfig(modelConfigId, conversation.getModelConfigId());
         if (modelConfig == null) {
             throw new ServiceException("未配置可用的AI模型");
@@ -117,38 +136,41 @@ public class AiChatServiceImpl implements AiChatService {
             conversationService.updateById(conversation);
         }
 
-        // 4. 上下文
+        // 5. 上下文（最近 N 条用户消息保留图片）
         List<AiMessage> historyMessages = messageService.getRecentMessages(currentConversationId, 10);
         List<ChatMessage> chatMessages = buildChatMessages(historyMessages);
 
-        // 5. 流式调用模型，失败时回退非流式
+        // 6. 决定是否走流式
         LlmClient client = llmClientRegistry.resolve(modelConfig.getProvider());
+        boolean useStream = client.supportsStreaming() && isStreamEnabled(modelConfig);
+
         StringBuilder buffer = new StringBuilder();
         String reply;
-        try {
-            reply = client.streamChat(modelConfig, chatMessages, chunk -> {
-                buffer.append(chunk);
-                consumer.accept(chunk);
-            });
-        } catch (RuntimeException e) {
-            log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
-            reply = client.chat(modelConfig, chatMessages);
-            String already = buffer.toString();
-            if (reply.length() > already.length() && reply.startsWith(already)) {
-                consumer.accept(reply.substring(already.length()));
-            } else if (already.isEmpty()) {
-                consumer.accept(reply);
+        if (useStream) {
+            try {
+                reply = client.streamChat(modelConfig, chatMessages, chunk -> {
+                    buffer.append(chunk);
+                    consumer.accept(chunk);
+                });
+            } catch (RuntimeException e) {
+                log.warn("AI模型流式调用失败，回退非流式：{}", e.getMessage());
+                reply = client.chat(modelConfig, chatMessages);
+                emitRemainder(buffer.toString(), reply, consumer);
             }
+        } else {
+            log.debug("模型 {} 不支持流式，直接调用非流式接口", modelConfig.getModelName());
+            reply = client.chat(modelConfig, chatMessages);
+            emitRemainder("", reply, consumer);
         }
 
-        // 6. 保存助手消息
+        // 7. 保存助手消息
         AiMessage assistantMsg = messageService.addAssistantMessage(currentConversationId, reply, modelConfig.getModelName(), 0);
 
-        // 7. 创建并完成生成任务
+        // 8. 创建并完成生成任务
         AiGenerationTask task = generationTaskService.createTextTask(userId, currentConversationId, assistantMsg.getId(), userMessage, userMessage, modelConfig.getId(), modelConfig.getModelName());
         generationTaskService.markSuccess(task.getId(), reply, 0, BigDecimal.ZERO);
 
-        // 8. 第一条消息时刷新会话标题
+        // 9. 第一条消息时刷新会话标题
         if (conversation.getMessageCount() <= 2) {
             conversationService.updateTitle(currentConversationId, generateTitle(userMessage));
         }
@@ -165,17 +187,93 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public List<ChatMessage> buildChatMessages(List<AiMessage> messages) {
+        // 上下文中只对最近 RECENT_VISION_TURNS 条用户消息保留图片
+        int total = messages.size();
+        boolean[] keepImage = new boolean[total];
+        int userMsgFromEnd = 0;
+        for (int i = total - 1; i >= 0; i--) {
+            AiMessage msg = messages.get(i);
+            if ("USER".equals(msg.getRole())) {
+                userMsgFromEnd++;
+                keepImage[i] = userMsgFromEnd <= RECENT_VISION_TURNS;
+            }
+        }
+
         List<ChatMessage> result = new ArrayList<>();
-        for (AiMessage msg : messages) {
+        for (int i = 0; i < total; i++) {
+            AiMessage msg = messages.get(i);
             String role = switch (msg.getRole()) {
-                case "USER" -> "user";
                 case "ASSISTANT" -> "assistant";
                 case "SYSTEM" -> "system";
                 default -> "user";
             };
-            result.add(new ChatMessage(role, msg.getContent()));
+            List<Attachment> attachments = "user".equals(role) && keepImage[i]
+                    ? parseAttachments(msg.getAttachments())
+                    : List.of();
+            result.add(new ChatMessage(role, msg.getContent(), attachments));
         }
         return result;
+    }
+
+    private List<Attachment> parseAttachments(String json) {
+        if (json == null || json.isBlank()) return List.of();
+        try {
+            JsonNode arr = HttpClientHolder.MAPPER.readTree(json);
+            if (!arr.isArray()) return List.of();
+            List<Attachment> list = new ArrayList<>();
+            for (JsonNode node : arr) {
+                String url = node.path("url").asText("");
+                if (url.isBlank()) continue;
+                String type = node.path("type").asText("IMAGE");
+                String mime = node.path("mimeType").asText(null);
+                list.add(new Attachment(type, url, mime));
+            }
+            return list;
+        } catch (Exception e) {
+            log.debug("解析消息附件失败：{}", e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 把上传上来的图片落库到 ai_asset，返回用于消息持久化的 JSON 节点列表。
+     */
+    private List<Map<String, Object>> persistAttachments(List<ChatSendRequest.AttachmentInput> images, Long userId) {
+        if (images == null || images.isEmpty()) return List.of();
+        List<Map<String, Object>> entries = new ArrayList<>();
+        for (ChatSendRequest.AttachmentInput input : images) {
+            if (input == null || input.getUrl() == null || input.getUrl().isBlank()) continue;
+            AiAsset asset = new AiAsset();
+            asset.setUserId(userId);
+            asset.setAssetType("IMAGE");
+            asset.setFileName(input.getFileName() != null ? input.getFileName() : "image");
+            asset.setFileUrl(input.getUrl());
+            asset.setMimeType(input.getMimeType());
+            asset.setStatus(1);
+            try {
+                assetService.saveAsset(asset);
+            } catch (Exception e) {
+                log.warn("素材落库失败，但不影响对话：{}", e.getMessage());
+            }
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("type", "IMAGE");
+            entry.put("url", input.getUrl());
+            if (input.getFileName() != null) entry.put("fileName", input.getFileName());
+            if (input.getMimeType() != null) entry.put("mimeType", input.getMimeType());
+            if (asset.getId() != null) entry.put("assetId", asset.getId().toString());
+            entries.add(entry);
+        }
+        return entries;
+    }
+
+    private String serializeAttachments(List<Map<String, Object>> entries) {
+        if (entries == null || entries.isEmpty()) return null;
+        try {
+            return HttpClientHolder.MAPPER.writeValueAsString(entries);
+        } catch (Exception e) {
+            log.warn("附件序列化失败：{}", e.getMessage());
+            return null;
+        }
     }
 
     private AiModelConfig resolveModelConfig(Long requestedModelConfigId, Long conversationModelConfigId) {
@@ -192,6 +290,39 @@ public class AiChatServiceImpl implements AiChatService {
             }
         }
         return modelConfig != null ? modelConfig : modelConfigService.getDefaultTextModel();
+    }
+
+    /**
+     * 解析 model_params 中的 stream 字段，允许在配置层面强制关闭流式（默认开启）。
+     */
+    private boolean isStreamEnabled(AiModelConfig modelConfig) {
+        String params = modelConfig.getModelParams();
+        if (params == null || params.isBlank()) return true;
+        try {
+            JsonNode node = HttpClientHolder.MAPPER.readTree(params).path("stream");
+            if (node.isMissingNode() || node.isNull()) return true;
+            if (node.isBoolean()) return node.asBoolean(true);
+            return !"false".equalsIgnoreCase(node.asText());
+        } catch (Exception e) {
+            log.debug("解析 model_params.stream 失败，默认走流式：{}", e.getMessage());
+            return true;
+        }
+    }
+
+    /**
+     * 当流式没有产生（或不完整）时，把剩余内容补给消费者，保证前端显示完整。
+     */
+    private void emitRemainder(String already, String fullReply, Consumer<String> consumer) {
+        if (fullReply == null || fullReply.isEmpty()) return;
+        if (already == null || already.isEmpty()) {
+            consumer.accept(fullReply);
+            return;
+        }
+        if (fullReply.length() > already.length() && fullReply.startsWith(already)) {
+            consumer.accept(fullReply.substring(already.length()));
+        } else if (!fullReply.equals(already)) {
+            consumer.accept(fullReply);
+        }
     }
 
     /**
