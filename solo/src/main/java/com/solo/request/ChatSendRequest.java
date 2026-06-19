@@ -19,6 +19,11 @@ public class ChatSendRequest {
     private String content;
 
     /**
+     * 使用的模型配置ID，为空时使用默认文本模型
+     */
+    private Long modelConfigId;
+
+    /**
      * 模板编码（使用模板时指定）
      */
     private String templateCode;

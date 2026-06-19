@@ -40,10 +40,10 @@ public class AiChatController {
         String response;
         if (request.getTemplateCode() != null && !request.getTemplateCode().isEmpty()) {
             // 使用模板
-            response = aiChatService.chatWithTemplate(request.getConversationId(), request.getTemplateCode(), request.getVariables(), userId);
+            response = aiChatService.chatWithTemplate(request.getConversationId(), request.getTemplateCode(), request.getVariables(), userId, request.getModelConfigId());
         } else {
             // 普通对话
-            response = aiChatService.chat(request.getConversationId(), request.getContent(), userId);
+            response = aiChatService.chat(request.getConversationId(), request.getContent(), userId, request.getModelConfigId());
         }
 
         return Result.success(response);
@@ -68,6 +68,11 @@ public class AiChatController {
     @GetMapping("/conversations/{conversationId}/messages")
     @RequirePermission({"ai:conversation:list"})
     public Result<List<AiMessage>> getMessages(@PathVariable Long conversationId) {
+        Long userId = UserHolderUtils.getCurrentUserId();
+        AiConversation conversation = conversationService.getById(conversationId);
+        if (conversation == null || !userId.equals(conversation.getUserId())) {
+            return Result.success(List.of());
+        }
         List<AiMessage> messages = messageService.getConversationMessages(conversationId);
         return Result.success(messages);
     }

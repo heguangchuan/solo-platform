@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -77,6 +78,8 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
         wrapper.eq(AiMessage::getConversationId, conversationId)
                 .orderByDesc(AiMessage::getCreateTime)
                 .last("LIMIT " + limit);
-        return list(wrapper);
+        List<AiMessage> messages = list(wrapper);
+        Collections.reverse(messages);
+        return messages;
     }
 }

@@ -13,17 +13,17 @@ public interface AiChatService {
     /**
      * 发送消息并获取回复（同步）
      */
-    String chat(Long conversationId, String userMessage, Long userId);
+    String chat(Long conversationId, String userMessage, Long userId, Long modelConfigId);
 
     /**
      * 流式发送消息
      */
-    void streamChat(Long conversationId, String userMessage, Long userId, java.util.function.Consumer<String> consumer);
+    void streamChat(Long conversationId, String userMessage, Long userId, Long modelConfigId, java.util.function.Consumer<String> consumer);
 
     /**
      * 使用模板进行对话
      */
-    String chatWithTemplate(Long conversationId, String templateCode, java.util.Map<String, Object> variables, Long userId);
+    String chatWithTemplate(Long conversationId, String templateCode, java.util.Map<String, Object> variables, Long userId, Long modelConfigId);
 
     /**
      * 构建对话消息列表（转换为API格式）

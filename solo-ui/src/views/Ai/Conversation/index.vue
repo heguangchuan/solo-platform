@@ -6,6 +6,7 @@ import {
   sendChatApi,
   getConversationsApi,
   getConversationMessagesApi,
+  getModelConfigListApi,
   createConversationApi,
   deleteConversationApi,
   type AiConversation,
@@ -13,6 +14,7 @@ import {
 } from '@/api/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Delete, Loading, Position } from '@element-plus/icons-vue'
+import type { AiModelConfig } from '@/types/api'
 
 const conversations = ref<AiConversation[]>([])
 const currentConversationId = ref<string | null>(null)
@@ -21,16 +23,30 @@ const inputText = ref('')
 const sending = ref(false)
 const loadingMessages = ref(false)
 const loadingConversations = ref(false)
+const modelOptions = ref<AiModelConfig[]>([])
+const selectedModelConfigId = ref<string>('')
 
 const currentConversation = computed(() =>
   conversations.value.find((c) => c.id === currentConversationId.value)
 )
 
+const loadModelOptions = async () => {
+  try {
+    const res = await getModelConfigListApi()
+    modelOptions.value = (res.data || []).filter((model) => model.modelType === 'TEXT' && model.status === 1)
+    if (!selectedModelConfigId.value && modelOptions.value.length > 0) {
+      selectedModelConfigId.value = modelOptions.value[0].id
+    }
+  } catch {
+    ElMessage.error('加载模型列表失败')
+  }
+}
+
 const loadConversations = async () => {
   loadingConversations.value = true
   try {
     const res = await getConversationsApi({ page: 1, pageSize: 100 })
-    conversations.value = res.data.records || []
+    conversations.value = res.data.rows || []
   } catch {
     ElMessage.error('加载会话列表失败')
   } finally {
@@ -55,6 +71,9 @@ const loadMessages = async (conversationId: string) => {
 
 const selectConversation = async (conversation: AiConversation) => {
   currentConversationId.value = conversation.id
+  if (conversation.modelConfigId) {
+    selectedModelConfigId.value = conversation.modelConfigId
+  }
   await loadMessages(conversation.id)
 }
 
@@ -119,7 +138,8 @@ const sendMessage = async () => {
   try {
     const res = await sendChatApi({
       conversationId: currentConversationId.value || undefined,
-      content
+      content,
+      modelConfigId: selectedModelConfigId.value || undefined
     })
 
     // 如果是新会话，刷新会话列表
@@ -177,6 +197,7 @@ const formatTime = (timeStr: string) => {
 }
 
 onMounted(async () => {
+  await loadModelOptions()
   await loadConversations()
   if (conversations.value.length > 0) {
     await selectConversation(conversations.value[0])
@@ -236,6 +257,14 @@ onMounted(async () => {
           <template #header>
             <div class="chat-header">
               <span class="chat-title">{{ currentConversation?.title || '新对话' }}</span>
+              <el-select v-model="selectedModelConfigId" placeholder="请选择模型" style="width: 220px" :disabled="sending">
+                <el-option
+                  v-for="model in modelOptions"
+                  :key="model.id"
+                  :label="model.modelName"
+                  :value="model.id"
+                />
+              </el-select>
             </div>
           </template>
 
@@ -392,6 +421,11 @@ onMounted(async () => {
   }
 
   .chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+
     .chat-title {
       font-size: 16px;
       font-weight: 500;
