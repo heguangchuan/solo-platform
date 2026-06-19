@@ -182,7 +182,7 @@ onMounted(() => {
     </el-card>
 
     <!-- 上传弹窗 -->
-    <el-dialog v-model="uploadVisible" title="上传文件" destroy-on-close>
+    <el-dialog v-model="uploadVisible" title="上传文件" destroy-on-close :close-on-click-modal="false">
       <FileUpload button-text="选择并上传" plain :show-file-name="false" @success="handleUploadSuccess" />
     </el-dialog>
   </div>

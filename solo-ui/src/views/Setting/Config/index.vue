@@ -220,7 +220,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" destroy-on-close :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="参数名称" prop="configName">
           <el-input v-model="form.configName" placeholder="请输入参数名称" />

@@ -409,7 +409,7 @@ onMounted(() => {
     </el-card>
 
     <!-- 字典类型新增/编辑 dialog -->
-    <el-dialog v-model="typeDialogVisible" :title="typeDialogTitle" width="520px" destroy-on-close>
+    <el-dialog v-model="typeDialogVisible" :title="typeDialogTitle" width="520px" destroy-on-close :close-on-click-modal="false">
       <el-form ref="typeFormRef" :model="typeForm" :rules="typeRules" label-width="100px">
         <el-form-item label="字典名称" prop="dictName">
           <el-input v-model="typeForm.dictName" placeholder="如：用户性别" />
@@ -432,6 +432,7 @@ onMounted(() => {
       v-model="dataDrawerVisible"
       destroy-on-close
       append-to-body
+      :close-on-click-modal="false"
     >
       <el-form :model="dataSearch" inline class="search-form">
         <el-form-item label="字典标签">
@@ -517,6 +518,7 @@ onMounted(() => {
       width="520px"
       destroy-on-close
       append-to-body
+      :close-on-click-modal="false"
     >
       <el-form ref="dataFormRef" :model="dataForm" :rules="dataRules" label-width="100px">
         <el-form-item label="字典类型">

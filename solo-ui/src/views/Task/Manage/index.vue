@@ -263,7 +263,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="640px" destroy-on-close :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
         <el-form-item label="任务名称" prop="taskName">
           <el-input v-model="form.taskName" placeholder="请输入任务名称" />

@@ -9,7 +9,7 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 
 /**
- * Prompt模板实体类
+ * 提示词模板实体类
  * 对应数据库表 ai_prompt_template，存储可复用的创作模板
  */
 @Data

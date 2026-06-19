@@ -1,0 +1,326 @@
+<script lang="ts">
+export default { name: 'AiModelConfig' }
+</script>
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
+import type { AiModelConfig, AiModelConfigRequest, AiModelConfigPageRequest } from '@/types/api'
+import {
+  getModelConfigPageApi,
+  addModelConfigApi,
+  editModelConfigApi,
+  deleteModelConfigApi,
+  deleteModelConfigBatchApi,
+} from '@/api/ai'
+
+const loading = ref(false)
+const tableData = ref<AiModelConfig[]>([])
+const selectedRows = ref<AiModelConfig[]>([])
+const total = ref(0)
+const currentPage = ref(1)
+const pageSize = ref(10)
+
+const searchForm = ref<AiModelConfigPageRequest>({ page: 1, pageSize: 10 })
+
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const formRef = ref()
+const editingId = ref<string>('')
+const form = ref<AiModelConfigRequest>({
+  provider: '',
+  modelName: '',
+  modelType: 'TEXT',
+  apiKey: '',
+  baseUrl: '',
+  modelParams: '',
+  status: 1,
+  sort: 0,
+  remark: '',
+})
+
+const rules = {
+  provider: [{ required: true, message: '请输入供应商', trigger: 'blur' }],
+  modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
+  modelType: [{ required: true, message: '请选择模型类型', trigger: 'change' }],
+  apiKey: [{ required: true, message: '请输入API密钥', trigger: 'blur' }],
+}
+
+const modelTypeOptions = [
+  { label: '文本', value: 'TEXT' },
+  { label: '图片', value: 'IMAGE' },
+  { label: '视频', value: 'VIDEO' },
+  { label: '向量', value: 'EMBEDDING' },
+  { label: '音频', value: 'AUDIO' },
+]
+
+const providerOptions = [
+  { label: 'OPENAI', value: 'OPENAI' },
+  { label: 'DEEPSEEK', value: 'DEEPSEEK' },
+  { label: 'ANTHROPIC', value: 'ANTHROPIC' },
+  { label: '自定义', value: 'CUSTOM' },
+]
+
+function handleSearch() {
+  currentPage.value = 1
+  fetchData()
+}
+
+function handleReset() {
+  searchForm.value = { page: 1, pageSize: 10 }
+  handleSearch()
+}
+
+async function fetchData() {
+  loading.value = true
+  try {
+    const params = { ...searchForm.value, page: currentPage.value, pageSize: pageSize.value }
+    const res = await getModelConfigPageApi(params)
+    tableData.value = res.data.rows
+    total.value = res.data.total
+  } catch {
+    // handled
+  } finally {
+    loading.value = false
+  }
+}
+
+function handlePageChange(page: number) {
+  currentPage.value = page
+  fetchData()
+}
+
+function handleSizeChange(size: number) {
+  pageSize.value = size
+  currentPage.value = 1
+  fetchData()
+}
+
+function handleAdd() {
+  dialogTitle.value = '新增模型配置'
+  editingId.value = ''
+  form.value = {
+    provider: '',
+    modelName: '',
+    modelType: 'TEXT',
+    apiKey: '',
+    baseUrl: '',
+    modelParams: '',
+    status: 1,
+    sort: 0,
+    remark: '',
+  }
+  dialogVisible.value = true
+}
+
+function handleEdit(row: AiModelConfig) {
+  dialogTitle.value = '编辑模型配置'
+  editingId.value = row.id
+  form.value = {
+    provider: row.provider,
+    modelName: row.modelName,
+    modelType: row.modelType,
+    apiKey: row.apiKey,
+    baseUrl: row.baseUrl,
+    modelParams: row.modelParams,
+    status: row.status,
+    sort: row.sort,
+    remark: row.remark,
+  }
+  dialogVisible.value = true
+}
+
+async function handleConfirm() {
+  const valid = await formRef.value?.validate().catch(() => false)
+  if (!valid) return
+
+  try {
+    if (!editingId.value) {
+      await addModelConfigApi(form.value)
+    } else {
+      await editModelConfigApi(editingId.value, form.value)
+    }
+    ElMessage.success('操作成功')
+    dialogVisible.value = false
+    fetchData()
+  } catch {
+    // handled
+  }
+}
+
+function handleSelectionChange(rows: AiModelConfig[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (!selectedRows.value.length) {
+    ElMessage.warning('请选择要删除的数据')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(`确定要删除选中的 ${selectedRows.value.length} 条数据吗？`, '提示', { type: 'warning' })
+    await deleteModelConfigBatchApi(selectedRows.value.map((row) => row.id))
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled or error
+  }
+}
+
+async function handleDelete(row: AiModelConfig) {
+  try {
+    await ElMessageBox.confirm(`确定要删除模型配置 "${row.modelName}" 吗？`, '提示', { type: 'warning' })
+    await deleteModelConfigApi(row.id)
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled or error
+  }
+}
+
+const statusTypeMap: Record<number, string> = {
+  1: 'success',
+  0: 'danger',
+}
+
+onMounted(() => {
+  fetchData()
+})
+</script>
+
+<template>
+  <div>
+    <el-card shadow="hover" class="search-card">
+      <el-form :model="searchForm" inline>
+        <el-form-item label="供应商">
+          <el-select v-model="searchForm.provider" placeholder="请选择供应商" clearable>
+            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模型类型">
+          <el-select v-model="searchForm.modelType" placeholder="请选择模型类型" clearable>
+            <el-option v-for="opt in modelTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模型名称">
+          <el-input v-model="searchForm.modelName" placeholder="请输入模型名称" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+            <el-option label="启用" :value="1" />
+            <el-option label="禁用" :value="0" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button v-permission="'ai:modelConfig:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-card shadow="hover" style="margin-top: 16px">
+      <div class="table-toolbar">
+        <el-button v-permission="'ai:modelConfig:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'ai:modelConfig:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+      </div>
+
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="provider" label="供应商" width="120" />
+        <el-table-column prop="modelName" label="模型名称" width="200" />
+        <el-table-column prop="modelType" label="模型类型" width="100">
+          <template #default="{ row }">
+            <el-tag>{{ modelTypeOptions.find((o) => o.value === row.modelType)?.label || row.modelType }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="baseUrl" label="API地址" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="sort" label="排序" width="80" />
+        <el-table-column label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusTypeMap[row.status] || 'info'">
+              {{ row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="操作" width="150" fixed="right">
+          <template #default="{ row }">
+            <el-button v-permission="'ai:modelConfig:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'ai:modelConfig:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50]"
+        layout="total, sizes, prev, pager, next, jumper"
+        class="pagination"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
+    </el-card>
+
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :top="'5vh'" :close-on-click-modal="false">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
+        <el-form-item label="供应商" prop="provider">
+          <el-select v-model="form.provider" placeholder="请选择或输入供应商" clearable>
+            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="模型名称" prop="modelName">
+          <el-input v-model="form.modelName" placeholder="请输入模型名称" />
+        </el-form-item>
+        <el-form-item label="模型类型" prop="modelType">
+          <el-select v-model="form.modelType" placeholder="请选择模型类型">
+            <el-option v-for="opt in modelTypeOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="API密钥" prop="apiKey">
+          <el-input v-model="form.apiKey" type="password" placeholder="请输入API密钥" show-password />
+        </el-form-item>
+        <el-form-item label="API地址">
+          <el-input v-model="form.baseUrl" placeholder="请输入API基础地址" />
+        </el-form-item>
+        <el-form-item label="模型参数">
+          <el-input v-model="form.modelParams" type="textarea" :rows="2" placeholder="请输入JSON格式的模型参数" />
+        </el-form-item>
+        <el-form-item label="排序">
+          <el-input-number v-model="form.sort" :min="0" />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-switch v-model="form.status" :active-value="1" :inactive-value="0" />
+        </el-form-item>
+        <el-form-item label="备注">
+          <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :icon="Close" @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<style scoped>
+.search-card {
+  margin-bottom: 0;
+}
+
+.table-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pagination {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

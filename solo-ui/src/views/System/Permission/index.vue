@@ -306,6 +306,7 @@ onMounted(() => {
       :title="dialogTitle"
       width="550px"
       destroy-on-close
+      :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="权限名称" prop="permissionName">
