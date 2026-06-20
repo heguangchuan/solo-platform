@@ -53,23 +53,32 @@ class WebSocketClient {
       return
     }
 
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const nextUrl = `${protocol}//${window.location.host}/api/ws/message?token=${authToken}`
+
+    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) && this.url === nextUrl) {
+      return
+    }
+
     // 关闭旧连接
     this.disconnect()
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-    this.url = `${protocol}//${window.location.host}/api/ws/message?token=${authToken}`
+    this.url = nextUrl
     this.isManualClose = false
 
     try {
-      this.ws = new WebSocket(this.url)
+      const socket = new WebSocket(this.url)
+      this.ws = socket
 
-      this.ws.onopen = () => {
+      socket.onopen = () => {
+        if (socket !== this.ws) return
         console.log('[WebSocket] 连接已建立')
         this.reconnectCount = 0
         this.startHeartbeat()
       }
 
-      this.ws.onmessage = (event) => {
+      socket.onmessage = (event) => {
+        if (socket !== this.ws) return
         if (event.data === 'pong') {
           // 心跳响应，忽略
           return
@@ -82,9 +91,11 @@ class WebSocketClient {
         }
       }
 
-      this.ws.onclose = (event) => {
+      socket.onclose = (event) => {
+        if (socket !== this.ws) return
         console.log(`[WebSocket] 连接关闭：code=${event.code}, reason=${event.reason}`)
         this.stopHeartbeat()
+        this.ws = null
         if (event.code === 1008 || event.code === 4001 || event.code === 4003) {
           this.refreshAndReconnect()
           return
@@ -92,7 +103,8 @@ class WebSocketClient {
         this.tryReconnect()
       }
 
-      this.ws.onerror = (error) => {
+      socket.onerror = (error) => {
+        if (socket !== this.ws) return
         console.error('[WebSocket] 连接错误:', error)
       }
     } catch (e) {

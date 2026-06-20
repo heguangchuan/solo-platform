@@ -20,6 +20,11 @@ public interface AiConversationService extends IService<AiConversation> {
     Page<AiConversation> getUserConversations(Long userId, Integer page, Integer pageSize);
 
     /**
+     * 获取用户指定类型会话列表
+     */
+    Page<AiConversation> getUserConversations(Long userId, String conversationType, Integer page, Integer pageSize);
+
+    /**
      * 更新会话标题
      */
     void updateTitle(Long conversationId, String title);

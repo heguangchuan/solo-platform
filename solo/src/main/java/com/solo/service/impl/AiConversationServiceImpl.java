@@ -44,13 +44,21 @@ public class AiConversationServiceImpl extends ServiceImpl<AiConversationMapper,
 
     @Override
     public Page<AiConversation> getUserConversations(Long userId, Integer page, Integer pageSize) {
+        return getUserConversations(userId, null, page, pageSize);
+    }
+
+    @Override
+    public Page<AiConversation> getUserConversations(Long userId, String conversationType, Integer page, Integer pageSize) {
         Long pageNum = page != null ? page.longValue() : 1L;
         Long size = pageSize != null ? pageSize.longValue() : 20L;
         Page<AiConversation> pageParam = new Page<>(pageNum, size);
 
         LambdaQueryWrapper<AiConversation> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(AiConversation::getUserId, userId)
-                .orderByDesc(AiConversation::getLastMessageTime)
+        wrapper.eq(AiConversation::getUserId, userId);
+        if (conversationType != null && !conversationType.isBlank()) {
+            wrapper.eq(AiConversation::getConversationType, conversationType);
+        }
+        wrapper.orderByDesc(AiConversation::getLastMessageTime)
                 .orderByDesc(AiConversation::getCreateTime);
 
         return page(pageParam, wrapper);

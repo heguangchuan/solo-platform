@@ -63,6 +63,22 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
 
     @Override
     @Transactional
+    public AiMessage addAssistantImageMessage(Long conversationId, String content, String attachmentsJson, String modelName) {
+        AiMessage message = new AiMessage();
+        message.setConversationId(conversationId);
+        message.setRole("ASSISTANT");
+        message.setContent(content);
+        message.setMessageType("IMAGE");
+        message.setModelName(modelName);
+        message.setAttachments(attachmentsJson);
+        save(message);
+
+        conversationService.updateLastMessageTime(conversationId);
+        return message;
+    }
+
+    @Override
+    @Transactional
     public AiMessage addSystemMessage(Long conversationId, String content) {
         AiMessage message = new AiMessage();
         message.setConversationId(conversationId);
