@@ -271,21 +271,21 @@ onMounted(() => {
         <el-button v-permission="'system:user:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="username" label="用户账号" width="150" />
-        <el-table-column prop="nickname" label="用户昵称" width="150" />
-        <el-table-column prop="email" label="邮箱地址" min-width="180" />
-        <el-table-column prop="phone" label="手机号码" width="150" />
-        <el-table-column label="用户状态" width="100" align="center">
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="username" label="用户账号" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="nickname" label="用户昵称" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="email" label="邮箱地址" min-width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="phone" label="手机号码" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column label="用户状态" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column prop="createTime" label="创建时间" min-width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="300" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button v-permission="'system:user:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:user:r2u'" type="primary" link @click="handleAssignRoles(row)">授权</el-button>

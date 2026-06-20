@@ -253,23 +253,23 @@ onMounted(() => {
         :tree-props="{ children: 'children' }"
         style="width: 100%"
         @selection-change="handleSelectionChange"
-      >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="permissionName" label="权限名称" min-width="200">
+       max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="permissionName" label="权限名称" min-width="200" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag v-if="row.type === 1" type="primary" size="small">M</el-tag>
             <el-tag v-else-if="row.type === 2" type="success" size="small">B</el-tag>
             {{ row.permissionName }}
           </template>
         </el-table-column>
-        <el-table-column prop="permissionCode" label="权限编码" min-width="200" />
-        <el-table-column prop="url" label="路由地址" min-width="180" />
-        <el-table-column label="权限类型" width="100" align="center">
+        <el-table-column prop="permissionCode" label="权限编码" min-width="200" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="url" label="路由地址" min-width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="权限类型" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             {{ getTypeTag(row.type) }}
           </template>
         </el-table-column>
-        <el-table-column label="菜单图标" width="100" align="center">
+        <el-table-column label="菜单图标" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tooltip :content="row.icon || '无'" v-if="row.icon">
               <el-icon :size="18"><component :is="row.icon" /></el-icon>
@@ -277,8 +277,8 @@ onMounted(() => {
             <span v-else class="text-muted">—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="sort" label="显示排序" width="100" align="center" />
-        <el-table-column label="权限状态" width="100" align="center">
+        <el-table-column prop="sort" label="显示排序" width="100" align="center" / max-height="calc(100vh - 400px)">
+        <el-table-column label="权限状态" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag
               :type="row.status === 1 ? 'success' : 'danger'"
@@ -290,7 +290,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button v-permission="'system:permission:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:permission:add'" type="primary" link @click="handleAdd(row.id)">新增</el-button>

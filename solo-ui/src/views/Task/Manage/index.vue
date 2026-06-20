@@ -225,21 +225,21 @@ onMounted(() => {
         <el-button v-permission="'task:manage:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="taskName" label="任务名称" min-width="150" />
-        <el-table-column prop="taskCode" label="任务编码" min-width="160" />
-        <el-table-column prop="cron" label="Cron表达式" min-width="170" />
-        <el-table-column prop="handlerName" label="处理器" min-width="140" />
-        <el-table-column prop="taskParams" label="参数" min-width="180" show-overflow-tooltip />
-        <el-table-column label="状态" width="90">
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskName" label="任务名称" min-width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskCode" label="任务编码" min-width="160" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="cron" label="Cron表达式" min-width="170" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="handlerName" label="处理器" min-width="140" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskParams" label="参数" min-width="180" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+        <el-table-column label="状态" width="90" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status]">{{ row.status === 1 ? '启用' : '停用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+        <el-table-column prop="createTime" label="创建时间" min-width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="220" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button v-permission="'task:manage:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'task:manage:switch'" type="primary" link @click="handleToggleStatus(row)">

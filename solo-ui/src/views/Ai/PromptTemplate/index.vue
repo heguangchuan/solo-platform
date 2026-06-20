@@ -223,26 +223,26 @@ onMounted(() => {
         <el-button v-permission="'ai:promptTemplate:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="templateName" label="模板名称" width="150" />
-        <el-table-column prop="templateCode" label="模板编码" width="150" />
-        <el-table-column prop="templateType" label="模板类型" width="110">
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="templateName" label="模板名称" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="templateCode" label="模板编码" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="templateType" label="模板类型" width="110" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag>{{ templateTypeOptions.find((o) => o.value === row.templateType)?.label || row.templateType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="模板内容" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="sort" label="模板排序" width="100" />
-        <el-table-column label="是否启用" width="100" align="center">
+        <el-table-column prop="content" label="模板内容" min-width="250" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+        <el-table-column prop="sort" label="模板排序" width="100" / max-height="calc(100vh - 400px)">
+        <el-table-column label="是否启用" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column prop="createTime" label="创建时间" width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="200" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button type="primary" link :icon="View" @click="handlePreview(row)">预览</el-button>
             <el-button v-permission="'ai:promptTemplate:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>

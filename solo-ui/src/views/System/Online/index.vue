@@ -106,29 +106,29 @@ onMounted(() => {
         </el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="username" label="用户账号" min-width="140" />
-        <el-table-column prop="nickname" label="用户昵称" min-width="140">
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 400px)">
+        <el-table-column prop="username" label="用户账号" min-width="140" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="nickname" label="用户昵称" min-width="140" max-height="calc(100vh - 400px)">
           <template #default="{ row }">{{ row.nickname || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="loginIp" label="登录地址" min-width="140">
+        <el-table-column prop="loginIp" label="登录地址" min-width="140" max-height="calc(100vh - 400px)">
           <template #default="{ row }">{{ row.loginIp || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="clientSource" label="客户来源" width="110" align="center">
+        <el-table-column prop="clientSource" label="客户来源" width="110" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag v-if="row.clientSource" size="small">{{ row.clientSource }}</el-tag>
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column label="客户标识" min-width="220" show-overflow-tooltip>
+        <el-table-column label="客户标识" min-width="220" show-overflow-tooltip max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tooltip :content="row.userAgent || '—'" placement="top">
               <span>{{ shortenUA(row.userAgent) }}</span>
             </el-tooltip>
           </template>
         </el-table-column>
-        <el-table-column prop="loginTime" label="登录时间" min-width="170" />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column prop="loginTime" label="登录时间" min-width="170" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="120" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button
               v-permission="'system:online:kick'"

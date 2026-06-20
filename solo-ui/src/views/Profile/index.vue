@@ -288,18 +288,18 @@ onMounted(() => {
 
             <!-- 我的角色 -->
             <el-tab-pane label="我的角色" name="roles">
-              <el-table v-loading="rolesLoading" :data="myRoles" border stripe>
-                <el-table-column prop="roleCode" label="角色编码" width="160" />
-                <el-table-column prop="roleName" label="角色名称" width="160" />
-                <el-table-column prop="description" label="角色描述" min-width="200" />
-                <el-table-column label="角色状态" width="100" align="center">
+              <el-table v-loading="rolesLoading" :data="myRoles" border stripe max-height="calc(100vh - 400px)">
+                <el-table-column prop="roleCode" label="角色编码" width="160" / max-height="calc(100vh - 400px)">
+                <el-table-column prop="roleName" label="角色名称" width="160" / max-height="calc(100vh - 400px)">
+                <el-table-column prop="description" label="角色描述" min-width="200" / max-height="calc(100vh - 400px)">
+                <el-table-column label="角色状态" width="100" align="center" max-height="calc(100vh - 400px)">
                   <template #default="{ row }">
                     <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
                       {{ row.status === 1 ? '启用' : '禁用' }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="createTime" label="授予时间" min-width="180" />
+                <el-table-column prop="createTime" label="授予时间" min-width="180" / max-height="calc(100vh - 400px)">
               </el-table>
             </el-tab-pane>
           </el-tabs>

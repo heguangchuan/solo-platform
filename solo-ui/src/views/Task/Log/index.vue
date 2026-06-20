@@ -83,19 +83,19 @@ onMounted(() => {
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
-      <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="taskName" label="任务名称" min-width="140" />
-        <el-table-column prop="taskCode" label="任务编码" min-width="150" />
-        <el-table-column prop="handlerName" label="处理器" min-width="130" />
-        <el-table-column prop="taskParams" label="参数" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="executionTime" label="执行时间" min-width="170" />
-        <el-table-column prop="durationMs" label="耗时(ms)" width="110" />
-        <el-table-column label="结果" width="90">
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskName" label="任务名称" min-width="140" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskCode" label="任务编码" min-width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="handlerName" label="处理器" min-width="130" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskParams" label="参数" min-width="180" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+        <el-table-column prop="executionTime" label="执行时间" min-width="170" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="durationMs" label="耗时(ms)" width="110" / max-height="calc(100vh - 400px)">
+        <el-table-column label="结果" width="90" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="resultStatusTypeMap[row.resultStatus]">{{ row.resultStatus === 1 ? '成功' : '失败' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="errorMsg" label="错误信息" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="errorMsg" label="错误信息" min-width="220" show-overflow-tooltip / max-height="calc(100vh - 400px)">
       </el-table>
 
       <el-pagination

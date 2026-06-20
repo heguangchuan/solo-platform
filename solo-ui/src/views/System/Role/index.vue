@@ -273,20 +273,20 @@ onMounted(() => {
         <el-button v-permission="'system:role:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="roleCode" label="角色编码" width="150" />
-        <el-table-column prop="roleName" label="角色名称" width="150" />
-        <el-table-column prop="description" label="角色描述" min-width="200" />
-        <el-table-column label="角色状态" width="100" align="center">
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="roleCode" label="角色编码" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="roleName" label="角色名称" width="150" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="description" label="角色描述" min-width="200" / max-height="calc(100vh - 400px)">
+        <el-table-column label="角色状态" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="createTime" label="创建时间" min-width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="240" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button v-permission="'system:role:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'system:role:p2r'" type="primary" link @click="handleAssignPermissions(row)">授权</el-button>
