@@ -187,13 +187,13 @@ onMounted(() => {
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
-        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="configName" label="参数名称" min-width="160" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="configKey" label="参数编码" min-width="180" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="configValue" label="参数取值" min-width="200" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="remark" label="参数备注" min-width="180" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="createTime" label="创建时间" min-width="180" / max-height="calc(100vh - 400px)">
-        <el-table-column label="操作" width="160" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="configName" label="参数名称" min-width="160" />
+        <el-table-column prop="configKey" label="参数编码" min-width="180" />
+        <el-table-column prop="configValue" label="参数取值" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="remark" label="参数备注" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="createTime" label="创建时间" min-width="180" />
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'setting:config:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button

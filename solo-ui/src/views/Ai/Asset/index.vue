@@ -234,8 +234,8 @@ onMounted(() => {
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 400px)" @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
-        <el-table-column label="预览" width="120" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" />
+        <el-table-column label="预览" width="120" align="center">
           <template #default="{ row }">
             <el-image
               v-if="row.assetType === 'IMAGE'"
@@ -248,29 +248,29 @@ onMounted(() => {
             <el-tag v-else size="small">{{ row.assetType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="fileName" label="文件名称" min-width="200" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="assetType" label="素材类型" width="100" max-height="calc(100vh - 400px)">
+        <el-table-column prop="fileName" label="文件名称" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="assetType" label="素材类型" width="100">
           <template #default="{ row }">
             <el-tag size="small">{{ assetTypeOptions.find((o) => o.value === row.assetType)?.label || row.assetType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="size" label="大小" width="100" max-height="calc(100vh - 400px)">
+        <el-table-column prop="size" label="大小" width="100">
           <template #default="{ row }">{{ formatSize(row.size) }}</template>
         </el-table-column>
-        <el-table-column label="尺寸" width="100" max-height="calc(100vh - 400px)">
+        <el-table-column label="尺寸" width="100">
           <template #default="{ row }">{{ row.width && row.height ? `${row.width}×${row.height}` : '-' }}</template>
         </el-table-column>
-        <el-table-column prop="modelName" label="生成模型" width="120" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="prompt" label="生成指令" min-width="150" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column label="是否有效" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="modelName" label="生成模型" width="120" />
+        <el-table-column prop="prompt" label="生成指令" min-width="150" show-overflow-tooltip />
+        <el-table-column label="是否有效" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '有效' : '无效' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" / max-height="calc(100vh - 400px)">
-        <el-table-column label="操作" width="150" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column prop="createTime" label="创建时间" width="180" />
+        <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
             <el-button v-permission="'ai:asset:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'ai:asset:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
