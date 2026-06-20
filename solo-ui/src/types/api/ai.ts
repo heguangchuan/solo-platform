@@ -12,7 +12,7 @@ export interface AiModelConfigRequest {
   provider: string
   modelName: string
   modelType: string
-  apiKey: string
+  apiKey?: string
   baseUrl?: string
   modelParams?: string
   supportVision?: number
@@ -25,14 +25,22 @@ export interface AiModelConfig {
   provider: string
   modelName: string
   modelType: string
-  apiKey: string
   baseUrl?: string
   modelParams?: string
   supportVision?: number
   status: number
   sort?: number
+  hasApiKey?: boolean
   createTime: string
   updateTime: string
+}
+
+export interface AiModelProviderOption {
+  value: string
+  label: string
+  protocol: string
+  defaultBaseUrl?: string
+  supportVision?: boolean
 }
 
 /** 提示词模板相关 */
