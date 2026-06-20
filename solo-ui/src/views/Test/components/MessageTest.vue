@@ -231,30 +231,30 @@ onMounted(() => {
       </div>
     </template>
 
-    <el-table :data="testMessages" style="width: 100%" empty-text="暂无消息">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="title" label="标题" min-width="180" />
-      <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
-      <el-table-column prop="type" label="类型" width="100">
+    <el-table :data="testMessages" style="width: 100%" empty-text="暂无消息" max-height="calc(100vh - 400px)">
+      <el-table-column prop="id" label="ID" width="80" / max-height="calc(100vh - 400px)">
+      <el-table-column prop="title" label="标题" min-width="180" / max-height="calc(100vh - 400px)">
+      <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+      <el-table-column prop="type" label="类型" width="100" max-height="calc(100vh - 400px)">
         <template #default="{ row }">
           {{ getTypeText(row.type) }}
         </template>
       </el-table-column>
-      <el-table-column prop="level" label="级别" width="100">
+      <el-table-column prop="level" label="级别" width="100" max-height="calc(100vh - 400px)">
         <template #default="{ row }">
           <el-tag :type="getLevelTagType(row.level)" size="small">
             {{ row.level }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="readFlag" label="状态" width="80">
+      <el-table-column prop="readFlag" label="状态" width="80" max-height="calc(100vh - 400px)">
         <template #default="{ row }">
           <el-tag :type="row.readFlag === 1 ? 'success' : 'info'" size="small">
             {{ row.readFlag === 1 ? '已读' : '未读' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="createTime" label="时间" width="180" />
+      <el-table-column prop="createTime" label="时间" width="180" / max-height="calc(100vh - 400px)">
     </el-table>
   </el-card>
 </template>

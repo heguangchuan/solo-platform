@@ -245,35 +245,35 @@ onMounted(() => {
         <el-button v-permission="'ai:modelConfig:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="provider" label="模型来源" width="120">
+      <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="provider" label="模型来源" width="120" max-height="calc(100vh - 400px)">
           <template #default="{ row }">{{ providerLabel(row.provider) }}</template>
         </el-table-column>
-        <el-table-column prop="modelName" label="模型名称" width="200" />
-        <el-table-column prop="modelType" label="模型类型" width="110">
+        <el-table-column prop="modelName" label="模型名称" width="200" / max-height="calc(100vh - 400px)">
+        <el-table-column prop="modelType" label="模型类型" width="110" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag>{{ modelTypeOptions.find((o) => o.value === row.modelType)?.label || row.modelType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="baseUrl" label="API地址" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="sort" label="模型排序" width="100" />
-        <el-table-column label="支持图片" width="100" align="center">
+        <el-table-column prop="baseUrl" label="API地址" min-width="200" show-overflow-tooltip / max-height="calc(100vh - 400px)">
+        <el-table-column prop="sort" label="模型排序" width="100" / max-height="calc(100vh - 400px)">
+        <el-table-column label="支持图片" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="row.supportVision === 1 ? 'success' : 'info'" size="small">
               {{ row.supportVision === 1 ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="是否启用" width="100" align="center">
+        <el-table-column label="是否启用" width="100" align="center" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column prop="createTime" label="创建时间" width="180" / max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="150" fixed="right" max-height="calc(100vh - 400px)">
           <template #default="{ row }">
             <el-button v-permission="'ai:modelConfig:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button v-permission="'ai:modelConfig:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
