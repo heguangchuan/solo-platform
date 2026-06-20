@@ -100,7 +100,7 @@ export function sendChatApi(data: ChatSendRequest) {
  * 获取会话列表
  */
 export function getConversationsApi(params: { page?: number; pageSize?: number; conversationType?: string }) {
-  return get<PageResult<AiConversation>>('/api/ai/chat/conversations', params)
+  return get<PageResult<AiConversation>>('/api/ai/chat/conversations', { params })
 }
 
 /**
@@ -142,7 +142,7 @@ export function generateImageApi(data: ImageGenerationRequest) {
  * 获取任务列表
  */
 export function getTaskListApi(params: { page?: number; pageSize?: number; taskType?: string; status?: string }) {
-  return get<PageResult<AiGenerationTask>>('/api/ai/task/list', params)
+  return get<PageResult<AiGenerationTask>>('/api/ai/task/list', { params })
 }
 
 /**
