@@ -2,7 +2,10 @@ package com.solo.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.entity.AiGenerationTask;
+import com.solo.request.ImageGenerationRequest;
+import com.solo.response.ImageGenerationResponse;
 import com.solo.service.AiGenerationTaskService;
+import com.solo.service.AiImageGenerationService;
 import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
@@ -19,6 +22,17 @@ import org.springframework.web.bind.annotation.*;
 public class AiTaskController {
 
     private final AiGenerationTaskService generationTaskService;
+    private final AiImageGenerationService imageGenerationService;
+
+    /**
+     * 生成图片
+     */
+    @PostMapping("/image/generate")
+    @RequirePermission({"ai:imageCreation:generate"})
+    public Result<ImageGenerationResponse> generateImage(@RequestBody ImageGenerationRequest request) {
+        Long userId = UserHolderUtils.getCurrentUserId();
+        return Result.success(imageGenerationService.generate(userId, request));
+    }
 
     /**
      * 获取用户创作任务列表

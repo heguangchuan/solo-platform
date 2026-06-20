@@ -15,9 +15,19 @@ public interface AiGenerationTaskService extends IService<AiGenerationTask> {
     AiGenerationTask createTextTask(Long userId, Long conversationId, Long messageId, String prompt, String enhancedPrompt, Long modelConfigId, String modelName);
 
     /**
+     * 创建图片生成任务
+     */
+    AiGenerationTask createImageTask(Long userId, Long conversationId, Long messageId, String prompt, Long modelConfigId, String modelName, String modelParams);
+
+    /**
      * 更新任务状态为成功
      */
     void markSuccess(Long taskId, String resultContent, Integer tokens, java.math.BigDecimal cost);
+
+    /**
+     * 更新任务状态为成功
+     */
+    void markSuccess(Long taskId, String resultType, String resultContent, Integer tokens, java.math.BigDecimal cost);
 
     /**
      * 更新任务状态为失败

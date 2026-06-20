@@ -45,6 +45,30 @@ export interface AiGenerationTask {
   createTime: string
 }
 
+export interface ImageGenerationRequest {
+  conversationId?: string
+  modelConfigId?: string
+  prompt: string
+  size?: string
+  n?: number
+  responseFormat?: string
+  image?: string[]
+}
+
+export interface ImageGenerationItem {
+  assetId: string
+  url: string
+  fileName: string
+}
+
+export interface ImageGenerationResponse {
+  conversationId: string
+  taskId: string
+  modelName: string
+  status?: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'CANCELLED'
+  images: ImageGenerationItem[]
+}
+
 export interface ChatAttachmentInput {
   url: string
   fileName?: string
@@ -75,7 +99,7 @@ export function sendChatApi(data: ChatSendRequest) {
 /**
  * 获取会话列表
  */
-export function getConversationsApi(params: { page?: number; pageSize?: number }) {
+export function getConversationsApi(params: { page?: number; pageSize?: number; conversationType?: string }) {
   return get<PageResult<AiConversation>>('/api/ai/chat/conversations', params)
 }
 
@@ -105,6 +129,13 @@ export function deleteConversationApi(conversationId: string) {
  */
 export function updateConversationTitleApi(conversationId: string, title: string) {
   return put<void>(`/api/ai/chat/conversations/${conversationId}/title?title=${encodeURIComponent(title)}`)
+}
+
+/**
+ * 生成图片
+ */
+export function generateImageApi(data: ImageGenerationRequest) {
+  return post<ImageGenerationResponse>('/api/ai/task/image/generate', data)
 }
 
 /**

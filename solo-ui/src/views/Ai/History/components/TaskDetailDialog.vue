@@ -44,6 +44,17 @@ const formatTime = (timeStr: string) => {
   })
 }
 
+const formatResultImages = (raw: string) => {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item) => item && typeof item.url === 'string')
+  } catch {
+    return []
+  }
+}
+
 const open = (row: AiGenerationTask) => {
   task.value = row
   visible.value = true
@@ -75,7 +86,18 @@ defineExpose({ open })
         </div>
       </el-descriptions-item>
       <el-descriptions-item v-if="task.resultContent" label="输出结果" :span="2">
-        <div style="max-height: 300px; overflow-y: auto; white-space: pre-wrap;">
+        <div v-if="task.taskType === 'IMAGE' && formatResultImages(task.resultContent).length" class="result-images">
+          <el-image
+            v-for="item in formatResultImages(task.resultContent)"
+            :key="item.url"
+            :src="item.url"
+            :preview-src-list="formatResultImages(task.resultContent).map((img) => img.url)"
+            fit="cover"
+            class="result-image"
+            preview-teleported
+          />
+        </div>
+        <div v-else style="max-height: 300px; overflow-y: auto; white-space: pre-wrap;">
           {{ task.resultContent }}
         </div>
       </el-descriptions-item>
@@ -87,3 +109,17 @@ defineExpose({ open })
     </el-descriptions>
   </el-dialog>
 </template>
+
+<style scoped>
+.result-images {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.result-image {
+  width: 160px;
+  height: 160px;
+  border-radius: 6px;
+}
+</style>

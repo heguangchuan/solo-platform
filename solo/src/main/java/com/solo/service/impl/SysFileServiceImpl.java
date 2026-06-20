@@ -49,6 +49,11 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
 
     @Override
     public SysFile upload(MultipartFile file) {
+        return upload(file, null, null);
+    }
+
+    @Override
+    public SysFile upload(MultipartFile file, Long uploaderId, String uploaderName) {
         if (file == null || file.isEmpty()) {
             throw new ServiceException("上传文件不能为空");
         }
@@ -66,7 +71,7 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
         record.setExt(ext);
         record.setMimeType(file.getContentType());
         record.setSize(file.getSize());
-        fillUploader(record);
+        fillUploader(record, uploaderId, uploaderName);
         save(record);
         log.info("[file.upload] id={}, url={}, size={}", record.getId(), record.getUrl(), record.getSize());
         return record;
@@ -120,10 +125,23 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
     /* ============================== 内部工具 ============================== */
 
     private void fillUploader(SysFile record) {
-        SysUser user = UserHolderUtils.getCurrentUser();
-        if (user != null) {
-            record.setUploaderId(user.getId());
-            record.setUploaderName(user.getUsername());
+        fillUploader(record, null, null);
+    }
+
+    private void fillUploader(SysFile record, Long uploaderId, String uploaderName) {
+        if (uploaderId != null || uploaderName != null) {
+            record.setUploaderId(uploaderId);
+            record.setUploaderName(uploaderName);
+        } else {
+            try {
+                SysUser user = UserHolderUtils.getCurrentUser();
+                if (user != null) {
+                    record.setUploaderId(user.getId());
+                    record.setUploaderName(user.getUsername());
+                }
+            } catch (IllegalStateException ignored) {
+                // 异步任务没有 HTTP 请求上下文，允许不写上传人
+            }
         }
         if (record.getCreateTime() == null) record.setCreateTime(LocalDateTime.now());
     }

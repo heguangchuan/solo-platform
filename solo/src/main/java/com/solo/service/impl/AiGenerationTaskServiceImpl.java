@@ -38,11 +38,36 @@ public class AiGenerationTaskServiceImpl extends ServiceImpl<AiGenerationTaskMap
 
     @Override
     @Transactional
+    public AiGenerationTask createImageTask(Long userId, Long conversationId, Long messageId, String prompt, Long modelConfigId, String modelName, String modelParams) {
+        AiGenerationTask task = new AiGenerationTask();
+        task.setUserId(userId);
+        task.setConversationId(conversationId);
+        task.setMessageId(messageId);
+        task.setTaskType("IMAGE");
+        task.setPrompt(prompt);
+        task.setEnhancedPrompt(prompt);
+        task.setModelConfigId(modelConfigId);
+        task.setModelName(modelName);
+        task.setModelParams(modelParams);
+        task.setStatus("PROCESSING");
+        task.setStartTime(LocalDateTime.now());
+        save(task);
+        return task;
+    }
+
+    @Override
+    @Transactional
     public void markSuccess(Long taskId, String resultContent, Integer tokens, BigDecimal cost) {
+        markSuccess(taskId, "TEXT", resultContent, tokens, cost);
+    }
+
+    @Override
+    @Transactional
+    public void markSuccess(Long taskId, String resultType, String resultContent, Integer tokens, BigDecimal cost) {
         AiGenerationTask task = getById(taskId);
         if (task != null) {
             task.setStatus("SUCCESS");
-            task.setResultType("TEXT");
+            task.setResultType(resultType);
             task.setResultContent(resultContent);
             task.setTokens(tokens);
             task.setCost(cost);
