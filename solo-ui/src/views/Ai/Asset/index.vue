@@ -4,7 +4,7 @@ export default { name: 'AiAsset' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Close, Check, View } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
 import type { AiAsset, AiAssetRequest, AiAssetPageRequest } from '@/types/api'
 import {
   getAssetPageApi,
@@ -43,9 +43,6 @@ const form = ref<AiAssetRequest>({
   status: 1,
   remark: '',
 })
-
-const previewVisible = ref(false)
-const previewUrl = ref('')
 
 const rules = {
   assetType: [{ required: true, message: '请选择素材类型', trigger: 'change' }],
@@ -137,11 +134,6 @@ function handleEdit(row: AiAsset) {
     remark: row.remark,
   }
   dialogVisible.value = true
-}
-
-function handlePreview(row: AiAsset) {
-  previewUrl.value = row.fileUrl
-  previewVisible.value = true
 }
 
 async function handleConfirm() {
@@ -243,9 +235,16 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column label="预览" width="100" align="center">
+        <el-table-column label="预览" width="120" align="center">
           <template #default="{ row }">
-            <el-button v-if="row.assetType === 'IMAGE'" type="primary" link :icon="View" @click="handlePreview(row)">查看</el-button>
+            <el-image
+              v-if="row.assetType === 'IMAGE'"
+              :src="row.thumbnailUrl || row.fileUrl"
+              :preview-src-list="[row.fileUrl]"
+              fit="cover"
+              class="asset-preview"
+              preview-teleported
+            />
             <el-tag v-else size="small">{{ row.assetType }}</el-tag>
           </template>
         </el-table-column>
@@ -343,10 +342,6 @@ onMounted(() => {
         <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
       </template>
     </el-dialog>
-
-    <el-dialog v-model="previewVisible" title="图片预览" width="700px" :close-on-click-modal="false">
-      <img :src="previewUrl" alt="预览图片" style="width: 100%; display: block" />
-    </el-dialog>
   </div>
 </template>
 
@@ -360,6 +355,14 @@ onMounted(() => {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.asset-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 6px;
+  cursor: zoom-in;
+  vertical-align: middle;
 }
 
 .pagination {

@@ -3,6 +3,7 @@ package com.solo.llm.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.AttachmentFetcher;
 import com.solo.llm.HttpClientHolder;
 import com.solo.llm.ImageGenerationClient;
 import com.solo.llm.ImageGenerationResult;
@@ -62,10 +63,13 @@ public class OpenAiImageClient implements ImageGenerationClient {
         if (request.getImage() != null && !request.getImage().isEmpty()) {
             List<String> images = request.getImage().stream()
                     .filter(item -> item != null && !item.isBlank())
+                    .map(item -> AttachmentFetcher.toDataUri(item, null))
+                    .filter(item -> item != null && !item.isBlank())
                     .toList();
-            if (!images.isEmpty()) {
-                putExtraBodyValue(body, "image", images);
+            if (images.isEmpty()) {
+                throw new ServiceException("参考图片读取失败，请检查图片是否可访问");
             }
+            putExtraBodyValue(body, "image", images);
         }
         if (request.getN() != null) {
             body.put("n", request.getN());

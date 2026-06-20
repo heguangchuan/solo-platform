@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -29,10 +30,11 @@ public class SystemMessageWebSocket {
     private static final AtomicInteger ONLINE_COUNT = new AtomicInteger(0);
 
     /**
-     * 会话存储：username -> Session
-     * 注意：@ServerEndpoint 是多例的，必须用 static 集合共享会话
+     * 会话存储：username -> Sessions
+     * 注意：@ServerEndpoint 是多例的，必须用 static 集合共享会话。
+     * 同一用户可能打开多个浏览器标签页，允许多连接并存，避免互相踢下线后反复重连。
      */
-    private static final Map<String, Session> SESSION_MAP = new ConcurrentHashMap<>();
+    private static final Map<String, Set<Session>> SESSION_MAP = new ConcurrentHashMap<>();
 
     /**
      * 当前连接的用户名
@@ -72,18 +74,7 @@ public class SystemMessageWebSocket {
         this.username = jwtUtils.getUsernameFromToken(token);
         log.info("WebSocket 连接成功：用户={}, sessionId={}", username, session.getId());
 
-        // 如果用户已连接，先关闭旧连接（避免多端重复连接）
-        if (SESSION_MAP.containsKey(username)) {
-            Session oldSession = SESSION_MAP.get(username);
-            try {
-                oldSession.close(new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "新连接建立，旧连接断开"));
-                log.info("关闭用户 {} 的旧 WebSocket 连接", username);
-            } catch (IOException e) {
-                log.warn("关闭旧连接失败", e);
-            }
-        }
-
-        SESSION_MAP.put(username, session);
+        SESSION_MAP.computeIfAbsent(username, key -> ConcurrentHashMap.newKeySet()).add(session);
         ONLINE_COUNT.incrementAndGet();
         log.info("WebSocket 当前在线人数：{}", ONLINE_COUNT.get());
     }
@@ -102,10 +93,16 @@ public class SystemMessageWebSocket {
     @OnClose
     public void onClose(Session session, CloseReason reason) {
         if (username != null) {
-            SESSION_MAP.remove(username);
-            ONLINE_COUNT.decrementAndGet();
-            log.info("WebSocket 连接关闭：用户={}, 原因={}, 当前在线={}",
-                    username, reason.getReasonPhrase(), ONLINE_COUNT.get());
+            Set<Session> sessions = SESSION_MAP.get(username);
+            if (sessions != null) {
+                sessions.remove(session);
+                if (sessions.isEmpty()) {
+                    SESSION_MAP.remove(username, sessions);
+                }
+            }
+            ONLINE_COUNT.updateAndGet(count -> Math.max(0, count - 1));
+            log.info("WebSocket 连接关闭：用户={}, sessionId={}, 原因={}, 当前在线={}",
+                    username, session.getId(), reason.getReasonPhrase(), ONLINE_COUNT.get());
         }
     }
 
@@ -140,18 +137,24 @@ public class SystemMessageWebSocket {
      * @return true=发送成功，false=用户不在线
      */
     public static boolean sendToUser(String targetUsername, String message) {
-        Session session = SESSION_MAP.get(targetUsername);
-        if (session == null || !session.isOpen()) {
+        Set<Session> sessions = SESSION_MAP.get(targetUsername);
+        if (sessions == null || sessions.isEmpty()) {
             return false;
         }
 
-        try {
-            session.getBasicRemote().sendText(message);
-            return true;
-        } catch (IOException e) {
-            log.warn("发送 WebSocket 消息失败：用户={}, 错误={}", targetUsername, e.getMessage());
-            return false;
+        boolean success = false;
+        for (Session session : sessions) {
+            if (session == null || !session.isOpen()) {
+                continue;
+            }
+            try {
+                session.getBasicRemote().sendText(message);
+                success = true;
+            } catch (IOException e) {
+                log.warn("发送 WebSocket 消息失败：用户={}, 错误={}", targetUsername, e.getMessage());
+            }
         }
+        return success;
     }
 
     /**
@@ -162,14 +165,15 @@ public class SystemMessageWebSocket {
      */
     public static int broadcast(String message) {
         int successCount = 0;
-        for (Map.Entry<String, Session> entry : SESSION_MAP.entrySet()) {
-            Session session = entry.getValue();
-            if (session.isOpen()) {
-                try {
-                    session.getBasicRemote().sendText(message);
-                    successCount++;
-                } catch (IOException e) {
-                    log.warn("广播消息失败：用户={}, 错误={}", entry.getKey(), e.getMessage());
+        for (Map.Entry<String, Set<Session>> entry : SESSION_MAP.entrySet()) {
+            for (Session session : entry.getValue()) {
+                if (session.isOpen()) {
+                    try {
+                        session.getBasicRemote().sendText(message);
+                        successCount++;
+                    } catch (IOException e) {
+                        log.warn("广播消息失败：用户={}, 错误={}", entry.getKey(), e.getMessage());
+                    }
                 }
             }
         }
@@ -187,8 +191,8 @@ public class SystemMessageWebSocket {
      * 检查指定用户是否在线
      */
     public static boolean isOnline(String username) {
-        Session session = SESSION_MAP.get(username);
-        return session != null && session.isOpen();
+        Set<Session> sessions = SESSION_MAP.get(username);
+        return sessions != null && sessions.stream().anyMatch(Session::isOpen);
     }
 
     /**

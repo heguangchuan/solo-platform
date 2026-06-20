@@ -198,7 +198,7 @@ const loadModelOptions = async () => {
 const loadConversations = async () => {
   loadingConversations.value = true
   try {
-    const res = await getConversationsApi({ page: 1, pageSize: 100 })
+    const res = await getConversationsApi({ page: 1, pageSize: 100, conversationType: 'CHAT' })
     conversations.value = res.data.rows || []
   } catch {
     ElMessage.error('加载会话列表失败')
