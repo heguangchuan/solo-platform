@@ -1,4 +1,4 @@
-import type { PageResult, AiModelConfig, AiModelConfigPageRequest, AiModelConfigRequest, AiPromptTemplate, AiPromptTemplatePageRequest, AiPromptTemplateRequest, AiAsset, AiAssetPageRequest, AiAssetRequest } from '@/types/api'
+import type { PageResult, AiModelConfig, AiModelConfigPageRequest, AiModelConfigRequest, AiModelProviderOption, AiPromptTemplate, AiPromptTemplatePageRequest, AiPromptTemplateRequest, AiAsset, AiAssetPageRequest, AiAssetRequest } from '@/types/api'
 import { get, post, del, put } from '@/utils/request'
 
 export interface AiConversation {
@@ -135,6 +135,13 @@ export function getModelConfigPageApi(data: AiModelConfigPageRequest) {
  */
 export function getModelConfigListApi() {
   return get<AiModelConfig[]>('/api/ai/model-config/list')
+}
+
+/**
+ * 获取模型来源选项
+ */
+export function getModelProviderOptionsApi() {
+  return get<AiModelProviderOption[]>('/api/ai/model-config/provider-options')
 }
 
 /**

@@ -151,24 +151,24 @@ CREATE TABLE ai_model_config
     KEY            idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI模型配置表';
 
--- 初始化模型配置数据
+-- 初始化模型配置示例数据：不内置真实 API Key，默认禁用，需管理员配置密钥后启用
 INSERT INTO ai_model_config (id, provider, model_name, model_type, api_key, base_url, model_params, support_vision, status, sort, deleted, create_time, update_time)
 VALUES (2067812965232103426, 'agnes', 'agnes-1.5-flash', 'TEXT',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions',
-        '{"temperature":0.5,"max_tokens":1024}', 1, 1, 1, 0,
+        '', 'https://apihub.agnes-ai.com/v1/chat/completions',
+        '{"temperature":0.5,"max_tokens":1024}', 1, 0, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:33:24'),
        (2067812965232103427, 'agnes', 'agnes-2.0-flash', 'TEXT',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/chat/completions',
-        '{"temperature":0.5,"max_tokens":1024}', 1, 1, 1, 0,
+        '', 'https://apihub.agnes-ai.com/v1/chat/completions',
+        '{"temperature":0.5,"max_tokens":1024}', 1, 0, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:35:11'),
        (2067812965232103428, 'agnes', 'agnes-image-2.0-flash', 'IMAGE',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/images/generations', '', 0, 1, 1, 0,
+        '', 'https://apihub.agnes-ai.com/v1/images/generations', '', 0, 0, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:35:11'),
        (2067812965232103429, 'agnes', 'agnes-image-2.1-flash', 'IMAGE',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/images/generations', '', 0, 1, 1, 0,
+        '', 'https://apihub.agnes-ai.com/v1/images/generations', '', 0, 0, 1, 0,
         '2026-06-19 11:33:24', '2026-06-19 11:35:11'),
        (2067816917453459458, 'agnes', 'agnes-video-v2.0', 'VIDEO',
-        'sk-noVi5HLSWnUWciPVqTJMPcVL0rh04IXF47OHcOP3drwWxQVg', 'https://apihub.agnes-ai.com/v1/videos', '', 0, 1, 1, 0,
+        '', 'https://apihub.agnes-ai.com/v1/videos', '', 0, 0, 1, 0,
         '2026-06-19 11:49:06', '2026-06-19 11:49:06');
 
 -- 提示词模板表

@@ -5,18 +5,20 @@ export default { name: 'AiModelConfig' }
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
-import type { AiModelConfig, AiModelConfigRequest, AiModelConfigPageRequest } from '@/types/api'
+import type { AiModelConfig, AiModelConfigRequest, AiModelConfigPageRequest, AiModelProviderOption } from '@/types/api'
 import {
   getModelConfigPageApi,
   addModelConfigApi,
   editModelConfigApi,
   deleteModelConfigApi,
   deleteModelConfigBatchApi,
+  getModelProviderOptionsApi,
 } from '@/api/ai'
 
 const loading = ref(false)
 const tableData = ref<AiModelConfig[]>([])
 const selectedRows = ref<AiModelConfig[]>([])
+const providerOptions = ref<AiModelProviderOption[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
@@ -40,10 +42,9 @@ const form = ref<AiModelConfigRequest>({
 })
 
 const rules = {
-  provider: [{ required: true, message: '请输入模型来源', trigger: 'blur' }],
+  provider: [{ required: true, message: '请选择模型来源', trigger: 'change' }],
   modelName: [{ required: true, message: '请输入模型名称', trigger: 'blur' }],
   modelType: [{ required: true, message: '请选择模型类型', trigger: 'change' }],
-  apiKey: [{ required: true, message: '请输入API密钥', trigger: 'blur' }],
 }
 
 const modelTypeOptions = [
@@ -53,6 +54,19 @@ const modelTypeOptions = [
   { label: '向量', value: 'EMBEDDING' },
   { label: '音频', value: 'AUDIO' },
 ]
+
+function providerLabel(value: string) {
+  return providerOptions.value.find((item) => item.value === value)?.label || value
+}
+
+function handleProviderChange(value: string) {
+  const provider = providerOptions.value.find((item) => item.value === value)
+  if (!provider) return
+  if (!form.value.baseUrl && provider.defaultBaseUrl) {
+    form.value.baseUrl = provider.defaultBaseUrl
+  }
+  form.value.supportVision = provider.supportVision ? 1 : 0
+}
 
 function handleSearch() {
   currentPage.value = 1
@@ -113,7 +127,7 @@ function handleEdit(row: AiModelConfig) {
     provider: row.provider,
     modelName: row.modelName,
     modelType: row.modelType,
-    apiKey: row.apiKey,
+    apiKey: '',
     baseUrl: row.baseUrl,
     modelParams: row.modelParams,
     supportVision: row.supportVision ?? 0,
@@ -126,6 +140,10 @@ function handleEdit(row: AiModelConfig) {
 async function handleConfirm() {
   const valid = await formRef.value?.validate().catch(() => false)
   if (!valid) return
+  if (!editingId.value && !form.value.apiKey?.trim()) {
+    ElMessage.warning('请输入API密钥')
+    return
+  }
 
   try {
     if (!editingId.value) {
@@ -176,7 +194,17 @@ const statusTypeMap: Record<number, string> = {
   0: 'danger',
 }
 
+async function loadProviderOptions() {
+  try {
+    const res = await getModelProviderOptionsApi()
+    providerOptions.value = res.data || []
+  } catch {
+    ElMessage.error('加载模型来源失败')
+  }
+}
+
 onMounted(() => {
+  loadProviderOptions()
   fetchData()
 })
 </script>
@@ -186,7 +214,9 @@ onMounted(() => {
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="模型来源">
-          <el-input v-model="searchForm.provider" placeholder="请输入模型来源" clearable style="width: 160px" />
+          <el-select v-model="searchForm.provider" placeholder="请选择模型来源" clearable style="width: 160px">
+            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="模型类型">
           <el-select v-model="searchForm.modelType" placeholder="请选择模型类型" clearable style="width: 140px">
@@ -217,7 +247,9 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" />
-        <el-table-column prop="provider" label="模型来源" width="120" />
+        <el-table-column prop="provider" label="模型来源" width="120">
+          <template #default="{ row }">{{ providerLabel(row.provider) }}</template>
+        </el-table-column>
         <el-table-column prop="modelName" label="模型名称" width="200" />
         <el-table-column prop="modelType" label="模型类型" width="110">
           <template #default="{ row }">
@@ -264,7 +296,9 @@ onMounted(() => {
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :top="'5vh'" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px" style="max-height: 70vh; overflow-y: auto; padding-right: 10px;">
         <el-form-item label="模型来源" prop="provider">
-          <el-input v-model="form.provider" placeholder="请输入模型来源，如：OpenAI、Claude、通义千问等" style="width: 100%" />
+          <el-select v-model="form.provider" placeholder="请选择模型来源" style="width: 100%" @change="handleProviderChange">
+            <el-option v-for="opt in providerOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          </el-select>
         </el-form-item>
         <el-form-item label="模型名称" prop="modelName">
           <el-input v-model="form.modelName" placeholder="请输入模型名称" style="width: 100%" />
@@ -275,7 +309,10 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item label="API密钥" prop="apiKey">
-          <el-input v-model="form.apiKey" type="password" placeholder="请输入API密钥" show-password style="width: 100%" />
+          <el-input v-model="form.apiKey" type="password" :placeholder="editingId ? '留空表示不修改原 API 密钥' : '请输入API密钥'" style="width: 100%" />
+          <div v-if="editingId && form.apiKey === ''" class="form-tip">
+            当前配置{{ tableData.find((item) => item.id === editingId)?.hasApiKey ? '已' : '未' }}设置密钥，留空不修改。
+          </div>
         </el-form-item>
         <el-form-item label="API地址">
           <el-input v-model="form.baseUrl" placeholder="请输入API基础地址" style="width: 100%" />
@@ -317,5 +354,12 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.form-tip {
+  margin-top: 4px;
+  line-height: 18px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 </style>

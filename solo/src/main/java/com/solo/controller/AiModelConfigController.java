@@ -7,12 +7,16 @@ import com.solo.common.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.entity.AiModelConfig;
+import com.solo.llm.AiModelProvider;
 import com.solo.request.AiModelConfigPageRequest;
 import com.solo.request.AiModelConfigRequest;
+import com.solo.response.AiModelConfigResponse;
+import com.solo.response.AiModelProviderOptionResponse;
 import com.solo.service.AiModelConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -30,9 +34,10 @@ public class AiModelConfigController {
      */
     @PostMapping("/page")
     @RequirePermission({"ai:modelConfig:list"})
-    public Result<PageResult<AiModelConfig>> getPage(@RequestBody AiModelConfigPageRequest req) {
+    public Result<PageResult<AiModelConfigResponse>> getPage(@RequestBody AiModelConfigPageRequest req) {
         Page<AiModelConfig> page = aiModelConfigService.pageQuery(req);
-        return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+        List<AiModelConfigResponse> rows = page.getRecords().stream().map(AiModelConfigResponse::from).toList();
+        return Result.success(new PageResult<>(page.getTotal(), rows));
     }
 
     /**
@@ -40,8 +45,21 @@ public class AiModelConfigController {
      */
     @GetMapping("/list")
     @RequirePermission({"ai:modelConfig:list"})
-    public Result<List<AiModelConfig>> getList() {
-        return Result.success(aiModelConfigService.getEnabledList());
+    public Result<List<AiModelConfigResponse>> getList() {
+        List<AiModelConfigResponse> rows = aiModelConfigService.getEnabledList().stream().map(AiModelConfigResponse::from).toList();
+        return Result.success(rows);
+    }
+
+    /**
+     * 获取模型来源选项
+     */
+    @GetMapping("/provider-options")
+    @RequirePermission({"ai:modelConfig:list"})
+    public Result<List<AiModelProviderOptionResponse>> getProviderOptions() {
+        List<AiModelProviderOptionResponse> rows = Arrays.stream(AiModelProvider.values())
+                .map(AiModelProviderOptionResponse::from)
+                .toList();
+        return Result.success(rows);
     }
 
     /**
@@ -49,8 +67,8 @@ public class AiModelConfigController {
      */
     @GetMapping("/{id}")
     @RequirePermission({"ai:modelConfig:list"})
-    public Result<AiModelConfig> getById(@PathVariable Long id) {
-        return Result.success(aiModelConfigService.getById(id));
+    public Result<AiModelConfigResponse> getById(@PathVariable Long id) {
+        return Result.success(AiModelConfigResponse.from(aiModelConfigService.getById(id)));
     }
 
     /**
@@ -58,7 +76,7 @@ public class AiModelConfigController {
      */
     @PostMapping
     @RequirePermission({"ai:modelConfig:add"})
-    @OperationLog(module = "AI模型配置", type = BusinessType.ADD, description = "新增模型配置")
+    @OperationLog(module = "AI模型配置", type = BusinessType.ADD, description = "新增模型配置", recordParam = false)
     public Result<Void> save(@RequestBody AiModelConfigRequest request) {
         aiModelConfigService.createConfig(request);
         return Result.success();
@@ -69,7 +87,7 @@ public class AiModelConfigController {
      */
     @PutMapping("/{id}")
     @RequirePermission({"ai:modelConfig:edit"})
-    @OperationLog(module = "AI模型配置", type = BusinessType.EDIT, description = "修改模型配置")
+    @OperationLog(module = "AI模型配置", type = BusinessType.EDIT, description = "修改模型配置", recordParam = false)
     public Result<Void> update(@PathVariable Long id, @RequestBody AiModelConfigRequest request) {
         aiModelConfigService.updateConfig(id, request);
         return Result.success();

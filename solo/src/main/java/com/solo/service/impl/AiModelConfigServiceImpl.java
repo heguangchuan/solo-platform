@@ -43,6 +43,9 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
 
     @Override
     public void createConfig(AiModelConfigRequest request) {
+        if (request.getApiKey() == null || request.getApiKey().isBlank()) {
+            throw new ServiceException("API密钥不能为空");
+        }
         AiModelConfig config = new AiModelConfig();
         config.setProvider(request.getProvider());
         config.setModelName(request.getModelName());
@@ -65,7 +68,7 @@ public class AiModelConfigServiceImpl extends ServiceImpl<AiModelConfigMapper, A
         if (request.getProvider() != null) config.setProvider(request.getProvider());
         if (request.getModelName() != null) config.setModelName(request.getModelName());
         if (request.getModelType() != null) config.setModelType(request.getModelType());
-        if (request.getApiKey() != null) config.setApiKey(request.getApiKey());
+        if (request.getApiKey() != null && !request.getApiKey().isBlank()) config.setApiKey(request.getApiKey());
         if (request.getBaseUrl() != null) config.setBaseUrl(request.getBaseUrl());
         if (request.getModelParams() != null) config.setModelParams(request.getModelParams());
         if (request.getSupportVision() != null) config.setSupportVision(request.getSupportVision());
