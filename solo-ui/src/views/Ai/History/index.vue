@@ -141,45 +141,45 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 400px)">
-        <el-table-column prop="taskType" label="类型" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="taskType" label="类型" width="100" align="center">
           <template #default="{ row }">
             <el-tag size="small">{{ taskTypeMap[row.taskType] || row.taskType }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="status" label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 'SUCCESS' ? '成功' : row.status === 'FAILED' ? '失败' : row.status === 'PROCESSING' ? '处理中' : '待处理' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="modelName" label="模型" min-width="180" align="center" show-overflow-tooltip max-height="calc(100vh - 400px)">
+        <el-table-column prop="modelName" label="模型" min-width="180" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.modelName || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="prompt" label="输入内容" min-width="200" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="tokens" label="消耗Token" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="prompt" label="输入内容" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="tokens" label="消耗Token" width="100" align="center">
           <template #default="{ row }">
             {{ row.tokens || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="cost" label="成本" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="cost" label="成本" width="100" align="center">
           <template #default="{ row }">
             {{ row.cost ? `¥${row.cost.toFixed(4)}` : '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="createTime" label="创建时间" width="180" align="center">
           <template #default="{ row }">
             {{ formatTime(row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column prop="finishTime" label="完成时间" width="180" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="finishTime" label="完成时间" width="180" align="center">
           <template #default="{ row }">
             {{ formatTime(row.finishTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" align="center" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="100" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="detailDialog?.open(row)">
               详情

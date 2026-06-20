@@ -196,32 +196,32 @@ onMounted(() => {
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
-        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="operatorName" label="操作人员" min-width="120" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="module" label="业务模块" min-width="120" / max-height="calc(100vh - 400px)">
-        <el-table-column label="业务类型" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="operatorName" label="操作人员" min-width="120" />
+        <el-table-column prop="module" label="业务模块" min-width="120" />
+        <el-table-column label="业务类型" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="(businessTypeMap[row.businessType] || { type: 'info' }).type" size="small">
               {{ (businessTypeMap[row.businessType] || { label: row.businessType }).label }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="操作描述" min-width="160" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="requestUrl" label="请求地址" min-width="200" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column label="响应状态" width="90" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column prop="description" label="操作描述" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="requestUrl" label="请求地址" min-width="200" show-overflow-tooltip />
+        <el-table-column label="响应状态" width="90" align="center">
           <template #default="{ row }">
             <el-tag :type="row.responseStatus === 1 ? 'success' : 'danger'" size="small">
               {{ row.responseStatus === 1 ? '成功' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="costMs" label="响应耗时" width="100" align="right" max-height="calc(100vh - 400px)">
+        <el-table-column prop="costMs" label="响应耗时" width="100" align="right">
           <template #default="{ row }">{{ row.costMs }} ms</template>
         </el-table-column>
-        <el-table-column prop="clientSource" label="客户来源" width="90" align="center" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="clientIp" label="客户地址" min-width="140" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="createTime" label="操作时间" min-width="170" / max-height="calc(100vh - 400px)">
-        <el-table-column label="操作" width="140" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column prop="clientSource" label="客户来源" width="90" align="center" />
+        <el-table-column prop="clientIp" label="客户地址" min-width="140" />
+        <el-table-column prop="createTime" label="操作时间" min-width="170" />
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleViewDetail(row)">详情</el-button>
             <el-button v-permission="'system:log:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>

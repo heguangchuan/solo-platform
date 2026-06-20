@@ -355,18 +355,18 @@ onMounted(() => {
         stripe
         @selection-change="handleTypeSelectionChange"
        max-height="calc(100vh - 400px)">
-        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="dictName" label="字典名称" min-width="160" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="dictType" label="字典编码" min-width="180" / max-height="calc(100vh - 400px)">
-        <el-table-column label="字典状态" width="100" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="dictName" label="字典名称" min-width="160" />
+        <el-table-column prop="dictType" label="字典编码" min-width="180" />
+        <el-table-column label="字典状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" min-width="180" / max-height="calc(100vh - 400px)">
-        <el-table-column label="操作" width="220" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column prop="createTime" label="创建时间" min-width="180" />
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="'setting:dict:data:list'"
@@ -466,18 +466,18 @@ onMounted(() => {
         stripe
         @selection-change="handleDataSelectionChange"
        max-height="calc(100vh - 400px)">
-        <el-table-column type="selection" width="55" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="dictLabel" label="字典标签" min-width="120" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="dictValue" label="字典键值" min-width="120" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="sort" label="显示排序" align="center" / max-height="calc(100vh - 400px)">
-        <el-table-column label="数据状态" align="center" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" width="55" />
+        <el-table-column prop="dictLabel" label="字典标签" min-width="120" />
+        <el-table-column prop="dictValue" label="字典键值" min-width="120" />
+        <el-table-column prop="sort" label="显示排序" align="center" />
+        <el-table-column label="数据状态" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'" size="small">
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="'setting:dict:data:edit'"

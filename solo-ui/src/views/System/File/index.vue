@@ -147,19 +147,19 @@ onMounted(() => {
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
-        <el-table-column type="selection" / max-height="calc(100vh - 400px)">
-        <el-table-column prop="originalName" label="文件名称" show-overflow-tooltip / max-height="calc(100vh - 400px)">
-        <el-table-column prop="ext" label="文件类型" max-height="calc(100vh - 400px)">
+        <el-table-column type="selection" />
+        <el-table-column prop="originalName" label="文件名称" show-overflow-tooltip />
+        <el-table-column prop="ext" label="文件类型">
           <template #default="{ row }">{{ row.ext || '—' }}</template>
         </el-table-column>
-        <el-table-column label="文件大小" max-height="calc(100vh - 400px)">
+        <el-table-column label="文件大小">
           <template #default="{ row }">{{ formatSize(row.size) }}</template>
         </el-table-column>
-        <el-table-column prop="uploaderName" label="上传账号" max-height="calc(100vh - 400px)">
+        <el-table-column prop="uploaderName" label="上传账号">
           <template #default="{ row }">{{ row.uploaderName || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="createTime" label="上传时间" / max-height="calc(100vh - 400px)">
-        <el-table-column label="操作" fixed="right" max-height="calc(100vh - 400px)">
+        <el-table-column prop="createTime" label="上传时间" />
+        <el-table-column label="操作" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click="handleCopyUrl(row)">复制链接</el-button>
             <el-button v-permission="'system:file:delete'" type="primary" link @click="handleDelete(row)">
