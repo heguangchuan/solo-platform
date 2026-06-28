@@ -8,12 +8,6 @@ spring:
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-#  sql:
-#    init:
-#      mode: always
-#      schema-locations: classpath:sql/init.sql
-#      continue-on-error: false
-
   data:
     redis:
       host: localhost
@@ -50,4 +44,4 @@ file:
 
 logging:
   level:
-    com.solo: debug
+    com.solo: info
