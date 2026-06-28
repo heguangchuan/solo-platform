@@ -7,7 +7,7 @@ import java.io.InputStream;
 /**
  * 文件存储抽象。
  *
- * <p>当前默认使用 {@link com.solo.service.storage.LocalFileStorage}，后续切换 MinIO / OSS / S3 时业务代码无感知。
+ * <p>当前使用 MinIO 存储，所有文件都存储到 MinIO 服务端。
  */
 public interface FileStorage {
 

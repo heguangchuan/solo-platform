@@ -32,22 +32,14 @@ mybatis-plus:
     log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 jwt:
-  secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGVhc2UtdXNlLWEtbG9uZy1zZWNyZXQ=
+  secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=
   # access token 30 分钟
   access-expiration: 1800000
   # refresh token 7 天
   refresh-expiration: 604800000
 
-# 文件存储：local（默认）/ minio
-# 切换到 minio：file.storage.type=minio + 配置 file.minio.* + 引入 io.minio:minio 依赖
+# 文件存储（仅 MinIO）
 file:
-  storage:
-    type: minio
-  local:
-    # 本地根目录，绝对或相对路径均可（相对路径相对于应用启动目录）
-    root: ./uploads
-    # 对外访问前缀，需要与 WebMvcConfig 静态资源映射一致；同时被前端拼成 URL 前缀
-    public-prefix: /uploads
   minio:
     endpoint: http://localhost:29000
     access-key: minio

@@ -18,14 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStream;
 
 /**
- * MinIO 文件存储实现。
- *
- * <p>启用条件：
- * <ul>
- *   <li>classpath 上存在 io.minio:minio</li>
- *   <li>{@code file.storage.type=minio}</li>
- * </ul>
- * 与 {@link LocalFileStorage} 通过 {@code file.storage.type} 互斥；同一时刻容器中只会有一个 {@link FileStorage} Bean。
+ * MinIO 文件存储实现（唯一存储实现）。
  *
  * <p>URL 拼接规则：
  * <ul>
@@ -35,8 +28,6 @@ import java.io.InputStream;
  */
 @Slf4j
 @Component
-@ConditionalOnClass(MinioClient.class)
-@ConditionalOnProperty(prefix = "file.storage", name = "type", havingValue = "minio")
 @RequiredArgsConstructor
 public class MinioFileStorage implements FileStorage {
 
