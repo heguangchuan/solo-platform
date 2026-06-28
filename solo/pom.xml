@@ -65,75 +65,96 @@
         <jjwt.version>0.12.6</jjwt.version>
     </properties>
     <dependencies>
+        <!-- MyBatis-Plus Spring Boot 集成：增强 MyBatis 开发，提供 CRUD、分页、条件构造器等 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+
+        <!-- MyBatis-Plus JSQLParser 支持：用于 SQL 解析，支持分页功能 -->
         <dependency>
             <groupId>com.baomidou</groupId>
             <artifactId>mybatis-plus-jsqlparser</artifactId>
             <version>${mybatis-plus.version}</version>
         </dependency>
+
+        <!-- Spring Boot Data Redis 集成：提供 Redis 客户端自动配置，用于缓存、分布式锁、会话存储 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
         </dependency>
+
+        <!-- Spring Boot Web MVC：Spring Boot Web 应用核心，提供 HTTP 服务、JSON 处理等 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
+
+        <!-- Spring Boot WebSocket：WebSocket 协议支持，用于实时双向通信（如通知、推送） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
+        <!-- Redis 测试支持：单元测试中 Redis 相关测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- Web MVC 测试支持：单元测试中 Web 相关测试依赖 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-webmvc-test</artifactId>
             <scope>test</scope>
         </dependency>
 
+        <!-- OWASP Java HTML Sanitizer：HTML 消毒，移除危险标签/属性，防止 XSS 跨站脚本攻击 -->
         <dependency>
             <groupId>com.googlecode.owasp-java-html-sanitizer</groupId>
             <artifactId>owasp-java-html-sanitizer</artifactId>
             <version>${owasp-html-sanitizer.version}</version>
         </dependency>
 
+        <!-- Alibaba FastExcel：快速高效的 Excel 读写，比 Apache POI 内存占用更小 -->
         <dependency>
             <groupId>cn.idev.excel</groupId>
             <artifactId>fastexcel</artifactId>
             <version>${fastexcel.version}</version>
         </dependency>
 
-        <!-- MinIO 文件存储（唯一存储实现） -->
+        <!-- MinIO Java SDK：MinIO 对象存储客户端，用于文件上传/下载/删除 -->
         <dependency>
             <groupId>io.minio</groupId>
             <artifactId>minio</artifactId>
             <version>${minio.version}</version>
         </dependency>
 
+        <!-- Lombok：注解处理器，通过注解自动生成 getter/setter/constructor 等，减少样板代码 -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <!-- JJWT API：JSON Web Token API 接口定义，用于生成/解析 JWT -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-api</artifactId>
             <version>${jjwt.version}</version>
         </dependency>
+
+        <!-- JJWT 实现：JJWT 实际实现，运行时依赖 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-impl</artifactId>
             <version>${jjwt.version}</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- JJWT Jackson：JJWT 与 Jackson 集成，支持 JWT JSON 序列化/反序列化 -->
         <dependency>
             <groupId>io.jsonwebtoken</groupId>
             <artifactId>jjwt-jackson</artifactId>
@@ -141,6 +162,7 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- MySQL JDBC 驱动：MySQL 数据库 JDBC 驱动 -->
         <dependency>
             <groupId>com.mysql</groupId>
             <artifactId>mysql-connector-j</artifactId>
