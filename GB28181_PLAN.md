@@ -309,6 +309,7 @@ zlm:
 | 2026-06-30 | S0 | 日志前缀全量改业务语义（[设备注册]/[协议栈]/[消息分发]/[报文解析] 等） | ✅ |
 | 2026-06-30 | S0 | SQL 模块化拆分 `solo_db.sql` / `gb28181.sql`；表间只逻辑关联不建外键（ADR-011） | ✅ |
 | 2026-06-30 | S1 | **通道目录与设备信息**：gb_device_channel 表 + 实体 / Mapper / Service / Controller；SipCommander（DeviceInfo + Catalog 命令）；DeviceInfo / Catalog 响应处理（含分片合并）；DeviceOnlineEvent 驱动；离线检测定时任务；前端设备/通道列表页 + 菜单权限 | ✅ |
+| 2026-06-30 | S2.1 | **ZLM 集成骨架**：`server.port=10003` 对齐 ZLM hook；`gb28181.media.*` 配置 + `MediaProperties`；`gb_media_server`/`gb_invite_session` 表 + 实体 + Mapper + Service；`ZlmRestClient`（openRtpServer / closeRtpServer / getMediaList / getRtpInfo / getSnap）；`SsrcFactory`（按节点分桶 + 启动预占）；`ZlmHookController` 七大回调（含 secret 校验，业务侧 TODO(S2.2)）；`GbMediaServerController` CRUD；`MediaServerBootstrap` 默认节点自举；`sys_permission` 追加 105-112；`WebMvcConfig` 放行 hook 路径 | ✅ |
 
 ---
 

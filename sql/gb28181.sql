@@ -87,5 +87,74 @@ CREATE TABLE gb_device_channel
     KEY        idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备通道表';
 
+-- =====================================================
+-- 流媒体节点表（ZLMediaKit 实例登记）
+-- 关联规则：通过 server_id（字符串）与 ZLM config.ini 中 [general].mediaServerId 对齐
+-- =====================================================
+DROP TABLE IF EXISTS gb_media_server;
+CREATE TABLE gb_media_server
+(
+    id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    server_id       varchar(64)  NOT NULL COMMENT 'ZLM 节点唯一标识（与 [general].mediaServerId 一致）',
+    name            varchar(100)          DEFAULT NULL COMMENT '节点显示名',
+    host_ip         varchar(64)  NOT NULL COMMENT 'ZLM 内网/管理面 IP',
+    http_port       int          NOT NULL DEFAULT 80 COMMENT 'ZLM HTTP API 端口',
+    secret          varchar(100)          DEFAULT NULL COMMENT 'ZLM API secret',
+    stream_ip       varchar(64)           DEFAULT NULL COMMENT '对外播放 IP（HTTP-FLV/HLS/WebRTC），留空则同 host_ip',
+    rtp_port_start  int                   DEFAULT 30000 COMMENT 'RTP 端口段起始',
+    rtp_port_end    int                   DEFAULT 35000 COMMENT 'RTP 端口段截止',
+    status          tinyint               DEFAULT 0 COMMENT '在线状态：0离线 1在线（由 on_server_keepalive 维护）',
+    hook_alive_time datetime              DEFAULT NULL COMMENT '最近一次 on_server_keepalive 时间',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0否 1是',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_server_id (server_id),
+    KEY        idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流媒体节点表';
+
+-- =====================================================
+-- 点播/回放会话表（INVITE 会话核心存证）
+-- 关联规则：device_id/channel_id 逻辑关联 gb_device/gb_device_channel；server_id 逻辑关联 gb_media_server
+-- 一次成功的播放生命周期：INVITING -> READY -> STOPPED；超时/失败置 TIMEOUT/FAILED
+-- =====================================================
+DROP TABLE IF EXISTS gb_invite_session;
+CREATE TABLE gb_invite_session
+(
+    id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    stream_id       varchar(120) NOT NULL COMMENT 'ZLM stream（app 固定 rtp）；唯一',
+    server_id       varchar(64)  NOT NULL COMMENT 'ZLM 节点（关联 gb_media_server.server_id）',
+    device_id       varchar(50)  NOT NULL COMMENT '下级设备 ID',
+    channel_id      varchar(50)  NOT NULL COMMENT '通道 ID',
+    ssrc            varchar(20)  NOT NULL COMMENT '10 位 SSRC（十进制字符串）',
+    rtp_port        int                   DEFAULT NULL COMMENT 'ZLM openRtpServer 返回的端口',
+    transport       varchar(20)           DEFAULT 'UDP' COMMENT '收流模式：UDP / TCP-active / TCP-passive',
+    call_id         varchar(120)          DEFAULT NULL COMMENT 'INVITE Dialog Call-ID',
+    from_tag        varchar(80)           DEFAULT NULL COMMENT 'INVITE Dialog from-tag',
+    to_tag          varchar(80)           DEFAULT NULL COMMENT 'INVITE Dialog to-tag（200 OK 后填）',
+    session_type    varchar(20)  NOT NULL DEFAULT 'PLAY' COMMENT '会话类型：PLAY/PLAYBACK/DOWNLOAD',
+    start_time_str  varchar(20)           DEFAULT NULL COMMENT '回放起始时间（unix epoch 字符串）',
+    end_time_str    varchar(20)           DEFAULT NULL COMMENT '回放结束时间',
+    status          varchar(20)  NOT NULL DEFAULT 'INVITING' COMMENT 'INVITING/READY/STOPPED/TIMEOUT/FAILED',
+    flv_url         varchar(255)          DEFAULT NULL COMMENT 'HTTP-FLV 地址',
+    ws_flv_url      varchar(255)          DEFAULT NULL COMMENT 'WS-FLV 地址',
+    hls_url         varchar(255)          DEFAULT NULL COMMENT 'HLS m3u8 地址',
+    rtc_url         varchar(255)          DEFAULT NULL COMMENT 'WebRTC 播放地址',
+    snap_url        varchar(255)          DEFAULT NULL COMMENT '截图地址',
+    start_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '会话创建时间（INVITE 发出）',
+    ready_time      datetime              DEFAULT NULL COMMENT '流就绪时间（on_stream_changed regist:true）',
+    stop_time       datetime              DEFAULT NULL COMMENT '会话结束时间',
+    fail_reason     varchar(255)          DEFAULT NULL COMMENT '失败/超时原因',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted         tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0否 1是',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_stream_id (stream_id),
+    KEY        idx_dev_chan (device_id, channel_id),
+    KEY        idx_call_id (call_id),
+    KEY        idx_ssrc (ssrc),
+    KEY        idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='点播/回放会话表';
+
 SET
 FOREIGN_KEY_CHECKS = 1;

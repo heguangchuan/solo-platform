@@ -26,7 +26,11 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addInterceptors(InterceptorRegistry registry) {
         registry.addInterceptor(jwtInterceptor)
                 .addPathPatterns("/**")
-                .excludePathPatterns("/api/auth/login", "/api/auth/refresh");
+                .excludePathPatterns(
+                        "/api/auth/login",
+                        "/api/auth/refresh",
+                        // ZLMediaKit hook 由 ZLM 主动调用，无 JWT，使用 secret 自鉴权
+                        "/api/hook/**");
     }
 
     @Override
