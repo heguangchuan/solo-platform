@@ -5,6 +5,7 @@ import com.solo.common.ServiceException;
 import com.solo.common.SystemConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -36,6 +37,16 @@ public class GlobalExceptionHandler {
                  SystemConstants.HTTP_INTERNAL_ERROR -> ResponseEntity.status(e.getCode()).body(body);
             default -> ResponseEntity.ok(body);
         };
+    }
+
+    /**
+     * 处理上传文件超限异常。
+     */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Result<Void>> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException e) {
+        log.warn("上传文件超过限制: {}", e.getMessage());
+        return ResponseEntity.status(SystemConstants.HTTP_BAD_REQUEST)
+                .body(Result.error(SystemConstants.HTTP_BAD_REQUEST, "上传文件不能超过 20MB"));
     }
 
     /**
