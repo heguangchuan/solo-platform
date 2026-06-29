@@ -181,61 +181,6 @@
             <artifactId>mysql-connector-j</artifactId>
             <scope>runtime</scope>
         </dependency>
-
-        <!-- ========== GB28181 国标协议相关依赖 ========== -->
-
-        <!-- SIP 协议栈：GB28181 国标核心依赖 -->
-        <dependency>
-            <groupId>javax.sip</groupId>
-            <artifactId>jain-sip-ri</artifactId>
-            <version>${jain-sip-ri.version}</version>
-        </dependency>
-
-        <!-- XML 解析：解析 SIP 消息中的 XML 内容 -->
-        <dependency>
-            <groupId>org.dom4j</groupId>
-            <artifactId>dom4j</artifactId>
-            <version>${dom4j.version}</version>
-        </dependency>
-
-        <!-- JSON 解析：FastJSON2 -->
-        <dependency>
-            <groupId>com.alibaba.fastjson2</groupId>
-            <artifactId>fastjson2</artifactId>
-            <version>${fastjson2.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.alibaba.fastjson2</groupId>
-            <artifactId>fastjson2-extension</artifactId>
-            <version>${fastjson2.version}</version>
-        </dependency>
-
-        <!-- OKHttp HTTP 客户端：用于 ZLMediaKit API 调用 -->
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>okhttp</artifactId>
-            <version>${okhttp.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.squareup.okhttp3</groupId>
-            <artifactId>logging-interceptor</artifactId>
-            <version>${okhttp.version}</version>
-        </dependency>
-
-        <!-- OKHttp 摘要认证：用于部分设备的认证 -->
-        <dependency>
-            <groupId>io.github.rburgst</groupId>
-            <artifactId>okhttp-digest</artifactId>
-            <version>${okhttp-digest.version}</version>
-        </dependency>
-
-        <!-- 反向代理：用于 ZLMediaKit 接口代理 -->
-        <dependency>
-            <groupId>org.mitre.dsmiley.httpproxy</groupId>
-            <artifactId>smiley-http-proxy-servlet</artifactId>
-            <version>${smiley-http-proxy.version}</version>
-        </dependency>
-
     </dependencies>
 
     <build>
