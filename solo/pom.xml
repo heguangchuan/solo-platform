@@ -98,6 +98,12 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
+        <!-- Spring Boot AspectJ：提供面向切面编程（AOP）支持，基于 AspectJ 实现日志记录、事务管理、权限校验等横切关注点 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aspectj</artifactId>
+        </dependency>
+
         <!-- Spring Boot WebSocket：WebSocket 协议支持，用于实时双向通信（如通知、推送） -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
