@@ -8,6 +8,7 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 国标设备管理
- * 设备的入库由 SIP REGISTER 流程自动完成，这里只提供查询/删除
+ * 设备的入库由 SIP REGISTER 流程自动完成，这里只提供查询/删除/手动同步
  */
 @RestController
 @RequestMapping("/api/gb28181/device")
@@ -27,6 +28,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GbDeviceController {
 
     private final GbDeviceService gbDeviceService;
+    private final SipCommander sipCommander;
 
     /**
      * 分页查询设备
@@ -49,6 +51,24 @@ public class GbDeviceController {
             throw new ServiceException("设备不存在: " + deviceId);
         }
         return Result.success(device);
+    }
+
+    /**
+     * 手动触发设备信息 + 通道目录同步
+     */
+    @PostMapping("/{deviceId}/sync")
+    @RequirePermission({"gb28181:device:sync"})
+    public Result<Void> sync(@PathVariable String deviceId) {
+        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+        if (device == null) {
+            throw new ServiceException("设备不存在: " + deviceId);
+        }
+        if (device.getStatus() == null || device.getStatus() != 1) {
+            throw new ServiceException("设备离线，无法同步");
+        }
+        sipCommander.queryDeviceInfo(device);
+        sipCommander.queryCatalog(device);
+        return Result.success();
     }
 
     /**

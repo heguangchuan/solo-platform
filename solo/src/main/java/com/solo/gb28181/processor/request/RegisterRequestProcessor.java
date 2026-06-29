@@ -3,6 +3,7 @@ package com.solo.gb28181.processor.request;
 import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.event.DeviceOnlineEvent;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.GbDeviceService;
@@ -13,6 +14,7 @@ import gov.nist.javax.sip.message.SIPRequest;
 import gov.nist.javax.sip.message.SIPResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
@@ -50,6 +52,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
 
     private final Gb28181Properties properties;
     private final GbDeviceService gbDeviceService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public String getMethod() {
@@ -122,6 +125,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         }
 
         // 分支 4：注册成功 → 入库 / 上线
+        boolean firstTime = (exist == null);
         GbDevice device = exist != null ? exist : new GbDevice();
         device.setDeviceId(deviceId);
         device.setSipDomain(properties.getDomain());
@@ -138,5 +142,8 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             device.setCharset("GB2312");
         }
         gbDeviceService.online(device);
+
+        // 发布上线事件 → DeviceOnlineListener 异步拉取 DeviceInfo + Catalog
+        eventPublisher.publishEvent(new DeviceOnlineEvent(this, deviceId, firstTime));
     }
 }

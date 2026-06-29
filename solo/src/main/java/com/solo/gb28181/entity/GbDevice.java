@@ -114,6 +114,12 @@ public class GbDevice {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime keepaliveTime;
 
+    /**
+     * 最后 Catalog 同步完成时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime lastCatalogSyncTime;
+
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

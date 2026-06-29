@@ -76,7 +76,7 @@ com.solo.gb28181
 | 表名 | 用途 | Sprint |
 |---|---|---|
 | `gb_device` | 国标设备 | S1 ✅ |
-| `gb_channel` | 设备通道 | S2 |
+| `gb_device_channel` | 设备通道 | S2 |
 | `gb_alarm` | 设备报警 | S5 |
 | `gb_mobile_position` | 设备移动位置 | S5 |
 | `gb_record_plan` | 录像计划 | S4 |
@@ -306,6 +306,9 @@ zlm:
 | 2026-06-29 | S0 | 项目骨架：SIP 5060、REGISTER 鉴权、MESSAGE Keepalive、gb_device 表、Redis 在线状态 | ✅ |
 | 2026-06-29 | S0 | 修复 jain-sip-ri 启动 NoClassDefFoundError（一度引入 `log4j-over-slf4j` 桥接） | ✅ |
 | 2026-06-29 | S0 | **对照 wvp-pro 重写 Sprint 0**：完整 Digest（qop=auth+cnonce+nc）/ UTF-8 自定义 Parser / NIO 协议栈属性 / 多 IP 监听 / 自实现 StackLogger（移除 log4j 桥接依赖） / REGISTER 5 分支（含 NAT 地址 / GB-Date 头 / 注销）/ MESSAGE 两级分发 / Keepalive 队列削峰 + 海康兼容 / XML 海康 `&` 和 `<Address` 兼容 | ✅ |
+| 2026-06-30 | S0 | 日志前缀全量改业务语义（[设备注册]/[协议栈]/[消息分发]/[报文解析] 等） | ✅ |
+| 2026-06-30 | S0 | SQL 模块化拆分 `solo_db.sql` / `gb28181.sql`；表间只逻辑关联不建外键（ADR-011） | ✅ |
+| 2026-06-30 | S1 | **通道目录与设备信息**：gb_device_channel 表 + 实体 / Mapper / Service / Controller；SipCommander（DeviceInfo + Catalog 命令）；DeviceInfo / Catalog 响应处理（含分片合并）；DeviceOnlineEvent 驱动；离线检测定时任务；前端设备/通道列表页 + 菜单权限 | ✅ |
 
 ---
 
@@ -354,10 +357,20 @@ zlm:
   报文体（XML）按字节透传，行/头按 UTF-8 解码
 - **理由**：JAIN-SIP 默认按 ISO-8859-1 解析，国标设备中文 name/address 会乱码
 
-### ADR-010 — SQL 增量迁移文件
-- **决策**：每次改表必须同时维护 `sql/solo_db.sql`（完整版）和 `sql/migrations/V*.sql`（增量），命名遵循 Flyway 规范
-- **理由**：新装环境跑完整版，已运行环境只能按增量升；不维护增量会让运维手动 `ALTER` 各种环境，状态漂移
-- **延展**：将来引入 Flyway / Liquibase 自动迁移时，目录结构和命名都已经就绪，零迁移成本
+### ADR-010 — 模块化 SQL 文件
+- **决策**：主业务（`solo_db.sql`）与国标（`gb28181.sql`）拆成两个独立初始化脚本，共用同一个数据库
+- **理由**：国标模块未来 ~15 张表，混在主文件里查找/对比都不便；按模块拆分便于"启用国标"作为可选能力开关
+- **开发阶段**：直接改主文件，本地重建数据库即可，不维护增量迁移脚本
+- **生产发布后**：再引入 `sql/migrations/<module>/V*.sql` 增量机制（命名兼容 Flyway 规范），届时直接接入自动化迁移
+
+### ADR-011 — 表关联仅逻辑关联，不建物理外键
+- **决策**：所有表之间的关联只通过应用层字段（如 `device_db_id` 引用 `gb_device.id`），**不使用 `FOREIGN KEY` 约束**
+- **理由**：
+  - 国标设备/通道/录像/级联等强耦合实体经常批量增删，物理外键会显著降低写入吞吐
+  - 跨库/分库分表/历史归档等扩展场景下，物理外键直接阻塞迁移
+  - 应用层的逻辑校验（saveOrUpdate / 唯一索引）已经够用
+- **保留**：唯一索引（`UNIQUE KEY`）和普通索引（`KEY`）继续用，仅去掉外键约束本身
+- **风格一致**：主业务表（sys_user_role / sys_role_permission 等）现状也是零外键
 
 ---
 
