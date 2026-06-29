@@ -1,74 +1,186 @@
 package com.solo.gb28181.utils;
 
+import gov.nist.javax.sip.address.AddressImpl;
+import gov.nist.javax.sip.address.SipUri;
+import gov.nist.javax.sip.header.Subject;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.sip.address.SipURI;
 import javax.sip.header.FromHeader;
 import javax.sip.header.HeaderAddress;
+import javax.sip.header.SubjectHeader;
 import javax.sip.header.ToHeader;
+import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * SIP 报文常用字段提取工具
+ * SIP 报文字段提取与 GB28181 协议工具集
  */
+@Slf4j
 @UtilityClass
 public class SipUtils {
 
-    /**
-     * 取 From 头里的 SIP 用户名（GB28181 中即设备 ID 或平台 ID）
-     */
-    public static String getUserFromFromHeader(Request request) {
+    // ---------------- 地址 / 用户名 ----------------
+
+    /** 从 From 头取 SIP 用户名（GB28181 里通常是设备 ID 或平台 ID） */
+    public static String getUserIdFromFromHeader(Request request) {
         FromHeader from = (FromHeader) request.getHeader(FromHeader.NAME);
         return getUser(from);
     }
 
-    /**
-     * 取 To 头里的 SIP 用户名
-     */
-    public static String getUserFromToHeader(Request request) {
+    public static String getUserIdFromToHeader(Request request) {
         ToHeader to = (ToHeader) request.getHeader(ToHeader.NAME);
         return getUser(to);
     }
 
-    private static String getUser(HeaderAddress header) {
-        if (header == null || header.getAddress() == null || header.getAddress().getURI() == null) {
-            return null;
+    private static String getUser(HeaderAddress h) {
+        if (h == null || h.getAddress() == null) return null;
+        if (h.getAddress() instanceof AddressImpl a && a.getURI() instanceof SipUri uri) {
+            return uri.getUser();
         }
-        if (header.getAddress().getURI() instanceof SipURI sipURI) {
-            return sipURI.getUser();
-        }
-        return null;
-    }
-
-    /**
-     * 取请求来源 IP（优先 Via 字段中的发送方信息，回落到底层 SIPRequest 的 remoteAddress）
-     */
-    public static String getRemoteIp(Request request) {
-        if (request instanceof SIPRequest sipRequest && sipRequest.getRemoteAddress() != null) {
-            return sipRequest.getRemoteAddress().getHostAddress();
+        if (h.getAddress().getURI() instanceof SipURI uri) {
+            return uri.getUser();
         }
         return null;
     }
 
     /**
-     * 取请求来源端口
+     * 从请求获取设备真实地址
+     * <p>NAT 场景：From 里的 IP 可能是设备内网 IP，必须取 Via.received/rport 或 socket 源端。</p>
+     *
+     * @param request                          请求
+     * @param useSourceIpAsRemoteAddress       true=直接取 UDP/TCP 收包源；false=优先取 Via 头
      */
-    public static Integer getRemotePort(Request request) {
-        if (request instanceof SIPRequest sipRequest) {
-            return sipRequest.getRemotePort();
+    public static RemoteAddressInfo getRemoteAddress(SIPRequest request, boolean useSourceIpAsRemoteAddress) {
+        String ip;
+        int port;
+        if (useSourceIpAsRemoteAddress) {
+            ip = request.getPeerPacketSourceAddress().getHostAddress();
+            port = request.getPeerPacketSourcePort();
+        } else {
+            ViaHeader via = request.getTopmostViaHeader();
+            ip = via.getReceived();
+            port = via.getRPort();
+            if (ip == null || ip.isBlank() || port == -1) {
+                ip = request.getPeerPacketSourceAddress().getHostAddress();
+                port = request.getPeerPacketSourcePort();
+            }
         }
-        return null;
+        return new RemoteAddressInfo(ip, port);
     }
 
-    /**
-     * 取请求传输协议（UDP/TCP）
-     */
+    /** 来自请求顶层 Via 头的传输协议（UDP/TCP） */
     public static String getTransport(Request request) {
-        if (request instanceof SIPRequest sipRequest) {
-            return sipRequest.getTopmostViaHeader() == null ? "UDP"
-                    : sipRequest.getTopmostViaHeader().getTransport();
+        if (request instanceof SIPRequest r) {
+            ViaHeader via = r.getTopmostViaHeader();
+            return via == null ? "UDP" : via.getTransport();
         }
         return "UDP";
+    }
+
+    // ---------------- Subject / SSRC ----------------
+
+    /**
+     * 从 Subject 头解析国标点播/回放语义的 channelId
+     * <p>Subject 格式：{@code <ChannelID>:<SSRC>,<RemoteID>:<SeqNum>}</p>
+     *
+     * @return 长度为 2 的数组：[0]=channelId，[1]=remoteId（可能为 null）
+     */
+    public static String[] getChannelIdFromSubject(Request request) {
+        SubjectHeader subject = (Subject) request.getHeader("subject");
+        if (subject == null) return null;
+        String s = subject.getSubject();
+        String[] result = new String[2];
+        if (s.contains(",")) {
+            String[] parts = s.split(",");
+            result[0] = parts[0].split(":")[0];
+            result[1] = parts[1].split(":")[0];
+        } else {
+            result[0] = s.split(":")[0];
+        }
+        return result;
+    }
+
+    // ---------------- 标识生成 ----------------
+
+    public static String newViaTag() {
+        return "z9hG4bK" + ThreadLocalRandom.current().nextInt(100_000_000, 999_999_999);
+    }
+
+    public static String newFromTag() {
+        return UUID.randomUUID().toString().replace("-", "");
+    }
+
+    public static String newToTag() {
+        return String.valueOf(System.currentTimeMillis());
+    }
+
+    public static String newCallIdSeed() {
+        return String.valueOf(ThreadLocalRandom.current().nextInt(1_000_000_000));
+    }
+
+    // ---------------- GB 编码 ----------------
+
+    /** 取设备 ID 的设备类型码（11-13 位） */
+    public static int getTypeCodeFromGbCode(String deviceId) {
+        if (deviceId == null || deviceId.length() < 13) return 0;
+        try {
+            return Integer.parseInt(deviceId.substring(10, 13));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** 判断 GB 编码是否是前端设备（摄像机/IPC） */
+    public static boolean isFrontEnd(String deviceId) {
+        int type = getTypeCodeFromGbCode(deviceId);
+        return type > 130 && type < 199;
+    }
+
+    // ---------------- PTZ 控制码（GB/T 28181-2016 附录 A） ----------------
+
+    /**
+     * 国标 PTZ 控制码计算
+     *
+     * @param leftRight 左移右移 0=停 1=左 2=右
+     * @param upDown    上移下移 0=停 1=上 2=下
+     * @param inOut     缩放    0=停 1=缩小 2=放大
+     * @param moveSpeed 移动速度 (0-255)
+     * @param zoomSpeed 缩放速度 (0-15)
+     * @return 8 字节 PTZ 控制码（16 进制大写串）
+     */
+    public static String buildPtzCmd(int leftRight, int upDown, int inOut, int moveSpeed, int zoomSpeed) {
+        int cmdCode = 0;
+        if (leftRight == 2) cmdCode |= 0x01;       // 右
+        else if (leftRight == 1) cmdCode |= 0x02;  // 左
+        if (upDown == 2) cmdCode |= 0x04;          // 下
+        else if (upDown == 1) cmdCode |= 0x08;     // 上
+        if (inOut == 2) cmdCode |= 0x10;           // 放大
+        else if (inOut == 1) cmdCode |= 0x20;      // 缩小
+
+        // 低倍速 zoom 优化
+        if (zoomSpeed > 0 && zoomSpeed < 16) zoomSpeed = 16;
+
+        StringBuilder b = new StringBuilder("A50F01");
+        b.append(String.format("%02X", cmdCode));
+        b.append(String.format("%02X", moveSpeed));
+        b.append(String.format("%02X", moveSpeed));
+        b.append(String.format("%X", zoomSpeed)).append('0');
+
+        // 校验和：低 8 位
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + moveSpeed + moveSpeed + (zoomSpeed & 0xF0)) % 0x100;
+        b.append(String.format("%02X", checkCode));
+        return b.toString();
+    }
+
+    // ---------------- 内嵌类 ----------------
+
+    /** 设备远端地址（IP+Port） */
+    public record RemoteAddressInfo(String ip, int port) {
+        public String hostAddress() { return ip + ":" + port; }
     }
 }

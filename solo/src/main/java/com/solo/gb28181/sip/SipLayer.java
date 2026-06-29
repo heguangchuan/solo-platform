@@ -1,115 +1,174 @@
 package com.solo.gb28181.sip;
 
 import com.solo.gb28181.config.Gb28181Properties;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import com.solo.gb28181.sip.parser.GbStringMsgParserFactory;
+import gov.nist.javax.sip.SipProviderImpl;
+import gov.nist.javax.sip.SipStackImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jspecify.annotations.NonNull;
+import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import javax.sip.InvalidArgumentException;
 import javax.sip.ListeningPoint;
+import javax.sip.ObjectInUseException;
 import javax.sip.PeerUnavailableException;
 import javax.sip.SipFactory;
-import javax.sip.SipProvider;
-import javax.sip.SipStack;
-import java.util.Properties;
+import javax.sip.TransportNotSupportedException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Map;
+import java.util.TooManyListenersException;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * SIP 协议栈层
- * 启动 UDP / TCP 双栈监听，将 SipProvider 注入给 {@link SipProcessorObserver} 统一处理
+ * <p>启动时机：使用 {@link CommandLineRunner} + {@code @Order(10)}，保证 Spring 上下文完全 ready。</p>
+ * <p>多 IP 监听：配置留空时自动扫描本机所有非 loopback / 非 docker 的 IPv4 网卡；
+ * 配置写多个 IP（逗号分隔）时按各 IP 分别建栈。</p>
+ * <p>每个 IP 建一个独立 SipStack，UDP 和 TCP 各一个 ListeningPoint+Provider。</p>
  */
 @Slf4j
 @Component
+@Order(10)
 @RequiredArgsConstructor
-public class SipLayer {
+public class SipLayer implements CommandLineRunner {
 
     private final Gb28181Properties properties;
     private final SipProcessorObserver sipProcessorObserver;
 
-    private SipStack sipStack;
-    private SipProvider udpSipProvider;
-    private SipProvider tcpSipProvider;
+    private final Map<String, SipProviderImpl> udpProviderMap = new ConcurrentHashMap<>();
+    private final Map<String, SipProviderImpl> tcpProviderMap = new ConcurrentHashMap<>();
+    private final List<String> monitorIps = new ArrayList<>();
 
-    @PostConstruct
-    public void init() {
+    @Override
+    public void run(String @NonNull ... args) {
         if (!properties.isEnabled()) {
-            log.info("[GB28181] gb28181.enabled=false，跳过 SIP 协议栈启动");
+            log.info("[协议栈] gb28181.enabled=false，跳过 SIP 协议栈启动");
+            return;
+        }
+
+        resolveMonitorIps();
+        if (monitorIps.isEmpty()) {
+            log.error("[协议栈] 未解析到任何可监听 IP，请配置 gb28181.ip 后重启");
+            return;
+        }
+
+        SipFactory.getInstance().setPathName("gov.nist");
+        for (String ip : monitorIps) {
+            addListeningPoint(ip, properties.getPort());
+        }
+        if (udpProviderMap.isEmpty() && tcpProviderMap.isEmpty()) {
+            log.error("[协议栈] 所有监听点启动失败");
+            return;
+        }
+        log.info("[协议栈] SIP 协议栈启动完成 ips={} port={} sipId={} domain={}",
+                monitorIps, properties.getPort(), properties.getId(), properties.getDomain());
+    }
+
+    /** 解析监听 IP：空配置走自动扫描；非空按逗号分割 */
+    private void resolveMonitorIps() {
+        String cfg = properties.getIp();
+        if (cfg != null && !cfg.isBlank()) {
+            monitorIps.addAll(Arrays.stream(cfg.split(",")).map(String::trim).filter(s -> !s.isEmpty()).toList());
             return;
         }
         try {
-            startSipStack();
-        } catch (Exception e) {
-            log.error("[GB28181] SIP 协议栈启动失败", e);
-        }
-    }
-
-    private void startSipStack() throws Exception {
-        SipFactory sipFactory = SipFactory.getInstance();
-        sipFactory.setPathName("gov.nist");
-
-        Properties props = new Properties();
-        props.setProperty("javax.sip.STACK_NAME", "solo-gb28181");
-        // 自动维护对话（Dialog）
-        props.setProperty("javax.sip.AUTOMATIC_DIALOG_SUPPORT", "ON");
-        // 调试日志级别（生产可调为 OFF/16）
-        props.setProperty("gov.nist.javax.sip.TRACE_LEVEL", "0");
-        // 收到不带 Via 的请求时回复 400 而非抛异常
-        props.setProperty("gov.nist.javax.sip.PASS_INVITE_NON_2XX_ACK_TO_LISTENER", "true");
-        // 允许处理大尺寸消息（Catalog 等可能很大）
-        props.setProperty("gov.nist.javax.sip.RECEIVE_UDP_BUFFER_SIZE", String.valueOf(1024 * 1024));
-        props.setProperty("gov.nist.javax.sip.SEND_UDP_BUFFER_SIZE", String.valueOf(1024 * 1024));
-
-        sipStack = sipFactory.createSipStack(props);
-
-        String listenIp = (properties.getIp() == null || properties.getIp().isBlank()) ? "0.0.0.0" : properties.getIp();
-        int port = properties.getPort();
-
-        // UDP
-        ListeningPoint udpPoint = sipStack.createListeningPoint(listenIp, port, "UDP");
-        udpSipProvider = sipStack.createSipProvider(udpPoint);
-        udpSipProvider.addSipListener(sipProcessorObserver);
-
-        // TCP
-        ListeningPoint tcpPoint = sipStack.createListeningPoint(listenIp, port, "TCP");
-        tcpSipProvider = sipStack.createSipProvider(tcpPoint);
-        tcpSipProvider.addSipListener(sipProcessorObserver);
-
-        sipProcessorObserver.bindProviders(udpSipProvider, tcpSipProvider);
-
-        log.info("[GB28181] SIP 协议栈已启动 listen={}:{} (UDP+TCP) sipId={} domain={}",
-                listenIp, port, properties.getId(), properties.getDomain());
-    }
-
-    @PreDestroy
-    public void destroy() {
-        try {
-            if (sipStack != null) {
-                sipStack.stop();
-                log.info("[GB28181] SIP 协议栈已停止");
+            Enumeration<NetworkInterface> nifs = NetworkInterface.getNetworkInterfaces();
+            while (nifs.hasMoreElements()) {
+                NetworkInterface nif = nifs.nextElement();
+                if (nif.getName().startsWith("docker") || nif.getName().startsWith("veth")) continue;
+                Enumeration<InetAddress> addrs = nif.getInetAddresses();
+                while (addrs.hasMoreElements()) {
+                    InetAddress addr = addrs.nextElement();
+                    if (!(addr instanceof Inet4Address)) continue;
+                    if (addr.isLoopbackAddress()) continue;
+                    log.info("[协议栈] 自动添加 SIP 监听网卡: {} {}", nif.getName(), addr.getHostAddress());
+                    monitorIps.add(addr.getHostAddress());
+                }
             }
         } catch (Exception e) {
-            log.warn("[GB28181] SIP 协议栈停止异常", e);
+            log.error("[协议栈] 读取本机网卡失败", e);
         }
     }
 
-    /**
-     * 根据传输协议名取得对应 Provider（"UDP" / "TCP"）
-     */
-    public SipProvider getProvider(String transport) {
-        if ("TCP".equalsIgnoreCase(transport)) {
-            return tcpSipProvider;
+    private void addListeningPoint(String ip, int port) {
+        SipStackImpl sipStack;
+        try {
+            sipStack = (SipStackImpl) SipFactory.getInstance()
+                    .createSipStack(SipProperties.build("solo-gb28181-" + ip, properties.isSipLog()));
+            // 强制使用国标 UTF-8 解析器
+            sipStack.setMessageParserFactory(new GbStringMsgParserFactory());
+        } catch (PeerUnavailableException e) {
+            log.error("[协议栈] SIP 协议栈创建失败 ip={}", ip, e);
+            return;
         }
-        return udpSipProvider;
+
+        // TCP
+        try {
+            ListeningPoint tcp = sipStack.createListeningPoint(ip, port, "TCP");
+            SipProviderImpl provider = (SipProviderImpl) sipStack.createSipProvider(tcp);
+            provider.setDialogErrorsAutomaticallyHandled();
+            provider.addSipListener(sipProcessorObserver);
+            tcpProviderMap.put(ip, provider);
+            log.info("[协议栈] tcp://{}:{} 启动成功", ip, port);
+        } catch (TransportNotSupportedException | TooManyListenersException
+                 | ObjectInUseException | InvalidArgumentException e) {
+            log.error("[协议栈] tcp://{}:{} 启动失败: {}", ip, port, e.getMessage());
+        }
+
+        // UDP
+        try {
+            ListeningPoint udp = sipStack.createListeningPoint(ip, port, "UDP");
+            SipProviderImpl provider = (SipProviderImpl) sipStack.createSipProvider(udp);
+            provider.setDialogErrorsAutomaticallyHandled();
+            provider.addSipListener(sipProcessorObserver);
+            udpProviderMap.put(ip, provider);
+            log.info("[协议栈] udp://{}:{} 启动成功", ip, port);
+        } catch (TransportNotSupportedException | TooManyListenersException
+                 | ObjectInUseException | InvalidArgumentException e) {
+            log.error("[协议栈] udp://{}:{} 启动失败: {}", ip, port, e.getMessage());
+        }
+    }
+
+    public List<String> getMonitorIps() { return List.copyOf(monitorIps); }
+
+    public SipProviderImpl getUdpSipProvider(String ip) {
+        if (udpProviderMap.size() == 1) return udpProviderMap.values().iterator().next();
+        if (ip == null || ip.isBlank()) return null;
+        return udpProviderMap.get(ip);
+    }
+
+    public SipProviderImpl getTcpSipProvider(String ip) {
+        if (tcpProviderMap.size() == 1) return tcpProviderMap.values().iterator().next();
+        if (ip == null || ip.isBlank()) return null;
+        return tcpProviderMap.get(ip);
+    }
+
+    /** 仅在单 IP 模式下使用 */
+    public SipProviderImpl getUdpSipProvider() {
+        return udpProviderMap.size() == 1 ? udpProviderMap.values().iterator().next() : null;
+    }
+
+    public SipProviderImpl getTcpSipProvider() {
+        return tcpProviderMap.size() == 1 ? tcpProviderMap.values().iterator().next() : null;
     }
 
     /**
-     * 默认 UDP Provider（最常用）
+     * 选择回包时使用的本机 IP
+     * 单 IP 直接返回；多 IP 按设备的 localIp（设备记录的接入网卡）匹配
      */
-    public SipProvider getUdpSipProvider() {
-        return udpSipProvider;
-    }
-
-    public SipProvider getTcpSipProvider() {
-        return tcpSipProvider;
+    public String getLocalIp(String deviceLocalIp) {
+        if (monitorIps.size() == 1) return monitorIps.get(0);
+        if (deviceLocalIp != null && !deviceLocalIp.isBlank()) return deviceLocalIp;
+        SipProviderImpl any = getUdpSipProvider();
+        return any == null ? null : any.getListeningPoint().getIPAddress();
     }
 }

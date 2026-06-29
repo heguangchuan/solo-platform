@@ -190,12 +190,6 @@
             <version>${jain-sip-ri.version}</version>
         </dependency>
 
-        <!-- log4j-over-slf4j：JAIN-SIP 内部 StackLoggerImpl 依赖 log4j 1.x，桥接到 SLF4J，避免引入真正 log4j 1.x -->
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-        </dependency>
-
         <!-- dom4j：GB28181 MESSAGE 报文（Catalog/Keepalive/Alarm/RecordInfo 等）XML 解析与构造 -->
         <dependency>
             <groupId>org.dom4j</groupId>

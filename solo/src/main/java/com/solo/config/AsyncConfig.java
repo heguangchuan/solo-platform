@@ -46,4 +46,22 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * GB/T 28181 SIP 信令处理线程池
+     * <p>所有 SIP 请求/响应处理都丢到这里异步执行，避免阻塞 jain-sip 的 listener 线程；
+     * 队列满时调用者线程直接执行（CallerRunsPolicy），保证消息不丢但会反压上游。</p>
+     */
+    @Bean("taskExecutor")
+    public ThreadPoolTaskExecutor sipTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(8);
+        executor.setMaxPoolSize(32);
+        executor.setQueueCapacity(2000);
+        executor.setKeepAliveSeconds(60);
+        executor.setThreadNamePrefix("gb28181-sip-");
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.initialize();
+        return executor;
+    }
 }

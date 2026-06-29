@@ -1,34 +1,54 @@
 package com.solo.gb28181.processor.request;
 
+import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.processor.SipRequestProcessor;
+import com.solo.gb28181.processor.SipRequestProcessorBase;
+import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.utils.SipUtils;
 import com.solo.gb28181.utils.XmlUtils;
-import lombok.RequiredArgsConstructor;
+import gov.nist.javax.sip.message.SIPRequest;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
-import org.dom4j.Document;
 import org.dom4j.Element;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
-import javax.sip.ServerTransaction;
-import javax.sip.SipProvider;
-import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
- * MESSAGE 请求处理器
- * <p>GB28181 用 SIP MESSAGE 承载业务子命令，CmdType 决定分发：
- * Keepalive / Catalog / DeviceInfo / DeviceStatus / RecordInfo / Alarm / MobilePosition / Broadcast / MediaStatus …</p>
- * <p>MVP 阶段先处理 Keepalive，其余统一回 200 OK + 打印日志，后续 Sprint 逐步补齐</p>
+ * MESSAGE 请求总入口
+ * <p>两级分发：根元素名（Notify/Query/Control/Response）→ CmdType（Keepalive/Catalog/DeviceInfo/...）</p>
+ * <p>所有 {@link MessageHandler} 实现会被 Spring 自动注入，{@code @PostConstruct} 中注册到映射表。</p>
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
-public class MessageRequestProcessor implements SipRequestProcessor {
+public class MessageRequestProcessor extends SipRequestProcessorBase implements SipRequestProcessor {
 
-    private final GbDeviceService gbDeviceService;
+    @Autowired(required = false)
+    private List<MessageHandler> handlerBeans;
+
+    @Autowired
+    private GbDeviceService gbDeviceService;
+
+    /** rootType -> cmdType -> handler */
+    private final Map<String, Map<String, MessageHandler>> handlerMap = new HashMap<>();
+
+    @PostConstruct
+    public void init() {
+        if (handlerBeans == null) return;
+        for (MessageHandler h : handlerBeans) {
+            handlerMap.computeIfAbsent(h.getRootType(), k -> new HashMap<>())
+                    .put(h.getCmdType(), h);
+            log.info("[消息分发] 注册 MESSAGE handler: {}/{} -> {}",
+                    h.getRootType(), h.getCmdType(), h.getClass().getSimpleName());
+        }
+    }
 
     @Override
     public String getMethod() {
@@ -37,35 +57,42 @@ public class MessageRequestProcessor implements SipRequestProcessor {
 
     @Override
     public void process(RequestEvent event) throws Exception {
-        SipProvider provider = (SipProvider) event.getSource();
-        Request request = event.getRequest();
-        ServerTransaction tx = event.getServerTransaction();
-        if (tx == null) {
-            tx = provider.getNewServerTransaction(request);
-        }
+        SIPRequest request = (SIPRequest) event.getRequest();
+        String deviceId = SipUtils.getUserIdFromFromHeader(request);
 
-        // 先无条件回 200 OK，避免设备超时重传（XML 业务在异步逻辑里处理）
-        MessageFactory messageFactory = SipFactoryHolder.messageFactory();
-        Response ok = messageFactory.createResponse(Response.OK, request);
-        tx.sendResponse(ok);
-
-        // 解析 XML
-        byte[] content = request.getRawContent();
-        Document document = XmlUtils.parse(content);
-        if (document == null) {
+        Element root = XmlUtils.parseRoot(request.getRawContent());
+        if (root == null) {
+            log.warn("[消息分发] MESSAGE 报文体为空或解析失败 deviceId={}", deviceId);
+            responseAck(request, Response.BAD_REQUEST, "empty or malformed xml");
             return;
         }
-        Element root = document.getRootElement();
-        String cmdType = XmlUtils.getChildText(root, "CmdType");
-        String deviceId = SipUtils.getUserFromFromHeader(request);
 
-        switch (cmdType) {
-            case "Keepalive" -> gbDeviceService.onKeepalive(deviceId);
-            case "Catalog", "DeviceInfo", "DeviceStatus", "RecordInfo",
-                    "Alarm", "MobilePosition", "Broadcast", "MediaStatus" -> {
-                log.info("[GB28181] 收到 {} 报文（暂未处理）: deviceId={}", cmdType, deviceId);
+        String rootName = root.getName();
+        String cmdType = XmlUtils.childText(root, "CmdType");
+
+        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+
+        Map<String, MessageHandler> byCmd = handlerMap.get(rootName);
+        MessageHandler handler = byCmd == null ? null : byCmd.get(cmdType);
+
+        if (handler == null) {
+            log.info("[消息分发] 未注册的 MESSAGE 子命令: rootType={} cmdType={} deviceId={}", rootName, cmdType, deviceId);
+            // 即使不处理也要回 200，避免设备无穷重传
+            responseAck(request, Response.OK);
+            return;
+        }
+
+        try {
+            if (device != null) {
+                handler.handleForDevice(event, device, root);
+            } else {
+                // 设备未注册，通常发生在 Keepalive 误投递；先回 200 再丢弃
+                log.warn("[消息分发] 未注册设备发送 MESSAGE: deviceId={} cmd={}", deviceId, cmdType);
+                responseAck(request, Response.OK);
             }
-            default -> log.info("[GB28181] 收到未知 MESSAGE CmdType={}: deviceId={}", cmdType, deviceId);
+        } catch (Exception e) {
+            log.error("[消息分发] MESSAGE handler 异常: rootType={} cmdType={} deviceId={}",
+                    rootName, cmdType, deviceId, e);
         }
     }
 }
