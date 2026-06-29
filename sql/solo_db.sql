@@ -685,6 +685,8 @@ CREATE TABLE gb_device
     sip_domain      varchar(50)           DEFAULT NULL COMMENT 'SIP域',
     ip              varchar(64)           DEFAULT NULL COMMENT '最后注册来源IP',
     port            int                   DEFAULT NULL COMMENT '最后注册来源端口',
+    local_ip        varchar(64)           DEFAULT NULL COMMENT '本平台和该设备通信的本机IP',
+    host_address    varchar(80)           DEFAULT NULL COMMENT '设备主机地址 ip:port',
     transport       varchar(10)           DEFAULT 'UDP' COMMENT '传输协议 UDP/TCP',
     expires         int                   DEFAULT 3600 COMMENT '注册有效期（秒）',
     charset         varchar(20)           DEFAULT 'GB2312' COMMENT '字符集',

@@ -1,41 +1,52 @@
 package com.solo.gb28181.processor.request;
 
+import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.processor.SipRequestProcessor;
+import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.GbDeviceService;
-import com.solo.gb28181.utils.SipDigestUtils;
+import com.solo.gb28181.sip.bean.GbSipDate;
 import com.solo.gb28181.utils.SipUtils;
+import gov.nist.javax.sip.header.SIPDateHeader;
+import gov.nist.javax.sip.message.SIPRequest;
+import gov.nist.javax.sip.message.SIPResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
-import javax.sip.ServerTransaction;
-import javax.sip.SipProvider;
-import javax.sip.address.AddressFactory;
-import javax.sip.header.AuthorizationHeader;
 import javax.sip.header.ContactHeader;
-import javax.sip.header.DateHeader;
-import javax.sip.header.ExpiresHeader;
-import javax.sip.header.HeaderFactory;
-import javax.sip.header.WWWAuthenticateHeader;
-import javax.sip.message.MessageFactory;
+import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.Calendar;
 import java.util.Locale;
-import java.util.TimeZone;
 
 /**
  * REGISTER 请求处理器
- * <p>流程：首次 REGISTER 无 Authorization → 401 + nonce 挑战；设备带 Authorization 再发上来 → 校验 Digest → 200 OK</p>
- * <p>Expires=0 视为注销</p>
+ *
+ * <p>分支：</p>
+ * <ol>
+ *   <li><b>无 Authorization</b> → 401 + 挑战</li>
+ *   <li><b>有 Authorization & 鉴权失败</b> → 403</li>
+ *   <li><b>Expires=0 & 鉴权通过</b> → 200 + offline</li>
+ *   <li><b>Expires>0 & 鉴权通过</b> → 200 + online</li>
+ *   <li><b>同 Call-Id 续订（如果将来支持持久化 SipTransactionInfo）</b> → 跳过挑战直接 200</li>
+ * </ol>
+ *
+ * <p>响应要点：</p>
+ * <ul>
+ *   <li>带 GB-Date 头（ISO8601，部分设备依此校时）</li>
+ *   <li>带原 Contact 头（按 RFC 3261）</li>
+ *   <li>带原 Expires 头</li>
+ *   <li>设备地址走 NAT 真实地址（Via.received/rport 兜底 socket 源）</li>
+ * </ul>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class RegisterRequestProcessor implements SipRequestProcessor {
+public class RegisterRequestProcessor extends SipRequestProcessorBase implements SipRequestProcessor {
 
     private final Gb28181Properties properties;
     private final GbDeviceService gbDeviceService;
@@ -47,91 +58,85 @@ public class RegisterRequestProcessor implements SipRequestProcessor {
 
     @Override
     public void process(RequestEvent event) throws Exception {
-        SipProvider provider = (SipProvider) event.getSource();
-        Request request = event.getRequest();
-        String deviceId = SipUtils.getUserFromFromHeader(request);
-        String remoteIp = SipUtils.getRemoteIp(request);
-        Integer remotePort = SipUtils.getRemotePort(request);
-        String transport = SipUtils.getTransport(request);
+        SIPRequest request = (SIPRequest) event.getRequest();
+        String deviceId = SipUtils.getUserIdFromFromHeader(request);
 
-        ServerTransaction serverTransaction = event.getServerTransaction();
-        if (serverTransaction == null) {
-            serverTransaction = provider.getNewServerTransaction(request);
-        }
-
-        HeaderFactory headerFactory = SipFactoryHolder.headerFactory();
-        MessageFactory messageFactory = SipFactoryHolder.messageFactory();
-        AddressFactory addressFactory = SipFactoryHolder.addressFactory();
-
-        AuthorizationHeader authHeader = (AuthorizationHeader) request.getHeader(AuthorizationHeader.NAME);
-        if (authHeader == null) {
-            // 第一阶段：发起 401 挑战
-            Response challenge = messageFactory.createResponse(Response.UNAUTHORIZED, request);
-            String nonce = SipDigestUtils.genNonce();
-            WWWAuthenticateHeader www = headerFactory.createWWWAuthenticateHeader("Digest");
-            www.setParameter("realm", properties.getDomain());
-            www.setParameter("qop", "auth");
-            www.setParameter("nonce", nonce);
-            www.setParameter("algorithm", "MD5");
-            challenge.setHeader(www);
-            serverTransaction.sendResponse(challenge);
-            log.info("[GB28181] REGISTER 挑战 401: deviceId={} {}:{} nonce={}", deviceId, remoteIp, remotePort, nonce);
-            return;
-        }
-
-        // 第二阶段：校验 Digest
-        String username = authHeader.getUsername();
-        String realm = authHeader.getRealm();
-        String nonce = authHeader.getNonce();
-        String uri = authHeader.getURI().toString();
-        String response = authHeader.getResponse();
-        String expected = SipDigestUtils.md5Digest(username, realm, properties.getPassword(),
-                request.getMethod(), uri, nonce);
-        if (!expected.equalsIgnoreCase(response)) {
-            Response forbidden = messageFactory.createResponse(Response.FORBIDDEN, request);
-            serverTransaction.sendResponse(forbidden);
-            log.warn("[GB28181] REGISTER 鉴权失败: deviceId={} expected={} actual={}", deviceId, expected, response);
-            return;
-        }
-
-        // 鉴权通过 → 200 OK
-        Response ok = messageFactory.createResponse(Response.OK, request);
-
-        // 回写 Date（部分设备依赖此头校时）
-        DateHeader dateHeader = headerFactory.createDateHeader(java.util.Calendar.getInstance(TimeZone.getDefault()));
-        ok.setHeader(dateHeader);
-
-        // 回写 Expires
-        ExpiresHeader expiresHeader = (ExpiresHeader) request.getHeader(ExpiresHeader.NAME);
-        int expires;
-        if (expiresHeader != null) {
-            expires = expiresHeader.getExpires();
+        // 取 Expires，部分设备没带 Expires 头时用配置默认值
+        int expires = properties.getRegisterExpires();
+        if (request.getExpires() != null) {
+            expires = request.getExpires().getExpires();
         } else {
             ContactHeader contact = (ContactHeader) request.getHeader(ContactHeader.NAME);
-            expires = contact == null ? properties.getRegisterExpires() : contact.getExpires();
-            if (expires < 0) expires = properties.getRegisterExpires();
+            if (contact != null && contact.getExpires() >= 0) expires = contact.getExpires();
         }
-        ok.setHeader(headerFactory.createExpiresHeader(expires));
+        boolean isUnregister = (expires == 0);
 
-        serverTransaction.sendResponse(ok);
+        // 取 NAT 真实地址
+        SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request, properties.isUseSourceIpAsRemoteAddress());
+        String requestAddress = remote.hostAddress();
+        String title = isUnregister ? "[设备注销]" : "[设备注册]";
+        log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
 
-        if (expires == 0) {
-            gbDeviceService.onUnregister(deviceId);
-        } else {
-            gbDeviceService.onRegister(deviceId, remoteIp,
-                    remotePort == null ? 0 : remotePort, transport, expires);
+        // 取设备已存在记录 + 设备级密码
+        GbDevice exist = gbDeviceService.getByDeviceId(deviceId);
+        String password = properties.getPassword(); // 当前模型暂不支持设备级密码字段，预留扩展
+
+        // 校验 Digest
+        if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) == null && password != null && !password.isBlank()) {
+            // 分支 1：发起 401 挑战
+            SIPResponse challenge = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.UNAUTHORIZED, request);
+            new DigestServerAuthenticationHelper().appendChallenge(HEADER_FACTORY, challenge, properties.getDomain());
+            sipSender.send(request.getLocalAddress().getHostAddress(), challenge);
+            log.info("{} deviceId={} 回复 401 挑战", title, deviceId);
+            return;
         }
-    }
 
-    /** ISO8601 时间格式化器（GB28181 设备时间同步用，Date 头未启用时备用） */
-    @SuppressWarnings("unused")
-    private static final SimpleDateFormat DATE_FORMATTER = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zzz", Locale.US);
-    static {
-        DATE_FORMATTER.setTimeZone(TimeZone.getTimeZone("GMT"));
-    }
+        boolean pwdOk = password == null || password.isBlank()
+                || new DigestServerAuthenticationHelper().authenticate(request, password);
+        if (!pwdOk) {
+            // 分支 2：鉴权失败
+            SIPResponse forbidden = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.FORBIDDEN, request);
+            forbidden.setReasonPhrase("wrong password");
+            sipSender.send(request.getLocalAddress().getHostAddress(), forbidden);
+            log.warn("{} deviceId={} 鉴权失败", title, deviceId);
+            return;
+        }
 
-    @SuppressWarnings("unused")
-    private static String formatDate(Date date) {
-        return DATE_FORMATTER.format(date);
+        // 鉴权通过 → 构造 200 OK
+        SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.OK, request);
+        // 加 GB-Date 头
+        SIPDateHeader dateHeader = new SIPDateHeader();
+        dateHeader.setDate(new GbSipDate(Calendar.getInstance(Locale.ENGLISH).getTimeInMillis()));
+        response.addHeader(dateHeader);
+        // 回写 Contact / Expires（按 RFC 3261）
+        ContactHeader contact = (ContactHeader) request.getHeader(ContactHeader.NAME);
+        if (contact != null) response.addHeader(contact);
+        if (request.getExpires() != null) response.addHeader(request.getExpires());
+
+        sipSender.send(request.getLocalAddress().getHostAddress(), response);
+
+        if (isUnregister) {
+            // 分支 3：注销
+            gbDeviceService.offline(deviceId, "主动注销");
+            return;
+        }
+
+        // 分支 4：注册成功 → 入库 / 上线
+        GbDevice device = exist != null ? exist : new GbDevice();
+        device.setDeviceId(deviceId);
+        device.setSipDomain(properties.getDomain());
+        device.setIp(remote.ip());
+        device.setPort(remote.port());
+        device.setHostAddress(remote.hostAddress());
+        device.setLocalIp(request.getLocalAddress().getHostAddress());
+        device.setExpires(expires);
+
+        ViaHeader via = (ViaHeader) request.getHeader(ViaHeader.NAME);
+        device.setTransport(via != null && "TCP".equalsIgnoreCase(via.getTransport()) ? "TCP" : "UDP");
+
+        if (device.getCharset() == null || device.getCharset().isBlank()) {
+            device.setCharset("GB2312");
+        }
+        gbDeviceService.online(device);
     }
 }

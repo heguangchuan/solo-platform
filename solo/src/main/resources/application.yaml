@@ -28,7 +28,7 @@ mybatis-plus:
       logic-delete-value: 1
   configuration:
     map-underscore-to-camel-case: true
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 jwt:
   secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=

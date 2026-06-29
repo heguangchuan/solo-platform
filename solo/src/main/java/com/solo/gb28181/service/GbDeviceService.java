@@ -10,34 +10,26 @@ import com.solo.gb28181.request.GbDevicePageRequest;
  */
 public interface GbDeviceService extends IService<GbDevice> {
 
-    /**
-     * 分页查询设备
-     */
     Page<GbDevice> pageQuery(GbDevicePageRequest request);
 
-    /**
-     * 根据国标 ID 查询设备
-     */
     GbDevice getByDeviceId(String deviceId);
 
     /**
-     * 处理一次设备注册（首次新增 / 已有则更新接入信息）
+     * 设备上线（注册成功 / 心跳重新上线）
+     * <p>device 已设好 ip/port/localIp/transport/expires 等字段，本方法负责持久化 + Redis TTL</p>
+     */
+    void online(GbDevice device);
+
+    /**
+     * 设备离线
      *
-     * @param deviceId  设备国标 ID
-     * @param ip        来源 IP
-     * @param port      来源端口
-     * @param transport 传输协议
-     * @param expires   注册有效期（秒）
+     * @param deviceId 设备国标 ID
+     * @param reason   离线原因（日志/告警用）
      */
-    void onRegister(String deviceId, String ip, int port, String transport, int expires);
+    void offline(String deviceId, String reason);
 
     /**
-     * 处理一次设备注销（Expires=0 的 REGISTER）
+     * 心跳收到后更新心跳时间和 Redis TTL
      */
-    void onUnregister(String deviceId);
-
-    /**
-     * 处理一次心跳（Keepalive）
-     */
-    void onKeepalive(String deviceId);
+    void keepalive(GbDevice device);
 }

@@ -68,6 +68,16 @@ public class GbDevice {
     private Integer port;
 
     /**
+     * 本平台用于和该设备通信的本机 IP（多网卡时必须记录）
+     */
+    private String localIp;
+
+    /**
+     * 设备主机地址 ip:port（冗余存储，便于查询）
+     */
+    private String hostAddress;
+
+    /**
      * 传输协议 UDP/TCP
      */
     private String transport;

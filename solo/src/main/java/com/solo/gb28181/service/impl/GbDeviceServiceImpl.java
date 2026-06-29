@@ -18,17 +18,17 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 国标设备服务实现
- * <p>除了写库，还把"在线"信号写到 Redis，TTL = keepaliveTimeoutMultiplier × Keepalive 周期（默认 60s × 3）</p>
+ * <p>在线状态双写：MySQL {@code status} 字段 + Redis {@code gb28181:device:online:{id}} TTL</p>
+ * <p>TTL = max(register_expires, keepalive_default × multiplier)</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> implements GbDeviceService {
 
-    /** Redis 中设备在线状态 key 前缀 */
     private static final String ONLINE_KEY_PREFIX = "gb28181:device:online:";
-    /** Keepalive 默认周期（秒，国标推荐 60） */
-    private static final long DEFAULT_KEEPALIVE_INTERVAL_SECONDS = 60L;
+    /** 国标默认 Keepalive 周期（秒） */
+    private static final long DEFAULT_KEEPALIVE_INTERVAL = 60L;
 
     private final StringRedisTemplate redisTemplate;
     private final Gb28181Properties properties;
@@ -55,64 +55,49 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     }
 
     @Override
-    public void onRegister(String deviceId, String ip, int port, String transport, int expires) {
-        GbDevice device = getByDeviceId(deviceId);
+    public void online(GbDevice device) {
+        device.setStatus(1);
         LocalDateTime now = LocalDateTime.now();
-        if (device == null) {
-            device = new GbDevice();
-            device.setDeviceId(deviceId);
-            device.setSipDomain(properties.getDomain());
-            device.setIp(ip);
-            device.setPort(port);
-            device.setTransport(transport);
-            device.setExpires(expires);
-            device.setStatus(1);
-            device.setRegisterTime(now);
-            device.setKeepaliveTime(now);
+        device.setRegisterTime(now);
+        device.setKeepaliveTime(now);
+
+        GbDevice exist = getByDeviceId(device.getDeviceId());
+        if (exist == null) {
             save(device);
-            log.info("[GB28181] 新设备注册: deviceId={} {}:{} {}", deviceId, ip, port, transport);
+            log.info("[设备上线] 新设备首次注册: {} {}", device.getDeviceId(), device.getHostAddress());
         } else {
-            device.setIp(ip);
-            device.setPort(port);
-            device.setTransport(transport);
-            device.setExpires(expires);
-            device.setStatus(1);
-            device.setRegisterTime(now);
-            device.setKeepaliveTime(now);
+            device.setId(exist.getId());
             updateById(device);
-            log.info("[GB28181] 设备重新注册: deviceId={} {}:{} {}", deviceId, ip, port, transport);
+            log.info("[设备上线] 重新注册: {} {}", device.getDeviceId(), device.getHostAddress());
         }
-        markOnline(deviceId);
+        refreshOnlineKey(device.getDeviceId());
     }
 
     @Override
-    public void onUnregister(String deviceId) {
+    public void offline(String deviceId, String reason) {
         GbDevice device = getByDeviceId(deviceId);
-        if (device != null) {
+        if (device != null && device.getStatus() != null && device.getStatus() == 1) {
             device.setStatus(0);
             updateById(device);
         }
         redisTemplate.delete(ONLINE_KEY_PREFIX + deviceId);
-        log.info("[GB28181] 设备注销: deviceId={}", deviceId);
+        log.info("[设备离线] {} reason={}", deviceId, reason);
     }
 
     @Override
-    public void onKeepalive(String deviceId) {
-        GbDevice device = getByDeviceId(deviceId);
-        if (device == null) {
-            log.warn("[GB28181] 收到未知设备心跳: deviceId={}", deviceId);
-            return;
-        }
+    public void keepalive(GbDevice device) {
         device.setKeepaliveTime(LocalDateTime.now());
         if (device.getStatus() == null || device.getStatus() != 1) {
             device.setStatus(1);
         }
         updateById(device);
-        markOnline(deviceId);
+        refreshOnlineKey(device.getDeviceId());
     }
 
-    private void markOnline(String deviceId) {
-        long ttl = DEFAULT_KEEPALIVE_INTERVAL_SECONDS * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
+    private void refreshOnlineKey(String deviceId) {
+        long expires = properties.getRegisterExpires();
+        long heartbeatTtl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
+        long ttl = Math.max(expires, heartbeatTtl);
         redisTemplate.opsForValue().set(ONLINE_KEY_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
     }
 }
