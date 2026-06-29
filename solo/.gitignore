@@ -33,5 +33,5 @@ build/
 .vscode/
 .claude
 
-### 本地上传目录 ###
+### 历史本地上传目录（已迁移到 MinIO，仅防止旧目录被提交） ###
 uploads/
