@@ -1,13 +1,20 @@
 package com.solo.common;
 
+import lombok.Getter;
+
 /**
  * 自定义业务异常类
  * 当业务逻辑校验失败时抛出此异常，由全局异常处理器统一捕获并返回错误响应
  */
+@Getter
 public class ServiceException extends RuntimeException {
 
     /**
      * 业务错误码
+     * -- GETTER --
+     *  获取错误状态码
+     *
+
      */
     private int code;
 
@@ -62,12 +69,4 @@ public class ServiceException extends RuntimeException {
         this.code = code;
     }
 
-    /**
-     * 获取错误状态码
-     *
-     * @return 错误码
-     */
-    public int getCode() {
-        return code;
-    }
 }
