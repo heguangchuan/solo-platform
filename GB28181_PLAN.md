@@ -93,29 +93,22 @@ com.solo.gb28181
 
 ### SQL 变更流程
 
-后续每个 Sprint 都会改表，**必须同时维护两份 SQL**：
+主业务和国标的 SQL **物理分离**，便于按模块解耦升级。
 
 ```
 sql/
-├── solo_db.sql                                          # 完整初始化（新装环境直接跑这一个）
-└── migrations/                                          # 增量迁移（既有环境按时间序执行）
-    ├── V20260630_01__gb28181_device_add_local_ip.sql    ← S0 设备表加 local_ip / host_address
-    ├── V20260701_01__gb28181_add_gb_channel.sql         ← S1 新增通道表
-    └── ...
+├── solo_db.sql           # 主业务初始化（sys_/ai_ 等）
+└── gb28181.sql           # 国标模块初始化（所有 gb_ 前缀表）
 ```
 
-**命名规则**：`V<YYYYMMDD>_<当日序号>__<动作描述>.sql`
-- 兼容 Flyway 规范，将来引入 Flyway 自动化时零迁移
-- `V` 大写、双下划线 `__` 分隔时间与描述、描述用 snake_case
-- **动作语义化**：`add_local_ip` / `drop_old_ssrc` / `index_register_time`，看名字就懂
+**开发阶段**（当前）：每次改表**直接修改对应模块的主文件**，不维护迁移脚本。本地重建数据库即可。
 
-**强制要求**：
-1. 每次改表，**先写迁移文件**（哪怕只是加一列）
-2. 再同步修改 `solo_db.sql` 主文件（让"全新环境"和"老环境逐步迁移"得到一致结构）
-3. 提交时两份一起提
+```bash
+mysql -uroot -p < sql/solo_db.sql       # 必装：建库 + 主业务表
+mysql -uroot -p < sql/gb28181.sql       # 启用国标时再装
+```
 
-**新装环境**：只跑 `solo_db.sql`
-**升级环境**：按 `V` 文件名时间序执行 `migrations/` 下未执行过的文件
+**生产发布后**（将来）：再引入 `sql/migrations/<module>/V*.sql` 增量迁移机制，命名遵循 Flyway 规范 `V<YYYYMMDD>_<当日序号>__<动作描述>.sql`，每次改表配套写增量 + 同步主文件。届时考虑直接接入 Flyway / Liquibase 自动化。
 
 ---
 
