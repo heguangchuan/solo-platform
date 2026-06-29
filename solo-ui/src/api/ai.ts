@@ -69,6 +69,31 @@ export interface ImageGenerationResponse {
   images: ImageGenerationItem[]
 }
 
+export interface VideoGenerationRequest {
+  conversationId?: string
+  modelConfigId?: string
+  prompt: string
+  image?: string[]
+  mode?: string
+  height?: number
+  width?: number
+  numFrames?: number
+  frameRate?: number
+  numInferenceSteps?: number
+  seed?: number
+  negativePrompt?: string
+}
+
+export interface VideoGenerationResponse {
+  conversationId: string
+  taskId: string
+  modelName: string
+  status?: 'PENDING' | 'PROCESSING' | 'SUCCESS' | 'FAILED' | 'CANCELLED'
+  assetId?: string
+  videoUrl?: string
+  fileName?: string
+}
+
 export interface ChatAttachmentInput {
   url: string
   fileName?: string
@@ -136,6 +161,13 @@ export function updateConversationTitleApi(conversationId: string, title: string
  */
 export function generateImageApi(data: ImageGenerationRequest) {
   return post<ImageGenerationResponse>('/api/ai/task/image/generate', data)
+}
+
+/**
+ * 生成视频
+ */
+export function generateVideoApi(data: VideoGenerationRequest) {
+  return post<VideoGenerationResponse>('/api/ai/task/video/generate', data)
 }
 
 /**

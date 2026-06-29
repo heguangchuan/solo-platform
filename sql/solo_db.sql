@@ -103,6 +103,40 @@ CREATE TABLE ai_generation_task
     KEY             idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI创作任务表';
 
+-- AI供应商异步任务表
+DROP TABLE IF EXISTS ai_provider_task;
+CREATE TABLE ai_provider_task
+(
+    id                 bigint                                                       NOT NULL COMMENT '供应商任务ID',
+    generation_task_id bigint                                                       NOT NULL COMMENT '本地创作任务ID',
+    conversation_id    bigint                                                                DEFAULT NULL COMMENT '关联会话ID',
+    user_id            bigint                                                       NOT NULL COMMENT '用户ID',
+    username           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '用户名',
+    task_type          varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务类型: VIDEO等',
+    provider           varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '模型来源',
+    model_name         varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '模型名称',
+    model_config_id    bigint                                                                DEFAULT NULL COMMENT '模型配置ID',
+    provider_task_id   varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci         DEFAULT NULL COMMENT '供应商任务ID',
+    provider_video_id  varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci         DEFAULT NULL COMMENT '供应商视频ID',
+    provider_status    varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '供应商任务状态',
+    progress           int                                                                   DEFAULT NULL COMMENT '进度百分比',
+    result_url         varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci        DEFAULT NULL COMMENT '供应商结果URL',
+    error_msg          varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci        DEFAULT NULL COMMENT '错误信息',
+    seconds            varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '视频时长',
+    size               varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '视频尺寸',
+    start_time         datetime                                                              DEFAULT NULL COMMENT '开始时间',
+    finish_time        datetime                                                              DEFAULT NULL COMMENT '完成时间',
+    next_check_time    datetime                                                              DEFAULT NULL COMMENT '下次查询时间',
+    deleted            tinyint                                                      NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+    create_time        datetime                                                     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time        datetime                                                     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY                idx_generation_task_id (generation_task_id),
+    KEY                idx_provider_video_id (provider_video_id),
+    KEY                idx_status_next_check (provider_status, next_check_time),
+    KEY                idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='AI供应商异步任务表';
+
 -- AI消息表
 DROP TABLE IF EXISTS ai_message;
 CREATE TABLE ai_message
@@ -456,8 +490,9 @@ VALUES
 -- AI创作子菜单
 (66, '对话创作', 'ai:conversation', '/ai/conversation', 1, 5, 3, 'ChatDotRound', 1, 0, '2026-06-18 09:00:00',
  '2026-06-19 11:03:46'),
-(67, '创作历史', 'ai:history', '/ai/history', 1, 5, 5, 'Clock', 1, 0, '2026-06-18 09:00:00', '2026-06-19 11:03:46'),
+(67, '创作历史', 'ai:history', '/ai/history', 1, 5, 6, 'Clock', 1, 0, '2026-06-18 09:00:00', '2026-06-19 11:03:46'),
 (90, '图片创作', 'ai:imageCreation', '/ai/image-creation', 1, 5, 4, 'Picture', 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
+(94, '视频创作', 'ai:videoCreation', '/ai/video-creation', 1, 5, 5, 'VideoCamera', 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
 -- 对话创作按钮
 (68, '新建会话', 'ai:conversation:create', NULL, 2, 66, 1, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
 (69, '发送消息', 'ai:conversation:send', NULL, 2, 66, 2, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
@@ -468,6 +503,10 @@ VALUES
 (91, '生成图片', 'ai:imageCreation:generate', NULL, 2, 90, 1, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
 (92, '图片会话查看', 'ai:imageCreation:list', NULL, 2, 90, 2, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
 (93, '图片会话删除', 'ai:imageCreation:delete', NULL, 2, 90, 3, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
+-- 视频创作按钮
+(95, '生成视频', 'ai:videoCreation:generate', NULL, 2, 94, 1, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
+(96, '视频会话查看', 'ai:videoCreation:list', NULL, 2, 94, 2, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
+(97, '视频会话删除', 'ai:videoCreation:delete', NULL, 2, 94, 3, NULL, 1, 0, '2026-06-20 00:00:00', '2026-06-20 00:00:00'),
 -- 创作历史按钮
 (73, '历史查询', 'ai:history:list', NULL, 2, 67, 1, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
 (74, '历史详情', 'ai:history:detail', NULL, 2, 67, 2, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),

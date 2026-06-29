@@ -31,6 +31,11 @@ public interface AiMessageService extends IService<AiMessage> {
     AiMessage addAssistantImageMessage(Long conversationId, String content, String attachmentsJson, String modelName);
 
     /**
+     * 添加助手视频消息
+     */
+    AiMessage addAssistantVideoMessage(Long conversationId, String content, String attachmentsJson, String modelName);
+
+    /**
      * 添加系统消息
      */
     AiMessage addSystemMessage(Long conversationId, String content);

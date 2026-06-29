@@ -3,9 +3,12 @@ package com.solo.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.entity.AiGenerationTask;
 import com.solo.request.ImageGenerationRequest;
+import com.solo.request.VideoGenerationRequest;
 import com.solo.response.ImageGenerationResponse;
+import com.solo.response.VideoGenerationResponse;
 import com.solo.service.AiGenerationTaskService;
 import com.solo.service.AiImageGenerationService;
+import com.solo.service.AiVideoGenerationService;
 import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
@@ -23,6 +26,7 @@ public class AiTaskController {
 
     private final AiGenerationTaskService generationTaskService;
     private final AiImageGenerationService imageGenerationService;
+    private final AiVideoGenerationService videoGenerationService;
 
     /**
      * 生成图片
@@ -32,6 +36,16 @@ public class AiTaskController {
     public Result<ImageGenerationResponse> generateImage(@RequestBody ImageGenerationRequest request) {
         Long userId = UserHolderUtils.getCurrentUserId();
         return Result.success(imageGenerationService.generate(userId, request));
+    }
+
+    /**
+     * 生成视频
+     */
+    @PostMapping("/video/generate")
+    @RequirePermission({"ai:videoCreation:generate"})
+    public Result<VideoGenerationResponse> generateVideo(@RequestBody VideoGenerationRequest request) {
+        Long userId = UserHolderUtils.getCurrentUserId();
+        return Result.success(videoGenerationService.generate(userId, request));
     }
 
     /**

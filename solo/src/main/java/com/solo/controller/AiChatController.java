@@ -140,7 +140,7 @@ public class AiChatController {
      * 获取用户会话列表
      */
     @GetMapping("/conversations")
-    @RequirePermission({"ai:conversation:list", "ai:imageCreation:list"})
+    @RequirePermission({"ai:conversation:list", "ai:imageCreation:list", "ai:videoCreation:list"})
     public Result<PageResult<AiConversation>> getConversations(
             @RequestParam(defaultValue = "1") Integer page,
             @RequestParam(defaultValue = "20") Integer pageSize,
@@ -154,7 +154,7 @@ public class AiChatController {
      * 获取会话消息列表
      */
     @GetMapping("/conversations/{conversationId}/messages")
-    @RequirePermission({"ai:conversation:list", "ai:imageCreation:list"})
+    @RequirePermission({"ai:conversation:list", "ai:imageCreation:list", "ai:videoCreation:list"})
     public Result<List<AiMessage>> getMessages(@PathVariable Long conversationId) {
         Long userId = UserHolderUtils.getCurrentUserId();
         AiConversation conversation = conversationService.getById(conversationId);
@@ -169,7 +169,7 @@ public class AiChatController {
      * 创建新会话
      */
     @PostMapping("/conversations")
-    @RequirePermission({"ai:conversation:create", "ai:imageCreation:generate"})
+    @RequirePermission({"ai:conversation:create", "ai:imageCreation:generate", "ai:videoCreation:generate"})
     public Result<AiConversation> createConversation(@RequestBody ConversationCreateRequest request) {
         Long userId = UserHolderUtils.getCurrentUserId();
         AiConversation conversation = conversationService.createConversation(userId, request.getConversationType(), request.getTitle());
@@ -180,7 +180,7 @@ public class AiChatController {
      * 删除会话
      */
     @DeleteMapping("/conversations/{conversationId}")
-    @RequirePermission({"ai:conversation:delete", "ai:imageCreation:delete"})
+    @RequirePermission({"ai:conversation:delete", "ai:imageCreation:delete", "ai:videoCreation:delete"})
     public Result<Void> deleteConversation(@PathVariable Long conversationId) {
         Long userId = UserHolderUtils.getCurrentUserId();
         conversationService.deleteConversation(conversationId, userId);
