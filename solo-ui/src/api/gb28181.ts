@@ -3,6 +3,8 @@ import type {
   GbDevicePageRequest,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
+  GbMediaServer,
+  GbMediaServerPageRequest,
   PageResult,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
@@ -47,4 +49,32 @@ export function getGbDeviceChannelPageApi(data: GbDeviceChannelPageRequest) {
  */
 export function listChannelsByDeviceApi(deviceDbId: string) {
   return get<GbDeviceChannel[]>(`/api/gb28181/device-channel/by-device/${deviceDbId}`)
+}
+
+/**
+ * 流媒体节点分页
+ */
+export function getGbMediaServerPageApi(data: GbMediaServerPageRequest) {
+  return post<PageResult<GbMediaServer>>('/api/gb28181/media-server/page', data)
+}
+
+/**
+ * 流媒体节点列表（下拉框用）
+ */
+export function listGbMediaServerApi() {
+  return get<GbMediaServer[]>('/api/gb28181/media-server/list')
+}
+
+/**
+ * 新增 / 更新流媒体节点（按 serverId 唯一）
+ */
+export function saveGbMediaServerApi(data: Partial<GbMediaServer>) {
+  return post<void>('/api/gb28181/media-server/save', data)
+}
+
+/**
+ * 删除流媒体节点
+ */
+export function deleteGbMediaServerApi(id: string) {
+  return del<void>(`/api/gb28181/media-server/${id}`)
 }

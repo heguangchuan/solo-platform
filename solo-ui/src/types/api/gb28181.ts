@@ -65,3 +65,32 @@ export interface GbDeviceChannel {
   createTime: string
   updateTime: string
 }
+
+/** 流媒体节点（ZLMediaKit）分页查询参数 */
+export interface GbMediaServerPageRequest extends PageRequest {
+  serverId?: string
+  status?: number
+}
+
+/** 流媒体节点（ZLMediaKit） */
+export interface GbMediaServer {
+  id: string
+  /** ZLM 节点唯一标识（与 config.ini 中 [general].mediaServerId 一致） */
+  serverId: string
+  name?: string
+  /** ZLM 管理面 IP，用于 REST API 调用 */
+  hostIp: string
+  /** ZLM HTTP API 端口 */
+  httpPort: number
+  /** ZLM API secret */
+  secret?: string
+  /** 对外播放 IP（HTTP-FLV / HLS / WebRTC），留空则同 hostIp */
+  streamIp?: string
+  rtpPortStart?: number
+  rtpPortEnd?: number
+  /** 在线状态：0 离线，1 在线 */
+  status: number
+  hookAliveTime?: string
+  createTime: string
+  updateTime: string
+}
