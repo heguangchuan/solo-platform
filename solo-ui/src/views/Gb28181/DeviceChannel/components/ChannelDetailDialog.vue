@@ -46,6 +46,11 @@ defineExpose({ open })
           {{ detail.status }}
         </el-tag>
       </el-descriptions-item>
+      <el-descriptions-item label="所属平台" :span="2">
+        <el-tag :type="detail.platformId === '0000' || !detail.platformId ? 'primary' : 'warning'" size="small">
+          {{ detail.platformId === '0000' || !detail.platformId ? '自有平台' : '级联 ' + detail.platformId }}
+        </el-tag>
+      </el-descriptions-item>
       <el-descriptions-item label="设备厂商">{{ detail.manufacturer || '—' }}</el-descriptions-item>
       <el-descriptions-item label="设备型号">{{ detail.model || '—' }}</el-descriptions-item>
       <el-descriptions-item label="设备归属">{{ detail.owner || '—' }}</el-descriptions-item>

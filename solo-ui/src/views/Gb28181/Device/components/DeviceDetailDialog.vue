@@ -38,6 +38,11 @@ defineExpose({ open })
           {{ detail.status === 1 ? '在线' : '离线' }}
         </el-tag>
       </el-descriptions-item>
+      <el-descriptions-item label="所属平台">
+        <el-tag :type="detail.platformId === '0000' || !detail.platformId ? 'primary' : 'warning'" size="small">
+          {{ detail.platformId === '0000' || !detail.platformId ? '自有平台' : '级联 ' + detail.platformId }}
+        </el-tag>
+      </el-descriptions-item>
       <el-descriptions-item label="网络地址">{{ detail.hostAddress || '—' }}</el-descriptions-item>
       <el-descriptions-item label="传输协议">{{ detail.transport || '—' }}</el-descriptions-item>
       <el-descriptions-item label="本机地址">{{ detail.localIp || '—' }}</el-descriptions-item>
