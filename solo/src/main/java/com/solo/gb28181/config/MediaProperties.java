@@ -61,5 +61,17 @@ public class MediaProperties {
          * 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）；留空则同 hostIp
          */
         private String streamIp;
+        /**
+         * 对外 HTTP/WS-FLV/HLS 端口；0 表示与 httpPort 一致
+         */
+        private int streamHttpPort = 0;
+        /**
+         * 对外 RTSP 端口；0 表示不生成 RTSP URL
+         */
+        private int rtspPort = 0;
+        /**
+         * 对外 WebRTC 端口；0 表示不生成 WebRTC URL
+         */
+        private int rtcPort = 0;
     }
 }
