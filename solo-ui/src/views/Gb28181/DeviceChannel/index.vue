@@ -98,11 +98,11 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="设备 ID">
-          <el-input v-model="searchForm.deviceId" placeholder="设备国标 ID 精确" clearable />
+        <el-form-item label="设备编码">
+          <el-input v-model="searchForm.deviceId" placeholder="所属设备国标编码精确" clearable />
         </el-form-item>
-        <el-form-item label="通道 ID">
-          <el-input v-model="searchForm.channelId" placeholder="通道国标 ID 模糊" clearable />
+        <el-form-item label="通道编码">
+          <el-input v-model="searchForm.channelId" placeholder="通道国标编码模糊" clearable />
         </el-form-item>
         <el-form-item label="通道名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊" clearable />
@@ -123,9 +123,9 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 320px)">
-        <el-table-column prop="channelId" label="通道 ID" />
+        <el-table-column prop="channelId" label="通道编码" />
         <el-table-column prop="name" label="名称" show-overflow-tooltip />
-        <el-table-column prop="deviceId" label="设备 ID" />
+        <el-table-column prop="deviceId" label="设备编码" />
         <el-table-column prop="deviceName" label="设备名称" show-overflow-tooltip />
         <el-table-column label="云台" align="center">
           <template #default="{ row }">{{ ptzTypeMap[row.ptzType ?? 0] }}</template>
