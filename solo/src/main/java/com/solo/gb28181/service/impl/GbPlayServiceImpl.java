@@ -93,13 +93,12 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (active.isEmpty()) {
             return;
         }
-        for (GbInviteSession s : active) {
-            s.setStatus(GbInviteSession.STATUS_FAILED);
-            s.setFailReason("进程重启");
-            s.setStopTime(LocalDateTime.now());
-            inviteSessionService.updateById(s);
-        }
-        log.info("[实时点播] 启动清扫：{} 条残留 INVITING/READY 会话置 FAILED", active.size());
+        // 进程重启：所有运行中会话都失效，直接物理清掉。
+        // ZLM 那边 RTP 端口、SSRC 是否也残留得在 PlayService 重新接管时按需 closeRtpServer，
+        // 简化起见这里只清库；ZLM 端的残留靠下次同 streamId 的 openRtpServer 重试逻辑兜底。
+        List<Long> ids = active.stream().map(GbInviteSession::getId).toList();
+        inviteSessionService.removeBatchByIds(ids);
+        log.info("[实时点播] 启动清扫：{} 条残留会话已删除", ids.size());
     }
 
     // ============================================================
@@ -136,7 +135,9 @@ public class GbPlayServiceImpl implements GbPlayService {
                 return toResult(s);
             }
             if (GbInviteSession.STATUS_INVITING.equals(s.getStatus())) {
-                throw new ServiceException("正在启动中，请稍候");
+                // 残留的 INVITING：可能是上次进程崩了 / future 没等到。直接强清后再开新会话。
+                log.warn("[实时点播] 发现残留 INVITING 会话 stream={}，强制清扫后重新点播", s.getStreamId());
+                forceCleanup(s);
             }
         }
 
@@ -253,9 +254,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
 
         cleanupZlm(session);
-        session.setStatus(GbInviteSession.STATUS_STOPPED);
-        session.setStopTime(LocalDateTime.now());
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
 
         CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
@@ -397,10 +396,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             sipCommander.sendBye(device, session);
         }
         cleanupZlm(session);
-        session.setStatus(GbInviteSession.STATUS_STOPPED);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason("ZLM 流断开");
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
         log.info("[实时点播] 流断开清扫完成 stream={}", stream);
     }
 
@@ -423,10 +419,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         // ZLM 这边端口本来就超时了，不需要再 closeRtpServer
         ssrcFactory.release(session.getServerId(), session.getSsrc());
-        session.setStatus(GbInviteSession.STATUS_TIMEOUT);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason("RTP 端口长时间无数据");
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
 
         CompletableFuture<PlayResultVO> f = pending.remove(streamId);
         if (f != null && !f.isDone()) {
@@ -438,14 +431,8 @@ public class GbPlayServiceImpl implements GbPlayService {
     @Override
     public void onDeviceBye(GbInviteSession session) {
         if (session == null) return;
-        if (GbInviteSession.STATUS_STOPPED.equals(session.getStatus())) {
-            return;
-        }
         cleanupZlm(session);
-        session.setStatus(GbInviteSession.STATUS_STOPPED);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason("设备主动 BYE");
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
 
         CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
@@ -460,6 +447,15 @@ public class GbPlayServiceImpl implements GbPlayService {
     // ============================================================
     //  helpers
     // ============================================================
+
+    /**
+     * 强制清扫残留会话：closeRtpServer → release SSRC → 物理删除。
+     * 用于"上次进程崩 / future 等不到"等异常路径。
+     */
+    private void forceCleanup(GbInviteSession session) {
+        cleanupZlm(session);
+        inviteSessionService.removeById(session.getId());
+    }
 
     /**
      * 申请 RTP 端口；若 ZLM 报"stream already exists"（上次会话残留），先关再开一次。
@@ -515,15 +511,12 @@ public class GbPlayServiceImpl implements GbPlayService {
 
     private void failSession(GbInviteSession session, String reason) {
         cleanupZlm(session);
-        session.setStatus(GbInviteSession.STATUS_FAILED);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason(reason);
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
         log.warn("[实时点播] 会话失败 stream={} reason={}", session.getStreamId(), reason);
     }
 
     /**
-     * SSRC 自适应失败时主动放弃：发 BYE → 清扫 ZLM/SSRC → 唤醒 future。
+     * SSRC 自适应失败时主动放弃：发 BYE → 清扫 ZLM/SSRC → 删除会话 → 唤醒 future。
      * 与 {@link #failSession} 的区别是先发 BYE（设备已收过 200 OK，必须 BYE 才会停推）。
      */
     private void failAndBye(GbInviteSession session, String reason) {
@@ -532,10 +525,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             sipCommander.sendBye(device, session);
         }
         cleanupZlm(session);
-        session.setStatus(GbInviteSession.STATUS_FAILED);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason(reason);
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
 
         CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
@@ -551,10 +541,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
-        session.setStatus(GbInviteSession.STATUS_TIMEOUT);
-        session.setStopTime(LocalDateTime.now());
-        session.setFailReason(reason);
-        inviteSessionService.updateById(session);
+        inviteSessionService.removeById(session.getId());
         log.warn("[实时点播] 会话超时 stream={} reason={}", session.getStreamId(), reason);
     }
 

@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -14,10 +13,12 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 
 /**
- * 点播 / 回放 / 下载会话实体
+ * 点播 / 回放 / 下载会话实体（运行时状态表，<strong>非</strong>历史记录）
  * <p>一次 INVITE 流程产生一行；通过 {@link #ssrc} 与 ZLM 的 stream（约定为
  * {@code rtp/<deviceId>_<channelId>}）双向关联。生命周期：
  * INVITING → READY → STOPPED；超时/失败置 TIMEOUT/FAILED。</p>
+ * <p>会话结束（stop / timeout / fail / 设备 BYE）后 <strong>物理删除</strong>，
+ * 不保留逻辑删除痕迹 —— 真要做播放历史/审计请走独立表，schema 不一样。</p>
  */
 @Data
 @TableName("gb_invite_session")
@@ -110,7 +111,4 @@ public class GbInviteSession {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
-
-    @TableLogic
-    private Integer deleted;
 }

@@ -112,6 +112,20 @@ public class ZlmHookController {
     }
 
     /**
+     * 流不存在
+     * <p>本平台不实现 wvp 风格的 autoApplyPlay 自动拉起；ZLM 收到客户端访问一个不存在的流时调本接口，
+     * 我们直接放行（返回 code=0，不发起任何动作）。</p>
+     */
+    @PostMapping("/on_stream_not_found")
+    public Map<String, Object> onStreamNotFound(@RequestBody(required = false) Map<String, Object> body) {
+        if (!checkSecret(body)) {
+            return reject();
+        }
+        log.info("[ZLM 回调] on_stream_not_found {}", body);
+        return ok();
+    }
+
+    /**
      * 流上来了（设备开始推 RTP，ZLM 已识别成功）
      */
     @PostMapping("/on_publish")

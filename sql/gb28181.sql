@@ -150,14 +150,13 @@ CREATE TABLE gb_invite_session
     fail_reason     varchar(255)          DEFAULT NULL COMMENT '失败/超时原因',
     create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    deleted         tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除 0否 1是',
     PRIMARY KEY (id),
     UNIQUE KEY uk_stream_id (stream_id),
     KEY        idx_dev_chan (device_id, channel_id),
     KEY        idx_call_id (call_id),
     KEY        idx_ssrc (ssrc),
     KEY        idx_status (status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='点播/回放会话表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='点播/回放会话表（运行时状态，会话结束物理删除）';
 
 SET
 FOREIGN_KEY_CHECKS = 1;
