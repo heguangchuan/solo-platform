@@ -10,6 +10,12 @@ import type {
   PlayResultVO,
   PlayStartRequest,
   PlayStopRequest,
+  RecordInfoQueryRequest,
+  RecordItemResponse,
+  PlaybackStartRequest,
+  PlaybackStopRequest,
+  PlaybackControlRequest,
+  PlaybackResultVO,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -95,4 +101,32 @@ export function startPlayApi(data: PlayStartRequest) {
  */
 export function stopPlayApi(data: PlayStopRequest) {
   return post<void>('/api/gb28181/play/stop', data)
+}
+
+/**
+ * 录像查询（RecordInfo，设备分片返回，后端合并后一次性返回）
+ */
+export function queryRecordInfoApi(data: RecordInfoQueryRequest) {
+  return post<RecordItemResponse[]>('/api/gb28181/playback/query', data)
+}
+
+/**
+ * 开始回放（同步返回流就绪的 URL 集合 + 时段元数据）
+ */
+export function playbackStartApi(data: PlaybackStartRequest) {
+  return post<PlaybackResultVO>('/api/gb28181/playback/start', data)
+}
+
+/**
+ * 停止回放
+ */
+export function playbackStopApi(data: PlaybackStopRequest) {
+  return post<void>('/api/gb28181/playback/stop', data)
+}
+
+/**
+ * 回放控制：pause / resume / seek / speed
+ */
+export function playbackControlApi(data: PlaybackControlRequest) {
+  return post<void>('/api/gb28181/playback/control', data)
 }

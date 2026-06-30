@@ -137,3 +137,58 @@ export interface PlayResultVO {
   hlsUrl?: string
   rtcUrl?: string
 }
+
+/** 录像查询请求 */
+export interface RecordInfoQueryRequest {
+  deviceId: string
+  channelId: string
+  /** yyyy-MM-dd HH:mm:ss */
+  startTime: string
+  endTime: string
+}
+
+/** 单条录像段 */
+export interface RecordItemResponse {
+  channelId: string
+  name?: string
+  filePath?: string
+  address?: string
+  /** ISO-8601 起始 */
+  startTime?: string
+  endTime?: string
+  fileSize?: number
+  type?: string
+  recorderId?: string
+  secrecy?: number
+}
+
+/** 开始回放请求 */
+export interface PlaybackStartRequest {
+  deviceId: string
+  channelId: string
+  /** yyyy-MM-dd HH:mm:ss */
+  startTime: string
+  endTime: string
+  transport?: 'UDP' | 'TCP-passive'
+}
+
+/** 停止回放请求 */
+export interface PlaybackStopRequest {
+  streamId: string
+}
+
+/** 回放控制请求 */
+export interface PlaybackControlRequest {
+  streamId: string
+  /** pause / resume / seek / speed */
+  action: 'pause' | 'resume' | 'seek' | 'speed'
+  /** seek 秒数 / speed 倍数；pause/resume 省略 */
+  param?: string
+}
+
+/** 回放结果（在点播结果基础上加时段元数据） */
+export interface PlaybackResultVO extends PlayResultVO {
+  startEpochSec?: number
+  endEpochSec?: number
+  durationSec?: number
+}

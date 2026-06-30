@@ -93,5 +93,9 @@ gb28181:
       stream-ip: 192.168.1.100
     # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
     invite-timeout-seconds: 30
+    # RecordInfo 录像查询分片合并超时（秒）
+    record-info-timeout-seconds: 30
+    # PLAYBACK INVITE 等待流就绪超时（秒）
+    playback-timeout-seconds: 30
     # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
     ssrc-domain-start: 0

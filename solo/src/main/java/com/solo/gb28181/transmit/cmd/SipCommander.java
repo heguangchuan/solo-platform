@@ -48,6 +48,22 @@ public class SipCommander {
         send(device, xml, "Catalog", sn);
     }
 
+    /**
+     * 查询通道录像（RecordInfo）
+     * <p>设备返回 Response/RecordInfo 分片报文，由 {@code RecordInfoResponseMessageHandler} 累计。
+     * 调用方需要预先把 sn 注册到 pending 表，等响应到达时按 sn 唤醒等待者。</p>
+     *
+     * @param device     设备
+     * @param channelId  通道国标 ID（RecordInfo 查询的是通道，不是设备本体）
+     * @param sn         调用方持有的会话 SN，用于响应分片关联
+     * @param startTime  ISO-8601 起始时间，例 {@code 2026-06-30T00:00:00}
+     * @param endTime    ISO-8601 结束时间
+     */
+    public void queryRecordInfo(GbDevice device, String channelId, int sn, String startTime, String endTime) {
+        String xml = DeviceCommandXml.buildRecordInfoQuery(sn, channelId, startTime, endTime, charsetOf(device));
+        send(device, xml, "RecordInfo", sn);
+    }
+
     // ---------------- INVITE / BYE (S2.2 实时点播) ----------------
 
     /**
@@ -97,6 +113,23 @@ public class SipCommander {
         }
     }
 
+    // ---------------- INFO (S3 回放控制) ----------------
+
+    /**
+     * 在既有 INVITE Dialog 内发送 SIP INFO（携带 MANSRTSP body）
+     * <p>用于历史回放的 PAUSE / PLAY / SCALE / SEEK 控制；rtspBody 由 {@link RtspControlBuilder} 生成。</p>
+     */
+    public void sendInfo(GbDevice device, GbInviteSession session, String rtspBody) {
+        try {
+            Request request = headerProvider.buildInfoRequest(device, session, rtspBody);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[回放控制] INFO → deviceId={} stream={}", device.getDeviceId(), session.getStreamId());
+        } catch (Exception e) {
+            log.error("[回放控制] INFO 发送失败 deviceId={} stream={}",
+                    device.getDeviceId(), session.getStreamId(), e);
+        }
+    }
+
     // ---------------- 内部 ----------------
 
     private void send(GbDevice device, String xml, String cmdType, int sn) {
@@ -110,7 +143,7 @@ public class SipCommander {
         }
     }
 
-    private static int nextSn() {
+    public static int nextSn() {
         return ThreadLocalRandom.current().nextInt(100_000, 999_999);
     }
 

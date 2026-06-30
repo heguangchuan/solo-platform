@@ -31,6 +31,16 @@ public class MediaProperties {
     private int inviteTimeoutSeconds = 30;
 
     /**
+     * RecordInfo 录像查询分片合并超时（秒）；超时未收齐 SumNum 条则视为查询失败。
+     */
+    private int recordInfoTimeoutSeconds = 30;
+
+    /**
+     * 单次 PLAYBACK INVITE 等待流就绪的超时（秒）。
+     */
+    private int playbackTimeoutSeconds = 30;
+
+    /**
      * SSRC 池默认域类型：0=视频，1=音频；正常点播一律走视频段。
      */
     private int ssrcDomainStart = 0;
