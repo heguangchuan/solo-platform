@@ -3,6 +3,7 @@ package com.solo.gb28181.media.hook;
 import com.solo.gb28181.config.MediaProperties;
 import com.solo.gb28181.entity.GbMediaServer;
 import com.solo.gb28181.service.GbMediaServerService;
+import com.solo.gb28181.service.GbPlayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,6 +49,7 @@ public class ZlmHookController {
 
     private final MediaProperties mediaProperties;
     private final GbMediaServerService mediaServerService;
+    private final GbPlayService playService;
 
     // ========== 服务级 hook ==========
 
@@ -122,8 +124,17 @@ public class ZlmHookController {
         Boolean regist = booleanOf(body, "regist");
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
+        String mediaServerId = stringOf(body, "mediaServerId");
         log.info("[ZLM 回调] on_stream_changed app={} stream={} regist={}", app, stream, regist);
-        // TODO(S2.2): regist=true → PlayService.onStreamReady(stream)；regist=false → onStreamStopped(stream)
+        try {
+            if (Boolean.TRUE.equals(regist)) {
+                playService.onStreamReady(app, stream, mediaServerId);
+            } else {
+                playService.onStreamStopped(app, stream, mediaServerId);
+            }
+        } catch (Exception e) {
+            log.error("[ZLM 回调] on_stream_changed 业务处理异常 stream={}", stream, e);
+        }
         return ok();
     }
 
@@ -152,7 +163,11 @@ public class ZlmHookController {
         }
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
-        // TODO(S2.2): PlayService.onInviteTimeout(streamId) -> 触发 BYE + 清理
+        try {
+            playService.onRtpServerTimeout(streamId);
+        } catch (Exception e) {
+            log.error("[ZLM 回调] on_rtp_server_timeout 业务处理异常 stream_id={}", streamId, e);
+        }
         return ok();
     }
 

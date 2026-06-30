@@ -1,15 +1,18 @@
 package com.solo.gb28181.transmit.cmd;
 
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.sip.SipSender;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import javax.sip.ResponseEvent;
 import javax.sip.header.CallIdHeader;
 import javax.sip.message.Request;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Consumer;
 
 /**
  * SIP 主动命令入口
@@ -43,6 +46,55 @@ public class SipCommander {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildQuery("Catalog", sn, device.getDeviceId(), charsetOf(device));
         send(device, xml, "Catalog", sn);
+    }
+
+    // ---------------- INVITE / BYE (S2.2 实时点播) ----------------
+
+    /**
+     * 发起 INVITE
+     *
+     * @param device     目标设备
+     * @param channelId  通道国标 ID
+     * @param sdpBody    SDP 报文（由 {@link SdpBuilder} 生成）
+     * @param ssrc       10 位 SSRC
+     * @param callId     调用方持有的 Call-Id（保存到 invite session）
+     * @param fromTag    调用方持有的 from-tag（保存到 invite session）
+     * @param onOk       2xx 回调；通常用于解析 200 OK 中真实 SSRC（业务确认）
+     * @param onError    非 2xx 回调
+     * @param timeoutMs  订阅超时（毫秒）
+     */
+    public void sendInvite(GbDevice device, String channelId, String sdpBody, String ssrc,
+                           CallIdHeader callId, String fromTag,
+                           Consumer<ResponseEvent> onOk,
+                           Consumer<ResponseEvent> onError,
+                           long timeoutMs) {
+        try {
+            Request request = headerProvider.buildInviteRequest(device, channelId, sdpBody, ssrc, callId, fromTag);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, timeoutMs);
+            log.info("[实时点播] INVITE → deviceId={} channelId={} ssrc={} callId={}",
+                    device.getDeviceId(), channelId, ssrc, callId.getCallId());
+        } catch (Exception e) {
+            log.error("[实时点播] INVITE 发送失败 deviceId={} channelId={}",
+                    device.getDeviceId(), channelId, e);
+            if (onError != null) {
+                try { onError.accept(null); } catch (Exception ignore) {}
+            }
+        }
+    }
+
+    /**
+     * 发起 BYE（结束既有 INVITE Dialog）
+     */
+    public void sendBye(GbDevice device, GbInviteSession session) {
+        try {
+            Request request = headerProvider.buildByeRequest(device, session);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[实时点播] BYE → deviceId={} channelId={} stream={}",
+                    device.getDeviceId(), session.getChannelId(), session.getStreamId());
+        } catch (Exception e) {
+            log.error("[实时点播] BYE 发送失败 deviceId={} stream={}",
+                    device.getDeviceId(), session.getStreamId(), e);
+        }
     }
 
     // ---------------- 内部 ----------------

@@ -6,6 +6,10 @@ import type {
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
+  PlayResultVO,
+  PlaySnapRequest,
+  PlayStartRequest,
+  PlayStopRequest,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -77,4 +81,25 @@ export function saveGbMediaServerApi(data: Partial<GbMediaServer>) {
  */
 export function deleteGbMediaServerApi(id: string) {
   return del<void>(`/api/gb28181/media-server/${id}`)
+}
+
+/**
+ * 开始点播（同步返回流就绪的 URL 集合，后端 INVITE→ZLM hook→Future 完成）
+ */
+export function startPlayApi(data: PlayStartRequest) {
+  return post<PlayResultVO>('/api/gb28181/play/start', data)
+}
+
+/**
+ * 停止点播（发 BYE + 关 RTP 端口 + 释放 SSRC）
+ */
+export function stopPlayApi(data: PlayStopRequest) {
+  return post<void>('/api/gb28181/play/stop', data)
+}
+
+/**
+ * 点播截图（ZLM 同步抓帧；返回可访问的图片 URL）
+ */
+export function snapPlayApi(data: PlaySnapRequest) {
+  return post<string>('/api/gb28181/play/snap', data)
 }

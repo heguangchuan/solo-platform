@@ -57,6 +57,21 @@ public class GbMediaServer {
     private String streamIp;
 
     /**
+     * 对外 HTTP/WS-FLV/HLS 端口（≤0 时与 {@link #httpPort} 同）
+     */
+    private Integer streamHttpPort;
+
+    /**
+     * 对外 RTSP 端口（≤0 时不生成 RTSP URL）
+     */
+    private Integer rtspPort;
+
+    /**
+     * 对外 WebRTC 端口（≤0 时不生成 WebRTC URL）
+     */
+    private Integer rtcPort;
+
+    /**
      * RTP 端口段起始
      */
     private Integer rtpPortStart;

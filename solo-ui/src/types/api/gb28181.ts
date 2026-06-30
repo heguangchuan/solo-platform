@@ -86,6 +86,12 @@ export interface GbMediaServer {
   secret?: string
   /** 对外播放 IP（HTTP-FLV / HLS / WebRTC），留空则同 hostIp */
   streamIp?: string
+  /** 对外 HTTP/WS-FLV/HLS 端口（0=同 httpPort） */
+  streamHttpPort?: number
+  /** 对外 RTSP 端口（0=不生成 RTSP URL） */
+  rtspPort?: number
+  /** 对外 WebRTC 端口（0=不生成 RTC URL） */
+  rtcPort?: number
   rtpPortStart?: number
   rtpPortEnd?: number
   /** 在线状态：0 离线，1 在线 */
@@ -93,4 +99,37 @@ export interface GbMediaServer {
   hookAliveTime?: string
   createTime: string
   updateTime: string
+}
+
+/** 开始点播请求 */
+export interface PlayStartRequest {
+  deviceId: string
+  channelId: string
+  /** 收流模式，默认 UDP */
+  transport?: 'UDP' | 'TCP-passive'
+}
+
+/** 停止点播请求 */
+export interface PlayStopRequest {
+  streamId: string
+}
+
+/** 点播截图请求 */
+export interface PlaySnapRequest {
+  streamId: string
+}
+
+/** 点播结果（前端按 player 能力挑一个 URL 用） */
+export interface PlayResultVO {
+  streamId: string
+  app: string
+  mediaServerId: string
+  ssrc: string
+  rtpPort: number
+  transport: string
+  flvUrl?: string
+  wsFlvUrl?: string
+  hlsUrl?: string
+  rtcUrl?: string
+  snapUrl?: string
 }

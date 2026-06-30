@@ -4,9 +4,10 @@ export default { name: 'Gb28181DeviceChannel' }
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Refresh, Back } from '@element-plus/icons-vue'
+import { Search, Refresh, Back, VideoPlay } from '@element-plus/icons-vue'
 import type { GbDeviceChannel, GbDeviceChannelPageRequest } from '@/types/api'
 import { getGbDeviceChannelPageApi } from '@/api/gb28181'
+import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,6 +58,12 @@ function handleSizeChange(s: number) {
 
 function handleBack() {
   router.push({ path: '/gb28181/device' })
+}
+
+const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
+
+function handlePlay(row: GbDeviceChannel) {
+  playDialogRef.value?.open(row.deviceId, row.channelId, row.name)
 }
 
 const ptzTypeMap: Record<number, string> = {
@@ -132,6 +139,18 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="更新时间" width="170" />
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-permission="'gb28181:play:start'"
+              :disabled="row.status !== 'ON'"
+              type="primary"
+              link
+              :icon="VideoPlay"
+              @click="handlePlay(row)"
+            >播放</el-button>
+          </template>
+        </el-table-column>
       </el-table>
 
       <el-pagination
@@ -145,6 +164,8 @@ onMounted(() => {
         @size-change="handleSizeChange"
       />
     </el-card>
+
+    <PlayDialog ref="playDialogRef" />
   </div>
 </template>
 

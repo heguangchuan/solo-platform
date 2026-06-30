@@ -25,13 +25,14 @@ import java.util.Map;
  * <p>所有调用都走 form-urlencoded body；响应统一 JSON：{@code {"code":0,...}}，
  * code != 0 抛 {@link ServiceException}。</p>
  *
- * <h3>覆盖的接口（S2.1）</h3>
+ * <h3>覆盖的接口（S2.1/S2.2）</h3>
  * <ul>
- *     <li>{@code openRtpServer}    — 申请 RTP 收流端口</li>
- *     <li>{@code closeRtpServer}   — 关闭 RTP 收流端口</li>
- *     <li>{@code getMediaList}     — 查询流是否还活着</li>
- *     <li>{@code getRtpInfo}       — 查询 RTP 端口状态（保活）</li>
- *     <li>{@code getSnap}          — 流截图</li>
+ *     <li>{@code openRtpServer}        — 申请 RTP 收流端口</li>
+ *     <li>{@code closeRtpServer}       — 关闭 RTP 收流端口</li>
+ *     <li>{@code updateRtpServerSSRC}  — 修改已开启 RTP 端口的 SSRC 过滤值（S2.2 SSRC 自适应）</li>
+ *     <li>{@code getMediaList}         — 查询流是否还活着</li>
+ *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
+ *     <li>{@code getSnap}              — 流截图</li>
  * </ul>
  */
 @Slf4j
@@ -90,6 +91,30 @@ public class ZlmRestClient {
         } catch (ServiceException e) {
             log.warn("[流媒体] closeRtpServer 失败（忽略） server={} stream={} err={}",
                     server.getServerId(), streamId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 更新已开启的 RTP 收流端口的 SSRC 过滤值
+     * <p>用于 INVITE 200 OK 中设备自报 SSRC 与本平台分配 SSRC 不一致的场景：
+     * 改 ZLM 内置过滤值，让 ZLM 接受设备实际用的 SSRC。</p>
+     *
+     * @param newSsrc 设备返回的 SSRC（10 位十进制）
+     * @return true=ZLM 已更新；false=ZLM 拒绝/异常
+     */
+    public boolean updateRtpServerSSRC(GbMediaServer server, String streamId, String newSsrc) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("stream_id", streamId);
+        params.put("ssrc", newSsrc);
+        try {
+            post(server, "updateRtpServerSSRC", params);
+            log.info("[流媒体] updateRtpServerSSRC ok server={} stream={} ssrc={}",
+                    server.getServerId(), streamId, newSsrc);
+            return true;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] updateRtpServerSSRC 失败 server={} stream={} ssrc={} err={}",
+                    server.getServerId(), streamId, newSsrc, e.getMessage());
             return false;
         }
     }
@@ -167,7 +192,13 @@ public class ZlmRestClient {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            throw new ServiceException("ZLM 调用异常: " + method + " - " + e.getMessage());
+            // 底层异常（连接拒绝/超时/JSON 异常等）很多 getMessage() 为 null，必须带类名 + url 给出诊断信息
+            log.error("[流媒体] ZLM 调用异常 method={} url={}", method, url, e);
+            String detail = e.getMessage();
+            if (detail == null || detail.isBlank()) {
+                detail = e.getClass().getSimpleName();
+            }
+            throw new ServiceException("ZLM 调用异常: " + method + " @ " + url + " - " + detail);
         }
     }
 
