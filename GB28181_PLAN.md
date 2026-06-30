@@ -217,23 +217,22 @@ zlm:
 
 **验收**：拿一台海康 IPC 接入 → 设备列表能看到品牌型号 → 点进去能看到所有通道（包含 PTZ 类型）。
 
-### Sprint 2 — ZLM 集成与实时点播（~2 周）
+### Sprint 2 — ZLM 集成与实时点播 ✅ 已完成
 **目标**：设备通道点播按钮 → 浏览器播放流。
 
-- [ ] 部署 ZLMediaKit（Docker compose 文件放 `deploy/zlm/`）
-- [ ] `gb_media_server` 表 + `MediaServerService`：管理 ZLM 节点
-- [ ] `zlm/client/ZlmRestClient`（okhttp + Digest）：openRtpServer / closeRtpServer / getMediaList / getSnap / setServerConfig
-- [ ] `zlm/ssrc/SsrcPool`：按 ZLM 节点维护 SSRC 分配
-- [ ] `zlm/hook/ZlmHookController`：开放 6 个 hook 接口
-  - `on_server_keepalive` / `on_publish` / `on_play` / `on_stream_changed` / `on_stream_none_reader` / `on_rtp_server_timeout`
-- [ ] `transmit/cmd/SipCommander#playInvite`：构造 INVITE（SDP 含 SSRC、RTP/AVP/TCP 或 UDP、媒体描述）
-- [ ] `processor/response/InviteResponseProcessor`：处理 200 OK，提取下级 SDP，回 ACK
-- [ ] `service/PlayService#startPlay`：异步流程（分配 SSRC → openRtpServer → 发 INVITE → 等 hook → 返回播放地址）
-- [ ] `controller/PlayController`：`POST /play/start` / `POST /play/stop` / `POST /play/snap`
-- [ ] `service/PlayService#timeout`：30s 内无 hook 取消
-- [ ] 前端：设备树 + 点播窗口（jessibuca/mpegts.js）
+- [x] 部署 ZLMediaKit（外部独立部署，配 hook 指向 solo 即可）
+- [x] `gb_media_server` 表 + `MediaServerService`：管理 ZLM 节点
+- [x] `zlm/client/ZlmRestClient`（JDK HttpClient + form-urlencoded）：openRtpServer / closeRtpServer / updateRtpServerSSRC / getMediaList / getRtpInfo
+- [x] `zlm/ssrc/SsrcFactory`：按 ZLM 节点维护 SSRC 分配（BitSet + 启动从 Redis 预占）
+- [x] `zlm/hook/ZlmHookController` + `ZlmHookService`：接入 7 个 hook（含 secret 校验）
+- [x] `transmit/cmd/SipCommander#sendInvite`：构造 INVITE（SDP 含 SSRC、RTP/AVP/TCP 或 UDP、媒体描述）
+- [x] `processor/response/InviteResponseProcessor`：处理 200 OK，自动 ACK，SSRC 自适应
+- [x] `service/GbPlayService#start`：异步流程（分配 SSRC → openRtpServer → 发 INVITE → 等 hook future → 返回播放地址）
+- [x] `controller/GbPlayController`：`POST /play/start` / `POST /play/stop`（截图由 jessibuca 自带，不走后端）
+- [x] `service/GbPlayService#start` 超时回收：`mediaProperties.inviteTimeoutSeconds` 内无 hook 取消 + BYE
+- [x] 前端：通道列表"播放"按钮 + `PlayDialog` + `JessibucaPlayer`（自实现 toolbar、电子放大/拖拽/滚轮、码流信息浮层）
 
-**验收**：登录管理后台 → 找到通道 → 点"播放" → 5 秒内画面出来 → 关窗口能正常 BYE。
+**验收**：登录管理后台 → 找到通道 → 点"播放" → 5 秒内画面出来 → 关窗口能正常 BYE。 ✅ 真机调试通过。
 
 ### Sprint 3 — 历史回放与录像下载（~1 周）
 **目标**：能查录像、能回放、能拖时间轴。
@@ -310,6 +309,10 @@ zlm:
 | 2026-06-30 | S0 | SQL 模块化拆分 `solo_db.sql` / `gb28181.sql`；表间只逻辑关联不建外键（ADR-011） | ✅ |
 | 2026-06-30 | S1 | **通道目录与设备信息**：gb_device_channel 表 + 实体 / Mapper / Service / Controller；SipCommander（DeviceInfo + Catalog 命令）；DeviceInfo / Catalog 响应处理（含分片合并）；DeviceOnlineEvent 驱动；离线检测定时任务；前端设备/通道列表页 + 菜单权限 | ✅ |
 | 2026-06-30 | S2.1 | **ZLM 集成骨架**：`server.port=10003` 对齐 ZLM hook；`gb28181.media.*` 配置 + `MediaProperties`；`gb_media_server`/`gb_invite_session` 表 + 实体 + Mapper + Service；`ZlmRestClient`（openRtpServer / closeRtpServer / getMediaList / getRtpInfo / getSnap）；`SsrcFactory`（按节点分桶 + 启动预占）；`ZlmHookController` 七大回调（含 secret 校验，业务侧 TODO(S2.2)）；`GbMediaServerController` CRUD；`MediaServerBootstrap` 默认节点自举；`sys_permission` 追加 105-112；`WebMvcConfig` 放行 hook 路径 | ✅ |
+| 2026-06-30 | S2.2 | **实时点播打通**：`SdpBuilder` + `SipRequestHeaderProvider` 扩 INVITE/ACK/BYE；`SipCommander.sendInvite/sendBye`；`InviteResponseProcessor`（自动 ACK + SSRC 自适应日志）；`ByeRequestProcessor`；`MediaUrlBuilder`（WS-FLV/HTTP-FLV/HLS/RTC）；`GbPlayService` 全流程编排（start/stop + hook 钩子 + 启动清扫）；`ZlmRestClient.updateRtpServerSSRC` 实现 wvp 风格 SSRC 自适应；`ZlmHookController` 接入 `on_play/on_publish/on_stream_changed/on_stream_none_reader/on_rtp_server_timeout/on_stream_not_found`；前端 `JessibucaPlayer`（自实现 toolbar、电子放大/拖拽/滚轮缩放、码流信息浮层）+ `PlayDialog`；通道列表"播放"操作 | ✅ |
+| 2026-06-30 | S2.2 优化 | `gb_invite_session` 整表迁移到 Redis（主存 + callId/ssrc/dev:chan 反查索引 + all Set）；service 接口瘦身（删 getByXxx 薄方法）；ZlmHookController 拆 `ZlmHookService` + `HookResult`（controller 收敛到 76 行）；详情弹窗（设备/通道/节点）抽离 + 4 字 label 中文化 + 国标编码统一术语 | ✅ |
+| 2026-06-30 | S2.2 收尾 | `gb_device`/`gb_device_channel` 加 `platform_id`（默认 `0000`，预留 S6 级联区分来源） | ✅ |
+| 2026-06-30 | S3 | **历史回放**：`DeviceCommandXml.buildRecordInfoQuery` + `SdpBuilder.buildPlayback/buildDownload`（s=Playback/Download、t=epoch）+ `RtspControlBuilder`（PAUSE/PLAY/SEEK/SCALE，Locale.US）；`SipCommander.queryRecordInfo/sendInfo` + `SipRequestHeaderProvider.buildInfoRequest`（MANSRTSP）；`RecordInfoResponseMessageHandler` + `RecordInfoDataCache`（分片合并，复用 Catalog 模板）；`GbPlaybackService` 编排（查询/start/stop/control + hook 钩子）；公共清扫抽到 `GbInviteSupport`（点播/回放共用）；`ZlmHookService` + `ByeRequestProcessor` + `InviteResponseProcessor` 按 sessionType 路由 play/playback；`GbPlaybackController`；前端 `PlaybackDialog`（可复用组件：录像查询列表 + 播放器 + 暂停/倍速/进度条）；通道列表"回放"操作；权限 112-116 | ✅ |
 
 ---
 

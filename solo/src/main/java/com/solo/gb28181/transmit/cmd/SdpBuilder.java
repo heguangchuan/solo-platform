@@ -32,7 +32,7 @@ public final class SdpBuilder {
     }
 
     /**
-     * 构造实时点播 SDP body
+     * 构造实时点播 SDP body（{@code s=Play}, {@code t=0 0}）
      *
      * @param platformId 本平台 SIP ID（用于 o= 行 username）
      * @param sdpIp      本平台对设备暴露的 IP（c= 行 + o= 行）
@@ -42,13 +42,44 @@ public final class SdpBuilder {
      */
     public static String buildPlay(String platformId, String sdpIp, int rtpPort,
                                    String ssrc, String transport) {
+        return buildInternal("Play", platformId, sdpIp, rtpPort, ssrc, transport, 0L, 0L, null);
+    }
+
+    /**
+     * 构造历史回放 SDP body（{@code s=Playback}, {@code t=<startEpoch> <endEpoch>}）
+     *
+     * @param startEpochSec 回放起始 Unix 秒
+     * @param endEpochSec   回放结束 Unix 秒
+     */
+    public static String buildPlayback(String platformId, String sdpIp, int rtpPort, String ssrc,
+                                       String transport, long startEpochSec, long endEpochSec) {
+        return buildInternal("Playback", platformId, sdpIp, rtpPort, ssrc, transport,
+                startEpochSec, endEpochSec, null);
+    }
+
+    /**
+     * 构造录像下载 SDP body（{@code s=Download}, {@code t=<startEpoch> <endEpoch>}, {@code a=downloadspeed:N}）
+     * <p>S3 暂不调用，预留给 S3.2 / S4 下载阶段。</p>
+     *
+     * @param downloadSpeed 下载倍速（1/2/4/8）
+     */
+    public static String buildDownload(String platformId, String sdpIp, int rtpPort, String ssrc,
+                                       String transport, long startEpochSec, long endEpochSec,
+                                       int downloadSpeed) {
+        return buildInternal("Download", platformId, sdpIp, rtpPort, ssrc, transport,
+                startEpochSec, endEpochSec, downloadSpeed);
+    }
+
+    private static String buildInternal(String sessionName, String platformId, String sdpIp, int rtpPort,
+                                        String ssrc, String transport, long startEpoch, long endEpoch,
+                                        Integer downloadSpeed) {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport);
-        StringBuilder sb = new StringBuilder(256);
+        StringBuilder sb = new StringBuilder(320);
         sb.append("v=0\r\n");
         sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
-        sb.append("s=Play\r\n");
+        sb.append("s=").append(sessionName).append("\r\n");
         sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
-        sb.append("t=0 0\r\n");
+        sb.append("t=").append(startEpoch).append(' ').append(endEpoch).append("\r\n");
         sb.append("m=video ").append(rtpPort).append(' ')
                 .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
                 .append(" 96 98 99\r\n");
@@ -59,6 +90,9 @@ public final class SdpBuilder {
         if (tcp) {
             sb.append("a=setup:passive\r\n");
             sb.append("a=connection:new\r\n");
+        }
+        if (downloadSpeed != null && downloadSpeed > 0) {
+            sb.append("a=downloadspeed:").append(downloadSpeed).append("\r\n");
         }
         sb.append("y=").append(ssrc).append("\r\n");
         return sb.toString();

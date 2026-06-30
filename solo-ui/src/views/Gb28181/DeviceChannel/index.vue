@@ -8,6 +8,7 @@ import { Search, Refresh, Back } from '@element-plus/icons-vue'
 import type { GbDeviceChannelPageRequest, GbDeviceChannelVO } from '@/types/api'
 import { getGbDeviceChannelPageApi } from '@/api/gb28181'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
+import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from './components/ChannelDetailDialog.vue'
 
 const route = useRoute()
@@ -65,6 +66,12 @@ const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
 function handlePlay(row: GbDeviceChannelVO) {
   playDialogRef.value?.open(row.deviceId, row.channelId, row.name)
+}
+
+const playbackDialogRef = ref<InstanceType<typeof PlaybackDialog> | null>(null)
+
+function handlePlayback(row: GbDeviceChannelVO) {
+  playbackDialogRef.value?.open(row.deviceId, row.channelId, row.name)
 }
 
 const detailDialogRef = ref<InstanceType<typeof ChannelDetailDialog> | null>(null)
@@ -137,7 +144,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="130" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="'gb28181:device-channel:list'"
@@ -152,6 +159,12 @@ onMounted(() => {
               link
               @click="handlePlay(row)"
             >播放</el-button>
+            <el-button
+              v-permission="'gb28181:playback:start'"
+              type="primary"
+              link
+              @click="handlePlayback(row)"
+            >回放</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -169,6 +182,7 @@ onMounted(() => {
     </el-card>
 
     <PlayDialog ref="playDialogRef" />
+    <PlaybackDialog ref="playbackDialogRef" />
     <ChannelDetailDialog ref="detailDialogRef" />
   </div>
 </template>

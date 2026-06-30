@@ -1,9 +1,12 @@
 package com.solo.gb28181.media.hook;
 
 import com.solo.gb28181.config.MediaProperties;
+import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.entity.GbMediaServer;
+import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbMediaServerService;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.gb28181.service.GbPlaybackService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -35,7 +38,9 @@ public class ZlmHookService {
 
     private final MediaProperties mediaProperties;
     private final GbMediaServerService mediaServerService;
+    private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
+    private final GbPlaybackService playbackService;
 
     // ============ 服务级 ============
 
@@ -104,10 +109,20 @@ public class ZlmHookService {
         String mediaServerId = stringOf(body, "mediaServerId");
         log.info("[ZLM 回调] on_stream_changed app={} stream={} regist={}", app, stream, regist);
         try {
+            // 按 streamId 反查 session 判断是点播还是回放 — 两个 service 都收到 hook 但只处理自己的会话
+            boolean isPlayback = isPlaybackStream(stream);
             if (Boolean.TRUE.equals(regist)) {
-                playService.onStreamReady(app, stream, mediaServerId);
+                if (isPlayback) {
+                    playbackService.onStreamReady(app, stream, mediaServerId);
+                } else {
+                    playService.onStreamReady(app, stream, mediaServerId);
+                }
             } else {
-                playService.onStreamStopped(app, stream, mediaServerId);
+                if (isPlayback) {
+                    playbackService.onStreamStopped(app, stream, mediaServerId);
+                } else {
+                    playService.onStreamStopped(app, stream, mediaServerId);
+                }
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_stream_changed 业务异常 stream={}", stream, e);
@@ -129,11 +144,27 @@ public class ZlmHookService {
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
         try {
-            playService.onRtpServerTimeout(streamId);
+            if (isPlaybackStream(streamId)) {
+                playbackService.onRtpServerTimeout(streamId);
+            } else {
+                playService.onRtpServerTimeout(streamId);
+            }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_rtp_server_timeout 业务异常 stream_id={}", streamId, e);
         }
         return HookResult.ok();
+    }
+
+    /**
+     * 按 streamId 反查 session.sessionType，判断是否为回放流（PLAYBACK / DOWNLOAD 都视为非实时）。
+     * 找不到 session 时按"非回放"处理：让 play service 兜底（回放 service 自己 get session 也会拿 null，无副作用）。
+     */
+    private boolean isPlaybackStream(String streamId) {
+        if (streamId == null) return false;
+        GbInviteSession s = inviteSessionService.getByStreamId(streamId);
+        if (s == null) return false;
+        return GbInviteSession.TYPE_PLAYBACK.equals(s.getSessionType())
+                || GbInviteSession.TYPE_DOWNLOAD.equals(s.getSessionType());
     }
 
     public HookResult onRecordMp4(Map<String, Object> body) {

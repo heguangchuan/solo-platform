@@ -289,6 +289,48 @@ public class SipRequestHeaderProvider {
     }
 
     /**
+     * 构造发给设备的 INFO 请求（Dialog 内控制，回放 PAUSE/PLAY/SCALE 用）
+     * <p>Dialog 内请求复用 session 的 callId / from-tag / to-tag，仅 Via 用新 branch、CSeq 递增。
+     * Body 是 {@code application/MANSRTSP} 文本（由 {@link RtspControlBuilder} 构造）。</p>
+     */
+    public Request buildInfoRequest(GbDevice device, GbInviteSession session, String rtspBody)
+            throws ParseException, InvalidArgumentException {
+        String localIp = sipLayer.getLocalIp(device.getLocalIp());
+        String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(session.getChannelId(), device.getHostAddress());
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
+        Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, session.getFromTag());
+
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(session.getChannelId(), device.getHostAddress());
+        Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, session.getToTag());
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CallIdHeader callId = HEADER_FACTORY.createCallIdHeader(session.getCallId());
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.INFO);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.INFO, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), localIp + ":" + properties.getPort());
+        Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
+        request.addHeader(contact);
+
+        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSRTSP");
+        request.setContent(rtspBody, ct);
+        return request;
+    }
+
+    /**
      * 收到设备的 BYE 后，给设备回 200 OK 响应
      */
     public Response buildResponse(int statusCode, Request request) throws ParseException {

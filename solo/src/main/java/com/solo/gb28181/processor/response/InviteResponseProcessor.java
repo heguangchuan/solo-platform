@@ -6,6 +6,7 @@ import com.solo.gb28181.processor.SipResponseProcessor;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
@@ -62,6 +63,10 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     @Lazy
     private GbPlayService playService;
 
+    @Autowired
+    @Lazy
+    private GbPlaybackService playbackService;
+
     @Override
     public String getMethod() {
         return Request.INVITE;
@@ -113,7 +118,12 @@ public class InviteResponseProcessor implements SipResponseProcessor {
         sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), ack);
         log.info("[实时点播] 收到 200 OK 自动发送 ACK stream={} callId={}", session.getStreamId(), callId);
 
-        // 4) SSRC 自适应：若设备自报 SSRC 与本地不一致，让 PlayService 改写 ZLM 过滤值（失败则 BYE）
-        playService.onInviteOk(callId, remoteSsrc);
+        // 4) SSRC 自适应：若设备自报 SSRC 与本地不一致，改写 ZLM 过滤值（失败则 BYE）。按 sessionType 路由。
+        if (GbInviteSession.TYPE_PLAYBACK.equals(session.getSessionType())
+                || GbInviteSession.TYPE_DOWNLOAD.equals(session.getSessionType())) {
+            playbackService.onInviteOk(callId, remoteSsrc);
+        } else {
+            playService.onInviteOk(callId, remoteSsrc);
+        }
     }
 }
