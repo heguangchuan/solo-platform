@@ -4,13 +4,14 @@ export default { name: 'Gb28181MediaServer' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, Close, Check } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus } from '@element-plus/icons-vue'
 import type { GbMediaServer, GbMediaServerPageRequest } from '@/types/api'
 import {
   getGbMediaServerPageApi,
   saveGbMediaServerApi,
   deleteGbMediaServerApi,
 } from '@/api/gb28181'
+import MediaServerDetailDialog from './components/MediaServerDetailDialog.vue'
 
 const loading = ref(false)
 const tableData = ref<GbMediaServer[]>([])
@@ -115,6 +116,12 @@ async function handleDelete(row: GbMediaServer) {
   }
 }
 
+const detailDialogRef = ref<InstanceType<typeof MediaServerDetailDialog> | null>(null)
+
+function handleDetail(row: GbMediaServer) {
+  detailDialogRef.value?.open(row)
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -150,7 +157,6 @@ onMounted(() => {
         <el-table-column prop="name" label="节点名称" />
         <el-table-column prop="hostIp" label="管理地址" />
         <el-table-column prop="httpPort" label="管理端口" align="center" />
-        <el-table-column prop="streamIp" label="播放地址" />
         <el-table-column label="端口范围" align="center">
           <template #default="{ row }">{{ row.rtpPortStart }} - {{ row.rtpPortEnd }}</template>
         </el-table-column>
@@ -163,10 +169,26 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="hookAliveTime" label="最近心跳" />
         <el-table-column prop="updateTime" label="更新时间" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'gb28181:media-server:save'" type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'gb28181:media-server:delete'" type="primary" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              v-permission="'gb28181:media-server:list'"
+              type="primary"
+              link
+              @click="handleDetail(row)"
+            >详情</el-button>
+            <el-button
+              v-permission="'gb28181:media-server:save'"
+              type="primary"
+              link
+              @click="handleEdit(row)"
+            >编辑</el-button>
+            <el-button
+              v-permission="'gb28181:media-server:delete'"
+              type="primary"
+              link
+              @click="handleDelete(row)"
+            >删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -210,10 +232,12 @@ onMounted(() => {
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button :icon="Close" @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :icon="Check" @click="handleConfirm">确定</el-button>
+        <el-button @click="dialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="handleConfirm">确 定</el-button>
       </template>
     </el-dialog>
+
+    <MediaServerDetailDialog ref="detailDialogRef" />
   </div>
 </template>
 
