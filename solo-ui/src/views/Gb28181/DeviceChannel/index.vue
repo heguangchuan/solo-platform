@@ -4,15 +4,16 @@ export default { name: 'Gb28181DeviceChannel' }
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Refresh, Back, VideoPlay } from '@element-plus/icons-vue'
-import type { GbDeviceChannel, GbDeviceChannelPageRequest } from '@/types/api'
+import { Search, Refresh, Back } from '@element-plus/icons-vue'
+import type { GbDeviceChannelPageRequest, GbDeviceChannelVO } from '@/types/api'
 import { getGbDeviceChannelPageApi } from '@/api/gb28181'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
+import ChannelDetailDialog from './components/ChannelDetailDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
-const tableData = ref<GbDeviceChannel[]>([])
+const tableData = ref<GbDeviceChannelVO[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
@@ -62,8 +63,14 @@ function handleBack() {
 
 const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
-function handlePlay(row: GbDeviceChannel) {
+function handlePlay(row: GbDeviceChannelVO) {
   playDialogRef.value?.open(row.deviceId, row.channelId, row.name)
+}
+
+const detailDialogRef = ref<InstanceType<typeof ChannelDetailDialog> | null>(null)
+
+function handleDetail(row: GbDeviceChannelVO) {
+  detailDialogRef.value?.open(row)
 }
 
 const ptzTypeMap: Record<number, string> = {
@@ -116,37 +123,33 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 320px)">
-        <el-table-column prop="channelId" label="通道 ID" width="200" />
-        <el-table-column prop="name" label="名称" min-width="160" />
-        <el-table-column prop="deviceId" label="所属设备" width="200" />
-        <el-table-column prop="manufacturer" label="厂商" width="120" />
-        <el-table-column prop="model" label="型号" width="160" />
-        <el-table-column label="云台" width="100" align="center">
+        <el-table-column prop="channelId" label="通道 ID" />
+        <el-table-column prop="name" label="名称" show-overflow-tooltip />
+        <el-table-column prop="deviceId" label="设备 ID" />
+        <el-table-column prop="deviceName" label="设备名称" show-overflow-tooltip />
+        <el-table-column label="云台" align="center">
           <template #default="{ row }">{{ ptzTypeMap[row.ptzType ?? 0] }}</template>
         </el-table-column>
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column label="状态" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 'ON' ? 'success' : 'info'" size="small">
               {{ row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="address" label="安装地址" min-width="200" show-overflow-tooltip />
-        <el-table-column label="坐标" width="180">
+        <el-table-column label="操作" width="130" fixed="right">
           <template #default="{ row }">
-            <span v-if="row.longitude || row.latitude">{{ row.longitude }}, {{ row.latitude }}</span>
-            <span v-else>—</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="updateTime" label="更新时间" width="170" />
-        <el-table-column label="操作" width="100" fixed="right">
-          <template #default="{ row }">
+            <el-button
+              v-permission="'gb28181:device-channel:list'"
+              type="primary"
+              link
+              @click="handleDetail(row)"
+            >详情</el-button>
             <el-button
               v-permission="'gb28181:play:start'"
               :disabled="row.status !== 'ON'"
               type="primary"
               link
-              :icon="VideoPlay"
               @click="handlePlay(row)"
             >播放</el-button>
           </template>
@@ -166,6 +169,7 @@ onMounted(() => {
     </el-card>
 
     <PlayDialog ref="playDialogRef" />
+    <ChannelDetailDialog ref="detailDialogRef" />
   </div>
 </template>
 

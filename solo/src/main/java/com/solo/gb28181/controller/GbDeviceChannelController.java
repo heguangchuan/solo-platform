@@ -6,6 +6,7 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,8 +32,8 @@ public class GbDeviceChannelController {
     /** 分页查询通道 */
     @PostMapping("/page")
     @RequirePermission({"gb28181:device-channel:list"})
-    public Result<PageResult<GbDeviceChannel>> page(@RequestBody GbDeviceChannelPageRequest request) {
-        Page<GbDeviceChannel> page = channelService.pageQuery(request);
+    public Result<PageResult<GbDeviceChannelResponse>> page(@RequestBody GbDeviceChannelPageRequest request) {
+        Page<GbDeviceChannelResponse> page = channelService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
