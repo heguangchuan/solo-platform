@@ -61,7 +61,8 @@ public class SsrcFactory {
         int d = mediaProperties.getSsrcDomainStart() == 1 ? 1 : 0; // 0=视频，1=回放（先以视频为默认）
         this.prefix = d + middle;
 
-        // 启动时把数据库中 INVITING / READY 的 SSRC 标记为已占用，保证幂等可重启
+        // 启动时把 Redis 中残留的活会话 SSRC 标记为已占用（防御性兜底；GbPlayServiceImpl
+        // 的 @PostConstruct 通常会先清扫掉所有残留会话，这里看到的多半是空集）
         List<GbInviteSession> active = inviteSessionService.listAllActive();
         for (GbInviteSession s : active) {
             try {

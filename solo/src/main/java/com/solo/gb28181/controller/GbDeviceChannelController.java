@@ -40,6 +40,10 @@ public class GbDeviceChannelController {
     @GetMapping("/by-device/{deviceDbId}")
     @RequirePermission({"gb28181:device-channel:list"})
     public Result<List<GbDeviceChannel>> listByDevice(@PathVariable Long deviceDbId) {
-        return Result.success(channelService.listByDeviceDbId(deviceDbId));
+        List<GbDeviceChannel> list = channelService.lambdaQuery()
+                .eq(GbDeviceChannel::getDeviceDbId, deviceDbId)
+                .orderByAsc(GbDeviceChannel::getChannelId)
+                .list();
+        return Result.success(list);
     }
 }

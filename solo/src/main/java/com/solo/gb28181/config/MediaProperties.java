@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
  * <p>
  * 注意 ZLM 是独立部署的（Docker），本服务通过两条通道与之交互：
  * <ul>
- *     <li>ZLM REST API（出站）：openRtpServer / closeRtpServer / getSnap 等</li>
+ *     <li>ZLM REST API（出站）：openRtpServer / closeRtpServer / updateRtpServerSSRC 等</li>
  *     <li>ZLM hook 回调（入站）：on_publish / on_stream_changed / on_server_keepalive 等</li>
  * </ul>
  */

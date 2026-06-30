@@ -46,25 +46,14 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     }
 
     @Override
-    public List<GbDeviceChannel> listByDeviceDbId(Long deviceDbId) {
-        return lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId)
-                .orderByAsc(GbDeviceChannel::getChannelId).list();
-    }
-
-    @Override
-    public GbDeviceChannel getByDeviceAndChannel(String deviceId, String channelId) {
-        return lambdaQuery()
-                .eq(GbDeviceChannel::getDeviceId, deviceId)
-                .eq(GbDeviceChannel::getChannelId, channelId)
-                .one();
-    }
-
-    @Override
     @Transactional
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
         for (GbDeviceChannel ch : channels) {
-            GbDeviceChannel exist = getByDeviceAndChannel(ch.getDeviceId(), ch.getChannelId());
+            GbDeviceChannel exist = lambdaQuery()
+                    .eq(GbDeviceChannel::getDeviceId, ch.getDeviceId())
+                    .eq(GbDeviceChannel::getChannelId, ch.getChannelId())
+                    .one();
             if (exist == null) {
                 save(ch);
             } else {

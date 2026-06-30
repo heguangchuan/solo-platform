@@ -81,7 +81,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
 
         // 取设备已存在记录 + 设备级密码
-        GbDevice exist = gbDeviceService.getByDeviceId(deviceId);
+        GbDevice exist = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         String password = properties.getPassword(); // 当前模型暂不支持设备级密码字段，预留扩展
 
         // 校验 Digest

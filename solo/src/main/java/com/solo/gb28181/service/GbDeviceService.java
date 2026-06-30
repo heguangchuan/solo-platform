@@ -7,12 +7,13 @@ import com.solo.gb28181.request.GbDevicePageRequest;
 
 /**
  * 国标设备服务
+ *
+ * <p>仅暴露"业务动作"。简单按字段查询（如按 deviceId 取一行）由调用方直接走
+ * {@code lambdaQuery().eq(GbDevice::getDeviceId, ...).one()}，不在此处增加薄方法。</p>
  */
 public interface GbDeviceService extends IService<GbDevice> {
 
     Page<GbDevice> pageQuery(GbDevicePageRequest request);
-
-    GbDevice getByDeviceId(String deviceId);
 
     /**
      * 设备上线（注册成功 / 心跳重新上线）

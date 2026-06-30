@@ -32,8 +32,8 @@ import java.util.Map;
  *     <li>{@code updateRtpServerSSRC}  — 修改已开启 RTP 端口的 SSRC 过滤值（S2.2 SSRC 自适应）</li>
  *     <li>{@code getMediaList}         — 查询流是否还活着</li>
  *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
- *     <li>{@code getSnap}              — 流截图</li>
  * </ul>
+ * <p>注：截图由 jessibuca 播放器自带，不在本类。</p>
  */
 @Slf4j
 @Component
@@ -149,22 +149,7 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 截图（ZLM 同步抓帧）
-     *
-     * @param sourceUrl    要截图的播放地址（一般是 rtmp/ws-flv 等 ZLM 已有协议路径）
-     * @param timeoutSec   超时秒
-     * @param expireSec    缓存秒（同 url 多次请求复用）
-     * @return 服务器本地 jpg 文件路径，前端通过 ZLM HTTP 静态服务访问
-     */
-    public String getSnap(GbMediaServer server, String sourceUrl, int timeoutSec, int expireSec) {
-        Map<String, String> params = new LinkedHashMap<>();
-        params.put("url", sourceUrl);
-        params.put("timeout_sec", String.valueOf(timeoutSec));
-        params.put("expire_sec", String.valueOf(expireSec));
-        JsonNode resp = post(server, "getSnap", params);
-        return resp.path("data").asText();
-    }
+    // 注：截图功能由 jessibuca 播放器自带（操作栏内置 screenshot 按钮），不走后端 ZLM API。
 
     // ---------------- 底层 POST ----------------
 

@@ -2,13 +2,14 @@
 /**
  * 实时点播弹窗
  * <p>调用方持有 ref，调 {@code open(deviceId, channelId, name)} 打开。
- * 内部：start API → 拿到 wsFlvUrl → Jessibuca.play；关闭弹窗时调 stop API + 播放器 destroy。</p>
+ * 内部：start API → 拿到 wsFlvUrl → Jessibuca.play；关闭弹窗时调 stop API + 播放器 destroy。
+ * 截图由 jessibuca 操作栏内置按钮处理，不依赖后端。</p>
  */
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Camera, VideoCamera } from '@element-plus/icons-vue'
+import { VideoCamera } from '@element-plus/icons-vue'
 import type { PlayResultVO } from '@/types/api'
-import { snapPlayApi, startPlayApi, stopPlayApi } from '@/api/gb28181'
+import { startPlayApi, stopPlayApi } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
 
 const visible = ref(false)
@@ -26,7 +27,6 @@ const transportOptions = [
 ] as const
 
 const streamInfo = ref<PlayResultVO | null>(null)
-const snapPreview = ref('')
 const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 
 async function open(deviceId: string, channelId: string, name?: string) {
@@ -37,7 +37,6 @@ async function open(deviceId: string, channelId: string, name?: string) {
   errorText.value = ''
   statusText.value = ''
   streamInfo.value = null
-  snapPreview.value = ''
   await nextTick()
   await startPlay()
 }
@@ -86,19 +85,6 @@ async function handleSwitchTransport() {
   await startPlay()
 }
 
-async function handleSnap() {
-  if (!streamInfo.value?.streamId) {
-    ElMessage.warning('流尚未就绪')
-    return
-  }
-  try {
-    const res = await snapPlayApi({ streamId: streamInfo.value.streamId })
-    snapPreview.value = res.data
-  } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : String(e))
-  }
-}
-
 async function handleStopBackend(silent: boolean) {
   if (!streamInfo.value?.streamId) return
   try {
@@ -117,7 +103,6 @@ async function onDialogClose() {
   await handleStopBackend(true)
   visible.value = false
   streamInfo.value = null
-  snapPreview.value = ''
 }
 
 defineExpose({ open })
@@ -150,14 +135,8 @@ defineExpose({ open })
         </el-radio-group>
       </div>
       <div class="right">
-        <el-button v-permission="'gb28181:play:snap'" :icon="Camera" :disabled="!streamInfo" size="small" @click="handleSnap">截图</el-button>
         <el-button :icon="VideoCamera" type="primary" size="small" :loading="loading" @click="startPlay">重新点播</el-button>
       </div>
-    </div>
-
-    <div v-if="snapPreview" class="snap-preview">
-      <div class="snap-title">最新截图</div>
-      <img :src="snapPreview" alt="snap" />
     </div>
 
     <template #footer>
@@ -201,19 +180,5 @@ defineExpose({ open })
 .toolbar-label {
   font-size: 13px;
   color: #606266;
-}
-
-.snap-preview {
-  margin-top: 12px;
-}
-.snap-title {
-  font-size: 13px;
-  color: #606266;
-  margin-bottom: 6px;
-}
-.snap-preview img {
-  max-width: 100%;
-  border: 1px solid #ebeef5;
-  border-radius: 4px;
 }
 </style>

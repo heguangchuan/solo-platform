@@ -50,18 +50,13 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     }
 
     @Override
-    public GbDevice getByDeviceId(String deviceId) {
-        return lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
-    }
-
-    @Override
     public void online(GbDevice device) {
         device.setStatus(1);
         LocalDateTime now = LocalDateTime.now();
         device.setRegisterTime(now);
         device.setKeepaliveTime(now);
 
-        GbDevice exist = getByDeviceId(device.getDeviceId());
+        GbDevice exist = lambdaQuery().eq(GbDevice::getDeviceId, device.getDeviceId()).one();
         if (exist == null) {
             save(device);
             log.info("[设备上线] 新设备首次注册: {} {}", device.getDeviceId(), device.getHostAddress());
@@ -75,7 +70,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
     @Override
     public void offline(String deviceId, String reason) {
-        GbDevice device = getByDeviceId(deviceId);
+        GbDevice device = lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device != null && device.getStatus() != null && device.getStatus() == 1) {
             device.setStatus(0);
             updateById(device);
