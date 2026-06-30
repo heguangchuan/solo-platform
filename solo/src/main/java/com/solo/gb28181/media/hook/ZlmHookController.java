@@ -98,6 +98,20 @@ public class ZlmHookController {
     // ========== 流级 hook（S2.2 接入业务） ==========
 
     /**
+     * 拉流鉴权（ZLM 在播放端连接时调用）
+     * <p>实时点播场景默认放行：rtp 流由本平台 INVITE 拉起，下游观看者无需 callId 鉴权。
+     * 如需限制只许带正确 callId 的客户端拉流，可在此扩展。</p>
+     */
+    @PostMapping("/on_play")
+    public Map<String, Object> onPlay(@RequestBody(required = false) Map<String, Object> body) {
+        if (!checkSecret(body)) {
+            return reject();
+        }
+        log.info("[ZLM 回调] on_play {}", body);
+        return ok();
+    }
+
+    /**
      * 流上来了（设备开始推 RTP，ZLM 已识别成功）
      */
     @PostMapping("/on_publish")
@@ -124,7 +138,13 @@ public class ZlmHookController {
         Boolean regist = booleanOf(body, "regist");
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
+        String schema = stringOf(body, "schema");
         String mediaServerId = stringOf(body, "mediaServerId");
+        // ZLM 对每个派生 schema 都会触发一次 on_stream_changed（ts/rtsp/rtmp/fmp4）；
+        // 业务侧只关心一次"流就绪"事件，固定取 rtsp（其它 schema 都由它派生）。
+        if (!"rtsp".equalsIgnoreCase(schema)) {
+            return ok();
+        }
         log.info("[ZLM 回调] on_stream_changed app={} stream={} regist={}", app, stream, regist);
         try {
             if (Boolean.TRUE.equals(regist)) {
@@ -140,6 +160,10 @@ public class ZlmHookController {
 
     /**
      * 无人观看
+     * <p>实时点播场景：前端 WS-FLV 跟 ZLM 收到 RTP 之间有几百 ms 时间差，
+     * 这段时间 ZLM 视为"无人观看"。若返回 close=true，ZLM 会立刻关流，
+     * 导致前端 WS 连过去时流已不在。S2.2 范围里返回 close=false，
+     * 流的回收完全靠 solo 业务侧（stop API / on_rtp_server_timeout）。</p>
      */
     @PostMapping("/on_stream_none_reader")
     public Map<String, Object> onStreamNoneReader(@RequestBody(required = false) Map<String, Object> body) {
@@ -147,9 +171,9 @@ public class ZlmHookController {
             return reject();
         }
         String stream = stringOf(body, "stream");
-        log.info("[ZLM 回调] on_stream_none_reader stream={} -> close=true", stream);
+        log.info("[ZLM 回调] on_stream_none_reader stream={} -> close=false（业务侧管理生命周期）", stream);
         Map<String, Object> resp = ok();
-        resp.put("close", true);
+        resp.put("close", false);
         return resp;
     }
 

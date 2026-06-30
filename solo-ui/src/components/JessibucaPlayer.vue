@@ -67,7 +67,10 @@ function ensurePlayer() {
   })
   player.on('play', () => emit('playing'))
   player.on('pause', () => emit('pause'))
-  player.on('error', (e: unknown) => emit('error', String(e)))
+  player.on('error', (e: unknown) => {
+    console.error('[jessibuca error]', e)
+    emit('error', '播放器错误: ' + String(e))
+  })
   player.on('timeout', () => emit('timeout'))
   player.on('loadingTimeout', () => emit('timeout'))
   return player

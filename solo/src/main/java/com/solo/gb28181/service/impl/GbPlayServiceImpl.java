@@ -148,7 +148,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         int rtpPort;
         try {
             int tcpMode = SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport) ? 1 : 0;
-            rtpPort = zlmRestClient.openRtpServer(server, streamId, ssrc, tcpMode, 0);
+            rtpPort = openRtpServerWithRetry(server, streamId, ssrc, tcpMode);
         } catch (Exception e) {
             ssrcFactory.release(server.getServerId(), ssrc);
             throw new ServiceException("申请 RTP 收流端口失败: " + e.getMessage());
@@ -182,7 +182,10 @@ public class GbPlayServiceImpl implements GbPlayService {
         pending.put(streamId, future);
 
         try {
-            String sdpIp = sipLayer.getLocalIp(device.getLocalIp());
+            // SDP c= 行必须是设备能直推 RTP 到的 ZLM 地址（streamIp 优先，回退 hostIp），
+            // 跟 solo 自己的 SIP 监听 IP 无关。否则设备照 SDP 推到 solo 上，ZLM 永远收不到包。
+            String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
+                    ? server.getStreamIp() : server.getHostIp();
             String sdpBody = SdpBuilder.buildPlay(sipProperties.getId(), sdpIp, rtpPort, ssrc, transport);
             long inviteTimeoutMs = Math.max(5_000L, mediaProperties.getInviteTimeoutSeconds() * 1000L);
 
@@ -454,8 +457,30 @@ public class GbPlayServiceImpl implements GbPlayService {
     //  helpers
     // ============================================================
 
-    private GbMediaServer pickMediaServer() {
-        // S2.2：取在线的第一个节点；后续按负载均衡再扩
+    // ============================================================
+    //  helpers
+    // ============================================================
+
+    /**
+     * 申请 RTP 端口；若 ZLM 报"stream already exists"（上次会话残留），先关再开一次。
+     * <p>残留场景：solo 异常退出 / 网络抖动导致 closeRtpServer 没成功，但 ssrc 池里的
+     * 占用位通过启动清扫释放了，下次同 streamId 申请就会撞 ZLM 侧残留。</p>
+     */
+    private int openRtpServerWithRetry(GbMediaServer server, String streamId, String ssrc, int tcpMode) {
+        try {
+            return zlmRestClient.openRtpServer(server, streamId, ssrc, tcpMode, 0);
+        } catch (ServiceException e) {
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+            if (!msg.contains("already exists")) {
+                throw e;
+            }
+            log.warn("[实时点播] ZLM 检测到 stream={} 残留，强制 closeRtpServer 后重试", streamId);
+            zlmRestClient.closeRtpServer(server, streamId);
+            return zlmRestClient.openRtpServer(server, streamId, ssrc, tcpMode, 0);
+        }
+    }
+
+    private GbMediaServer pickMediaServer() {        // S2.2：取在线的第一个节点；后续按负载均衡再扩
         List<GbMediaServer> all = mediaServerService.list();
         for (GbMediaServer s : all) {
             if (s.getStatus() != null && s.getStatus() == 1) {
