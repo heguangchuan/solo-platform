@@ -4,7 +4,7 @@ export default { name: 'SystemFile' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import type { FilePageRequest, SysFile } from '@/types/api'
 import { deleteFileApi, deleteFileBatchApi, getFilePageApi } from '@/api/file'
 

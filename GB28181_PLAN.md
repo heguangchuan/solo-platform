@@ -237,14 +237,14 @@ zlm:
 ### Sprint 3 — 历史回放与录像下载（~1 周）
 **目标**：能查录像、能回放、能拖时间轴。
 
-- [ ] `transmit/cmd/SipCommander#queryRecord`：MESSAGE Query/RecordInfo
-- [ ] `RecordInfoResponseMessageHandler`：分页合并录像列表（sumNum 字段处理）
-- [ ] `transmit/cmd/SipCommander#playbackInvite`：PLAYBACK INVITE（s=Playback，URI 带时间段）
-- [ ] `service/PlaybackService`：start / pause / resume / seek / speed / stop
+- [x] `transmit/cmd/SipCommander#queryRecord`：MESSAGE Query/RecordInfo
+- [x] `RecordInfoResponseMessageHandler`：分页合并录像列表（sumNum 字段处理）
+- [x] `transmit/cmd/SipCommander#playbackInvite`：PLAYBACK INVITE（s=Playback，URI 带时间段）
+- [x] `service/PlaybackService`：start / pause / resume / seek / speed / stop
   - PAUSE/PLAY/SEEK/SPEED：通过 SIP INFO 或 RTSP RTP-Info 实现
-- [ ] `transmit/cmd/SipCommander#downloadInvite`：DOWNLOAD INVITE（s=Download）
+- [x] `transmit/cmd/SipCommander#downloadInvite`：DOWNLOAD INVITE（s=Download）
 - [ ] 录像下载完成事件 → MinIO 落地（可选）+ 进度回报
-- [ ] 前端：录像查询表单 + 时间轴 + 回放控制条
+- [x] 前端：录像查询表单 + 时间轴 + 回放控制条
 
 **验收**：选通道+时间段 → 查到当天录像 → 点击播放 → 拖动时间轴正常 → 下载录像到本地。
 

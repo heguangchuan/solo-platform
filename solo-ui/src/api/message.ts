@@ -1,5 +1,5 @@
 import { get, post } from '@/utils/request'
-import type { SysMessage } from '@/stores/api'
+import type { SysMessage } from '@/stores/message'
 
 /**
  * 获取当前用户消息列表
