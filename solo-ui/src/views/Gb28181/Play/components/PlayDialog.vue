@@ -71,6 +71,7 @@ async function startPlay() {
 }
 
 function pickPlayUrl(info: PlayResultVO): string | undefined {
+  // 优先用 WS-FLV（jessibuca 默认）；某些 ZLM 版本 WS 升级有兼容问题，回退 HTTP-FLV
   if (window.location.protocol === 'https:' && info.wsFlvUrl) {
     return info.wsFlvUrl.replace(/^ws:\/\//, 'wss://')
   }

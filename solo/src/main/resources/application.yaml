@@ -84,13 +84,13 @@ gb28181:
       enabled: true
       server-id: zlmediakit-local
       name: 默认节点
-      host-ip: 192.168.1.3
+      host-ip: 192.168.1.100
       http-port: 10005
       secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
       rtp-port-start: 30000
       rtp-port-end: 35000
       # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
-      stream-ip:
+      stream-ip: 192.168.1.100
     # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
     invite-timeout-seconds: 30
     # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
