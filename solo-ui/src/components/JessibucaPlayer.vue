@@ -38,6 +38,8 @@ import {
   Mute,
   Microphone,
   ZoomIn,
+  ZoomOut,
+  Aim,
   Switch,
   Connection,
 } from '@element-plus/icons-vue'
@@ -76,11 +78,22 @@ const isPlaying = ref(false)
 const isMuted = ref(true) // jessibuca 默认静音以满足浏览器自动播放策略
 const isFullscreen = ref(false)
 const showInfoPanel = ref(false)
-const scaleMode = ref(1) // 0=拉伸、1=等比有黑边、2=等比满铺
 const videoInfo = ref<{ width: number; height: number } | null>(null)
 const audioInfo = ref<{ numOfChannels: number; sampleRate: number } | null>(null)
 const kBps = ref(0)
 const playFps = ref(0)
+
+// 电子放大：用 CSS transform 缩放 + 平移整个画面容器
+const zoomScale = ref(1) // 1 = 原始；范围 [1, MAX_ZOOM]
+const zoomX = ref(0) // px，平移偏移
+const zoomY = ref(0)
+const isDragging = ref(false)
+const MIN_ZOOM = 1
+const MAX_ZOOM = 8
+const ZOOM_STEP = 0.25
+const isZoomed = computed(() => zoomScale.value > 1)
+const zoomTransform = computed(() => `translate(${zoomX.value}px, ${zoomY.value}px) scale(${zoomScale.value})`)
+const zoomLabel = computed(() => `${Math.round(zoomScale.value * 100)}%`)
 
 const resolutionText = computed(() =>
   videoInfo.value ? `${videoInfo.value.width}×${videoInfo.value.height}` : '—',
@@ -252,14 +265,128 @@ function toggleFullscreen() {
   p.setFullscreen?.(!isFullscreen.value)
 }
 
-function cycleScaleMode() {
-  if (!player) return
-  scaleMode.value = (scaleMode.value + 1) % 3
-  const p = player as JessibucaInstance & { setScaleMode?: (m: number) => void }
-  p.setScaleMode?.(scaleMode.value)
+// ============ 电子放大 ============
+//
+// 用 CSS transform 把 jessibuca 容器整体缩放 + 平移，纯前端实现，跟摄像头物理是
+// 球机/枪机/IPC 无关 —— 球机也能用电子放大（区别于球机自带的光学变倍）。
+//
+// 交互：
+//   - 工具栏 [+]、[-]、[复位] 按钮
+//   - 画面区滚轮缩放（以鼠标所在点为锚点，体验更自然）
+//   - 放大后鼠标拖拽平移画面
+//   - 双击画面快速复位
+
+function zoomIn() {
+  applyZoom(Math.min(MAX_ZOOM, zoomScale.value + ZOOM_STEP))
 }
 
-const scaleModeLabel = computed(() => ['拉伸', '等比', '满铺'][scaleMode.value])
+function zoomOut() {
+  applyZoom(Math.max(MIN_ZOOM, zoomScale.value - ZOOM_STEP))
+}
+
+function resetZoom() {
+  zoomScale.value = 1
+  zoomX.value = 0
+  zoomY.value = 0
+}
+
+function applyZoom(nextScale: number, anchorX = 0.5, anchorY = 0.5) {
+  // anchorX/Y：缩放锚点（容器内归一化坐标 0~1）；默认中心
+  if (nextScale <= 1) {
+    resetZoom()
+    return
+  }
+  const el = containerRef.value
+  if (!el) {
+    zoomScale.value = nextScale
+    return
+  }
+  const w = el.clientWidth
+  const h = el.clientHeight
+  // 锚点像素位置（相对容器左上角）
+  const ax = anchorX * w
+  const ay = anchorY * h
+  // 当前平移下，锚点对应的"图像坐标"
+  // 公式：anchorOnImg = (anchor - translate) / scale
+  // 缩放后要保持 anchorOnImg 仍在 anchor 像素位置：translateNew = anchor - anchorOnImg * scaleNew
+  const oldScale = zoomScale.value
+  const imgX = (ax - zoomX.value) / oldScale
+  const imgY = (ay - zoomY.value) / oldScale
+  zoomScale.value = nextScale
+  zoomX.value = ax - imgX * nextScale
+  zoomY.value = ay - imgY * nextScale
+  clampPan()
+}
+
+/**
+ * 限制平移范围，避免把画面拖出边界露出黑边
+ */
+function clampPan() {
+  const el = containerRef.value
+  if (!el || zoomScale.value <= 1) {
+    zoomX.value = 0
+    zoomY.value = 0
+    return
+  }
+  const w = el.clientWidth
+  const h = el.clientHeight
+  // 放大 N 倍后，画面尺寸 = (w * N, h * N)，超出容器的部分 = w*(N-1), h*(N-1)
+  // translate 范围：[-(w*(N-1)), 0]
+  const maxX = 0
+  const minX = -(w * (zoomScale.value - 1))
+  const maxY = 0
+  const minY = -(h * (zoomScale.value - 1))
+  if (zoomX.value > maxX) zoomX.value = maxX
+  if (zoomX.value < minX) zoomX.value = minX
+  if (zoomY.value > maxY) zoomY.value = maxY
+  if (zoomY.value < minY) zoomY.value = minY
+}
+
+function onWheel(e: WheelEvent) {
+  if (!containerRef.value) return
+  e.preventDefault()
+  const rect = containerRef.value.getBoundingClientRect()
+  const anchorX = (e.clientX - rect.left) / rect.width
+  const anchorY = (e.clientY - rect.top) / rect.height
+  const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP
+  const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoomScale.value + delta))
+  applyZoom(next, anchorX, anchorY)
+}
+
+let dragStartX = 0
+let dragStartY = 0
+let panStartX = 0
+let panStartY = 0
+
+function onMouseDown(e: MouseEvent) {
+  if (!isZoomed.value) return
+  isDragging.value = true
+  dragStartX = e.clientX
+  dragStartY = e.clientY
+  panStartX = zoomX.value
+  panStartY = zoomY.value
+  window.addEventListener('mousemove', onMouseMove)
+  window.addEventListener('mouseup', onMouseUp)
+}
+
+function onMouseMove(e: MouseEvent) {
+  if (!isDragging.value) return
+  zoomX.value = panStartX + (e.clientX - dragStartX)
+  zoomY.value = panStartY + (e.clientY - dragStartY)
+  clampPan()
+}
+
+function onMouseUp() {
+  isDragging.value = false
+  window.removeEventListener('mousemove', onMouseMove)
+  window.removeEventListener('mouseup', onMouseUp)
+}
+
+function onDoubleClick() {
+  if (isZoomed.value) {
+    resetZoom()
+  }
+}
 
 function toggleInfoPanel() {
   showInfoPanel.value = !showInfoPanel.value
@@ -280,8 +407,20 @@ function handleSwitchTransport() {
 
 <template>
   <div class="player-wrap" :style="{ height: props.height }">
-    <!-- 画面容器 -->
-    <div ref="containerRef" class="jessibuca-container"></div>
+    <!-- 画面容器 — 外层固定，内层 jessibuca 容器做 transform 实现电子放大 -->
+    <div
+      class="stage"
+      :class="{ zoomed: isZoomed, dragging: isDragging }"
+      @wheel="onWheel"
+      @mousedown="onMouseDown"
+      @dblclick="onDoubleClick"
+    >
+      <div
+        ref="containerRef"
+        class="jessibuca-container"
+        :style="{ transform: zoomTransform }"
+      ></div>
+    </div>
 
     <!-- 信息面板（点 "信息" 按钮显示） -->
     <div v-if="showInfoPanel" class="info-panel">
@@ -291,6 +430,9 @@ function handleSwitchTransport() {
       <div v-if="audioInfo"><span class="info-label">声 道</span>{{ audioInfo.numOfChannels }}</div>
       <div v-if="audioInfo"><span class="info-label">采样率</span>{{ audioInfo.sampleRate }} Hz</div>
     </div>
+
+    <!-- 放大倍数浮层（缩放生效时显示） -->
+    <div v-if="isZoomed" class="zoom-badge">{{ zoomLabel }}</div>
 
     <!-- 工具栏 -->
     <div class="toolbar">
@@ -307,8 +449,15 @@ function handleSwitchTransport() {
         <el-tooltip :content="props.transport === 'UDP' ? 'UDP 收流 · 点击切 TCP' : 'TCP 收流 · 点击切 UDP'">
           <el-button text size="small" :icon="Connection" @click="handleSwitchTransport" />
         </el-tooltip>
-        <el-tooltip :content="'缩放模式：' + scaleModeLabel + ' · 点击切换'">
-          <el-button text size="small" :icon="ZoomIn" @click="cycleScaleMode" />
+        <el-divider direction="vertical" />
+        <el-tooltip content="放大（滚轮 / 双击复位）">
+          <el-button text size="small" :icon="ZoomIn" :disabled="zoomScale >= MAX_ZOOM" @click="zoomIn" />
+        </el-tooltip>
+        <el-tooltip content="缩小">
+          <el-button text size="small" :icon="ZoomOut" :disabled="zoomScale <= MIN_ZOOM" @click="zoomOut" />
+        </el-tooltip>
+        <el-tooltip content="复位">
+          <el-button text size="small" :icon="Aim" :disabled="!isZoomed" @click="resetZoom" />
         </el-tooltip>
         <el-divider direction="vertical" />
         <el-tooltip :content="isPlaying ? '暂停' : '播放'">
@@ -344,11 +493,35 @@ function handleSwitchTransport() {
   overflow: hidden;
 }
 
-.jessibuca-container {
+/* 电子放大舞台：固定容器，内部 jessibuca 用 transform 放大/平移 */
+.stage {
+  position: relative;
   flex: 1;
   width: 100%;
-  background: #000;
   min-height: 0;
+  overflow: hidden;
+  background: #000;
+}
+.stage.zoomed {
+  cursor: grab;
+}
+.stage.dragging {
+  cursor: grabbing;
+}
+
+.jessibuca-container {
+  width: 100%;
+  height: 100%;
+  background: #000;
+  transform-origin: 0 0;
+  transition: transform 80ms ease-out;
+}
+/* jessibuca 内部 canvas 不拦截鼠标事件，让 .stage 的 mousedown/wheel/dblclick 能命中 */
+.jessibuca-container :deep(canvas) {
+  pointer-events: none;
+}
+.stage.dragging .jessibuca-container {
+  transition: none;
 }
 
 .toolbar {
@@ -426,5 +599,19 @@ function handleSwitchTransport() {
   display: inline-block;
   width: 50px;
   color: #909399;
+}
+
+/* 放大倍数浮层 */
+.zoom-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  font-size: 12px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  z-index: 10;
+  pointer-events: none;
 }
 </style>
