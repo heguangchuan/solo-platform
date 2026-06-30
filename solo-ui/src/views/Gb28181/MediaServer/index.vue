@@ -12,6 +12,7 @@ import {
   deleteGbMediaServerApi,
 } from '@/api/gb28181'
 import MediaServerDetailDialog from './components/MediaServerDetailDialog.vue'
+import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 const loading = ref(false)
 const tableData = ref<GbMediaServer[]>([])
@@ -160,11 +161,9 @@ onMounted(() => {
         <el-table-column label="端口范围" align="center">
           <template #default="{ row }">{{ row.rtpPortStart }} - {{ row.rtpPortEnd }}</template>
         </el-table-column>
-        <el-table-column label="节点状态" align="center">
+        <el-table-column label="节点状态" align="center" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '在线' : '离线' }}
-            </el-tag>
+            <ListStatusBar :active="row.status === 1" />
           </template>
         </el-table-column>
         <el-table-column prop="hookAliveTime" label="最近心跳" />

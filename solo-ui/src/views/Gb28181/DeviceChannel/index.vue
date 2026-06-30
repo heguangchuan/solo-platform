@@ -10,6 +10,7 @@ import { getGbDeviceChannelPageApi } from '@/api/gb28181'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from './components/ChannelDetailDialog.vue'
+import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -137,11 +138,9 @@ onMounted(() => {
         <el-table-column label="云台" align="center">
           <template #default="{ row }">{{ ptzTypeMap[row.ptzType ?? 0] }}</template>
         </el-table-column>
-        <el-table-column label="状态" align="center">
+        <el-table-column label="状态" align="center" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ON' ? 'success' : 'info'" size="small">
-              {{ row.status }}
-            </el-tag>
+            <ListStatusBar :active="row.status === 'ON'" />
           </template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
