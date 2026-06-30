@@ -66,6 +66,12 @@ export interface GbDeviceChannel {
   updateTime: string
 }
 
+/** 通道列表分页响应：在 entity 之上补充设备名 */
+export interface GbDeviceChannelVO extends GbDeviceChannel {
+  /** 所属设备名称（后端按 deviceId 反查 gb_device.name 回填） */
+  deviceName?: string
+}
+
 /** 流媒体节点（ZLMediaKit）分页查询参数 */
 export interface GbMediaServerPageRequest extends PageRequest {
   serverId?: string

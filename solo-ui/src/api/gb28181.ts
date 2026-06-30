@@ -3,6 +3,7 @@ import type {
   GbDevicePageRequest,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
+  GbDeviceChannelVO,
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
@@ -44,7 +45,7 @@ export function deleteGbDeviceApi(deviceId: string) {
  * 通道分页
  */
 export function getGbDeviceChannelPageApi(data: GbDeviceChannelPageRequest) {
-  return post<PageResult<GbDeviceChannel>>('/api/gb28181/device-channel/page', data)
+  return post<PageResult<GbDeviceChannelVO>>('/api/gb28181/device-channel/page', data)
 }
 
 /**

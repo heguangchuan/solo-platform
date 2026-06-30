@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbDeviceChannelResponse;
 
 import java.util.List;
 
@@ -14,7 +15,7 @@ import java.util.List;
  */
 public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
 
-    Page<GbDeviceChannel> pageQuery(GbDeviceChannelPageRequest request);
+    Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request);
 
     /**
      * 批量保存或更新（Catalog 同步入口）

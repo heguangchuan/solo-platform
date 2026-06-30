@@ -5,13 +5,14 @@ export default { name: 'Gb28181Device' }
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Refresh as Sync, Delete, View } from '@element-plus/icons-vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
 import type { GbDevice, GbDevicePageRequest } from '@/types/api'
 import {
   getGbDevicePageApi,
   syncGbDeviceApi,
   deleteGbDeviceApi,
 } from '@/api/gb28181'
+import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -68,6 +69,12 @@ function handleViewChannels(row: GbDevice) {
   router.push({ path: '/gb28181/device-channel', query: { deviceId: row.deviceId } })
 }
 
+const detailDialogRef = ref<InstanceType<typeof DeviceDetailDialog> | null>(null)
+
+function handleDetail(row: GbDevice) {
+  detailDialogRef.value?.open(row)
+}
+
 async function handleDelete(row: GbDevice) {
   try {
     await ElMessageBox.confirm(`确定要删除设备 "${row.deviceId}" 的记录吗？（不影响实际设备）`, '提示', {
@@ -111,37 +118,36 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 320px)">
-        <el-table-column prop="deviceId" label="设备 ID" width="200" />
-        <el-table-column prop="name" label="名称" min-width="160" />
-        <el-table-column prop="manufacturer" label="厂商" width="120" />
-        <el-table-column prop="model" label="型号" width="160" />
-        <el-table-column prop="firmware" label="固件" width="120" />
-        <el-table-column label="状态" width="80" align="center">
+        <el-table-column prop="deviceId" label="设备 ID" />
+        <el-table-column prop="name" label="名称" show-overflow-tooltip />
+        <el-table-column label="状态" align="center">
           <template #default="{ row }">
             <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
               {{ row.status === 1 ? '在线' : '离线' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="hostAddress" label="网络地址" width="170" />
-        <el-table-column prop="transport" label="传输" width="80" align="center" />
-        <el-table-column prop="channelCount" label="通道数" width="90" align="center" />
-        <el-table-column prop="keepaliveTime" label="最近心跳" width="170" />
-        <el-table-column prop="lastCatalogSyncTime" label="目录同步时间" width="170" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column prop="hostAddress" label="网络地址" />
+        <el-table-column prop="channelCount" label="通道数" align="center" />
+        <el-table-column prop="keepaliveTime" label="最近心跳" />
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
+            <el-button
+              v-permission="'gb28181:device:list'"
+              type="primary"
+              link
+              @click="handleDetail(row)"
+            >详情</el-button>
             <el-button
               v-permission="'gb28181:device-channel:list'"
               type="primary"
               link
-              :icon="View"
               @click="handleViewChannels(row)"
             >通道</el-button>
             <el-button
               v-permission="'gb28181:device:sync'"
               type="primary"
               link
-              :icon="Sync"
               :disabled="row.status !== 1"
               @click="handleSync(row)"
             >同步</el-button>
@@ -149,7 +155,6 @@ onMounted(() => {
               v-permission="'gb28181:device:delete'"
               type="primary"
               link
-              :icon="Delete"
               @click="handleDelete(row)"
             >删除</el-button>
           </template>
@@ -167,6 +172,8 @@ onMounted(() => {
         @size-change="handleSizeChange"
       />
     </el-card>
+
+    <DeviceDetailDialog ref="detailDialogRef" />
   </div>
 </template>
 

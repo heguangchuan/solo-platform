@@ -3,16 +3,25 @@ package com.solo.gb28181.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
+import com.solo.gb28181.service.GbDeviceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * 国标设备通道服务实现
@@ -23,8 +32,10 @@ import java.util.List;
 public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMapper, GbDeviceChannel>
         implements GbDeviceChannelService {
 
+    private final GbDeviceService deviceService;
+
     @Override
-    public Page<GbDeviceChannel> pageQuery(GbDeviceChannelPageRequest request) {
+    public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
         LambdaQueryWrapper<GbDeviceChannel> wrapper = new LambdaQueryWrapper<>();
         if (request.getDeviceId() != null && !request.getDeviceId().isBlank()) {
             wrapper.eq(GbDeviceChannel::getDeviceId, request.getDeviceId());
@@ -42,7 +53,43 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
             wrapper.eq(GbDeviceChannel::getParentId, request.getParentId());
         }
         wrapper.orderByAsc(GbDeviceChannel::getChannelId);
-        return page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+        Page<GbDeviceChannel> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+
+        // 转 response + 回填 deviceName
+        List<GbDeviceChannelResponse> rows = raw.getRecords().stream()
+                .map(GbDeviceChannelServiceImpl::toResponse)
+                .collect(Collectors.toCollection(ArrayList::new));
+        fillDeviceName(rows);
+
+        Page<GbDeviceChannelResponse> resp = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
+        resp.setRecords(rows);
+        return resp;
+    }
+
+    private static GbDeviceChannelResponse toResponse(GbDeviceChannel src) {
+        GbDeviceChannelResponse vo = new GbDeviceChannelResponse();
+        BeanUtils.copyProperties(src, vo);
+        return vo;
+    }
+
+    /**
+     * 按 deviceId 批量查设备名，回填到当前页所有 response。一次性 IN 查询，避免 N+1。
+     */
+    private void fillDeviceName(List<GbDeviceChannelResponse> rows) {
+        if (rows.isEmpty()) return;
+        Set<String> deviceIds = rows.stream()
+                .map(GbDeviceChannelResponse::getDeviceId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toCollection(HashSet::new));
+        if (deviceIds.isEmpty()) return;
+        Map<String, String> nameMap = deviceService.lambdaQuery()
+                .in(GbDevice::getDeviceId, deviceIds)
+                .list()
+                .stream()
+                .collect(Collectors.toMap(GbDevice::getDeviceId,
+                        d -> d.getName() == null ? "" : d.getName(),
+                        (a, b) -> a));
+        rows.forEach(r -> r.setDeviceName(nameMap.get(r.getDeviceId())));
     }
 
     @Override
