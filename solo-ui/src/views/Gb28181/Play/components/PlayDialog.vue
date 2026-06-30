@@ -2,12 +2,11 @@
 /**
  * 实时点播弹窗
  * <p>调用方持有 ref，调 {@code open(deviceId, channelId, name)} 打开。
- * 内部：start API → 拿到 wsFlvUrl → Jessibuca.play；关闭弹窗时调 stop API + 播放器 destroy。
- * 截图由 jessibuca 操作栏内置按钮处理，不依赖后端。</p>
+ * 内部：start API → 拿到 wsFlvUrl → Jessibuca.play；关闭弹窗时调 stop API + 播放器 destroy。</p>
+ * <p>播放器（{@link JessibucaPlayer}）自带工具栏，弹窗本身保持极简。</p>
  */
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoCamera } from '@element-plus/icons-vue'
 import type { PlayResultVO } from '@/types/api'
 import { startPlayApi, stopPlayApi } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
@@ -21,10 +20,7 @@ const deviceIdRef = ref('')
 const channelIdRef = ref('')
 const channelNameRef = ref('')
 const transport = ref<'UDP' | 'TCP-passive'>('UDP')
-const transportOptions = [
-  { label: 'UDP', value: 'UDP' },
-  { label: 'TCP', value: 'TCP-passive' },
-] as const
+const streamType = ref<'main' | 'sub'>('main')
 
 const streamInfo = ref<PlayResultVO | null>(null)
 const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
@@ -37,6 +33,8 @@ async function open(deviceId: string, channelId: string, name?: string) {
   errorText.value = ''
   statusText.value = ''
   streamInfo.value = null
+  streamType.value = 'main'
+  transport.value = 'UDP'
   await nextTick()
   await startPlay()
 }
@@ -53,7 +51,7 @@ async function startPlay() {
       transport: transport.value,
     })
     streamInfo.value = res.data
-    statusText.value = '流已就绪，正在解码画面...'
+    statusText.value = ''
     const url = pickPlayUrl(res.data)
     if (!url) {
       errorText.value = '后端未返回可用的 WS-FLV 地址'
@@ -70,19 +68,33 @@ async function startPlay() {
 }
 
 function pickPlayUrl(info: PlayResultVO): string | undefined {
-  // 优先用 WS-FLV（jessibuca 默认）；某些 ZLM 版本 WS 升级有兼容问题，回退 HTTP-FLV
   if (window.location.protocol === 'https:' && info.wsFlvUrl) {
     return info.wsFlvUrl.replace(/^ws:\/\//, 'wss://')
   }
   return info.wsFlvUrl || info.flvUrl
 }
 
-async function handleSwitchTransport() {
-  // 切换收流模式：先 stop 当前会话，再以新 transport 重新点播
-  await handleStopBackend(false)
+/**
+ * 播放器工具栏抛上来的"刷新"动作：先 stop 旧会话 → 再 start 新会话
+ */
+async function handleRefresh() {
+  await handleStopBackend(true)
   playerRef.value?.stop()
   streamInfo.value = null
   await startPlay()
+}
+
+/**
+ * 子码流切换 — S2.2 暂占位（INVITE SDP 还没区分主/辅）；预留事件已通；后端 S2.3 / S3 加 subStream 参数后接通
+ */
+function handleSwitchStream(next: 'main' | 'sub') {
+  streamType.value = next
+  ElMessage.info('子码流切换功能开发中（S2.3 接通）')
+}
+
+async function handleSwitchTransport(next: 'UDP' | 'TCP-passive') {
+  transport.value = next
+  await handleRefresh()
 }
 
 async function handleStopBackend(silent: boolean) {
@@ -97,9 +109,7 @@ async function handleStopBackend(silent: boolean) {
 }
 
 async function onDialogClose() {
-  // 1) 客户端：destroy 播放器，避免 WS 还在跑
   playerRef.value?.destroy()
-  // 2) 后端：发 BYE + 释放 SSRC
   await handleStopBackend(true)
   visible.value = false
   streamInfo.value = null
@@ -112,7 +122,7 @@ defineExpose({ open })
   <el-dialog
     v-model="visible"
     :title="'实时点播' + (channelNameRef ? ' - ' + channelNameRef : '')"
-    width="840px"
+    width="900px"
     top="6vh"
     :close-on-click-modal="false"
     :before-close="onDialogClose"
@@ -123,21 +133,16 @@ defineExpose({ open })
     </div>
     <div v-else-if="statusText" class="status-bar status-info">{{ statusText }}</div>
 
-    <JessibucaPlayer ref="playerRef" height="420px" @error="errorText = $event" />
-
-    <div class="toolbar">
-      <div class="left">
-        <span class="toolbar-label">收流方式</span>
-        <el-radio-group v-model="transport" size="small" :disabled="loading" @change="handleSwitchTransport">
-          <el-radio-button v-for="opt in transportOptions" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </el-radio-button>
-        </el-radio-group>
-      </div>
-      <div class="right">
-        <el-button :icon="VideoCamera" type="primary" size="small" :loading="loading" @click="startPlay">重新点播</el-button>
-      </div>
-    </div>
+    <JessibucaPlayer
+      ref="playerRef"
+      height="480px"
+      :stream-type="streamType"
+      :transport="transport"
+      @error="errorText = $event"
+      @refresh="handleRefresh"
+      @switch-stream="handleSwitchStream"
+      @switch-transport="handleSwitchTransport"
+    />
 
     <template #footer>
       <el-button @click="onDialogClose">关 闭</el-button>
@@ -163,22 +168,5 @@ defineExpose({ open })
 .status-error {
   background: #fef0f0;
   color: #f56c6c;
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 12px;
-}
-.toolbar .left,
-.toolbar .right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.toolbar-label {
-  font-size: 13px;
-  color: #606266;
 }
 </style>
