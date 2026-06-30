@@ -13,6 +13,7 @@ import {
   deleteGbDeviceApi,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
+import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -120,11 +121,9 @@ onMounted(() => {
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 320px)">
         <el-table-column prop="deviceId" label="设备编码" />
         <el-table-column prop="name" label="名称" show-overflow-tooltip />
-        <el-table-column label="状态" align="center">
+        <el-table-column label="状态" align="center" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
-              {{ row.status === 1 ? '在线' : '离线' }}
-            </el-tag>
+            <ListStatusBar :active="row.status === 1" />
           </template>
         </el-table-column>
         <el-table-column prop="hostAddress" label="网络地址" />
