@@ -142,8 +142,11 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             return future.get(mediaProperties.getRecordInfoTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             pendingQuery.remove(pendingKey);
-            log.warn("[{}] 录像查询超时 deviceId={} sn={}", LOG_TAG, req.getDeviceId(), sn);
-            throw new ServiceException("录像查询超时");
+            // 设备超时未回 Response：多数是设备无录像能力 / 不支持 RecordInfo（不回任何报文）。
+            // 返回空列表而非抛错——前端展示"无录像"即可，避免误导成"系统故障"。
+            log.warn("[{}] 录像查询超时（设备未响应，按无录像处理）deviceId={} sn={}",
+                    LOG_TAG, req.getDeviceId(), sn);
+            return Collections.emptyList();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             pendingQuery.remove(pendingKey);

@@ -32,8 +32,10 @@ public class MediaProperties {
 
     /**
      * RecordInfo 录像查询分片合并超时（秒）；超时未收齐 SumNum 条则视为查询失败。
+     * <p>设备无录像能力时通常完全不回 Response，超时即按"无录像"返回空列表，
+     * 故这里设短一些（10s），避免用户干等太久。</p>
      */
-    private int recordInfoTimeoutSeconds = 30;
+    private int recordInfoTimeoutSeconds = 10;
 
     /**
      * 单次 PLAYBACK INVITE 等待流就绪的超时（秒）。
