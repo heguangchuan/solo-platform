@@ -37,6 +37,7 @@ defineExpose({ open })
       <el-descriptions-item label="管理地址">{{ detail.hostIp }}</el-descriptions-item>
       <el-descriptions-item label="管理端口">{{ detail.httpPort }}</el-descriptions-item>
       <el-descriptions-item label="接口密钥">{{ detail.secret || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="播放地址">{{ detail.streamIp || '—' }}</el-descriptions-item>
       <el-descriptions-item label="播放端口">{{ detail.streamHttpPort && detail.streamHttpPort > 0 ? detail.streamHttpPort : '—（同管理端口）' }}</el-descriptions-item>
       <el-descriptions-item label="推流端口">
         {{ detail.rtpPortStart }} - {{ detail.rtpPortEnd }}
