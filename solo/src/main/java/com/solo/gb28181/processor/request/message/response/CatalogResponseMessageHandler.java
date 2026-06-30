@@ -84,6 +84,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         ch.setDeviceDbId(device.getId());
         ch.setDeviceId(device.getDeviceId());
         ch.setChannelId(channelId);
+        // 通道的 platformId 始终与所属设备保持一致（自有 = 0000；级联设备的通道继承级联平台 ID）
+        ch.setPlatformId(device.getPlatformId());
         ch.setName(emptyToNull(XmlUtils.childText(item, "Name")));
         ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
         ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));

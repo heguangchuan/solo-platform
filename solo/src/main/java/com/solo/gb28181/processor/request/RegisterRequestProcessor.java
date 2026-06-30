@@ -141,6 +141,10 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         if (device.getCharset() == null || device.getCharset().isBlank()) {
             device.setCharset("GB2312");
         }
+        if (device.getPlatformId() == null || device.getPlatformId().isBlank()) {
+            // 设备直接注册到本平台 → 自有平台；级联平台同步过来的设备会在级联接入处显式赋值
+            device.setPlatformId("0000");
+        }
         gbDeviceService.online(device);
 
         // 发布上线事件 → DeviceOnlineListener 异步拉取 DeviceInfo + Catalog

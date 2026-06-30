@@ -99,6 +99,12 @@ public class GbDeviceChannel {
     /** 运行时点播 stream id（点播开始时回填，结束清空） */
     private String streamId;
 
+    /**
+     * 所属平台 ID：{@code 0000} = 自有平台（默认）；其他值代表上级级联平台 ID。
+     * 应与所属 {@link GbDevice#platformId} 保持一致，由 Catalog 同步流程写入。
+     */
+    private String platformId;
+
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

@@ -29,6 +29,8 @@ export interface GbDevice {
   registerTime?: string
   keepaliveTime?: string
   lastCatalogSyncTime?: string
+  /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID */
+  platformId?: string
   createTime: string
   updateTime: string
 }
@@ -62,6 +64,8 @@ export interface GbDeviceChannel {
   latitude?: number
   ptzType?: number
   streamId?: string
+  /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID（与所属设备一致） */
+  platformId?: string
   createTime: string
   updateTime: string
 }
