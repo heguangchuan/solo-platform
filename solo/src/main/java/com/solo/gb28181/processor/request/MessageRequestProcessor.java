@@ -70,7 +70,7 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         String rootName = root.getName();
         String cmdType = XmlUtils.childText(root, "CmdType");
 
-        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+        GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
 
         Map<String, MessageHandler> byCmd = handlerMap.get(rootName);
         MessageHandler handler = byCmd == null ? null : byCmd.get(cmdType);

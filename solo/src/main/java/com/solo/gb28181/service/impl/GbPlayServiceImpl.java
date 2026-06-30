@@ -10,10 +10,9 @@ import com.solo.gb28181.entity.GbMediaServer;
 import com.solo.gb28181.media.MediaUrlBuilder;
 import com.solo.gb28181.media.client.ZlmRestClient;
 import com.solo.gb28181.media.ssrc.SsrcFactory;
-import com.solo.gb28181.request.PlaySnapRequest;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
-import com.solo.gb28181.response.PlayResultVO;
+import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
@@ -28,7 +27,6 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import javax.sip.header.CallIdHeader;
 import java.time.LocalDateTime;
@@ -81,7 +79,7 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final MediaUrlBuilder urlBuilder;
 
     /** 等待 on_stream_changed 的 future，key=streamId */
-    private final Map<String, CompletableFuture<PlayResultVO>> pending = new ConcurrentHashMap<>();
+    private final Map<String, CompletableFuture<PlayResultResponse>> pending = new ConcurrentHashMap<>();
 
     // ============================================================
     //  启动清扫：把残留的 INVITING/READY 全部置 FAILED，避免重启后僵尸会话
@@ -95,30 +93,31 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         // 进程重启：所有运行中会话都失效，直接物理清掉。
         // ZLM 那边 RTP 端口、SSRC 是否也残留得在 PlayService 重新接管时按需 closeRtpServer，
-        // 简化起见这里只清库；ZLM 端的残留靠下次同 streamId 的 openRtpServer 重试逻辑兜底。
-        List<Long> ids = active.stream().map(GbInviteSession::getId).toList();
-        inviteSessionService.removeBatchByIds(ids);
-        log.info("[实时点播] 启动清扫：{} 条残留会话已删除", ids.size());
+        // 简化起见这里只清状态；ZLM 端的残留靠下次同 streamId 的 openRtpServer 重试逻辑兜底。
+        for (GbInviteSession s : active) {
+            inviteSessionService.removeByStreamId(s.getStreamId());
+        }
+        log.info("[实时点播] 启动清扫：{} 条残留会话已删除", active.size());
     }
 
     // ============================================================
-    //  start / stop / snap
+    //  start / stop
     // ============================================================
 
     @Override
-    public PlayResultVO start(PlayStartRequest req) {
+    public PlayResultResponse start(PlayStartRequest req) {
         if (req == null || req.getDeviceId() == null || req.getChannelId() == null) {
             throw new ServiceException("deviceId / channelId 不能为空");
         }
 
-        GbDevice device = deviceService.getByDeviceId(req.getDeviceId());
+        GbDevice device = device(req.getDeviceId());
         if (device == null) {
             throw new ServiceException("设备不存在: " + req.getDeviceId());
         }
         if (device.getStatus() == null || device.getStatus() != 1) {
             throw new ServiceException("设备离线，无法点播");
         }
-        GbDeviceChannel channel = channelService.getByDeviceAndChannel(req.getDeviceId(), req.getChannelId());
+        GbDeviceChannel channel = channel(req.getDeviceId(), req.getChannelId());
         if (channel == null) {
             throw new ServiceException("通道不存在: " + req.getChannelId());
         }
@@ -179,7 +178,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setStartTime(LocalDateTime.now());
         inviteSessionService.save(session);
 
-        CompletableFuture<PlayResultVO> future = new CompletableFuture<>();
+        CompletableFuture<PlayResultResponse> future = new CompletableFuture<>();
         pending.put(streamId, future);
 
         try {
@@ -196,7 +195,7 @@ public class GbPlayServiceImpl implements GbPlayService {
                         int code = errEv == null || errEv.getResponse() == null
                                 ? -1 : errEv.getResponse().getStatusCode();
                         failSession(session, "INVITE 失败 status=" + code);
-                        CompletableFuture<PlayResultVO> f = pending.remove(streamId);
+                        CompletableFuture<PlayResultResponse> f = pending.remove(streamId);
                         if (f != null) {
                             f.completeExceptionally(new ServiceException("INVITE 失败 status=" + code));
                         }
@@ -246,7 +245,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             return;
         }
 
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = device(session.getDeviceId());
         if (device != null && session.getCallId() != null && session.getFromTag() != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         } else {
@@ -254,39 +253,13 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
 
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
 
-        CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
+        CompletableFuture<PlayResultResponse> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException("会话已停止"));
         }
         log.info("[实时点播] stop ok stream={}", session.getStreamId());
-    }
-
-    @Override
-    public String snap(PlaySnapRequest req) {
-        if (req == null || req.getStreamId() == null) {
-            throw new ServiceException("streamId 不能为空");
-        }
-        GbInviteSession session = inviteSessionService.getByStreamId(req.getStreamId());
-        if (session == null) {
-            throw new ServiceException("会话不存在: " + req.getStreamId());
-        }
-        if (!GbInviteSession.STATUS_READY.equals(session.getStatus())) {
-            throw new ServiceException("流尚未就绪，无法截图");
-        }
-        GbMediaServer server = mediaServerService.getByServerId(session.getServerId());
-        if (server == null) {
-            throw new ServiceException("流媒体节点不存在: " + session.getServerId());
-        }
-        // ZLM getSnap 用 ZLM 自身的播放地址即可，让 ZLM 本地抓帧
-        String sourceUrl = "http://127.0.0.1:" + server.getHttpPort() + "/" + APP + "/" + session.getStreamId() + ".live.flv";
-        String localPath = zlmRestClient.getSnap(server, sourceUrl, 10, 30);
-        String snapUrl = urlBuilder.buildSnapAccessUrl(server, localPath);
-        // 同步更新会话最新截图地址
-        session.setSnapUrl(snapUrl);
-        inviteSessionService.updateById(session);
-        return snapUrl;
     }
 
     // ============================================================
@@ -309,7 +282,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         log.warn("[实时点播] SSRC 不一致 local={} remote={} stream={}，尝试改写 ZLM 过滤值",
                 session.getSsrc(), remoteSsrc, session.getStreamId());
-        GbMediaServer server = mediaServerService.getByServerId(session.getServerId());
+        GbMediaServer server = mediaServer(session.getServerId());
         if (server == null) {
             log.error("[实时点播] SSRC 自适应失败：节点不存在 serverId={}", session.getServerId());
             failAndBye(session, "节点丢失 serverId=" + session.getServerId());
@@ -326,13 +299,12 @@ public class GbPlayServiceImpl implements GbPlayService {
         String oldSsrc = session.getSsrc();
         ssrcFactory.release(session.getServerId(), oldSsrc);
         session.setSsrc(remoteSsrc);
-        inviteSessionService.updateById(session);
+        inviteSessionService.update(session);
         log.info("[实时点播] SSRC 自适应成功 stream={} {} → {}",
                 session.getStreamId(), oldSsrc, remoteSsrc);
     }
 
     @Override
-    @Transactional
     public void onStreamReady(String app, String stream, String mediaServerId) {
         if (!APP.equals(app)) {
             return; // 不是 GB28181 拉的流
@@ -345,7 +317,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
             return; // 幂等
         }
-        GbMediaServer server = mediaServerService.getByServerId(session.getServerId());
+        GbMediaServer server = mediaServer(session.getServerId());
         if (server == null) {
             log.error("[实时点播] on_stream_changed 节点丢失 serverId={}", session.getServerId());
             return;
@@ -358,10 +330,10 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setWsFlvUrl(urlBuilder.buildWsFlv(server, APP, stream));
         session.setHlsUrl(urlBuilder.buildHls(server, APP, stream));
         session.setRtcUrl(urlBuilder.buildRtc(server, APP, stream));
-        inviteSessionService.updateById(session);
+        inviteSessionService.update(session);
 
         // 回填通道 streamId
-        GbDeviceChannel channel = channelService.getByDeviceAndChannel(session.getDeviceId(), session.getChannelId());
+        GbDeviceChannel channel = channel(session.getDeviceId(), session.getChannelId());
         if (channel != null) {
             channel.setStreamId(stream);
             channelService.updateById(channel);
@@ -370,7 +342,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         log.info("[实时点播] 流就绪 stream={} wsFlv={}", stream, session.getWsFlvUrl());
 
         // 唤醒等待中的 future
-        CompletableFuture<PlayResultVO> f = pending.remove(stream);
+        CompletableFuture<PlayResultResponse> f = pending.remove(stream);
         if (f != null) {
             f.complete(toResult(session));
         }
@@ -391,12 +363,12 @@ public class GbPlayServiceImpl implements GbPlayService {
             return;
         }
         // ZLM 端流断了，理论上需要发 BYE 通知设备停推
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = device(session.getDeviceId());
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
         log.info("[实时点播] 流断开清扫完成 stream={}", stream);
     }
 
@@ -413,15 +385,15 @@ public class GbPlayServiceImpl implements GbPlayService {
                 || GbInviteSession.STATUS_TIMEOUT.equals(session.getStatus())) {
             return;
         }
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = device(session.getDeviceId());
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
         // ZLM 这边端口本来就超时了，不需要再 closeRtpServer
         ssrcFactory.release(session.getServerId(), session.getSsrc());
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
 
-        CompletableFuture<PlayResultVO> f = pending.remove(streamId);
+        CompletableFuture<PlayResultResponse> f = pending.remove(streamId);
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException("RTP 端口长时间无数据"));
         }
@@ -432,9 +404,9 @@ public class GbPlayServiceImpl implements GbPlayService {
     public void onDeviceBye(GbInviteSession session) {
         if (session == null) return;
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
 
-        CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
+        CompletableFuture<PlayResultResponse> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException("设备主动 BYE"));
         }
@@ -454,7 +426,7 @@ public class GbPlayServiceImpl implements GbPlayService {
      */
     private void forceCleanup(GbInviteSession session) {
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
     }
 
     /**
@@ -497,9 +469,26 @@ public class GbPlayServiceImpl implements GbPlayService {
         return SdpBuilder.TRANSPORT_UDP;
     }
 
+    // ---- 简单按字段查询的内部封装：避免每次都写 lambdaQuery().eq(...).one() ----
+
+    private GbDevice device(String deviceId) {
+        return deviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
+    }
+
+    private GbDeviceChannel channel(String deviceId, String channelId) {
+        return channelService.lambdaQuery()
+                .eq(GbDeviceChannel::getDeviceId, deviceId)
+                .eq(GbDeviceChannel::getChannelId, channelId)
+                .one();
+    }
+
+    private GbMediaServer mediaServer(String serverId) {
+        return mediaServerService.lambdaQuery().eq(GbMediaServer::getServerId, serverId).one();
+    }
+
     private void cleanupZlm(GbInviteSession session) {
         try {
-            GbMediaServer server = mediaServerService.getByServerId(session.getServerId());
+            GbMediaServer server = mediaServer(session.getServerId());
             if (server != null) {
                 zlmRestClient.closeRtpServer(server, session.getStreamId());
             }
@@ -511,7 +500,7 @@ public class GbPlayServiceImpl implements GbPlayService {
 
     private void failSession(GbInviteSession session, String reason) {
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
         log.warn("[实时点播] 会话失败 stream={} reason={}", session.getStreamId(), reason);
     }
 
@@ -520,14 +509,14 @@ public class GbPlayServiceImpl implements GbPlayService {
      * 与 {@link #failSession} 的区别是先发 BYE（设备已收过 200 OK，必须 BYE 才会停推）。
      */
     private void failAndBye(GbInviteSession session, String reason) {
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = device(session.getDeviceId());
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
         cleanupZlm(session);
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
 
-        CompletableFuture<PlayResultVO> f = pending.remove(session.getStreamId());
+        CompletableFuture<PlayResultResponse> f = pending.remove(session.getStreamId());
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException(reason));
         }
@@ -537,16 +526,16 @@ public class GbPlayServiceImpl implements GbPlayService {
     private void timeoutSession(GbInviteSession session, String reason) {
         cleanupZlm(session);
         // 主动尝试发 BYE：设备可能已经回了 200 OK 但流没上来
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = device(session.getDeviceId());
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
-        inviteSessionService.removeById(session.getId());
+        inviteSessionService.removeByStreamId(session.getStreamId());
         log.warn("[实时点播] 会话超时 stream={} reason={}", session.getStreamId(), reason);
     }
 
-    private PlayResultVO toResult(GbInviteSession session) {
-        PlayResultVO vo = new PlayResultVO();
+    private PlayResultResponse toResult(GbInviteSession session) {
+        PlayResultResponse vo = new PlayResultResponse();
         vo.setStreamId(session.getStreamId());
         vo.setApp(APP);
         vo.setMediaServerId(session.getServerId());
@@ -557,7 +546,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         vo.setWsFlvUrl(session.getWsFlvUrl());
         vo.setHlsUrl(session.getHlsUrl());
         vo.setRtcUrl(session.getRtcUrl());
-        vo.setSnapUrl(session.getSnapUrl());
         return vo;
     }
 }

@@ -114,12 +114,7 @@ export interface PlayStopRequest {
   streamId: string
 }
 
-/** 点播截图请求 */
-export interface PlaySnapRequest {
-  streamId: string
-}
-
-/** 点播结果（前端按 player 能力挑一个 URL 用） */
+/** 点播结果（前端按 player 能力挑一个 URL 用；截图由 jessibuca 自带，不走后端） */
 export interface PlayResultVO {
   streamId: string
   app: string
@@ -131,5 +126,4 @@ export interface PlayResultVO {
   wsFlvUrl?: string
   hlsUrl?: string
   rtcUrl?: string
-  snapUrl?: string
 }

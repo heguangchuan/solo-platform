@@ -1,23 +1,22 @@
 package com.solo.gb28181.service;
 
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.request.PlaySnapRequest;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
-import com.solo.gb28181.response.PlayResultVO;
+import com.solo.gb28181.response.PlayResultResponse;
 
 /**
  * 实时点播 / 回放 / 下载编排服务
  *
  * <h3>职责</h3>
  * <ul>
- *     <li>承接 controller 调用：start / stop / snap</li>
+ *     <li>承接 controller 调用：start / stop</li>
  *     <li>承接 ZLM hook 回调：流就绪 / 流断开 / RTP 端口超时 / 设备主动 BYE</li>
  *     <li>编排 SSRC 申请、RTP 端口分配、SIP INVITE/BYE、超时清扫</li>
  * </ul>
  *
  * <h3>S2.2 范围</h3>
- * <p>仅 PLAY（实时点播）；PLAYBACK/DOWNLOAD 留待后续 Sprint。</p>
+ * <p>仅 PLAY（实时点播）；PLAYBACK/DOWNLOAD 留待后续 Sprint。截图由 jessibuca 自带，不在此服务。</p>
  */
 public interface GbPlayService {
 
@@ -26,19 +25,12 @@ public interface GbPlayService {
      *
      * @return 已就绪的播放地址聚合
      */
-    PlayResultVO start(PlayStartRequest req);
+    PlayResultResponse start(PlayStartRequest req);
 
     /**
      * 主动停止点播：发 BYE → closeRtpServer → 释放 SSRC → session=STOPPED
      */
     void stop(PlayStopRequest req);
-
-    /**
-     * 截图（同步调用 ZLM getSnap）
-     *
-     * @return 可直接访问的截图 URL
-     */
-    String snap(PlaySnapRequest req);
 
     // ============ 内部钩子（由 ZlmHookController / InviteResponseProcessor / ByeRequestProcessor 调用）============
 

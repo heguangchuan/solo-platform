@@ -87,7 +87,7 @@ public class InviteResponseProcessor implements SipResponseProcessor {
             log.warn("[实时点播] 收到 INVITE {} 响应，但 callId 无对应会话: {}", status, callId);
             return;
         }
-        GbDevice device = deviceService.getByDeviceId(session.getDeviceId());
+        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, session.getDeviceId()).one();
         if (device == null) {
             log.warn("[实时点播] 收到 INVITE {} 响应，但设备已离线: deviceId={}", status, session.getDeviceId());
             return;
@@ -98,7 +98,7 @@ public class InviteResponseProcessor implements SipResponseProcessor {
         String toTag = to == null ? null : to.getTag();
         if (toTag != null && (session.getToTag() == null || !toTag.equals(session.getToTag()))) {
             session.setToTag(toTag);
-            inviteSessionService.updateById(session);
+            inviteSessionService.update(session);
         }
 
         // 2) 解析 SDP 中的 y= SSRC（设备实际使用的 SSRC，可能与本平台分配的不一致）

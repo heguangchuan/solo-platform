@@ -35,16 +35,8 @@ public class GbMediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, G
     }
 
     @Override
-    public GbMediaServer getByServerId(String serverId) {
-        if (serverId == null || serverId.isBlank()) {
-            return null;
-        }
-        return lambdaQuery().eq(GbMediaServer::getServerId, serverId).one();
-    }
-
-    @Override
     public void saveOrUpdateByServerId(GbMediaServer server) {
-        GbMediaServer exist = getByServerId(server.getServerId());
+        GbMediaServer exist = lambdaQuery().eq(GbMediaServer::getServerId, server.getServerId()).one();
         if (exist == null) {
             save(server);
             log.info("[流媒体] 节点入库 serverId={} {}:{}", server.getServerId(), server.getHostIp(), server.getHttpPort());

@@ -9,24 +9,16 @@ import java.util.List;
 
 /**
  * 国标设备通道服务
+ *
+ * <p>简单按字段查询直接走 {@code lambdaQuery()}，本接口只保留"业务动作"。</p>
  */
 public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
 
     Page<GbDeviceChannel> pageQuery(GbDeviceChannelPageRequest request);
 
     /**
-     * 按设备主键列出全部通道
-     */
-    List<GbDeviceChannel> listByDeviceDbId(Long deviceDbId);
-
-    /**
-     * 按设备国标ID + 通道国标ID 取单条
-     */
-    GbDeviceChannel getByDeviceAndChannel(String deviceId, String channelId);
-
-    /**
      * 批量保存或更新（Catalog 同步入口）
-     * <p>按 (device_db_id, channel_id) 唯一约束 upsert</p>
+     * <p>按 (device_id, channel_id) 唯一约束 upsert</p>
      */
     void saveOrUpdateBatch(List<GbDeviceChannel> channels);
 

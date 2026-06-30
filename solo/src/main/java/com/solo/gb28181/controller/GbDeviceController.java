@@ -46,7 +46,7 @@ public class GbDeviceController {
     @GetMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:list"})
     public Result<GbDevice> detail(@PathVariable String deviceId) {
-        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+        GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
             throw new ServiceException("设备不存在: " + deviceId);
         }
@@ -59,7 +59,7 @@ public class GbDeviceController {
     @PostMapping("/{deviceId}/sync")
     @RequirePermission({"gb28181:device:sync"})
     public Result<Void> sync(@PathVariable String deviceId) {
-        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+        GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
             throw new ServiceException("设备不存在: " + deviceId);
         }
@@ -77,7 +77,7 @@ public class GbDeviceController {
     @DeleteMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:delete"})
     public Result<Void> delete(@PathVariable String deviceId) {
-        GbDevice device = gbDeviceService.getByDeviceId(deviceId);
+        GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device != null) {
             gbDeviceService.removeById(device.getId());
         }

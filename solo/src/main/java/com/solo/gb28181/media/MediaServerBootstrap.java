@@ -32,7 +32,7 @@ public class MediaServerBootstrap {
             log.warn("[流媒体] default-server.server-id 为空，跳过默认节点自举");
             return;
         }
-        GbMediaServer exist = mediaServerService.getByServerId(cfg.getServerId());
+        GbMediaServer exist = mediaServerService.lambdaQuery().eq(GbMediaServer::getServerId, cfg.getServerId()).one();
         if (exist != null) {
             // 已存在则只在缺字段时回填，不覆盖运维手工改过的内容
             boolean dirty = false;

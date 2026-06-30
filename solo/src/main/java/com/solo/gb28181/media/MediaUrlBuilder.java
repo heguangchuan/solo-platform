@@ -40,22 +40,6 @@ public class MediaUrlBuilder {
                 + "/index/api/webrtc?app=" + app + "&stream=" + stream + "&type=play";
     }
 
-    /**
-     * 把 ZLM {@code getSnap} 返回的本地文件路径转成可访问 URL
-     * <p>ZLM 会把截图放在 {@code <www>/snap/...} 目录，HTTP 服务能直接访问；
-     * 这里假定 ZLM 已经把它的 www 暴露在 streamHttpPort（与 HTTP-FLV 同端口）下。
-     * snapLocalPath 形如 {@code /opt/media/bin/www/snap/abcd.jpg}，
-     * 我们截取 {@code /snap/abcd.jpg} 拼上 host:port 即可。</p>
-     */
-    public String buildSnapAccessUrl(GbMediaServer server, String snapLocalPath) {
-        if (snapLocalPath == null || snapLocalPath.isBlank()) {
-            return null;
-        }
-        int idx = snapLocalPath.indexOf("/snap/");
-        String relative = idx >= 0 ? snapLocalPath.substring(idx) : ("/" + snapLocalPath);
-        return "http://" + ip(server) + ":" + streamPort(server) + relative;
-    }
-
     // ---------------- helpers ----------------
 
     private static String ip(GbMediaServer server) {

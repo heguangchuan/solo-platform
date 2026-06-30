@@ -25,7 +25,7 @@ public class DeviceOnlineListener {
     @Async("taskExecutor")
     @EventListener
     public void onDeviceOnline(DeviceOnlineEvent event) {
-        GbDevice device = deviceService.getByDeviceId(event.getDeviceId());
+        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, event.getDeviceId()).one();
         if (device == null) return;
         try {
             sipCommander.queryDeviceInfo(device);

@@ -7,7 +7,6 @@ import type {
   GbMediaServerPageRequest,
   PageResult,
   PlayResultVO,
-  PlaySnapRequest,
   PlayStartRequest,
   PlayStopRequest,
 } from '@/types/api'
@@ -95,11 +94,4 @@ export function startPlayApi(data: PlayStartRequest) {
  */
 export function stopPlayApi(data: PlayStopRequest) {
   return post<void>('/api/gb28181/play/stop', data)
-}
-
-/**
- * 点播截图（ZLM 同步抓帧；返回可访问的图片 URL）
- */
-export function snapPlayApi(data: PlaySnapRequest) {
-  return post<string>('/api/gb28181/play/snap', data)
 }
