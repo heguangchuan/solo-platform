@@ -90,9 +90,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     }
 
     private void refreshOnlineKey(String deviceId) {
-        long expires = properties.getRegisterExpires();
-        long heartbeatTtl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
-        long ttl = Math.max(expires, heartbeatTtl);
+        long ttl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
         redisTemplate.opsForValue().set(ONLINE_KEY_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
     }
 }
