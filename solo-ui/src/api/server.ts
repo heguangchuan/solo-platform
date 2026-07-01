@@ -39,3 +39,7 @@ export function uploadServerFileApi(serverId: string, path: string, file: File) 
 export function downloadServerFileApi(serverId: string, path: string) {
   return service.post('/api/server/file/download', { serverId, path }, { responseType: 'blob' })
 }
+
+export function deleteServerFileApi(serverId: string, path: string) {
+  return del<void>('/api/server/file', { data: { serverId, path } })
+}

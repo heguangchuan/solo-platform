@@ -48,4 +48,12 @@ public class ServerFileController {
     public void download(@RequestBody ServerFileOperationRequest request, HttpServletResponse response) throws IOException {
         serverFileService.download(request.getServerId(), request.getPath(), response);
     }
+
+    @DeleteMapping
+    @RequirePermission({"system:server:file:delete"})
+    @OperationLog(module = "服务器文件管理", type = BusinessType.DELETE, description = "删除服务器文件", recordParam = false)
+    public Result<Void> delete(@RequestBody ServerFileOperationRequest request) {
+        serverFileService.delete(request.getServerId(), request.getPath());
+        return Result.success();
+    }
 }
