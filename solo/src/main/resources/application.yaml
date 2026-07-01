@@ -37,6 +37,15 @@ jwt:
   # refresh token 7 天
   refresh-expiration: 604800000
 
+# Web 终端配置
+terminal:
+  connect-timeout-ms: 10000
+  idle-timeout-ms: 600000
+  input-frame-max-bytes: 2048
+  default-cols: 80
+  default-rows: 24
+  output-buffer-size: 8192
+
 # 文件存储（仅 MinIO）
 file:
   minio:

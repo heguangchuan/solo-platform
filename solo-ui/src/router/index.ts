@@ -157,6 +157,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Redirect/index.vue'),
         meta: { hidden: true },
       },
+      {
+        path: 'system/server/terminal',
+        name: 'SystemServerTerminal',
+        component: () => import('@/views/System/Server/Terminal/index.vue'),
+        meta: { title: 'Web 终端', icon: 'Monitor', hidden: true },
+      },
     ],
   },
 ]

@@ -63,6 +63,7 @@
         <fastexcel.version>1.1.0</fastexcel.version>
         <minio.version>8.5.17</minio.version>
         <jjwt.version>0.12.6</jjwt.version>
+        <jsch.version>0.2.23</jsch.version>
     </properties>
     <dependencies>
         <!-- MyBatis-Plus Spring Boot 集成：增强 MyBatis 开发，提供 CRUD、分页、条件构造器等 -->
@@ -101,6 +102,13 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
+        </dependency>
+
+        <!-- JSch SSH 客户端：用于服务器 Web 终端建立 SSH Shell 连接 -->
+        <dependency>
+            <groupId>com.github.mwiede</groupId>
+            <artifactId>jsch</artifactId>
+            <version>${jsch.version}</version>
         </dependency>
 
         <!-- Redis 测试支持：单元测试中 Redis 相关测试依赖 -->
