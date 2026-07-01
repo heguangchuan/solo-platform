@@ -1,6 +1,7 @@
 package com.solo.config;
 
 import com.solo.websocket.SystemMessageWebSocket;
+import com.solo.websocket.TerminalWebSocket;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
@@ -29,5 +30,10 @@ public class WebSocketConfig {
     @Bean
     public SystemMessageWebSocket systemMessageWebSocket() {
         return new SystemMessageWebSocket();
+    }
+
+    @Bean
+    public TerminalWebSocket terminalWebSocket() {
+        return new TerminalWebSocket();
     }
 }
