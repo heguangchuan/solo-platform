@@ -27,13 +27,13 @@ public class ServerFileController {
     private final ServerFileService serverFileService;
 
     @PostMapping("/list")
-    @RequirePermission({"system:server:file:list"})
+    @RequirePermission({"server:file:list"})
     public Result<List<ServerFileResponse>> list(@RequestBody ServerFileListRequest request) {
         return Result.success(serverFileService.listFiles(request.getServerId(), request.getPath()));
     }
 
     @PostMapping("/upload")
-    @RequirePermission({"system:server:file:upload"})
+    @RequirePermission({"server:file:upload"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.IMPORT, description = "上传服务器文件", recordParam = false)
     public Result<Void> upload(@RequestParam("serverId") Long serverId,
                                @RequestParam("path") String path,
@@ -43,14 +43,14 @@ public class ServerFileController {
     }
 
     @PostMapping("/download")
-    @RequirePermission({"system:server:file:download"})
+    @RequirePermission({"server:file:download"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.EXPORT, description = "下载服务器文件", recordParam = false)
     public void download(@RequestBody ServerFileOperationRequest request, HttpServletResponse response) throws IOException {
         serverFileService.download(request.getServerId(), request.getPath(), response);
     }
 
     @DeleteMapping
-    @RequirePermission({"system:server:file:delete"})
+    @RequirePermission({"server:file:delete"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.DELETE, description = "删除服务器文件", recordParam = false)
     public Result<Void> delete(@RequestBody ServerFileOperationRequest request) {
         serverFileService.delete(request.getServerId(), request.getPath());

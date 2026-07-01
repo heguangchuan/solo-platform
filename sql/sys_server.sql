@@ -36,69 +36,69 @@ CREATE TABLE sys_server
 -- 服务器管理菜单和按钮权限
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 125, '服务器管理', 'system:server', '/system/server', 1, 1, 7, 'Monitor', 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server');
+SELECT 125, '服务器管理', 'server', '/system/server', 1, 1, 7, 'Monitor', 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 126, '服务器查询', 'system:server:list', NULL, 2, 125, 1, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:list');
+SELECT 126, '服务器查询', 'server:list', NULL, 2, 125, 1, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:list');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 127, '服务器新增', 'system:server:add', NULL, 2, 125, 2, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:add');
+SELECT 127, '服务器新增', 'server:add', NULL, 2, 125, 2, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:add');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 128, '服务器编辑', 'system:server:edit', NULL, 2, 125, 3, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:edit');
+SELECT 128, '服务器编辑', 'server:edit', NULL, 2, 125, 3, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:edit');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 129, '服务器删除', 'system:server:delete', NULL, 2, 125, 4, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:delete');
+SELECT 129, '服务器删除', 'server:delete', NULL, 2, 125, 4, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:delete');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 130, 'Web终端', 'system:server:terminal', NULL, 2, 125, 5, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:terminal');
+SELECT 130, 'Web终端', 'server:terminal', NULL, 2, 125, 5, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:terminal');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 131, '文件浏览', 'system:server:file:list', NULL, 2, 125, 6, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:list');
+SELECT 131, '文件浏览', 'server:file:list', NULL, 2, 125, 6, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:file:list');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 132, '文件上传', 'system:server:file:upload', NULL, 2, 125, 7, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:upload');
+SELECT 132, '文件上传', 'server:file:upload', NULL, 2, 125, 7, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:file:upload');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 133, '文件下载', 'system:server:file:download', NULL, 2, 125, 8, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:download');
+SELECT 133, '文件下载', 'server:file:download', NULL, 2, 125, 8, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:file:download');
 
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
                             create_time, update_time)
-SELECT 134, '文件删除', 'system:server:file:delete', NULL, 2, 125, 9, NULL, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:delete');
+SELECT 134, '文件删除', 'server:file:delete', NULL, 2, 125, 9, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'server:file:delete');
 
 -- 超级管理员角色授权
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, p.id
 FROM sys_permission p
 WHERE p.permission_code IN (
-    'system:server',
-    'system:server:list',
-    'system:server:add',
-    'system:server:edit',
-    'system:server:delete',
-    'system:server:terminal',
-    'system:server:file:list',
-    'system:server:file:upload',
-    'system:server:file:download',
-    'system:server:file:delete'
+    'server',
+    'server:list',
+    'server:add',
+    'server:edit',
+    'server:delete',
+    'server:terminal',
+    'server:file:list',
+    'server:file:upload',
+    'server:file:download',
+    'server:file:delete'
 )
   AND p.deleted = 0
   AND NOT EXISTS (

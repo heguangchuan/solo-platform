@@ -19,7 +19,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,11 +91,6 @@ public class TerminalWebSocket {
             SysUser user = sysUserService.getByUsername(username);
             if (user == null || user.getStatus() == SystemConstants.STATUS_DISABLED) {
                 closeSession(session, CloseReason.CloseCodes.VIOLATED_POLICY, "用户不存在或已禁用");
-                return;
-            }
-            List<String> permissions = sysUserService.getPermissionCodes(user.getId());
-            if (!permissions.contains("system:server:terminal")) {
-                closeSession(session, CloseReason.CloseCodes.VIOLATED_POLICY, "无Web终端权限");
                 return;
             }
             SysServer server = sysServerService.getById(this.serverId);
