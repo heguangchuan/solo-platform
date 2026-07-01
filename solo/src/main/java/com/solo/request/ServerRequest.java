@@ -14,9 +14,7 @@ public class ServerRequest {
     private String authType;
     private String password;
     private String privateKey;
-    private String serverGroup;
     private String osType;
     private Integer status;
-    private String owner;
     private String description;
 }

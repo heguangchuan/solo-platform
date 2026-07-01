@@ -5,9 +5,7 @@ import type { PageRequest } from './common'
 export interface ServerPageRequest extends PageRequest {
   serverName?: string
   host?: string
-  serverGroup?: string
   status?: number
-  owner?: string
 }
 
 /** 服务器表单（新增/编辑） */
@@ -19,10 +17,8 @@ export interface ServerRequest {
   authType: 'PASSWORD' | 'PRIVATE_KEY'
   password?: string
   privateKey?: string
-  serverGroup?: string
   osType?: string
   status: number
-  owner?: string
   description?: string
 }
 
@@ -34,10 +30,8 @@ export interface SysServer {
   port: number
   username: string
   authType: string
-  serverGroup?: string
   osType?: string
   status: number
-  owner?: string
   description?: string
   createTime: string
   updateTime: string

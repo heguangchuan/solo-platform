@@ -11,7 +11,5 @@ public class ServerPageRequest {
     private Long pageSize = 20L;
     private String serverName;
     private String host;
-    private String serverGroup;
     private Integer status;
-    private String owner;
 }
