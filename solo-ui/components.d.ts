@@ -63,6 +63,7 @@ declare module 'vue' {
     MessageCenter: typeof import('./src/components/MessageCenter.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    ServerFileTree: typeof import('./src/components/ServerFileTree.vue')['default']
     XTerminal: typeof import('./src/components/XTerminal.vue')['default']
   }
   export interface ComponentCustomProperties {
