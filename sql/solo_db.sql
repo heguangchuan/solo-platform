@@ -326,6 +326,30 @@ CREATE TABLE sys_file
     KEY           idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件管理表';
 
+-- 服务器管理表
+DROP TABLE IF EXISTS sys_server;
+CREATE TABLE sys_server
+(
+    id                 bigint                                                        NOT NULL COMMENT '服务器ID',
+    server_name        varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '服务器名称',
+    host               varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '主机地址，IP或域名',
+    port               int                                                           NOT NULL DEFAULT 22 COMMENT 'SSH端口',
+    username           varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '登录用户名',
+    auth_type          varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci  NOT NULL DEFAULT 'PASSWORD' COMMENT '认证方式: PASSWORD密码 PRIVATE_KEY密钥',
+    password_secret    varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '密码密文',
+    private_key_secret text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '私钥密文',
+    os_type            varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '操作系统类型',
+    status             tinyint                                                       NOT NULL DEFAULT '1' COMMENT '状态: 0停用 1启用',
+    description        varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '描述',
+    deleted            tinyint                                                       NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
+    create_time        datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time        datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_server_name (server_name),
+    KEY                idx_host (host),
+    KEY                idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='服务器管理表';
+
 -- 操作日志表
 DROP TABLE IF EXISTS sys_log;
 CREATE TABLE sys_log
@@ -558,6 +582,18 @@ VALUES
 (114, '开始回放', 'gb28181:playback:start',   NULL, 2, 112, 2, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00'),
 (115, '停止回放', 'gb28181:playback:stop',    NULL, 2, 112, 3, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00'),
 (116, '回放控制', 'gb28181:playback:control', NULL, 2, 112, 4, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
+-- 服务器管理菜单
+(125, '服务器管理', 'server', '/system/server', 1, 1, 7, 'Monitor', 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+-- 服务器管理按钮
+(126, '服务器查询', 'server:list', NULL, 2, 125, 1, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(127, '服务器新增', 'server:add', NULL, 2, 125, 2, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(128, '服务器编辑', 'server:edit', NULL, 2, 125, 3, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(129, '服务器删除', 'server:delete', NULL, 2, 125, 4, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(130, 'Web终端', 'server:terminal', NULL, 2, 125, 5, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(131, '文件浏览', 'server:file:list', NULL, 2, 125, 6, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(132, '文件上传', 'server:file:upload', NULL, 2, 125, 7, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(133, '文件下载', 'server:file:download', NULL, 2, 125, 8, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
+(134, '文件删除', 'server:file:delete', NULL, 2, 125, 9, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
 
 -- 系统角色表
 DROP TABLE IF EXISTS sys_role;
