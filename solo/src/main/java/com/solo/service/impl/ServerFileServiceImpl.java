@@ -90,6 +90,22 @@ public class ServerFileServiceImpl implements ServerFileService {
         }
     }
 
+    @Override
+    public void delete(Long serverId, String path) {
+        try (SftpClient client = openSftp(serverId)) {
+            String targetPath = normalizePath(path);
+            try {
+                client.channel.rm(targetPath);
+            } catch (Exception fileError) {
+                client.channel.rmdir(targetPath);
+            }
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ServiceException("删除服务器文件失败：" + e.getMessage());
+        }
+    }
+
     private SftpClient openSftp(Long serverId) {
         SysServer server = sysServerService.getById(serverId);
         if (server == null) {

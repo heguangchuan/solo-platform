@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { ArrowLeft, Document, Download, FolderOpened, Fold, Refresh, Upload, Expand } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ArrowLeft, Delete, Document, Download, FolderOpened, Fold, Refresh, Upload, Expand } from '@element-plus/icons-vue'
 import type { ServerFileItem } from '@/types/api'
-import { getServerFileListApi, uploadServerFileApi, downloadServerFileApi } from '@/api/server'
+import { getServerFileListApi, uploadServerFileApi, downloadServerFileApi, deleteServerFileApi } from '@/api/server'
 import { downloadBlob } from '@/utils/download'
 
 const props = withDefaults(defineProps<{
@@ -92,6 +92,17 @@ async function handleDownload(item: ServerFileItem) {
   }
 }
 
+async function handleDelete(item: ServerFileItem) {
+  try {
+    await ElMessageBox.confirm(`确定要删除${item.directory ? '目录' : '文件'} "${item.name}" 吗？`, '提示', { type: 'warning' })
+    await deleteServerFileApi(props.serverId, item.path)
+    ElMessage.success('删除成功')
+    fetchFiles()
+  } catch {
+    // cancelled or error
+  }
+}
+
 onMounted(() => {
   fetchFiles('.')
 })
@@ -141,6 +152,15 @@ onMounted(() => {
               :icon="Download"
               title="下载"
               @click.stop="handleDownload(item)"
+            />
+            <el-button
+              circle
+              text
+              size="small"
+              type="danger"
+              :icon="Delete"
+              title="删除"
+              @click.stop="handleDelete(item)"
             />
           </div>
         </div>

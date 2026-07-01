@@ -79,6 +79,11 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 SELECT 133, '文件下载', 'system:server:file:download', NULL, 2, 125, 8, NULL, 1, 0, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:download');
 
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted,
+                            create_time, update_time)
+SELECT 134, '文件删除', 'system:server:file:delete', NULL, 2, 125, 9, NULL, 1, 0, NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM sys_permission WHERE permission_code = 'system:server:file:delete');
+
 -- 超级管理员角色授权
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, p.id
@@ -92,7 +97,8 @@ WHERE p.permission_code IN (
     'system:server:terminal',
     'system:server:file:list',
     'system:server:file:upload',
-    'system:server:file:download'
+    'system:server:file:download',
+    'system:server:file:delete'
 )
   AND p.deleted = 0
   AND NOT EXISTS (

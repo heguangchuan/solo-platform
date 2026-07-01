@@ -17,4 +17,6 @@ public interface ServerFileService {
     void upload(Long serverId, String path, MultipartFile file) throws IOException;
 
     void download(Long serverId, String path, HttpServletResponse response) throws IOException;
+
+    void delete(Long serverId, String path);
 }
