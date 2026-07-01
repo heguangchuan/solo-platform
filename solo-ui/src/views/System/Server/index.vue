@@ -296,7 +296,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'system:server:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button v-permission="'server:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -304,8 +304,8 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:server:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:server:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'server:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'server:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
@@ -329,9 +329,9 @@ onMounted(() => {
         <el-table-column prop="updateTime" label="更新时间" min-width="180" />
         <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'system:server:terminal'" type="primary" link @click="handleOpenTerminal(row)">终端</el-button>
-            <el-button v-permission="'system:server:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:server:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button v-permission="'server:terminal'" type="primary" link @click="handleOpenTerminal(row)">终端</el-button>
+            <el-button v-permission="'server:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
+            <el-button v-permission="'server:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
