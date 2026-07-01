@@ -440,10 +440,10 @@ onMounted(() => {
           <span v-if="terminalStatusReason" class="terminal-status-reason">{{ terminalStatusReason }}</span>
         </div>
         <div class="terminal-actions">
-          <el-button circle :icon="Delete" title="清屏" @click="clearTerminal" />
-          <el-button circle :icon="Refresh" title="重连" @click="reconnectTerminal" />
-          <el-button circle type="danger" :icon="SwitchButton" title="断开" @click="disconnectTerminal" />
-          <el-button circle :icon="Close" title="关闭" @click="handleTerminalClose" />
+          <el-button class="terminal-tool-button" circle :icon="Delete" title="清屏" @click="clearTerminal" />
+          <el-button class="terminal-tool-button" circle :icon="Refresh" title="重连" @click="reconnectTerminal" />
+          <el-button class="terminal-tool-button danger" circle :icon="SwitchButton" title="断开" @click="disconnectTerminal" />
+          <el-button class="terminal-tool-button close" circle :icon="Close" title="关闭" @click="handleTerminalClose" />
         </div>
       </div>
       <div class="terminal-dialog-body">
@@ -552,10 +552,39 @@ onMounted(() => {
   gap: 6px;
 }
 
-.terminal-actions :deep(.el-button.is-circle) {
-  width: 28px;
-  height: 28px;
-  padding: 0;
+.terminal-tool-button {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  border: 0;
+  color: #64748b;
+  background: #f1f5f9;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+}
+
+.terminal-tool-button:hover {
+  color: #1f2937;
+  background: #e2e8f0;
+}
+
+.terminal-tool-button.danger {
+  color: #b45309;
+  background: #fef3c7;
+}
+
+.terminal-tool-button.danger:hover {
+  color: #92400e;
+  background: #fde68a;
+}
+
+.terminal-tool-button.close {
+  color: #dc2626;
+  background: #fee2e2;
+}
+
+.terminal-tool-button.close:hover {
+  color: #991b1b;
+  background: #fecaca;
 }
 
 .terminal-status-reason {
