@@ -3,6 +3,7 @@ package com.solo.gb28181.processor.request;
 import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.event.DeviceOfflineEvent;
 import com.solo.gb28181.event.DeviceOnlineEvent;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
@@ -121,6 +122,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         if (isUnregister) {
             // 分支 3：注销
             gbDeviceService.offline(deviceId, "主动注销");
+            eventPublisher.publishEvent(new DeviceOfflineEvent(this, deviceId, "主动注销"));
             return;
         }
 
