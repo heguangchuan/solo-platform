@@ -42,3 +42,18 @@ export interface SysServer {
   createTime: string
   updateTime: string
 }
+
+/** 服务器文件列表查询参数 */
+export interface ServerFileListRequest {
+  serverId: string
+  path: string
+}
+
+/** 服务器文件项 */
+export interface ServerFileItem {
+  name: string
+  path: string
+  directory: boolean
+  size?: number
+  modifiedTime?: string
+}

@@ -7,6 +7,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Delete, Close, Check, SwitchButton } from '@element-plus/icons-vue'
 import type { SysServer, ServerRequest, ServerPageRequest } from '@/types/api'
 import XTerminal from '@/components/XTerminal.vue'
+import ServerFileTree from '@/components/ServerFileTree.vue'
 import { useUserStore } from '@/stores/user'
 import {
   getServerPageApi,
@@ -34,6 +35,7 @@ const editingId = ref<string>('')
 const terminalVisible = ref(false)
 const terminalServer = ref<SysServer | null>(null)
 const terminalRef = ref<InstanceType<typeof XTerminal>>()
+const fileTreeCollapsed = ref(false)
 const terminalStatus = ref<'connecting' | 'connected' | 'closed' | 'error'>('closed')
 const terminalStatusReason = ref('')
 const form = ref<ServerRequest>({
@@ -273,6 +275,11 @@ function disconnectTerminal() {
   terminalRef.value?.disconnect()
 }
 
+function handleFileTreeCollapseChange(value: boolean) {
+  fileTreeCollapsed.value = value
+  setTimeout(() => terminalRef.value?.fit(), 120)
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -440,12 +447,22 @@ onMounted(() => {
         </div>
       </div>
       <div class="terminal-dialog-body">
-        <XTerminal
-          v-if="terminalVisible && terminalServer"
-          ref="terminalRef"
-          :ws-url="terminalWsUrl"
-          @status="handleTerminalStatus"
-        />
+        <div class="terminal-shell-layout">
+          <ServerFileTree
+            v-if="terminalVisible && terminalServer"
+            :server-id="terminalServer.id"
+            :collapsed="fileTreeCollapsed"
+            @update:collapsed="handleFileTreeCollapseChange"
+          />
+          <div class="terminal-main-panel">
+            <XTerminal
+              v-if="terminalVisible && terminalServer"
+              ref="terminalRef"
+              :ws-url="terminalWsUrl"
+              @status="handleTerminalStatus"
+            />
+          </div>
+        </div>
       </div>
     </el-dialog>
   </div>
@@ -553,6 +570,21 @@ onMounted(() => {
 .terminal-dialog-body {
   height: calc(90vh - 76px);
   min-height: 0;
+}
+
+.terminal-shell-layout {
+  height: 100%;
+  display: flex;
+  min-width: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--el-border-color-light);
+}
+
+.terminal-main-panel {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
 }
 
 .terminal-dialog :deep(.el-dialog__header) {
