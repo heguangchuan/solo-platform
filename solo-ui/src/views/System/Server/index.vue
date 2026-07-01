@@ -436,6 +436,7 @@ onMounted(() => {
           <el-button circle :icon="Delete" title="清屏" @click="clearTerminal" />
           <el-button circle :icon="Refresh" title="重连" @click="reconnectTerminal" />
           <el-button circle type="danger" :icon="SwitchButton" title="断开" @click="disconnectTerminal" />
+          <el-button circle :icon="Close" title="关闭" @click="handleTerminalClose" />
         </div>
       </div>
       <div class="terminal-dialog-body">
