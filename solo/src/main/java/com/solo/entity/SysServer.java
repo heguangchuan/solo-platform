@@ -62,11 +62,6 @@ public class SysServer {
     private String privateKeySecret;
 
     /**
-     * 服务器分组
-     */
-    private String serverGroup;
-
-    /**
      * 操作系统类型
      */
     private String osType;
@@ -75,11 +70,6 @@ public class SysServer {
      * 状态：0-停用，1-启用
      */
     private Integer status;
-
-    /**
-     * 负责人
-     */
-    private String owner;
 
     /**
      * 描述

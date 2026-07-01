@@ -35,14 +35,8 @@ public class SysServerServiceImpl extends ServiceImpl<SysServerMapper, SysServer
         if (req.getHost() != null && !req.getHost().isBlank()) {
             wrapper.like(SysServer::getHost, req.getHost());
         }
-        if (req.getServerGroup() != null && !req.getServerGroup().isBlank()) {
-            wrapper.eq(SysServer::getServerGroup, req.getServerGroup());
-        }
         if (req.getStatus() != null) {
             wrapper.eq(SysServer::getStatus, req.getStatus());
-        }
-        if (req.getOwner() != null && !req.getOwner().isBlank()) {
-            wrapper.like(SysServer::getOwner, req.getOwner());
         }
         wrapper.orderByDesc(SysServer::getCreateTime);
         return page(pageParam, wrapper);
@@ -64,10 +58,8 @@ public class SysServerServiceImpl extends ServiceImpl<SysServerMapper, SysServer
         server.setAuthType(request.getAuthType());
         server.setPasswordSecret(request.getPassword());
         server.setPrivateKeySecret(request.getPrivateKey());
-        server.setServerGroup(request.getServerGroup());
         server.setOsType(request.getOsType());
         server.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
-        server.setOwner(request.getOwner());
         server.setDescription(request.getDescription());
         save(server);
     }
@@ -103,10 +95,8 @@ public class SysServerServiceImpl extends ServiceImpl<SysServerMapper, SysServer
         if (request.getPrivateKey() != null && !request.getPrivateKey().isBlank()) {
             server.setPrivateKeySecret(request.getPrivateKey());
         }
-        if (request.getServerGroup() != null) server.setServerGroup(request.getServerGroup());
         if (request.getOsType() != null) server.setOsType(request.getOsType());
         if (request.getStatus() != null) server.setStatus(request.getStatus());
-        if (request.getOwner() != null) server.setOwner(request.getOwner());
         if (request.getDescription() != null) server.setDescription(request.getDescription());
         updateById(server);
     }

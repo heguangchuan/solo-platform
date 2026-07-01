@@ -46,15 +46,13 @@ const form = ref<ServerRequest>({
   authType: 'PASSWORD',
   password: '',
   privateKey: '',
-  serverGroup: '',
   osType: '',
   status: 1,
-  owner: '',
   description: '',
 })
 
 const rules = {
-  serverName: [{ required: true, message: '请输入服务器名称', trigger: 'blur' }],
+  serverName: [{ required: true, message: '请输入主机名称', trigger: 'blur' }],
   host: [{ required: true, message: '请输入主机地址', trigger: 'blur' }],
   port: [
     { required: true, message: '请输入SSH端口', trigger: 'blur' },
@@ -146,10 +144,8 @@ function resetForm() {
     authType: 'PASSWORD',
     password: '',
     privateKey: '',
-    serverGroup: '',
     osType: '',
     status: 1,
-    owner: '',
     description: '',
   }
 }
@@ -172,10 +168,8 @@ function handleEdit(row: SysServer) {
     authType: row.authType === 'PRIVATE_KEY' ? 'PRIVATE_KEY' : 'PASSWORD',
     password: '',
     privateKey: '',
-    serverGroup: row.serverGroup || '',
     osType: row.osType || '',
     status: row.status,
-    owner: row.owner || '',
     description: row.description || '',
   }
   dialogVisible.value = true
@@ -325,7 +319,6 @@ onMounted(() => {
             {{ authTypeText(row.authType) }}
           </template>
         </el-table-column>
-        <el-table-column prop="serverGroup" label="分组" min-width="120" show-overflow-tooltip />
         <el-table-column label="状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="statusTypeMap[row.status] || 'info'">
@@ -333,7 +326,6 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="owner" label="负责人" min-width="120" />
         <el-table-column prop="updateTime" label="更新时间" min-width="180" />
         <el-table-column label="操作" width="210" fixed="right">
           <template #default="{ row }">
@@ -369,17 +361,17 @@ onMounted(() => {
       </el-alert>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
-        <el-form-item label="服务器名称" prop="serverName">
-          <el-input v-model="form.serverName" placeholder="请输入服务器名称" />
+        <el-form-item label="主机名称" prop="serverName">
+          <el-input v-model="form.serverName" placeholder="请输入主机名称" />
         </el-form-item>
         <el-form-item label="主机地址" prop="host">
-          <el-input v-model="form.host" placeholder="请输入IP或域名" />
+          <el-input v-model="form.host" placeholder="请输入主机地址" />
         </el-form-item>
         <el-form-item label="SSH端口" prop="port">
           <el-input-number v-model="form.port" :min="1" :max="65535" style="width: 180px" />
         </el-form-item>
-        <el-form-item label="登录用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入登录用户名" />
+        <el-form-item label="登录用户" prop="username">
+          <el-input v-model="form.username" placeholder="请输入登录用户" />
         </el-form-item>
         <el-form-item label="认证方式" prop="authType">
           <el-radio-group v-model="form.authType">
@@ -387,26 +379,20 @@ onMounted(() => {
             <el-radio value="PRIVATE_KEY">密钥认证</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item v-if="form.authType === 'PASSWORD'" label="密码">
-          <el-input v-model="form.password" type="password" show-password :placeholder="editingId ? '请输入以覆盖，不填则保持不变' : '请输入密码'" />
+        <el-form-item v-if="form.authType === 'PASSWORD'" label="主机密码">
+          <el-input v-model="form.password" type="password" show-password :placeholder="editingId ? '请输入以覆盖，不填则保持不变' : '请输入主机密码'" />
         </el-form-item>
-        <el-form-item v-if="form.authType === 'PRIVATE_KEY'" label="私钥">
-          <el-input v-model="form.privateKey" type="textarea" :rows="4" :placeholder="editingId ? '请输入以覆盖，不填则保持不变' : '请输入私钥'" />
-        </el-form-item>
-        <el-form-item label="服务器分组">
-          <el-input v-model="form.serverGroup" placeholder="请输入服务器分组" />
+        <el-form-item v-if="form.authType === 'PRIVATE_KEY'" label="主机私钥">
+          <el-input v-model="form.privateKey" type="textarea" :rows="4" :placeholder="editingId ? '请输入以覆盖，不填则保持不变' : '请输入主机私钥'" />
         </el-form-item>
         <el-form-item label="操作系统">
           <el-input v-model="form.osType" placeholder="如：Ubuntu / CentOS / Rocky Linux" />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="主机状态">
           <el-switch v-model="form.status" :active-value="1" :inactive-value="0" active-text="启用" inactive-text="停用" />
         </el-form-item>
-        <el-form-item label="负责人">
-          <el-input v-model="form.owner" placeholder="请输入负责人" />
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入描述" />
+        <el-form-item label="主机描述">
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="请输入主机描述" />
         </el-form-item>
       </el-form>
       <template #footer>
