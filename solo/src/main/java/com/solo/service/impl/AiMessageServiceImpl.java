@@ -2,11 +2,14 @@ package com.solo.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.entity.AiMessage;
+import com.solo.llm.HttpClientHolder;
 import com.solo.mapper.AiMessageMapper;
 import com.solo.service.AiConversationService;
 import com.solo.service.AiMessageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +21,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage> implements AiMessageService {
 
     private final AiConversationService conversationService;
@@ -122,5 +126,32 @@ public class AiMessageServiceImpl extends ServiceImpl<AiMessageMapper, AiMessage
         List<AiMessage> messages = list(wrapper);
         Collections.reverse(messages);
         return messages;
+    }
+
+    @Override
+    public String findLastGeneratedImageUrl(Long conversationId) {
+        LambdaQueryWrapper<AiMessage> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(AiMessage::getConversationId, conversationId)
+                .eq(AiMessage::getRole, "ASSISTANT")
+                .eq(AiMessage::getMessageType, "IMAGE")
+                .isNotNull(AiMessage::getAttachments)
+                .orderByDesc(AiMessage::getCreateTime)
+                .last("LIMIT 1");
+        AiMessage message = getOne(wrapper, false);
+        if (message == null || message.getAttachments() == null || message.getAttachments().isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode arr = HttpClientHolder.MAPPER.readTree(message.getAttachments());
+            if (arr.isArray()) {
+                for (JsonNode node : arr) {
+                    String url = node.path("url").asText("");
+                    if (!url.isBlank()) return url;
+                }
+            }
+        } catch (Exception e) {
+            log.debug("解析历史图片附件失败：{}", e.getMessage());
+        }
+        return null;
     }
 }

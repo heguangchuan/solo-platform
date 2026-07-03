@@ -64,7 +64,7 @@ defineExpose({ open })
 </script>
 
 <template>
-  <el-dialog v-model="visible" title="任务详情" width="700px" :close-on-click-modal="false">
+  <el-dialog v-model="visible" title="任务详情" width="700px" :close-on-click-modal="false" class="task-detail-dialog">
     <el-descriptions v-if="task" :column="2" border>
       <el-descriptions-item label="任务类型">
         <el-tag size="small">{{ task.taskType }}</el-tag>
@@ -121,5 +121,18 @@ defineExpose({ open })
   width: 160px;
   height: 160px;
   border-radius: 6px;
+}
+</style>
+
+<style>
+.task-detail-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  margin: 7.5vh auto !important;
+}
+
+.task-detail-dialog .el-dialog__body {
+  overflow-y: auto;
 }
 </style>

@@ -49,4 +49,9 @@ public interface AiMessageService extends IService<AiMessage> {
      * 获取会话的最近 N 条消息（用于上下文）
      */
     List<AiMessage> getRecentMessages(Long conversationId, int limit);
+
+    /**
+     * 取会话里最近一条已生成图片消息的第一张图 URL，供多轮创作接续参考图；无则返回 null
+     */
+    String findLastGeneratedImageUrl(Long conversationId);
 }
