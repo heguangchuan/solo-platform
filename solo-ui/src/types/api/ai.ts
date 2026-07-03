@@ -82,27 +82,15 @@ export interface AiPromptTemplate {
 export interface AiAssetPageRequest extends PageRequest {
   fileName?: string
   assetType?: string
-  status?: number
+  source?: string
 }
 
 export interface AiAssetRequest {
-  userId?: string
-  taskId?: string
   assetType: string
+  source?: string
   fileName: string
   fileUrl: string
   coverUrl?: string
-  thumbnailUrl?: string
-  mimeType?: string
-  ext?: string
-  size?: number
-  duration?: number
-  width?: number
-  height?: number
-  prompt?: string
-  modelName?: string
-  status: number
-  remark?: string
 }
 
 export interface AiAsset {
@@ -110,19 +98,9 @@ export interface AiAsset {
   userId?: string
   taskId?: string
   assetType: string
+  source?: string
   fileName: string
   fileUrl: string
   coverUrl?: string
-  thumbnailUrl?: string
-  mimeType?: string
-  ext?: string
-  size?: number
-  duration?: number
-  width?: number
-  height?: number
-  prompt?: string
-  modelName?: string
-  status: number
-  remark?: string
   createTime: string
 }

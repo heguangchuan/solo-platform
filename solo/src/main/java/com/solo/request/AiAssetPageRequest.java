@@ -11,5 +11,5 @@ public class AiAssetPageRequest {
     private Long pageSize = 20L;
     private String fileName;
     private String assetType;
-    private Integer status;
+    private String source;
 }

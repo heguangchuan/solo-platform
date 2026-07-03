@@ -225,7 +225,7 @@ async function openAssetDialog() {
 async function loadAssets() {
   assetLoading.value = true
   try {
-    const res = await getAssetPageApi({ page: assetPage.value, pageSize: assetPageSize.value, assetType: 'IMAGE', fileName: assetKeyword.value || undefined, status: 1 })
+    const res = await getAssetPageApi({ page: assetPage.value, pageSize: assetPageSize.value, assetType: 'IMAGE', fileName: assetKeyword.value || undefined })
     assetList.value = res.data.rows || []
     assetTotal.value = res.data.total || 0
   } catch {

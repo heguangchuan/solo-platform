@@ -270,12 +270,10 @@ public class AiChatServiceImpl implements AiChatService {
         for (ChatSendRequest.AttachmentInput input : images) {
             if (input == null || input.getUrl() == null || input.getUrl().isBlank()) continue;
             AiAsset asset = new AiAsset();
-            asset.setUserId(userId);
             asset.setAssetType("IMAGE");
+            asset.setSource("SYSTEM_UPLOAD");
             asset.setFileName(input.getFileName() != null ? input.getFileName() : "image");
             asset.setFileUrl(input.getUrl());
-            asset.setMimeType(input.getMimeType());
-            asset.setStatus(1);
             try {
                 assetService.saveAsset(asset);
             } catch (Exception e) {

@@ -53,7 +53,7 @@ terminal:
 # 文件存储（仅 MinIO）
 file:
   minio:
-    endpoint: http://localhost:29000
+    endpoint: http://192.168.1.100:29000
     access-key: minio
     secret-key: minio213
     bucket: solo

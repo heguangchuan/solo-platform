@@ -231,7 +231,6 @@ async function loadAssets() {
       pageSize: assetPageSize.value,
       assetType: 'IMAGE',
       fileName: assetKeyword.value || undefined,
-      status: 1,
     })
     assetList.value = res.data.rows || []
     assetTotal.value = res.data.total || 0

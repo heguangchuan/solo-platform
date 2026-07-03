@@ -288,17 +288,10 @@ public class AiVideoGenerationServiceImpl implements AiVideoGenerationService {
 
     private VideoGenerationResponse saveAsset(Long userId, Long taskId, String prompt, String modelName, String url) {
         AiAsset asset = new AiAsset();
-        asset.setUserId(userId);
-        asset.setTaskId(taskId);
         asset.setAssetType("VIDEO");
+        asset.setSource("MODEL_GENERATE");
         asset.setFileName("ai-video-" + taskId + ".mp4");
         asset.setFileUrl(url);
-        asset.setCoverUrl(url);
-        asset.setMimeType("video/mp4");
-        asset.setExt("mp4");
-        asset.setPrompt(prompt);
-        asset.setModelName(modelName);
-        asset.setStatus(1);
         assetService.saveAsset(asset);
 
         VideoGenerationResponse response = new VideoGenerationResponse();
