@@ -24,20 +24,14 @@ public class AiAsset {
     private Long id;
 
     /**
-     * 用户ID
-     */
-    private Long userId;
-
-    /**
-     * 关联任务ID
-     */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long taskId;
-
-    /**
      * 素材类型: IMAGE/VIDEO/AUDIO/DOCUMENT
      */
     private String assetType;
+
+    /**
+     * 来源: SYSTEM_UPLOAD系统上传 MODEL_GENERATE模型生成
+     */
+    private String source;
 
     /**
      * 文件名
@@ -53,61 +47,6 @@ public class AiAsset {
      * 封面图URL
      */
     private String coverUrl;
-
-    /**
-     * 缩略图URL
-     */
-    private String thumbnailUrl;
-
-    /**
-     * MIME类型
-     */
-    private String mimeType;
-
-    /**
-     * 文件扩展名
-     */
-    private String ext;
-
-    /**
-     * 文件大小(字节)
-     */
-    private Long size;
-
-    /**
-     * 时长(秒，音视频)
-     */
-    private Integer duration;
-
-    /**
-     * 宽度(像素，图片视频)
-     */
-    private Integer width;
-
-    /**
-     * 高度(像素，图片视频)
-     */
-    private Integer height;
-
-    /**
-     * 生成指令
-     */
-    private String prompt;
-
-    /**
-     * 生成模型
-     */
-    private String modelName;
-
-    /**
-     * 状态: 0无效 1有效
-     */
-    private Integer status;
-
-    /**
-     * 备注
-     */
-    private String remark;
 
     /**
      * 逻辑删除标识: 0未删除 1已删除

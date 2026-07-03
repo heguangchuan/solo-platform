@@ -216,17 +216,10 @@ public class AiImageGenerationServiceImpl implements AiImageGenerationService {
         for (int i = 0; i < urls.size(); i++) {
             String url = urls.get(i);
             AiAsset asset = new AiAsset();
-            asset.setUserId(userId);
-            asset.setTaskId(taskId);
             asset.setAssetType("IMAGE");
+            asset.setSource("MODEL_GENERATE");
             asset.setFileName("ai-image-" + taskId + "-" + (i + 1) + ".png");
             asset.setFileUrl(url);
-            asset.setThumbnailUrl(url);
-            asset.setMimeType("image/png");
-            asset.setExt("png");
-            asset.setPrompt(prompt);
-            asset.setModelName(modelName);
-            asset.setStatus(1);
             assetService.saveAsset(asset);
 
             ImageGenerationResponse.ImageItem item = new ImageGenerationResponse.ImageItem();

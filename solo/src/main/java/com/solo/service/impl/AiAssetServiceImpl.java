@@ -29,8 +29,8 @@ public class AiAssetServiceImpl extends ServiceImpl<AiAssetMapper, AiAsset> impl
         if (req.getAssetType() != null && !req.getAssetType().isBlank()) {
             wrapper.eq(AiAsset::getAssetType, req.getAssetType());
         }
-        if (req.getStatus() != null) {
-            wrapper.eq(AiAsset::getStatus, req.getStatus());
+        if (req.getSource() != null && !req.getSource().isBlank()) {
+            wrapper.eq(AiAsset::getSource, req.getSource());
         }
         wrapper.orderByDesc(AiAsset::getCreateTime);
         return page(pageParam, wrapper);
@@ -39,23 +39,11 @@ public class AiAssetServiceImpl extends ServiceImpl<AiAssetMapper, AiAsset> impl
     @Override
     public void createAsset(AiAssetRequest request) {
         AiAsset asset = new AiAsset();
-        asset.setUserId(request.getUserId());
-        asset.setTaskId(request.getTaskId());
         asset.setAssetType(request.getAssetType());
+        asset.setSource(request.getSource() != null ? request.getSource() : "SYSTEM_UPLOAD");
         asset.setFileName(request.getFileName());
         asset.setFileUrl(request.getFileUrl());
         asset.setCoverUrl(request.getCoverUrl());
-        asset.setThumbnailUrl(request.getThumbnailUrl());
-        asset.setMimeType(request.getMimeType());
-        asset.setExt(request.getExt());
-        asset.setSize(request.getSize());
-        asset.setDuration(request.getDuration());
-        asset.setWidth(request.getWidth());
-        asset.setHeight(request.getHeight());
-        asset.setPrompt(request.getPrompt());
-        asset.setModelName(request.getModelName());
-        asset.setStatus(request.getStatus());
-        asset.setRemark(request.getRemark());
         save(asset);
     }
 
@@ -65,23 +53,11 @@ public class AiAssetServiceImpl extends ServiceImpl<AiAssetMapper, AiAsset> impl
         if (asset == null) {
             throw new ServiceException("素材不存在");
         }
-        if (request.getUserId() != null) asset.setUserId(request.getUserId());
-        if (request.getTaskId() != null) asset.setTaskId(request.getTaskId());
         if (request.getAssetType() != null) asset.setAssetType(request.getAssetType());
+        if (request.getSource() != null) asset.setSource(request.getSource());
         if (request.getFileName() != null) asset.setFileName(request.getFileName());
         if (request.getFileUrl() != null) asset.setFileUrl(request.getFileUrl());
         if (request.getCoverUrl() != null) asset.setCoverUrl(request.getCoverUrl());
-        if (request.getThumbnailUrl() != null) asset.setThumbnailUrl(request.getThumbnailUrl());
-        if (request.getMimeType() != null) asset.setMimeType(request.getMimeType());
-        if (request.getExt() != null) asset.setExt(request.getExt());
-        if (request.getSize() != null) asset.setSize(request.getSize());
-        if (request.getDuration() != null) asset.setDuration(request.getDuration());
-        if (request.getWidth() != null) asset.setWidth(request.getWidth());
-        if (request.getHeight() != null) asset.setHeight(request.getHeight());
-        if (request.getPrompt() != null) asset.setPrompt(request.getPrompt());
-        if (request.getModelName() != null) asset.setModelName(request.getModelName());
-        if (request.getStatus() != null) asset.setStatus(request.getStatus());
-        if (request.getRemark() != null) asset.setRemark(request.getRemark());
         updateById(asset);
     }
 
