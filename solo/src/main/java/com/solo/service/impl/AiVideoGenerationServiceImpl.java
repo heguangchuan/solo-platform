@@ -211,7 +211,8 @@ public class AiVideoGenerationServiceImpl implements AiVideoGenerationService {
     private AiConversation resolveConversation(Long userId, Long conversationId, String prompt, Long modelConfigId) {
         if (conversationId != null) {
             AiConversation conversation = conversationService.getById(conversationId);
-            if (conversation == null || !userId.equals(conversation.getUserId()) || !"VIDEO".equals(conversation.getConversationType())) {
+            if (conversation == null || !userId.equals(conversation.getUserId())
+                    || !isCreationConversation(conversation.getConversationType(), "VIDEO")) {
                 throw new ServiceException("会话不存在");
             }
             if (!modelConfigId.equals(conversation.getModelConfigId())) {
@@ -229,6 +230,11 @@ public class AiVideoGenerationServiceImpl implements AiVideoGenerationService {
     private String generateTitle(String prompt) {
         if (prompt == null || prompt.isBlank()) return "视频创作";
         return prompt.length() <= 20 ? prompt : prompt.substring(0, 20) + "...";
+    }
+
+    /** 单轮页会话类型必须精确匹配，统一创作页 MIXED 会话也可复用本链路 */
+    private boolean isCreationConversation(String conversationType, String own) {
+        return own.equals(conversationType) || "MIXED".equals(conversationType);
     }
 
     private String serializeReferenceVideos(List<String> urls) {
