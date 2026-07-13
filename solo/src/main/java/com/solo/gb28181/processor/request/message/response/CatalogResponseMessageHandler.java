@@ -1,5 +1,6 @@
 package com.solo.gb28181.processor.request.message.response;
 
+import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.processor.request.message.MessageHandler;
@@ -86,6 +87,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         ch.setChannelId(channelId);
         // 通道的 platformId 始终与所属设备保持一致（自有 = 0000；级联设备的通道继承级联平台 ID）
         ch.setPlatformId(device.getPlatformId());
+        // 来源标记为设备注册（Catalog 自动入库）；已存在记录的 source 在 saveOrUpdateBatch 中会被保留
+        ch.setSource(GbSource.REGISTER);
         ch.setName(emptyToNull(XmlUtils.childText(item, "Name")));
         ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
         ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));

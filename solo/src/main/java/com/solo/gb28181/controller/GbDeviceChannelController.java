@@ -4,11 +4,13 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
+import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,8 +21,8 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 国标设备通道查询
- * <p>通道入库由 Catalog 同步自动完成，这里只提供查询。</p>
+ * 国标设备通道管理
+ * <p>通道入库由 Catalog 同步自动完成，此外提供页面手动增删改。</p>
  */
 @RestController
 @RequestMapping("/api/gb28181/device-channel")
@@ -46,5 +48,32 @@ public class GbDeviceChannelController {
                 .orderByAsc(GbDeviceChannel::getChannelId)
                 .list();
         return Result.success(list);
+    }
+
+    /** 手动新增通道。状态与来源由后端强制设定，忽略入参。 */
+    @PostMapping("/save")
+    @RequirePermission({"gb28181:device-channel:add"})
+    public Result<Void> save(@RequestBody GbDeviceChannel channel) {
+        channelService.createByManual(channel);
+        return Result.success();
+    }
+
+    /** 手动编辑通道资料。状态/来源/streamId 不受影响。 */
+    @PostMapping("/update")
+    @RequirePermission({"gb28181:device-channel:edit"})
+    public Result<Void> update(@RequestBody GbDeviceChannel channel) {
+        if (channel.getId() == null) {
+            throw new ServiceException("通道ID不能为空");
+        }
+        channelService.updateByManual(channel);
+        return Result.success();
+    }
+
+    /** 删除通道 */
+    @DeleteMapping("/{id}")
+    @RequirePermission({"gb28181:device-channel:delete"})
+    public Result<Void> delete(@PathVariable Long id) {
+        channelService.deleteById(id);
+        return Result.success();
     }
 }

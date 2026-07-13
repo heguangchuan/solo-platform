@@ -29,7 +29,8 @@ CREATE TABLE gb_device
     transport               varchar(10)           DEFAULT 'UDP' COMMENT '传输协议 UDP/TCP',
     expires                 int                   DEFAULT 3600 COMMENT '注册有效期（秒）',
     charset                 varchar(20)           DEFAULT 'GB2312' COMMENT '字符集',
-    status                  tinyint               DEFAULT 0 COMMENT '在线状态：0离线 1在线',
+    status                  tinyint               DEFAULT 0 COMMENT '在线状态：0离线 1在线 2未注册（仅由SIP交互改变）',
+    source                  tinyint      NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     channel_count           int                   DEFAULT 0 COMMENT '通道总数（Catalog 同步后回填）',
     register_time           datetime              DEFAULT NULL COMMENT '最后注册时间',
     keepalive_time          datetime              DEFAULT NULL COMMENT '最后心跳时间',
@@ -37,11 +38,11 @@ CREATE TABLE gb_device
     platform_id             varchar(20)  NOT NULL DEFAULT '0000' COMMENT '所属平台ID：0000=自有平台；其他=上级级联平台ID（用于区分设备来源）',
     create_time             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time             datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    deleted                 tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除：0未删除 1已删除',
     PRIMARY KEY (id),
     UNIQUE KEY uk_device_id (device_id),
     KEY        idx_status (status),
-    KEY        idx_platform_id (platform_id)
+    KEY        idx_platform_id (platform_id),
+    KEY        idx_source (source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备表';
 
 -- =====================================================
@@ -73,22 +74,23 @@ CREATE TABLE gb_device_channel
     ip_address      varchar(64)           DEFAULT NULL COMMENT '通道IP',
     port            int                   DEFAULT NULL COMMENT '通道端口',
     password        varchar(100)          DEFAULT NULL COMMENT '通道密码',
-    status          varchar(20)           DEFAULT 'OFF' COMMENT '在线状态 ON/OFF',
+    status          varchar(20)           DEFAULT 'OFF' COMMENT '在线状态 ON/OFF/UNREGISTERED（仅由SIP交互改变）',
     longitude       double                DEFAULT NULL COMMENT '经度',
     latitude        double                DEFAULT NULL COMMENT '纬度',
     ptz_type        tinyint               DEFAULT 0    COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机',
     stream_id       varchar(100)          DEFAULT NULL COMMENT '运行时点播 stream id',
     platform_id     varchar(20)  NOT NULL DEFAULT '0000' COMMENT '所属平台ID：0000=自有平台；其他=上级级联平台ID（与所属设备保持一致）',
+    source          tinyint      NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    deleted         tinyint      NOT NULL DEFAULT 0    COMMENT '逻辑删除 0否 1是',
     PRIMARY KEY (id),
     UNIQUE KEY uk_device_channel (device_db_id, channel_id),
     KEY        idx_device_id (device_id),
     KEY        idx_channel_id (channel_id),
     KEY        idx_parent_id (parent_id),
     KEY        idx_platform_id (platform_id),
-    KEY        idx_status (status)
+    KEY        idx_status (status),
+    KEY        idx_source (source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备通道表';
 
 -- =====================================================
@@ -126,6 +128,21 @@ CREATE TABLE gb_media_server
 -- Key 布局见 com.solo.gb28181.service.impl.GbInviteSessionServiceImpl。
 -- 真要做"播放历史 / 审计"请另建 gb_play_history 表，schema 不同。
 -- =====================================================
+
+-- =====================================================
+-- 存量库升级：
+-- 1) 为已存在的 gb_device / gb_device_channel 补 source 列
+-- 2) 设备/通道改为物理删除，移除 deleted 列（清理前请先删掉历史 deleted=1 的垃圾行）
+-- （全新执行本脚本时上面 CREATE 已是最新结构，以下 ALTER 会因列已存在/不存在而报错，可忽略）
+-- =====================================================
+-- ALTER TABLE gb_device        ADD COLUMN source tinyint NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册' AFTER status;
+-- ALTER TABLE gb_device        ADD KEY idx_source (source);
+-- ALTER TABLE gb_device_channel ADD COLUMN source tinyint NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册' AFTER platform_id;
+-- ALTER TABLE gb_device_channel ADD KEY idx_source (source);
+-- DELETE FROM gb_device         WHERE deleted = 1;
+-- DELETE FROM gb_device_channel WHERE deleted = 1;
+-- ALTER TABLE gb_device         DROP COLUMN deleted;
+-- ALTER TABLE gb_device_channel DROP COLUMN deleted;
 
 SET
 FOREIGN_KEY_CHECKS = 1;

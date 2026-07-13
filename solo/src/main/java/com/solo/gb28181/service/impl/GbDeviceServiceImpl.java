@@ -3,7 +3,9 @@ package com.solo.gb28181.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
@@ -45,8 +47,51 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         if (request.getStatus() != null) {
             wrapper.eq(GbDevice::getStatus, request.getStatus());
         }
+        if (request.getSource() != null) {
+            wrapper.eq(GbDevice::getSource, request.getSource());
+        }
         wrapper.orderByDesc(GbDevice::getUpdateTime);
         return page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+    }
+
+    @Override
+    public void createByManual(GbDevice device) {
+        if (device.getDeviceId() == null || device.getDeviceId().isBlank()) {
+            throw new ServiceException("设备国标ID不能为空");
+        }
+        boolean dup = lambdaQuery().eq(GbDevice::getDeviceId, device.getDeviceId()).exists();
+        if (dup) {
+            throw new ServiceException("设备国标ID已存在：" + device.getDeviceId());
+        }
+        // 状态与来源由系统决定，忽略入参
+        device.setId(null);
+        device.setStatus(GbSource.DEVICE_STATUS_UNREGISTERED);
+        device.setSource(GbSource.SYSTEM);
+        // 清空 SIP 运行期字段，避免手工录入脏值
+        device.setRegisterTime(null);
+        device.setKeepaliveTime(null);
+        device.setLastCatalogSyncTime(null);
+        save(device);
+        log.info("[设备新增] 系统手动新增设备: {}", device.getDeviceId());
+    }
+
+    @Override
+    public void updateByManual(GbDevice device) {
+        GbDevice exist = getById(device.getId());
+        if (exist == null) {
+            throw new ServiceException("设备不存在");
+        }
+        // 只更新可编辑资料字段，绝不触碰 status/source 及 SIP 运行期字段
+        exist.setName(device.getName());
+        exist.setManufacturer(device.getManufacturer());
+        exist.setModel(device.getModel());
+        exist.setFirmware(device.getFirmware());
+        exist.setSipDomain(device.getSipDomain());
+        exist.setCharset(device.getCharset());
+        exist.setTransport(device.getTransport());
+        exist.setExpires(device.getExpires());
+        updateById(exist);
+        log.info("[设备编辑] 更新设备资料: {}", exist.getDeviceId());
     }
 
     @Override
@@ -58,10 +103,13 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
         GbDevice exist = lambdaQuery().eq(GbDevice::getDeviceId, device.getDeviceId()).one();
         if (exist == null) {
+            device.setSource(GbSource.REGISTER);
             save(device);
             log.info("[设备上线] 新设备首次注册: {} {}", device.getDeviceId(), device.getHostAddress());
         } else {
             device.setId(exist.getId());
+            // 不覆盖 source：保留最初来源（系统新增/导入的设备被真实注册后仍标记为原来源）
+            device.setSource(null);
             updateById(device);
             log.info("[设备上线] 重新注册: {} {}", device.getDeviceId(), device.getHostAddress());
         }

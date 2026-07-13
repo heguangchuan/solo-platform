@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.annotation.FieldFill;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -87,7 +86,7 @@ public class GbDeviceChannel {
     private Integer port;
     private String password;
 
-    /** 在线状态 ON / OFF */
+    /** 在线状态 ON / OFF / UNREGISTERED（系统新增/导入的记录默认态，仅由 SIP 交互改变） */
     private String status;
 
     private Double longitude;
@@ -105,6 +104,11 @@ public class GbDeviceChannel {
      */
     private String platformId;
 
+    /**
+     * 数据来源：1 系统新增，2 表格导入，3 设备注册（Catalog 同步自动入库）
+     */
+    private Integer source;
+
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
@@ -112,7 +116,4 @@ public class GbDeviceChannel {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
-
-    @TableLogic
-    private Integer deleted;
 }

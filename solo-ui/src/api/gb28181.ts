@@ -48,6 +48,20 @@ export function deleteGbDeviceApi(deviceId: string) {
 }
 
 /**
+ * 手动新增设备（状态/来源由后端设定）
+ */
+export function saveGbDeviceApi(data: Partial<GbDevice>) {
+  return post<void>('/api/gb28181/device/save', data)
+}
+
+/**
+ * 手动编辑设备资料
+ */
+export function updateGbDeviceApi(data: Partial<GbDevice>) {
+  return post<void>('/api/gb28181/device/update', data)
+}
+
+/**
  * 通道分页
  */
 export function getGbDeviceChannelPageApi(data: GbDeviceChannelPageRequest) {
@@ -59,6 +73,27 @@ export function getGbDeviceChannelPageApi(data: GbDeviceChannelPageRequest) {
  */
 export function listChannelsByDeviceApi(deviceDbId: string) {
   return get<GbDeviceChannel[]>(`/api/gb28181/device-channel/by-device/${deviceDbId}`)
+}
+
+/**
+ * 手动新增通道（状态/来源由后端设定）
+ */
+export function saveGbDeviceChannelApi(data: Partial<GbDeviceChannel>) {
+  return post<void>('/api/gb28181/device-channel/save', data)
+}
+
+/**
+ * 手动编辑通道资料
+ */
+export function updateGbDeviceChannelApi(data: Partial<GbDeviceChannel>) {
+  return post<void>('/api/gb28181/device-channel/update', data)
+}
+
+/**
+ * 删除通道
+ */
+export function deleteGbDeviceChannelApi(id: string) {
+  return del<void>(`/api/gb28181/device-channel/${id}`)
 }
 
 /**

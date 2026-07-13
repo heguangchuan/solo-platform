@@ -1,5 +1,4 @@
 server:
-  # 与 ZLMediaKit 中 hook 回调端口对齐（ZLM config.ini 中 on_xxx=http://<solo>:10003/api/gb28181/hook/zlm/...）
   port: 10003
 
 spring:
@@ -36,28 +35,15 @@ mybatis-plus:
 
 jwt:
   secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=
-  # access token 30 分钟
   access-expiration: 1800000
-  # refresh token 7 天
   refresh-expiration: 604800000
 
-# Web 终端配置
-terminal:
-  connect-timeout-ms: 10000
-  idle-timeout-ms: 600000
-  input-frame-max-bytes: 2048
-  default-cols: 80
-  default-rows: 24
-  output-buffer-size: 8192
-
-# 文件存储（仅 MinIO）
 file:
   minio:
-    endpoint: http://192.168.1.100:29000
+    endpoint: http://localhost:9000
     access-key: minio
     secret-key: minio213
     bucket: solo
-    # 可选：对外访问域名（CDN/反代）。留空则使用 endpoint 拼接 URL
     public-url:
 
 logging:
@@ -69,15 +55,15 @@ gb28181:
   # 是否启用国标服务
   enabled: true
   # SIP 监听 IP，留空表示监听所有网卡；公网/多网卡部署时建议填设备能访问到的 IP
-  ip: 192.168.1.3
+  ip: solo.com
   # SIP 监听端口
-  port: 5060
+  port: 15060
   # 本平台 SIP ID（20 位，前 10 位行政区划编码 + 后 10 位平台编号）
   id: 60000000042000000028
   # 本平台 SIP 域（一般是行政区划编码 + 4 位 0000）
   domain: 6000000004
   # 设备注册鉴权密码
-  password: 12345678
+  password: 123456
   # 设备注册有效期（秒）
   register-expires: 3600
   # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线
@@ -85,25 +71,21 @@ gb28181:
 
   # 流媒体（ZLMediaKit）相关配置
   media:
-    # ZLM hook 鉴权 secret，须与 ZLM config.ini [api].secret 一致
     hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
-    # 启动时若 gb_media_server 表为空则自动 upsert 一行默认节点；
-    # 节点的 server-id 必须与 ZLM config.ini [general].mediaServerId 一致
     default-server:
       enabled: true
       server-id: zlmediakit-local
       name: 默认节点
-      host-ip: 192.168.1.100
+      host-ip: solo.com
       http-port: 10005
       secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
       rtp-port-start: 30000
       rtp-port-end: 35000
       # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
-      stream-ip: 192.168.1.100
+      stream-ip: zlm.com
     # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
     invite-timeout-seconds: 30
-    # RecordInfo 录像查询分片合并超时（秒）；设备无录像能力时不回 Response，超时即按"无录像"返回空
-    record-info-timeout-seconds: 10
+    record-info-timeout-seconds: 30
     # PLAYBACK INVITE 等待流就绪超时（秒）
     playback-timeout-seconds: 30
     # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
