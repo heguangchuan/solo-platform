@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "minio")
-public class FileStorageProperties {
+public class MinioProperties {
 
     private String endpoint;
     private String accessKey;
