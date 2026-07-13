@@ -1,7 +1,7 @@
 package com.solo.service.storage;
 
 import com.solo.common.ServiceException;
-import com.solo.config.FileStorageProperties;
+import com.solo.config.MinioProperties;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
 import io.minio.MakeBucketArgs;
@@ -20,8 +20,8 @@ import java.io.InputStream;
  *
  * <p>URL 拼接规则：
  * <ul>
- *   <li>配置了 {@code file.minio.public-url} 则用其作为前缀（适合走 CDN / 反代）</li>
- *   <li>否则使用 {@code file.minio.endpoint}（适合开发环境直连）</li>
+ *   <li>配置了 {@code minio.public-url} 则用其作为前缀（适合走 CDN / 反代）</li>
+ *   <li>否则使用 {@code minio.endpoint}（适合开发环境直连）</li>
  * </ul>
  */
 @Slf4j
@@ -30,7 +30,7 @@ import java.io.InputStream;
 public class MinioFileStorage implements FileStorage {
 
     private final MinioClient minioClient;
-    private final FileStorageProperties props;
+    private final MinioProperties props;
 
     /** 启动时确保 bucket 存在 */
     @jakarta.annotation.PostConstruct
@@ -102,8 +102,8 @@ public class MinioFileStorage implements FileStorage {
     /* ============================== 内部 ============================== */
 
     private String bucket() {
-        String b = props.getMinio().getBucket();
-        if (b == null || b.isBlank()) throw new IllegalStateException("file.minio.bucket 未配置");
+        String b = props.getBucket();
+        if (b == null || b.isBlank()) throw new IllegalStateException("minio.bucket 未配置");
         return b;
     }
 
@@ -112,8 +112,8 @@ public class MinioFileStorage implements FileStorage {
      * 配置了 public-url 时用 public-url（适合 CDN / 反代），否则用 endpoint。
      */
     private String buildPublicUrl(String bucket, String object) {
-        String base = props.getMinio().getPublicUrl();
-        if (base == null || base.isBlank()) base = props.getMinio().getEndpoint();
+        String base = props.getPublicUrl();
+        if (base == null || base.isBlank()) base = props.getEndpoint();
         if (base == null) return "/" + bucket + "/" + object;
         if (base.endsWith("/")) base = base.substring(0, base.length() - 1);
         return base + "/" + bucket + "/" + object;

@@ -13,10 +13,9 @@ import org.springframework.context.annotation.Configuration;
 public class MinioConfig {
 
     @Bean
-    public MinioClient minioClient(FileStorageProperties props) {
-        FileStorageProperties.Minio cfg = props.getMinio();
+    public MinioClient minioClient(MinioProperties cfg) {
         if (cfg.getEndpoint() == null || cfg.getEndpoint().isBlank()) {
-            throw new IllegalStateException("file.minio.endpoint 不能为空");
+            throw new IllegalStateException("minio.endpoint 不能为空");
         }
         return MinioClient.builder()
                 .endpoint(cfg.getEndpoint())
