@@ -9,18 +9,13 @@ import org.springframework.context.annotation.Configuration;
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "file")
+@ConfigurationProperties(prefix = "minio")
 public class FileStorageProperties {
 
-    private final Minio minio = new Minio();
-
-    @Data
-    public static class Minio {
-        private String endpoint;
-        private String accessKey;
-        private String secretKey;
-        private String bucket;
-        /** 对外访问域名（可选）。空则用 endpoint 拼接 URL */
-        private String publicUrl;
-    }
+    private String endpoint;
+    private String accessKey;
+    private String secretKey;
+    private String bucket;
+    /** 对外访问域名（可选）。空则用 endpoint 拼接 URL */
+    private String publicUrl;
 }
