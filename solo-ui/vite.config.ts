@@ -21,6 +21,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true, // 等价于 0.0.0.0，监听所有网卡，支持局域网 IP 访问
     port: 3000,
     proxy: {
       '/api': {
