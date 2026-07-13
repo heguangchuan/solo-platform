@@ -7,9 +7,11 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.request.GbDevicePageRequest;
+import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -28,6 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class GbDeviceController {
 
     private final GbDeviceService gbDeviceService;
+    private final GbDeviceChannelService gbDeviceChannelService;
     private final SipCommander sipCommander;
 
     /**
@@ -54,6 +57,29 @@ public class GbDeviceController {
     }
 
     /**
+     * 手动新增设备（页面录入）。状态与来源由后端强制设定，忽略入参。
+     */
+    @PostMapping("/save")
+    @RequirePermission({"gb28181:device:add"})
+    public Result<Void> save(@RequestBody GbDevice device) {
+        gbDeviceService.createByManual(device);
+        return Result.success();
+    }
+
+    /**
+     * 手动编辑设备资料。状态/来源及 SIP 运行期字段不受影响。
+     */
+    @PostMapping("/update")
+    @RequirePermission({"gb28181:device:edit"})
+    public Result<Void> update(@RequestBody GbDevice device) {
+        if (device.getId() == null) {
+            throw new ServiceException("设备ID不能为空");
+        }
+        gbDeviceService.updateByManual(device);
+        return Result.success();
+    }
+
+    /**
      * 手动触发设备信息 + 通道目录同步
      */
     @PostMapping("/{deviceId}/sync")
@@ -72,13 +98,15 @@ public class GbDeviceController {
     }
 
     /**
-     * 删除设备记录（不影响实际设备）
+     * 删除设备记录，连同其名下所有通道（不影响实际设备）
      */
     @DeleteMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:delete"})
+    @Transactional
     public Result<Void> delete(@PathVariable String deviceId) {
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device != null) {
+            gbDeviceChannelService.deleteByDeviceDbId(device.getId());
             gbDeviceService.removeById(device.getId());
         }
         return Result.success();

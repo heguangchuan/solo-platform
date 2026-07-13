@@ -17,6 +17,19 @@ const ptzTypeMap: Record<number, string> = {
   4: '遥控枪机',
 }
 
+/** 数据来源文案 */
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
+function sourceText(source?: number) {
+  return source == null ? '—' : sourceMap[source] ?? '—'
+}
+
+/** 在线状态文案 */
+function statusText(status?: string) {
+  if (status === 'ON') return '在线'
+  if (status === 'OFF') return '离线'
+  return '未注册'
+}
+
 function open(channel: GbDeviceChannelVO) {
   detail.value = channel
   visible.value = true
@@ -42,11 +55,14 @@ defineExpose({ open })
 
       <el-descriptions-item label="云台类型">{{ ptzTypeMap[detail.ptzType ?? 0] }}</el-descriptions-item>
       <el-descriptions-item label="在线状态">
-        <el-tag :type="detail.status === 'ON' ? 'success' : 'info'" size="small">
-          {{ detail.status }}
+        <el-tag :type="detail.status === 'ON' ? 'success' : detail.status === 'OFF' ? 'danger' : 'info'" size="small">
+          {{ statusText(detail.status) }}
         </el-tag>
       </el-descriptions-item>
-      <el-descriptions-item label="所属平台" :span="2">
+      <el-descriptions-item label="数据来源">
+        <el-tag size="small">{{ sourceText(detail.source) }}</el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="所属平台">
         <el-tag :type="detail.platformId === '0000' || !detail.platformId ? 'primary' : 'warning'" size="small">
           {{ detail.platformId === '0000' || !detail.platformId ? '自有平台' : '级联 ' + detail.platformId }}
         </el-tag>

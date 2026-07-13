@@ -34,27 +34,25 @@ public class MediaServerBootstrap {
         }
         GbMediaServer exist = mediaServerService.lambdaQuery().eq(GbMediaServer::getServerId, cfg.getServerId()).one();
         if (exist != null) {
-            // 已存在则只在缺字段时回填，不覆盖运维手工改过的内容
-            boolean dirty = false;
-            if (exist.getHostIp() == null || exist.getHostIp().isBlank()) {
-                exist.setHostIp(cfg.getHostIp());
-                dirty = true;
-            }
-            if (exist.getHttpPort() == null) {
-                exist.setHttpPort(cfg.getHttpPort());
-                dirty = true;
-            }
-            if (exist.getSecret() == null || exist.getSecret().isBlank()) {
-                exist.setSecret(cfg.getSecret());
-                dirty = true;
-            }
-            if (dirty) {
-                mediaServerService.updateById(exist);
-                log.info("[流媒体] 默认节点缺字段已回填 serverId={}", cfg.getServerId());
-            }
+            // 已存在则以配置为准整体更新，保留 id / status / hookAliveTime 等运行期状态
+            applyConfig(exist, cfg);
+            mediaServerService.updateById(exist);
+            log.info("[流媒体] 默认 ZLM 节点已更新 serverId={} {}:{}",
+                    cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
             return;
         }
         GbMediaServer server = new GbMediaServer();
+        applyConfig(server, cfg);
+        server.setStatus(0);
+        mediaServerService.save(server);
+        log.info("[流媒体] 默认 ZLM 节点已写入 serverId={} {}:{}",
+                cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
+    }
+
+    /**
+     * 将配置中的默认节点字段应用到实体上（不含 id / status / hookAliveTime 等运行期状态）。
+     */
+    private void applyConfig(GbMediaServer server, MediaProperties.DefaultServer cfg) {
         server.setServerId(cfg.getServerId());
         server.setName(cfg.getName());
         server.setHostIp(cfg.getHostIp());
@@ -67,9 +65,5 @@ public class MediaServerBootstrap {
         server.setRtcPort(cfg.getRtcPort());
         server.setRtpPortStart(cfg.getRtpPortStart());
         server.setRtpPortEnd(cfg.getRtpPortEnd());
-        server.setStatus(0);
-        mediaServerService.save(server);
-        log.info("[流媒体] 默认 ZLM 节点已写入 serverId={} {}:{}",
-                cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
     }
 }

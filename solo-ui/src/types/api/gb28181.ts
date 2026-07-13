@@ -6,6 +6,8 @@ export interface GbDevicePageRequest extends PageRequest {
   deviceId?: string
   name?: string
   status?: number
+  /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
+  source?: number
 }
 
 /** 国标设备 */
@@ -31,6 +33,8 @@ export interface GbDevice {
   lastCatalogSyncTime?: string
   /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID */
   platformId?: string
+  /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
+  source?: number
   createTime: string
   updateTime: string
 }
@@ -42,6 +46,8 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
   name?: string
   status?: string
   parentId?: string
+  /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
+  source?: number
 }
 
 /** 国标设备通道 */
@@ -66,6 +72,8 @@ export interface GbDeviceChannel {
   streamId?: string
   /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID（与所属设备一致） */
   platformId?: string
+  /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
+  source?: number
   createTime: string
   updateTime: string
 }

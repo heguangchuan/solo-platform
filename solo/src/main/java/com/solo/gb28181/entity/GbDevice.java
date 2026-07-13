@@ -3,7 +3,6 @@ package com.solo.gb28181.entity;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -93,9 +92,14 @@ public class GbDevice {
     private String charset;
 
     /**
-     * 在线状态：0 离线，1 在线
+     * 在线状态：0 离线，1 在线，2 未注册（系统新增/导入的记录默认态，仅由 SIP 交互改变）
      */
     private Integer status;
+
+    /**
+     * 数据来源：1 系统新增，2 表格导入，3 设备注册（SIP 自动入库）
+     */
+    private Integer source;
 
     /**
      * 通道总数
@@ -133,7 +137,4 @@ public class GbDevice {
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
-
-    @TableLogic
-    private Integer deleted;
 }

@@ -85,8 +85,12 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         try {
             if (device != null) {
                 handler.handleForDevice(event, device, root);
+            } else if ("Keepalive".equals(cmdType)) {
+                // 平台不认识该设备（如已被删除）→ 对心跳回 403，逼设备重新 REGISTER，实现删除后快速自愈
+                responseAck(request, Response.FORBIDDEN, "device not registered");
+                log.warn("[消息分发] 未知设备心跳，回 403 触发重注册: deviceId={}", deviceId);
             } else {
-                // 设备未注册，通常发生在 Keepalive 误投递；先回 200 再丢弃
+                // 其他子命令：设备未注册，先回 200 再丢弃，避免设备无穷重传
                 log.warn("[消息分发] 未注册设备发送 MESSAGE: deviceId={} cmd={}", deviceId, cmdType);
                 responseAck(request, Response.OK);
             }

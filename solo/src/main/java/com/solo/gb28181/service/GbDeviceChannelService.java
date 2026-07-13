@@ -18,6 +18,21 @@ public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
     Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request);
 
     /**
+     * 手动新增通道（页面录入）。强制 status=未注册、source=系统新增，并按 deviceDbId 回填 deviceId。
+     */
+    void createByManual(GbDeviceChannel channel);
+
+    /**
+     * 手动编辑通道。只更新可编辑资料字段，绝不覆盖 status/source/streamId。
+     */
+    void updateByManual(GbDeviceChannel channel);
+
+    /**
+     * 逻辑删除单条通道（页面删除按钮）
+     */
+    void deleteById(Long id);
+
+    /**
      * 批量保存或更新（Catalog 同步入口）
      * <p>按 (device_id, channel_id) 唯一约束 upsert</p>
      */

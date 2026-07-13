@@ -22,7 +22,12 @@ public class GbDevicePageRequest {
     private String name;
 
     /**
-     * 在线状态：0 离线，1 在线
+     * 在线状态：0 离线，1 在线，2 未注册
      */
     private Integer status;
+
+    /**
+     * 数据来源：1 系统新增，2 表格导入，3 设备注册
+     */
+    private Integer source;
 }

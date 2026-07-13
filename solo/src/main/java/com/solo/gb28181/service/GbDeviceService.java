@@ -16,6 +16,17 @@ public interface GbDeviceService extends IService<GbDevice> {
     Page<GbDevice> pageQuery(GbDevicePageRequest request);
 
     /**
+     * 手动新增设备（页面录入）。强制 status=未注册、source=系统新增，忽略入参 status/source。
+     */
+    void createByManual(GbDevice device);
+
+    /**
+     * 手动编辑设备。只更新可编辑的资料字段，绝不覆盖 status/source 及 SIP 运行期字段
+     * （registerTime/keepaliveTime/ip/port/hostAddress 等）。
+     */
+    void updateByManual(GbDevice device);
+
+    /**
      * 设备上线（注册成功 / 心跳重新上线）
      * <p>device 已设好 ip/port/localIp/transport/expires 等字段，本方法负责持久化 + Redis TTL</p>
      */

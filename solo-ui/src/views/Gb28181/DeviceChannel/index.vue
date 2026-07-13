@@ -4,9 +4,16 @@ export default { name: 'Gb28181DeviceChannel' }
 <script setup lang="ts">
 import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Refresh, Back } from '@element-plus/icons-vue'
-import type { GbDeviceChannelPageRequest, GbDeviceChannelVO } from '@/types/api'
-import { getGbDeviceChannelPageApi } from '@/api/gb28181'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Back, Plus, Upload } from '@element-plus/icons-vue'
+import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO } from '@/types/api'
+import {
+  getGbDeviceChannelPageApi,
+  getGbDeviceApi,
+  saveGbDeviceChannelApi,
+  updateGbDeviceChannelApi,
+  deleteGbDeviceChannelApi,
+} from '@/api/gb28181'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from './components/ChannelDetailDialog.vue'
@@ -25,6 +32,51 @@ const searchForm = ref<GbDeviceChannelPageRequest>({
   pageSize: 20,
   deviceId: (route.query.deviceId as string) || '',
 })
+
+/** 数据来源文案 */
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
+function sourceText(source?: number) {
+  return source == null ? '-' : sourceMap[source] ?? '-'
+}
+
+const ptzTypeMap: Record<number, string> = {
+  0: '未知',
+  1: '球机',
+  2: '半球',
+  3: '固定枪机',
+  4: '遥控枪机',
+}
+
+// ---------------- 新增/编辑对话框 ----------------
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const formRef = ref()
+const isEdit = ref(false)
+const form = ref<Partial<GbDeviceChannel>>(makeEmpty())
+
+function makeEmpty(): Partial<GbDeviceChannel> {
+  return {
+    channelId: '',
+    name: '',
+    manufacturer: '',
+    model: '',
+    owner: '',
+    civilCode: '',
+    address: '',
+    parentId: '',
+    ptzType: 0,
+    longitude: undefined,
+    latitude: undefined,
+  }
+}
+
+const rules = {
+  channelId: [
+    { required: true, message: '请输入通道国标ID（20位）', trigger: 'blur' },
+    { pattern: /^\d{20}$/, message: '通道国标ID为20位数字', trigger: 'blur' },
+  ],
+  name: [{ required: true, message: '请输入通道名称', trigger: 'blur' }],
+}
 
 async function fetchData() {
   loading.value = true
@@ -63,6 +115,62 @@ function handleBack() {
   router.push({ path: '/gb28181/device' })
 }
 
+// ---------------- 新增/编辑 ----------------
+async function handleAdd() {
+  if (!searchForm.value.deviceId) {
+    ElMessage.warning('请先在上方“设备编码”中指定所属设备后再新增通道')
+    return
+  }
+  // 新增通道需要所属设备的数据库主键，通过设备国标编码反查
+  let device
+  try {
+    const res = await getGbDeviceApi(searchForm.value.deviceId)
+    device = res.data
+  } catch {
+    return
+  }
+  if (!device) {
+    ElMessage.error('所属设备不存在，无法新增通道')
+    return
+  }
+  isEdit.value = false
+  dialogTitle.value = '新增通道'
+  form.value = { ...makeEmpty(), deviceDbId: device.id, deviceId: device.deviceId }
+  dialogVisible.value = true
+}
+
+function handleEdit(row: GbDeviceChannelVO) {
+  isEdit.value = true
+  dialogTitle.value = '编辑通道'
+  form.value = { ...row }
+  dialogVisible.value = true
+}
+
+async function handleConfirm() {
+  if (!formRef.value) return
+  await formRef.value.validate()
+  if (isEdit.value) {
+    await updateGbDeviceChannelApi(form.value)
+    ElMessage.success('修改成功')
+  } else {
+    await saveGbDeviceChannelApi(form.value)
+    ElMessage.success('新增成功')
+  }
+  dialogVisible.value = false
+  fetchData()
+}
+
+async function handleDelete(row: GbDeviceChannelVO) {
+  try {
+    await ElMessageBox.confirm(`确定要删除通道 "${row.channelId}" 吗？`, '提示', { type: 'warning' })
+    await deleteGbDeviceChannelApi(row.id)
+    ElMessage.success('删除成功')
+    fetchData()
+  } catch {
+    // cancelled
+  }
+}
+
 const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
 function handlePlay(row: GbDeviceChannelVO) {
@@ -79,14 +187,6 @@ const detailDialogRef = ref<InstanceType<typeof ChannelDetailDialog> | null>(nul
 
 function handleDetail(row: GbDeviceChannelVO) {
   detailDialogRef.value?.open(row)
-}
-
-const ptzTypeMap: Record<number, string> = {
-  0: '未知',
-  1: '球机',
-  2: '半球',
-  3: '固定枪机',
-  4: '遥控枪机',
 }
 
 watch(
@@ -116,9 +216,17 @@ onMounted(() => {
           <el-input v-model="searchForm.name" placeholder="名称模糊" clearable />
         </el-form-item>
         <el-form-item label="在线">
-          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
+          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 130px">
             <el-option label="ON" value="ON" />
             <el-option label="OFF" value="OFF" />
+            <el-option label="未注册" value="UNREGISTERED" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="来源">
+          <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 120px">
+            <el-option label="系统新增" :value="1" />
+            <el-option label="表格导入" :value="2" />
+            <el-option label="设备注册" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -130,7 +238,12 @@ onMounted(() => {
     </el-card>
 
     <el-card shadow="hover" style="margin-top: 16px">
-      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 320px)">
+      <div class="table-toolbar">
+        <el-button v-permission="'gb28181:device-channel:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'gb28181:device-channel:add'" :icon="Upload" disabled>导入</el-button>
+      </div>
+
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
         <el-table-column prop="channelId" label="通道编码" />
         <el-table-column prop="name" label="名称" show-overflow-tooltip />
         <el-table-column prop="deviceId" label="设备编码" />
@@ -140,10 +253,14 @@ onMounted(() => {
         </el-table-column>
         <el-table-column label="状态" align="center" width="110">
           <template #default="{ row }">
-            <ListStatusBar :active="row.status === 'ON'" />
+            <ListStatusBar v-if="row.status === 'ON' || row.status === 'OFF'" :active="row.status === 'ON'" />
+            <el-tag v-else type="info" size="small">未注册</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="数据来源" align="center" width="100">
+          <template #default="{ row }">{{ sourceText(row.source) }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="'gb28181:device-channel:list'"
@@ -151,6 +268,12 @@ onMounted(() => {
               link
               @click="handleDetail(row)"
             >详情</el-button>
+            <el-button
+              v-permission="'gb28181:device-channel:edit'"
+              type="primary"
+              link
+              @click="handleEdit(row)"
+            >编辑</el-button>
             <el-button
               v-permission="'gb28181:play:start'"
               :disabled="row.status !== 'ON'"
@@ -164,6 +287,12 @@ onMounted(() => {
               link
               @click="handlePlayback(row)"
             >回放</el-button>
+            <el-button
+              v-permission="'gb28181:device-channel:delete'"
+              type="primary"
+              link
+              @click="handleDelete(row)"
+            >删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -180,6 +309,60 @@ onMounted(() => {
       />
     </el-card>
 
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false">
+      <el-alert
+        title="状态由 Catalog 目录同步自动维护，手动录入的通道默认为“未注册”"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      />
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="所属设备">
+          <el-input v-model="form.deviceId" disabled />
+        </el-form-item>
+        <el-form-item label="通道编码" prop="channelId">
+          <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
+        </el-form-item>
+        <el-form-item label="通道名称" prop="name">
+          <el-input v-model="form.name" placeholder="通道显示名称" />
+        </el-form-item>
+        <el-form-item label="厂商">
+          <el-input v-model="form.manufacturer" placeholder="厂商" />
+        </el-form-item>
+        <el-form-item label="型号">
+          <el-input v-model="form.model" placeholder="型号" />
+        </el-form-item>
+        <el-form-item label="设备归属">
+          <el-input v-model="form.owner" placeholder="设备归属" />
+        </el-form-item>
+        <el-form-item label="行政区划">
+          <el-input v-model="form.civilCode" placeholder="行政区划编码" />
+        </el-form-item>
+        <el-form-item label="安装地址">
+          <el-input v-model="form.address" placeholder="安装地址" />
+        </el-form-item>
+        <el-form-item label="父节点ID">
+          <el-input v-model="form.parentId" placeholder="虚拟目录父节点ID（可空）" />
+        </el-form-item>
+        <el-form-item label="云台类型">
+          <el-select v-model="form.ptzType" style="width: 160px">
+            <el-option v-for="(label, val) in ptzTypeMap" :key="val" :label="label" :value="Number(val)" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="经度">
+          <el-input-number v-model="form.longitude" :precision="6" :step="0.000001" :controls="false" style="width: 200px" />
+        </el-form-item>
+        <el-form-item label="纬度">
+          <el-input-number v-model="form.latitude" :precision="6" :step="0.000001" :controls="false" style="width: 200px" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取 消</el-button>
+        <el-button type="primary" @click="handleConfirm">确 定</el-button>
+      </template>
+    </el-dialog>
+
     <PlayDialog ref="playDialogRef" />
     <PlaybackDialog ref="playbackDialogRef" />
     <ChannelDetailDialog ref="detailDialogRef" />
@@ -189,6 +372,12 @@ onMounted(() => {
 <style scoped>
 .search-card {
   margin-bottom: 0;
+}
+
+.table-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .pagination {

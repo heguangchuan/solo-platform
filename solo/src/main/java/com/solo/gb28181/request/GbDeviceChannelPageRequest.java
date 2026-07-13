@@ -25,4 +25,7 @@ public class GbDeviceChannelPageRequest {
 
     /** 父节点ID（按目录树查询） */
     private String parentId;
+
+    /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
+    private Integer source;
 }

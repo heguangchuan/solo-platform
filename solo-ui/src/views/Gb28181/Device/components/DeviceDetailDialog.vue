@@ -9,6 +9,12 @@ import type { GbDevice } from '@/types/api'
 const visible = ref(false)
 const detail = ref<GbDevice | null>(null)
 
+/** 数据来源文案 */
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
+function sourceText(source?: number) {
+  return source == null ? '—' : sourceMap[source] ?? '—'
+}
+
 function open(device: GbDevice) {
   detail.value = device
   visible.value = true
@@ -34,9 +40,13 @@ defineExpose({ open })
       <el-descriptions-item label="设备型号">{{ detail.model || '—' }}</el-descriptions-item>
       <el-descriptions-item label="固件版本">{{ detail.firmware || '—' }}</el-descriptions-item>
       <el-descriptions-item label="设备状态">
-        <el-tag :type="detail.status === 1 ? 'success' : 'danger'" size="small">
+        <el-tag v-if="detail.status === 2" type="info" size="small">未注册</el-tag>
+        <el-tag v-else :type="detail.status === 1 ? 'success' : 'danger'" size="small">
           {{ detail.status === 1 ? '在线' : '离线' }}
         </el-tag>
+      </el-descriptions-item>
+      <el-descriptions-item label="数据来源">
+        <el-tag size="small">{{ sourceText(detail.source) }}</el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="所属平台">
         <el-tag :type="detail.platformId === '0000' || !detail.platformId ? 'primary' : 'warning'" size="small">
