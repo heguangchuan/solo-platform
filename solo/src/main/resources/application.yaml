@@ -50,8 +50,7 @@ logging:
     com.solo: info
 
 # GB/T 28181 国标平台配置
-gb28181:
-  # 是否启用国标服务
+gb28181:  # 是否启用国标服务
   enabled: true
   # SIP 监听 IP，留空表示监听所有网卡；公网/多网卡部署时建议填设备能访问到的 IP
   ip: 192.168.1.21
@@ -75,13 +74,13 @@ gb28181:
       enabled: true
       server-id: zlmediakit-local
       name: 默认节点
-      host-ip: 192.168.1.100
+      host-ip: 192.168.1.25
       http-port: 10005
       secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
       rtp-port-start: 30000
       rtp-port-end: 35000
       # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
-      stream-ip: 192.168.1.100
+      stream-ip: 192.168.1.25
     # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
     invite-timeout-seconds: 30
     record-info-timeout-seconds: 30
