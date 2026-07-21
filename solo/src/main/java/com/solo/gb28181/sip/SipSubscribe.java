@@ -6,29 +6,19 @@ import org.springframework.stereotype.Component;
 import javax.sip.ResponseEvent;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
 
 /**
  * SIP 订阅管理器
  * <p>主动发起请求后注册一个 {@link SipSubscribeEvent}，{@link SipProcessorObserver}
  * 收到对应响应（按 Call-Id+CSeq 匹配）后回调并清理。</p>
- * <p>带后台过期清理：每 5 秒扫一次，移除已超过 timeout 的订阅并触发 onTimeout。</p>
+ * <p>过期清理由 {@link com.solo.gb28181.task.GbScheduledTasks} 每 5 秒调 {@link #sweep()}：
+ * 移除已超过 timeout 的订阅并触发 onTimeout。</p>
  */
 @Slf4j
 @Component
 public class SipSubscribe {
 
     private final Map<String, SipSubscribeEvent> subscribes = new ConcurrentHashMap<>();
-    private final java.util.concurrent.ScheduledExecutorService cleaner =
-            java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "gb28181-sip-subscribe-cleaner");
-                t.setDaemon(true);
-                return t;
-            });
-
-    public SipSubscribe() {
-        cleaner.scheduleAtFixedRate(this::sweep, 5, 5, TimeUnit.SECONDS);
-    }
 
     public void add(SipSubscribeEvent event) {
         subscribes.put(event.getKey(), event);
@@ -46,7 +36,7 @@ public class SipSubscribe {
         return subscribes.size();
     }
 
-    private void sweep() {
+    public void sweep() {
         long now = System.currentTimeMillis();
         subscribes.entrySet().removeIf(e -> {
             SipSubscribeEvent ev = e.getValue();
@@ -59,10 +49,5 @@ public class SipSubscribe {
             }
             return false;
         });
-    }
-
-    /** 应用关闭时供 Spring 调用 */
-    public void shutdown() {
-        cleaner.shutdownNow();
     }
 }

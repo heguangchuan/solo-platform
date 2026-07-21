@@ -9,7 +9,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -21,6 +20,7 @@ import java.util.List;
  *   <li>不存在 → 设置 status=0 + 发 {@link DeviceOfflineEvent}</li>
  * </ul>
  * <p>同时清理 {@link CatalogDataCache} 里超时的分片缓存。</p>
+ * <p>调度由 {@link GbScheduledTasks} 每 30s 触发。</p>
  */
 @Slf4j
 @Component
@@ -35,7 +35,6 @@ public class DeviceOfflineDetector {
     private final CatalogDataCache catalogDataCache;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Scheduled(fixedDelay = 30_000)
     public void detect() {
         // 清理目录分片缓存中的僵尸 batch
         catalogDataCache.sweep();

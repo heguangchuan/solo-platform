@@ -64,6 +64,7 @@ const emit = defineEmits<{
   pause: []
   error: [msg: string]
   timeout: []
+  streamEnd: []
   'switch-stream': [type: 'main' | 'sub']
   'switch-transport': [t: 'UDP' | 'TCP-passive']
   refresh: []
@@ -151,6 +152,11 @@ function ensurePlayer() {
   player.on('error', (e: unknown) => {
     console.error('[jessibuca error]', e)
     emit('error', '播放器错误: ' + String(e))
+  })
+  // streamEnd 不是硬错误：流被关闭/结束（设备停推、ZLM 关流等）时触发，交业务层做友好提示
+  player.on('streamEnd', () => {
+    isPlaying.value = false
+    emit('streamEnd')
   })
   player.on('timeout', () => emit('timeout'))
   player.on('loadingTimeout', () => emit('timeout'))

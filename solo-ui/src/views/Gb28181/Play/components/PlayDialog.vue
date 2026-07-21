@@ -97,8 +97,16 @@ async function handleSwitchTransport(next: 'UDP' | 'TCP-passive') {
   await handleRefresh()
 }
 
-async function handleStopBackend(silent: boolean) {
-  if (!streamInfo.value?.streamId) return
+/**
+ * 播放器抛上来的"流结束"事件：流被关闭/结束（设备停推、ZLM 关流等）。
+ * 只做友好提示，不自动重连；用户可点工具栏"刷新"手动重来。
+ */
+function onStreamEnd() {
+  errorText.value = ''
+  statusText.value = '视频流已结束'
+}
+
+async function handleStopBackend(silent: boolean) {  if (!streamInfo.value?.streamId) return
   try {
     await stopPlayApi({ streamId: streamInfo.value.streamId })
   } catch (e) {
@@ -139,6 +147,7 @@ defineExpose({ open })
       :stream-type="streamType"
       :transport="transport"
       @error="errorText = $event"
+      @stream-end="onStreamEnd"
       @refresh="handleRefresh"
       @switch-stream="handleSwitchStream"
       @switch-transport="handleSwitchTransport"
