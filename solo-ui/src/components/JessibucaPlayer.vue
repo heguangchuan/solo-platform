@@ -443,19 +443,15 @@ function handleSwitchTransport() {
     <!-- 工具栏 -->
     <div class="toolbar">
       <div class="toolbar-left">
-        <span class="metric"><i class="dot" :class="{ live: isPlaying }"></i>{{ isPlaying ? '播放中' : '已暂停' }}</span>
-        <span class="metric">{{ resolutionText }}</span>
-        <span class="metric">{{ fpsText }}</span>
-        <span class="metric">{{ bandwidthText }}</span>
-      </div>
-      <div class="toolbar-right">
+        <el-tooltip content="全屏">
+          <el-button text size="small" :icon="FullScreen" @click="toggleFullscreen" />
+        </el-tooltip>
         <el-tooltip :content="props.streamType === 'main' ? '主码流 · 点击切到辅码流' : '辅码流 · 点击切到主码流'">
           <el-button text size="small" :icon="Switch" @click="handleSwitchStream" />
         </el-tooltip>
         <el-tooltip :content="props.transport === 'UDP' ? 'UDP 收流 · 点击切 TCP' : 'TCP 收流 · 点击切 UDP'">
           <el-button text size="small" :icon="Connection" @click="handleSwitchTransport" />
         </el-tooltip>
-        <el-divider direction="vertical" />
         <el-tooltip content="放大（滚轮 / 双击复位）">
           <el-button text size="small" :icon="ZoomIn" :disabled="zoomScale >= MAX_ZOOM" @click="zoomIn" />
         </el-tooltip>
@@ -465,7 +461,6 @@ function handleSwitchTransport() {
         <el-tooltip content="复位">
           <el-button text size="small" :icon="Aim" :disabled="!isZoomed" @click="resetZoom" />
         </el-tooltip>
-        <el-divider direction="vertical" />
         <el-tooltip :content="isPlaying ? '暂停' : '播放'">
           <el-button text size="small" :icon="isPlaying ? VideoPause : VideoPlay" @click="togglePlay" />
         </el-tooltip>
@@ -481,10 +476,8 @@ function handleSwitchTransport() {
         <el-tooltip content="码流信息">
           <el-button text size="small" :icon="InfoFilled" @click="toggleInfoPanel" />
         </el-tooltip>
-        <el-tooltip content="全屏">
-          <el-button text size="small" :icon="FullScreen" @click="toggleFullscreen" />
-        </el-tooltip>
       </div>
+      <div class="toolbar-right"></div>
     </div>
   </div>
 </template>
@@ -533,7 +526,6 @@ function handleSwitchTransport() {
 .toolbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 36px;
   padding: 0 8px;
   background: rgba(20, 20, 20, 0.85);
@@ -545,46 +537,24 @@ function handleSwitchTransport() {
 .toolbar-left {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 2px;
 }
 
 .toolbar-right {
   display: flex;
   align-items: center;
   gap: 2px;
+  margin-left: auto;
 }
 
-.toolbar-right :deep(.el-button) {
+.toolbar-left :deep(.el-button) {
   color: #d6d8db;
-  padding: 4px 8px;
+  padding: 4px 6px;
 }
-.toolbar-right :deep(.el-button:hover),
-.toolbar-right :deep(.el-button:focus) {
+.toolbar-left :deep(.el-button:hover),
+.toolbar-left :deep(.el-button:focus) {
   color: #409eff;
   background: rgba(255, 255, 255, 0.06);
-}
-.toolbar-right :deep(.el-divider--vertical) {
-  background: rgba(255, 255, 255, 0.15);
-  margin: 0 4px;
-}
-
-.metric {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #909399;
-  display: inline-block;
-}
-.dot.live {
-  background: #67c23a;
-  box-shadow: 0 0 6px #67c23a;
 }
 
 /* 信息浮层 */
