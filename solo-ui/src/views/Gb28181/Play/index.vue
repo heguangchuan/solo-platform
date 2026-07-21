@@ -78,10 +78,39 @@ function handleNodeClick(node: GbDeviceChannelTreeNode) {
     return
   }
 
-  // 在当前激活窗口播放
-  const activeWindow = windowRefs.value[activeWindowIndex.value]
-  if (activeWindow) {
-    activeWindow.play(node.deviceId!, node.channelId!, node.label)
+  // 从头到尾找第一个空闲格子
+  // 空闲格子 = 组件不存在(null) 或者 存在但是没在播放
+  console.log('windowRefs', windowRefs.value)
+  let foundIndex = -1
+  for (let i = 0; i < windowRefs.value.length; i++) {
+    const win = windowRefs.value[i]
+    console.log(`check slot ${i}: win =`, win, ', isPlaying:', win?.isPlaying)
+    // 如果组件引用还没创建，说明这个位置是空的，直接用它
+    if (!win) {
+      foundIndex = i
+      console.log('found empty slot (null)', foundIndex)
+      break
+    }
+    // 组件存在，检查是否正在播放
+    // isPlaying 已经是布尔值
+    const isPlaying = win.isPlaying ?? false
+    if (!isPlaying) {
+      foundIndex = i
+      console.log('found empty slot (not playing)', foundIndex)
+      break
+    }
+  }
+  console.log('final foundIndex:', foundIndex)
+
+  // 如果没找到空闲格子，就用当前激活的
+  if (foundIndex === -1) {
+    foundIndex = activeWindowIndex.value
+  }
+
+  const targetWindow = windowRefs.value[foundIndex]
+  if (targetWindow) {
+    activeWindowIndex.value = foundIndex
+    targetWindow.play(node.deviceId!, node.channelId!, node.label)
   }
 }
 

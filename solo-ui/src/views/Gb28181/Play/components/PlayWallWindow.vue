@@ -123,7 +123,9 @@ defineExpose({
   play,
   stop,
   refresh,
-  isPlaying: playing,
+  get isPlaying() {
+    return playing.value
+  }
 })
 </script>
 
