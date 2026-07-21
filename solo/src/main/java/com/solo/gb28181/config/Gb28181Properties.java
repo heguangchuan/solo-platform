@@ -64,4 +64,19 @@ public class Gb28181Properties {
      * <p>false：优先取 Via 头的 received/rport（适合公网直连且要求严格按 Via 路由的场景）</p>
      */
     private boolean useSourceIpAsRemoteAddress = true;
+
+    /**
+     * 业务线程池配置 - 核心线程数（默认：max(2 * CPU, 16)）
+     */
+    private Integer corePoolSize;
+
+    /**
+     * 业务线程池配置 - 最大线程数（默认：10 * corePoolSize）
+     */
+    private Integer maxPoolSize;
+
+    /**
+     * 业务线程池配置 - 队列容量（默认：10000）
+     */
+    private Integer queueCapacity;
 }

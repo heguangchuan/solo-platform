@@ -8,15 +8,18 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.service.GbInviteSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,6 +37,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
     private final StringRedisTemplate redisTemplate;
     private final Gb28181Properties properties;
+    private final GbInviteSessionService inviteSessionService;
 
     @Override
     public Page<GbDevice> pageQuery(GbDevicePageRequest request) {
@@ -124,6 +128,20 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             updateById(device);
         }
         redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId);
+
+        // 设备离线，清扫该设备所有活跃点播/回放会话，释放 SSRC / RTP 端口 / Redis 资源
+        List<GbInviteSession> allSessions = inviteSessionService.listAllActive();
+        int cleaned = 0;
+        for (GbInviteSession s : allSessions) {
+            if (deviceId.equals(s.getDeviceId())) {
+                inviteSessionService.removeByStreamId(s.getStreamId());
+                cleaned++;
+            }
+        }
+        if (cleaned > 0) {
+            log.info("[设备离线] 已同步清理该设备 {} 个活跃会话", cleaned);
+        }
+
         log.info("[设备离线] {} reason={}", deviceId, reason);
     }
 
