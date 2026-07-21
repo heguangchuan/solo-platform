@@ -148,6 +148,7 @@ defineExpose({
     <div class="player-container">
       <JessibucaPlayer
         ref="playerRef"
+        height="100%"
         @stream-end="handleStreamEnd"
       />
       <el-empty v-if="!playing && !loading" description="点击左侧选择通道播放" />
@@ -206,12 +207,14 @@ defineExpose({
   flex: 1;
   position: relative;
   min-height: 0;
+  width: 100%;
   background: #1e1e1e;
 }
 
 .player-container :deep(.jessibuca-box) {
   width: 100%;
   height: 100%;
+  display: block;
 }
 
 .player-container :deep(.el-empty) {
