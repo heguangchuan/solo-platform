@@ -13,6 +13,7 @@ import {
   deleteGbDeviceChannelApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
@@ -244,7 +245,7 @@ defineExpose({ fetchData })
 
     <el-card shadow="hover" :style="{ 'margin-top': showDeviceColumn ? '16px' : 0 }">
       <div class="table-toolbar" v-if="showDeviceColumn">
-        <el-button v-permission="'gb28181:device-channel:add'" type="primary" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'gb28181:device-channel:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 360px)">
@@ -264,32 +265,41 @@ defineExpose({ fetchData })
         <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'gb28181:device-channel:list'"
-              type="primary"
-              link
-              @click="handleDetail(row)"
-            >详情</el-button>
-            <el-button
-              v-permission="'gb28181:device-channel:edit'"
-              type="primary"
-              link
-              @click="handleEdit(row)"
-            >编辑</el-button>
-            <el-dropdown @command="(cmd) => { if (cmd === 'play') handlePlay(row); if (cmd === 'playback') handlePlayback(row); if (cmd === 'delete') handleDelete(row); }">
-              <el-button type="primary" link>
-                更多 <i class="el-icon-arrow-down el-icon--right"></i>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="play" :disabled="row.status !== 'ON'">播放</el-dropdown-item>
-                  <el-dropdown-item command="playback">回放</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <div class="flex items-center gap-0">
+              <el-button
+                v-permission="'gb28181:device-channel:list'"
+                type="primary"
+                link
+                @click="handleDetail(row)"
+              >详情</el-button>
+              <el-button
+                v-permission="'gb28181:device-channel:edit'"
+                type="primary"
+                link
+                @click="handleEdit(row)"
+              >编辑</el-button>
+              <el-button
+                v-permission="'gb28181:play:start'"
+                :disabled="row.status !== 'ON'"
+                type="primary"
+                link
+                @click="handlePlay(row)"
+              >播放</el-button>
+              <el-button
+                v-permission="'gb28181:playback:start'"
+                type="primary"
+                link
+                @click="handlePlayback(row)"
+              >回放</el-button>
+              <el-button
+                v-permission="'gb28181:device-channel:delete'"
+                type="primary"
+                link
+                @click="handleDelete(row)"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>

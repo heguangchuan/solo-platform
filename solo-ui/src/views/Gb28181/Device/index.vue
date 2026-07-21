@@ -217,32 +217,41 @@ onMounted(() => {
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
         <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'gb28181:device:list'"
-              type="primary"
-              link
-              @click="handleDetail(row)"
-            >详情</el-button>
-            <el-button
-              v-permission="'gb28181:device:edit'"
-              type="primary"
-              link
-              @click="handleEdit(row)"
-            >编辑</el-button>
-            <el-dropdown @command="(cmd) => { if (cmd === 'channels') handleViewChannels(row); if (cmd === 'sync') handleSync(row); if (cmd === 'delete') handleDelete(row); }">
-              <el-button type="primary" link>
-                更多 <i class="el-icon-arrow-down el-icon--right"></i>
-              </el-button>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="channels">通道</el-dropdown-item>
-                  <el-dropdown-item command="sync" :disabled="row.status !== 1">同步</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <div class="flex items-center gap-0">
+              <el-button
+                v-permission="'gb28181:device:list'"
+                type="primary"
+                link
+                @click="handleDetail(row)"
+              >详情</el-button>
+              <el-button
+                v-permission="'gb28181:device:edit'"
+                type="primary"
+                link
+                @click="handleEdit(row)"
+              >编辑</el-button>
+              <el-button
+                v-permission="'gb28181:device-channel:list'"
+                type="primary"
+                link
+                @click="handleViewChannels(row)"
+              >通道</el-button>
+              <el-button
+                v-permission="'gb28181:device:sync'"
+                type="primary"
+                link
+                :disabled="row.status !== 1"
+                @click="handleSync(row)"
+              >同步</el-button>
+              <el-button
+                v-permission="'gb28181:device:delete'"
+                type="primary"
+                link
+                @click="handleDelete(row)"
+              >删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
