@@ -85,8 +85,24 @@ public class ZlmHookService {
 
     public HookResult onStreamNotFound(Map<String, Object> body) {
         if (!checkSecret(body)) return HookResult.reject("secret mismatch");
-        log.info("[ZLM 回调] on_stream_not_found {}", body);
-        // 本平台不实现 wvp 风格的 autoApplyPlay 自动拉起
+        String app = stringOf(body, "app");
+        String stream = stringOf(body, "stream");
+        String mediaServerId = stringOf(body, "mediaServerId");
+        log.info("[ZLM 回调] on_stream_not_found app={} stream={}", app, stream);
+
+        // autoApplyPlay 开启时，流不存在自动发起点播
+        if (mediaProperties.isAutoApplyPlay()) {
+            // streamId 格式: {deviceId}_{channelId} 和前端点播一致
+            String[] parts = stream.split("_", 2);
+            if (parts.length == 2) {
+                String deviceId = parts[0];
+                String channelId = parts[1];
+                log.info("[ZLM 回调] on_stream_not_found 自动发起点播 deviceId={} channelId={}", deviceId, channelId);
+                // 异步发起点播，不阻塞 ZLM 回调
+                playService.autoStartPlay(deviceId, channelId, mediaServerId);
+            }
+        }
+        // 默认：允许 pull，autoApplyPlay 已经异步处理，ZLM 等待推送即可
         return HookResult.ok();
     }
 
@@ -133,10 +149,31 @@ public class ZlmHookService {
     public HookResult onStreamNoneReader(Map<String, Object> body) {
         if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String stream = stringOf(body, "stream");
+        String mediaServerId = stringOf(body, "mediaServerId");
         // close=false：前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟，立刻关流会导致前端拉不到。
         // 流的回收完全靠业务侧（stop API / on_rtp_server_timeout）
-        log.info("[ZLM 回调] on_stream_none_reader stream={} -> close=false", stream);
-        return HookResult.ok().put("close", false);
+        boolean close = false;
+
+        // streamOnDemand 开启时，如果没有人看，告诉 ZLM 关闭流，释放资源
+        if (mediaProperties.isStreamOnDemand()) {
+            close = true;
+            // 异步清理 GB28181 会话资源
+            if ("rtsp".equalsIgnoreCase(stringOf(body, "schema"))) {
+                GbInviteSession session = inviteSessionService.getByStreamId(stream);
+                if (session != null) {
+                    log.info("[按需拉流] on_stream_none_reader 关闭空闲流 stream={}", stream);
+                    if (session.getSessionType().equals(GbInviteSession.TYPE_PLAYBACK)
+                            || session.getSessionType().equals(GbInviteSession.TYPE_DOWNLOAD)) {
+                        playbackService.onRtpServerTimeout(stream);
+                    } else {
+                        playService.onRtpServerTimeout(stream);
+                    }
+                }
+            }
+        }
+
+        log.info("[ZLM 回调] on_stream_none_reader stream={} -> close={}", stream, close);
+        return HookResult.ok().put("close", close);
     }
 
     public HookResult onRtpServerTimeout(Map<String, Object> body) {

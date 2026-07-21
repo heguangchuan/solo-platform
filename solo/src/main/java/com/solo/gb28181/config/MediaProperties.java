@@ -48,6 +48,18 @@ public class MediaProperties {
     private int ssrcDomainStart = 0;
 
     /**
+     * 自动拉流（autoApplyPlay）：开启后，当用户通过播放URL访问一个不存在的流时，
+     * 自动发送 INVITE 给设备开始推流，用户不需要先点"播放"按钮。
+     */
+    private boolean autoApplyPlay = true;
+
+    /**
+     * 按需拉流（streamOnDemand）：开启后，当流长时间没有人观看时，自动关闭流释放资源。
+     * 关闭后流会一直保持推送，不管有没有人看。
+     */
+    private boolean streamOnDemand = true;
+
+    /**
      * 启动时若 gb_media_server 表为空则自动写入的默认节点。
      */
     private DefaultServer defaultServer = new DefaultServer();
