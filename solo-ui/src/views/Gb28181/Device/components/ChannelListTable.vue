@@ -265,7 +265,7 @@ defineExpose({ fetchData })
         <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="270" fixed="right">
           <template #default="{ row }">
             <div class="flex items-center gap-0">
               <el-button

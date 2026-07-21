@@ -217,7 +217,7 @@ onMounted(() => {
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
         <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column label="操作" width="270" fixed="right">
           <template #default="{ row }">
             <div class="flex items-center gap-0">
               <el-button
