@@ -210,9 +210,9 @@ defineExpose({ fetchData })
 
 <template>
   <div>
-    <el-card shadow="hover" class="search-card">
+    <el-card shadow="hover" v-if="showDeviceColumn" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="设备编码" v-if="showDeviceColumn">
+        <el-form-item label="设备编码">
           <el-input v-model="searchForm.deviceId" placeholder="所属设备国标编码精确" clearable />
         </el-form-item>
         <el-form-item label="通道编码">
@@ -242,8 +242,8 @@ defineExpose({ fetchData })
       </el-form>
     </el-card>
 
-    <el-card shadow="hover" style="margin-top: 16px">
-      <div class="table-toolbar">
+    <el-card shadow="hover" :style="{ 'margin-top': showDeviceColumn ? '16px' : 0 }">
+      <div class="table-toolbar" v-if="showDeviceColumn">
         <el-button v-permission="'gb28181:device-channel:add'" type="primary" @click="handleAdd">新增</el-button>
       </div>
 
