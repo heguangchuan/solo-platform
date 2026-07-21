@@ -23,8 +23,7 @@ defineExpose({ open })
   <el-dialog
     v-model="visible"
     title="通道列表"
-    width="1000px"
-    top="5vh"
+    width="70%"
     :close-on-click-modal="false"
   >
     <ChannelListTable ref="tableRef" :device-id="currentDeviceId" :show-device-column="false" />
