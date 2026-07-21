@@ -125,18 +125,20 @@ public class GbPlayServiceImpl implements GbPlayService {
             throw new ServiceException("通道离线，无法点播");
         }
 
-        // 幂等：已 READY 直接返回；INVITING 则拒绝避免并发起多个 INVITE
+        // 幂等：同一个通道同一时间只允许一个活跃点播
         List<GbInviteSession> exist = inviteSessionService.listActiveByDeviceAndChannel(
                 req.getDeviceId(), req.getChannelId());
         for (GbInviteSession s : exist) {
             if (GbInviteSession.STATUS_READY.equals(s.getStatus())) {
+                // 已经就绪，直接复用，避免重复邀请浪费资源
                 log.info("[实时点播] 复用已就绪会话 stream={}", s.getStreamId());
                 return toResult(s);
             }
             if (GbInviteSession.STATUS_INVITING.equals(s.getStatus())) {
-                // 残留的 INVITING：可能是上次进程崩了 / future 没等到。直接强清后再开新会话。
-                log.warn("[实时点播] 发现残留 INVITING 会话 stream={}，强制清扫后重新点播", s.getStreamId());
-                support.forceCleanup(s);
+                // 正在邀请中，告诉前端稍候，不要重复发起 INVITE 导致重复流
+                log.warn("[实时点播] 该通道正在点播邀请中，请稍后重试 device={} channel={}",
+                        req.getDeviceId(), req.getChannelId());
+                throw new ServiceException("该通道正在请求点播，请稍后重试");
             }
         }
 

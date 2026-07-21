@@ -22,7 +22,7 @@ public class DeviceOnlineListener {
     private final GbDeviceService deviceService;
     private final SipCommander sipCommander;
 
-    @Async("taskExecutor")
+    @Async("gb28181BizExecutor")
     @EventListener
     public void onDeviceOnline(DeviceOnlineEvent event) {
         GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, event.getDeviceId()).one();
