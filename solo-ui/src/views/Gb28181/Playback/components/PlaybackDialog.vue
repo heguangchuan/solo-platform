@@ -217,6 +217,16 @@ function fmtDuration(sec: number): string {
   return `${pad(h)}:${pad(m)}:${pad(ss)}`
 }
 
+/**
+ * 播放器抛上来的"流结束"事件：回放流被关闭/结束。
+ * 只做友好提示，不自动重连；用户可重新点录像段。
+ */
+function onStreamEnd() {
+  playing.value = false
+  errorText.value = ''
+  statusText.value = '回放已结束'
+}
+
 // ============ 关闭 / 清理 ============
 
 async function stopBackend(silent: boolean) {
@@ -290,7 +300,7 @@ defineExpose({ open })
         <div v-if="errorText" class="status-bar status-error">{{ errorText }}</div>
         <div v-else-if="statusText" class="status-bar status-info">{{ statusText }}</div>
 
-        <JessibucaPlayer ref="playerRef" height="420px" @error="errorText = $event" />
+        <JessibucaPlayer ref="playerRef" height="420px" @error="errorText = $event" @stream-end="onStreamEnd" />
 
         <div v-if="playing" class="control-bar">
           <el-button :icon="paused ? VideoPlay : VideoPause" circle size="small" @click="togglePause" />

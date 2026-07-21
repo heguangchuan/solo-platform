@@ -10,7 +10,6 @@ import gov.nist.javax.sip.message.SIPRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
@@ -22,7 +21,8 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * Keepalive 心跳处理
  * <p>大规模设备同时心跳会打爆 DB，所以采用<b>队列削峰 + 定时批处理</b>模式：
- * 收到心跳时直接入队（先 200 OK 回复），定时任务每 100ms 把队列里的批量处理。</p>
+ * 收到心跳时直接入队（先 200 OK 回复），{@link com.solo.gb28181.task.GbScheduledTasks}
+ * 每 100ms 调 {@link #drain()} 把队列里的批量处理。</p>
  *
  * <p>海康兼容：海康某些设备 Keepalive 报文 From 字段是通道 ID 而不是设备 ID。
  * 后续 Sprint 加入 SsrcTransaction 后可以反查；当前阶段直接以 deviceId 查不到时按设备 ID 长度兜底
@@ -55,7 +55,6 @@ public class KeepaliveNotifyMessageHandler extends SipRequestProcessorBase imple
         queue.offer(new KeepaliveTask(event, device));
     }
 
-    @Scheduled(fixedDelay = 100)
     public void drain() {
         if (queue.isEmpty()) return;
         List<KeepaliveTask> batch = new ArrayList<>(Math.min(queue.size(), 200));
