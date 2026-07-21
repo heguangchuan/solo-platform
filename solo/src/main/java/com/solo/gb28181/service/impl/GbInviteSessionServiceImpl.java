@@ -1,6 +1,7 @@
 package com.solo.gb28181.service.impl;
 
 import com.solo.common.ServiceException;
+import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.service.GbInviteSessionService;
 import lombok.RequiredArgsConstructor;
@@ -17,13 +18,13 @@ import java.util.Set;
 /**
  * 点播会话 Redis 实现
  *
- * <h3>Key 布局（前缀 {@code gb28181:invite:}）</h3>
+ * <h3>Key 布局（前缀 {@link GbRedisKeys#INVITE_PREFIX}）</h3>
  * <ul>
- *   <li>{@code s:<streamId>}              主体 JSON（业务唯一标识，单点写入）</li>
- *   <li>{@code c:<callId>}      = streamId    INVITE Dialog Call-Id 反查</li>
- *   <li>{@code y:<ssrc>}        = streamId    SSRC 反查（备用）</li>
- *   <li>{@code d:<deviceId>:<channelId>} = streamId  通道反查（幂等检测）</li>
- *   <li>{@code all}             Set&lt;streamId&gt;   全集，启动清扫 + SsrcFactory 预占用</li>
+ *   <li>{@link GbRedisKeys#INVITE_SESSION}{streamId}  主体 JSON（业务唯一标识，单点写入）</li>
+ *   <li>{@link GbRedisKeys#INVITE_BY_CALL}{callId}    = streamId    INVITE Dialog Call-Id 反查</li>
+ *   <li>{@link GbRedisKeys#INVITE_BY_SSRC}{ssrc}    = streamId    SSRC 反查（备用）</li>
+ *   <li>{@link GbRedisKeys#INVITE_BY_DEVICE_CHANNEL}{deviceId}:{channelId} = streamId  通道反查（幂等检测）</li>
+ *   <li>{@link GbRedisKeys#INVITE_ALL_ACTIVE}       Set&lt;streamId&gt;   全集，启动清扫 + SsrcFactory 预占用</li>
  * </ul>
  *
  * <h3>一致性策略</h3>
@@ -44,20 +45,12 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class GbInviteSessionServiceImpl implements GbInviteSessionService {
 
-    private static final String PREFIX = "gb28181:invite:";
-    private static final String K_SESSION = PREFIX + "s:";
-    private static final String K_CALL    = PREFIX + "c:";
-    private static final String K_SSRC    = PREFIX + "y:";
-    private static final String K_DEVCHAN = PREFIX + "d:";
-    private static final String K_ALL     = PREFIX + "all";
-
-    private final StringRedisTemplate redisTemplate;
-
-    /**
-     * Jackson 3.x（{@code tools.jackson} 系列）默认集成 JavaTime 支持，
+    /** Jackson 3.x（{@code tools.jackson} 系列）默认集成 JavaTime 支持，
      * LocalDateTime 直接走 ISO-8601 字符串，不需要单独引 jsr310 模块。
      */
     private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    private final StringRedisTemplate redisTemplate;
 
     @Override
     public void save(GbInviteSession s) {
@@ -66,13 +59,13 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         String json = toJson(s);
 
         // 主体 + 反查索引 + 全集 Set；一次最多 5 个 key 直接顺序调用，不上 pipeline
-        redisTemplate.opsForValue().set(K_SESSION + streamId, json);
-        if (s.getCallId() != null) redisTemplate.opsForValue().set(K_CALL + s.getCallId(), streamId);
-        if (s.getSsrc() != null)   redisTemplate.opsForValue().set(K_SSRC + s.getSsrc(), streamId);
+        redisTemplate.opsForValue().set(GbRedisKeys.INVITE_SESSION + streamId, json);
+        if (s.getCallId() != null) redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_CALL + s.getCallId(), streamId);
+        if (s.getSsrc() != null)   redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_SSRC + s.getSsrc(), streamId);
         if (s.getDeviceId() != null && s.getChannelId() != null) {
-            redisTemplate.opsForValue().set(K_DEVCHAN + s.getDeviceId() + ":" + s.getChannelId(), streamId);
+            redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId(), streamId);
         }
-        redisTemplate.opsForSet().add(K_ALL, streamId);
+        redisTemplate.opsForSet().add(GbRedisKeys.INVITE_ALL_ACTIVE, streamId);
     }
 
     @Override
@@ -80,7 +73,7 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         validateMainKeys(s);
         String streamId = s.getStreamId();
         // 当前业务里 update 仅覆盖主体字段；callId/ssrc 在 save 后不变，索引无需重写
-        redisTemplate.opsForValue().set(K_SESSION + streamId, toJson(s));
+        redisTemplate.opsForValue().set(GbRedisKeys.INVITE_SESSION + streamId, toJson(s));
     }
 
     @Override
@@ -89,13 +82,13 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         GbInviteSession s = getByStreamId(streamId);
         // 主体 + 全集 Set 是必删的；callId/ssrc/dev:chan 索引仅在主体存在时才有依据可删。
         // 一次 5 个 key，直接顺序调用即可；不必上 pipeline 走 SessionCallback 泛型那套。
-        redisTemplate.delete(K_SESSION + streamId);
-        redisTemplate.opsForSet().remove(K_ALL, streamId);
+        redisTemplate.delete(GbRedisKeys.INVITE_SESSION + streamId);
+        redisTemplate.opsForSet().remove(GbRedisKeys.INVITE_ALL_ACTIVE, streamId);
         if (s != null) {
-            if (s.getCallId() != null) redisTemplate.delete(K_CALL + s.getCallId());
-            if (s.getSsrc() != null)   redisTemplate.delete(K_SSRC + s.getSsrc());
+            if (s.getCallId() != null) redisTemplate.delete(GbRedisKeys.INVITE_BY_CALL + s.getCallId());
+            if (s.getSsrc() != null)   redisTemplate.delete(GbRedisKeys.INVITE_BY_SSRC + s.getSsrc());
             if (s.getDeviceId() != null && s.getChannelId() != null) {
-                redisTemplate.delete(K_DEVCHAN + s.getDeviceId() + ":" + s.getChannelId());
+                redisTemplate.delete(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId());
             }
         }
     }
@@ -103,29 +96,29 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
     @Override
     public GbInviteSession getByStreamId(String streamId) {
         if (streamId == null || streamId.isBlank()) return null;
-        String json = redisTemplate.opsForValue().get(K_SESSION + streamId);
+        String json = redisTemplate.opsForValue().get(GbRedisKeys.INVITE_SESSION + streamId);
         return json == null ? null : fromJson(json);
     }
 
     @Override
     public GbInviteSession getByCallId(String callId) {
-        return resolveByIndex(K_CALL + callId);
+        return resolveByIndex(GbRedisKeys.INVITE_BY_CALL + callId);
     }
 
     @Override
     public GbInviteSession getBySsrc(String ssrc) {
-        return resolveByIndex(K_SSRC + ssrc);
+        return resolveByIndex(GbRedisKeys.INVITE_BY_SSRC + ssrc);
     }
 
     @Override
     public List<GbInviteSession> listActiveByDeviceAndChannel(String deviceId, String channelId) {
         if (deviceId == null || channelId == null) return Collections.emptyList();
-        String streamId = redisTemplate.opsForValue().get(K_DEVCHAN + deviceId + ":" + channelId);
+        String streamId = redisTemplate.opsForValue().get(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + deviceId + ":" + channelId);
         if (streamId == null) return Collections.emptyList();
         GbInviteSession s = getByStreamId(streamId);
         if (s == null) {
             // 索引脏（主体被删而索引漏删，理论极少见）
-            redisTemplate.delete(K_DEVCHAN + deviceId + ":" + channelId);
+            redisTemplate.delete(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + deviceId + ":" + channelId);
             return Collections.emptyList();
         }
         return List.of(s);
@@ -133,7 +126,7 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
 
     @Override
     public List<GbInviteSession> listAllActive() {
-        Set<String> streamIds = redisTemplate.opsForSet().members(K_ALL);
+        Set<String> streamIds = redisTemplate.opsForSet().members(GbRedisKeys.INVITE_ALL_ACTIVE);
         if (streamIds == null || streamIds.isEmpty()) return Collections.emptyList();
         List<GbInviteSession> out = new ArrayList<>(streamIds.size());
         for (String id : streamIds) {
@@ -142,7 +135,7 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
                 out.add(s);
             } else {
                 // 全集里的 id 主体不存在，顺手清扫
-                redisTemplate.opsForSet().remove(K_ALL, id);
+                redisTemplate.opsForSet().remove(GbRedisKeys.INVITE_ALL_ACTIVE, id);
             }
         }
         return out;

@@ -1,6 +1,7 @@
 package com.solo.gb28181.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.event.DeviceOfflineEvent;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
@@ -27,9 +28,6 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DeviceOfflineDetector {
 
-    /** 与 GbDeviceServiceImpl.ONLINE_KEY_PREFIX 保持一致 */
-    private static final String ONLINE_KEY_PREFIX = "gb28181:device:online:";
-
     private final GbDeviceService deviceService;
     private final StringRedisTemplate redisTemplate;
     private final CatalogDataCache catalogDataCache;
@@ -46,7 +44,7 @@ public class DeviceOfflineDetector {
 
         int offlineCount = 0;
         for (GbDevice device : onlines) {
-            Boolean exist = redisTemplate.hasKey(ONLINE_KEY_PREFIX + device.getDeviceId());
+            Boolean exist = redisTemplate.hasKey(GbRedisKeys.DEVICE_ONLINE_PREFIX + device.getDeviceId());
             if (Boolean.TRUE.equals(exist)) continue;
 
             deviceService.offline(device.getDeviceId(), "心跳超时");
