@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.mapper.GbDeviceMapper;
@@ -20,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * 国标设备服务实现
- * <p>在线状态双写：MySQL {@code status} 字段 + Redis {@code gb28181:device:online:{id}} TTL</p>
+ * <p>在线状态双写：MySQL {@code status} 字段 + Redis {@link GbRedisKeys#DEVICE_ONLINE_PREFIX}{deviceId} TTL</p>
  * <p>TTL = max(register_expires, keepalive_default × multiplier)</p>
  */
 @Slf4j
@@ -28,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> implements GbDeviceService {
 
-    private static final String ONLINE_KEY_PREFIX = "gb28181:device:online:";
     /** 国标默认 Keepalive 周期（秒） */
     private static final long DEFAULT_KEEPALIVE_INTERVAL = 60L;
 
@@ -123,7 +123,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             device.setStatus(0);
             updateById(device);
         }
-        redisTemplate.delete(ONLINE_KEY_PREFIX + deviceId);
+        redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId);
         log.info("[设备离线] {} reason={}", deviceId, reason);
     }
 
@@ -139,6 +139,6 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
     private void refreshOnlineKey(String deviceId) {
         long ttl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
-        redisTemplate.opsForValue().set(ONLINE_KEY_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
     }
 }
