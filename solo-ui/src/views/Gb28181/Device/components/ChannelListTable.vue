@@ -248,7 +248,7 @@ defineExpose({ fetchData })
         <el-button v-permission="'gb28181:device-channel:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 360px)">
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 200px)">
         <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="通道名称" show-overflow-tooltip />
         <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />

@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
+import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
 
 import java.util.List;
 
@@ -42,4 +43,10 @@ public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
      * 删除某个设备的所有通道（设备被删除时联动）
      */
     void deleteByDeviceDbId(Long deviceDbId);
+
+    /**
+     * 获取设备通道树（用于监控墙左侧树形选择）
+     * 按 设备 -> 通道 层级组装
+     */
+    List<GbDeviceChannelTreeNodeResponse> getDeviceChannelTree();
 }

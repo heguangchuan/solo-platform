@@ -200,3 +200,15 @@ export interface PlaybackResultVO extends PlayResultVO {
   endEpochSec?: number
   durationSec?: number
 }
+
+/** 设备通道树节点 */
+export interface GbDeviceChannelTreeNode {
+  id: string
+  label: string
+  children?: GbDeviceChannelTreeNode[]
+  deviceId?: string
+  channelId?: string
+  isDevice: boolean
+  status?: number
+  channelStatus?: string
+}
