@@ -8,6 +8,7 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
+import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -75,5 +76,12 @@ public class GbDeviceChannelController {
     public Result<Void> delete(@PathVariable Long id) {
         channelService.deleteById(id);
         return Result.success();
+    }
+
+    /** 获取设备通道树（按设备 → 通道层级组装） */
+    @GetMapping("/tree")
+    @RequirePermission({"gb28181:device-channel:list"})
+    public Result<List<GbDeviceChannelTreeNodeResponse>> tree() {
+        return Result.success(channelService.getDeviceChannelTree());
     }
 }

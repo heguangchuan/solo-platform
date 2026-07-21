@@ -11,6 +11,7 @@ import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
+import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,11 +19,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -191,5 +188,64 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Transactional
     public void deleteByDeviceDbId(Long deviceDbId) {
         lambdaUpdate().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).remove();
+    }
+
+    @Override
+    public List<GbDeviceChannelTreeNodeResponse> getDeviceChannelTree() {
+        // 查询所有设备（包括离线）
+        List<GbDevice> devices = deviceMapper.selectList(
+                new LambdaQueryWrapper<GbDevice>()
+                        .orderByAsc(GbDevice::getName)
+        );
+
+        if (devices.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 查询所有在线设备下的通道
+        List<String> deviceIds = devices.stream()
+                .map(GbDevice::getDeviceId)
+                .collect(Collectors.toList());
+        List<GbDeviceChannel> channels = this.lambdaQuery()
+                .in(GbDeviceChannel::getDeviceId, deviceIds)
+                .orderByAsc(GbDeviceChannel::getChannelId)
+                .list();
+
+        // 按 deviceId 分组通道
+        Map<String, List<GbDeviceChannel>> channelsByDeviceId = channels.stream()
+                .collect(Collectors.groupingBy(GbDeviceChannel::getDeviceId));
+
+        // 组装树：每个设备作为父节点，通道作为子节点
+        List<GbDeviceChannelTreeNodeResponse> result = new ArrayList<>();
+        for (GbDevice device : devices) {
+            GbDeviceChannelTreeNodeResponse deviceNode = new GbDeviceChannelTreeNodeResponse();
+            deviceNode.setId("device_" + device.getId());
+            deviceNode.setLabel(device.getName() + " (" + device.getDeviceId() + ")");
+            deviceNode.setDeviceId(device.getDeviceId());
+            deviceNode.setIsDevice(true);
+            deviceNode.setStatus(device.getStatus());
+
+            // 获取该设备下的通道
+            List<GbDeviceChannel> deviceChannels = channelsByDeviceId.getOrDefault(device.getDeviceId(), new ArrayList<>());
+            if (!deviceChannels.isEmpty()) {
+                List<GbDeviceChannelTreeNodeResponse> children = deviceChannels.stream()
+                        .map(ch -> {
+                            GbDeviceChannelTreeNodeResponse channelNode = new GbDeviceChannelTreeNodeResponse();
+                            channelNode.setId(device.getId() + "_" + ch.getId());
+                            channelNode.setLabel(ch.getName() + " (" + ch.getChannelId() + ")");
+                            channelNode.setDeviceId(device.getDeviceId());
+                            channelNode.setChannelId(ch.getChannelId());
+                            channelNode.setIsDevice(false);
+                            channelNode.setChannelStatus(ch.getStatus());
+                            return channelNode;
+                        })
+                        .collect(Collectors.toList());
+                deviceNode.setChildren(children);
+            }
+
+            result.add(deviceNode);
+        }
+
+        return result;
     }
 }

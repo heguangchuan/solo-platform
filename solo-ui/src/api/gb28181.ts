@@ -4,6 +4,7 @@ import type {
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
+  GbDeviceChannelTreeNode,
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
@@ -164,4 +165,11 @@ export function playbackStopApi(data: PlaybackStopRequest) {
  */
 export function playbackControlApi(data: PlaybackControlRequest) {
   return post<void>('/api/gb28181/playback/control', data)
+}
+
+/**
+ * 获取设备通道树（用于监控墙左侧树形选择）
+ */
+export function getDeviceChannelTreeApi() {
+  return get<GbDeviceChannelTreeNode[]>('/api/gb28181/device-channel/tree')
 }
