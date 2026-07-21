@@ -57,6 +57,7 @@ import java.util.concurrent.TimeoutException;
  * 4. 摘除 pending future</p>
  *
  * <p>大量公共清扫 / 节点选择 / 字段反查代码抽到 {@link GbInviteSupport}，与回放共用。</p>
+ * <p>autoApplyPlay 异步起点播功能，由专属业务线程池执行不阻塞 ZLM hook 回调。</p>
  */
 @Slf4j
 @Service
@@ -77,6 +78,7 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final MediaUrlBuilder urlBuilder;
     private final GbInviteSupport support;
     private final GbDeviceChannelService channelService;
+    private final java.util.concurrent.ThreadPoolExecutor gb28181BizExecutor;
 
     /** 等待 on_stream_changed 的 future，key=streamId */
     private final Map<String, CompletableFuture<PlayResultResponse>> pending = new ConcurrentHashMap<>();
@@ -456,5 +458,23 @@ public class GbPlayServiceImpl implements GbPlayService {
         vo.setHlsUrl(session.getHlsUrl());
         vo.setRtcUrl(session.getRtcUrl());
         return vo;
+    }
+
+    @Override
+    public void autoStartPlay(String deviceId, String channelId, String serverId) {
+        // autoApplyPlay 异步起点播，不阻塞 ZLM hook 回调
+        gb28181BizExecutor.execute(() -> {
+            try {
+                PlayStartRequest req = new PlayStartRequest();
+                req.setDeviceId(deviceId);
+                req.setChannelId(channelId);
+                // 使用默认传输，由 GB 设备决定
+                req.setTransport(null);
+                this.start(req);
+                log.info("[按需拉流] autoApplyPlay 自动发起点播 device={} channel={}", deviceId, channelId);
+            } catch (Exception e) {
+                log.error("[按需拉流] autoApplyPlay 失败 device={} channel={}", deviceId, channelId, e);
+            }
+        });
     }
 }

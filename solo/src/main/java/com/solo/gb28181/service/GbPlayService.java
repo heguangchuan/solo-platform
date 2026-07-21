@@ -68,4 +68,13 @@ public interface GbPlayService {
      * 收到设备主动 BYE：清扫，不再发本端 BYE
      */
     void onDeviceBye(GbInviteSession session);
+
+    /**
+     * 自动起点播（供 autoApplyPlay 按需拉流调用，异步执行）
+     * @param deviceId   设备国标ID
+     * @param channelId  通道国标ID
+     * @param serverId   媒体服务器ID
+     */
+    void autoStartPlay(String deviceId, String channelId, String serverId);
 }
+
