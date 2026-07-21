@@ -15,6 +15,7 @@ import {
   updateGbDeviceApi,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
+import ChannelListDialog from './components/ChannelListDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 const router = useRouter()
@@ -134,10 +135,11 @@ async function handleSync(row: GbDevice) {
 }
 
 function handleViewChannels(row: GbDevice) {
-  router.push({ path: '/gb28181/device-channel', query: { deviceId: row.deviceId } })
+  channelListDialogRef.value?.open(row.deviceId!)
 }
 
 const detailDialogRef = ref<InstanceType<typeof DeviceDetailDialog> | null>(null)
+const channelListDialogRef = ref<InstanceType<typeof ChannelListDialog> | null>(null)
 
 function handleDetail(row: GbDevice) {
   detailDialogRef.value?.open(row)
@@ -171,14 +173,14 @@ onMounted(() => {
         <el-form-item label="设备名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable />
         </el-form-item>
-        <el-form-item label="状态">
+        <el-form-item label="设备状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
             <el-option label="在线" :value="1" />
             <el-option label="离线" :value="0" />
             <el-option label="未注册" :value="2" />
           </el-select>
         </el-form-item>
-        <el-form-item label="来源">
+        <el-form-item label="数据来源">
           <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 120px">
             <el-option label="系统新增" :value="1" />
             <el-option label="表格导入" :value="2" />
@@ -199,21 +201,23 @@ onMounted(() => {
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
-        <el-table-column prop="deviceId" label="设备编码" />
-        <el-table-column prop="name" label="名称" show-overflow-tooltip />
-        <el-table-column label="状态" align="center" width="110">
+        <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
+        <el-table-column prop="name" label="设备名称" show-overflow-tooltip />
+        <el-table-column label="设备状态" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== 2" :active="row.status === 1" />
             <el-tag v-else type="info" size="small">未注册</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="数据来源" align="center" width="100">
+        <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
-        <el-table-column prop="hostAddress" label="网络地址" />
-        <el-table-column prop="channelCount" label="通道数" align="center" />
-        <el-table-column prop="keepaliveTime" label="最近心跳" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column prop="hostAddress" label="网络地址" show-overflow-tooltip />
+        <el-table-column prop="channelCount" label="通道数量" align="center" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <el-button
               v-permission="'gb28181:device:list'"
@@ -227,25 +231,18 @@ onMounted(() => {
               link
               @click="handleEdit(row)"
             >编辑</el-button>
-            <el-button
-              v-permission="'gb28181:device-channel:list'"
-              type="primary"
-              link
-              @click="handleViewChannels(row)"
-            >通道</el-button>
-            <el-button
-              v-permission="'gb28181:device:sync'"
-              type="primary"
-              link
-              :disabled="row.status !== 1"
-              @click="handleSync(row)"
-            >同步</el-button>
-            <el-button
-              v-permission="'gb28181:device:delete'"
-              type="primary"
-              link
-              @click="handleDelete(row)"
-            >删除</el-button>
+            <el-dropdown @command="(cmd) => { if (cmd === 'channels') handleViewChannels(row); if (cmd === 'sync') handleSync(row); if (cmd === 'delete') handleDelete(row); }">
+              <el-button type="primary" link>
+                更多 <i class="el-icon-arrow-down el-icon--right"></i>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="channels">通道</el-dropdown-item>
+                  <el-dropdown-item command="sync" :disabled="row.status !== 1">同步</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -286,7 +283,7 @@ onMounted(() => {
         <el-form-item label="固件版本">
           <el-input v-model="form.firmware" placeholder="固件版本" />
         </el-form-item>
-        <el-form-item label="信令域">
+        <el-form-item label="信令域名">
           <el-input v-model="form.sipDomain" placeholder="设备 SIP 域" />
         </el-form-item>
         <el-form-item label="传输协议">
@@ -295,13 +292,13 @@ onMounted(() => {
             <el-option label="TCP" value="TCP" />
           </el-select>
         </el-form-item>
-        <el-form-item label="字符集">
+        <el-form-item label="字符编码">
           <el-select v-model="form.charset" style="width: 160px">
             <el-option label="GB2312" value="GB2312" />
             <el-option label="UTF-8" value="UTF-8" />
           </el-select>
         </el-form-item>
-        <el-form-item label="注册有效期">
+        <el-form-item label="注册期限">
           <el-input-number v-model="form.expires" :min="0" :max="86400" />
           <span style="margin-left: 8px">秒</span>
         </el-form-item>
@@ -313,6 +310,7 @@ onMounted(() => {
     </el-dialog>
 
     <DeviceDetailDialog ref="detailDialogRef" />
+    <ChannelListDialog ref="channelListDialogRef" />
   </div>
 </template>
 
