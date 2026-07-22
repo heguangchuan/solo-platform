@@ -5,7 +5,7 @@ export default { name: 'Gb28181Device' }
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Upload } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Upload, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
 import type { GbDevice, GbDevicePageRequest } from '@/types/api'
 import {
   getGbDevicePageApi,
@@ -213,44 +213,59 @@ onMounted(() => {
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
         <el-table-column prop="hostAddress" label="网络地址" show-overflow-tooltip />
-        <el-table-column prop="channelCount" label="通道数量" align="center" show-overflow-tooltip>
+        <el-table-column prop="channelCount" label="通道数量" align="center" width="100" show-overflow-tooltip>
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
         <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
-        <el-table-column label="操作" width="270" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <div class="flex items-center gap-0">
-              <el-button
-                v-permission="'gb28181:device:list'"
-                type="primary"
-                link
-                @click="handleDetail(row)"
-              >详情</el-button>
-              <el-button
-                v-permission="'gb28181:device:edit'"
-                type="primary"
-                link
-                @click="handleEdit(row)"
-              >编辑</el-button>
-              <el-button
-                v-permission="'gb28181:device-channel:list'"
-                type="primary"
-                link
-                @click="handleViewChannels(row)"
-              >通道</el-button>
-              <el-button
-                v-permission="'gb28181:device:sync'"
-                type="primary"
-                link
-                :disabled="row.status !== 1"
-                @click="handleSync(row)"
-              >同步</el-button>
-              <el-button
-                v-permission="'gb28181:device:delete'"
-                type="primary"
-                link
-                @click="handleDelete(row)"
-              >删除</el-button>
+            <div>
+              <el-tooltip content="详情">
+                <el-button
+                  v-permission="'gb28181:device:list'"
+                  type="primary"
+                  link
+                  :icon="View"
+                  @click="handleDetail(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'gb28181:device:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="通道">
+                <el-button
+                  v-permission="'gb28181:device-channel:list'"
+                  type="primary"
+                  link
+                  :icon="VideoCamera"
+                  @click="handleViewChannels(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="同步">
+                <el-button
+                  v-permission="'gb28181:device:sync'"
+                  type="primary"
+                  link
+                  :icon="Refresh"
+                  :disabled="row.status !== 1"
+                  @click="handleSync(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'gb28181:device:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
@@ -268,7 +283,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false" top="10vh">
       <el-alert
         title="状态由设备注册流程自动维护，手动录入的设备默认为“未注册”"
         type="info"
@@ -296,20 +311,21 @@ onMounted(() => {
           <el-input v-model="form.sipDomain" placeholder="设备 SIP 域" />
         </el-form-item>
         <el-form-item label="传输协议">
-          <el-select v-model="form.transport" style="width: 160px">
+          <el-select v-model="form.transport" style="width: 100%">
             <el-option label="UDP" value="UDP" />
             <el-option label="TCP" value="TCP" />
           </el-select>
         </el-form-item>
         <el-form-item label="字符编码">
-          <el-select v-model="form.charset" style="width: 160px">
+          <el-select v-model="form.charset" style="width: 100%">
             <el-option label="GB2312" value="GB2312" />
             <el-option label="UTF-8" value="UTF-8" />
           </el-select>
         </el-form-item>
         <el-form-item label="注册期限">
-          <el-input-number v-model="form.expires" :min="0" :max="86400" />
-          <span style="margin-left: 8px">秒</span>
+          <el-input v-model.number="form.expires" placeholder="注册期限（秒）" style="width: 100%">
+            <template #append>秒</template>
+          </el-input>
         </el-form-item>
       </el-form>
       <template #footer>

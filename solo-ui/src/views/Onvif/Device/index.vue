@@ -254,7 +254,7 @@ onMounted(fetchData)
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false" top="10vh">
       <el-alert
         title="保存后会立即向设备发起一次探测，回填厂商、型号、固件、RTSP 流地址等信息"
         type="info"
@@ -285,13 +285,13 @@ onMounted(fetchData)
           <el-input v-model="form.password" type="password" autocomplete="new-password" show-password />
         </el-form-item>
         <el-form-item label="传输协议">
-          <el-select v-model="form.transport">
+          <el-select v-model="form.transport" style="width: 100%">
             <el-option label="TCP" value="TCP" />
             <el-option label="UDP" value="UDP" />
           </el-select>
         </el-form-item>
         <el-form-item label="码流类型">
-          <el-select v-model="form.streamType">
+          <el-select v-model="form.streamType" style="width: 100%">
             <el-option label="主码流" :value="0" />
             <el-option label="子码流" :value="1" />
           </el-select>
