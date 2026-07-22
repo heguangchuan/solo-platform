@@ -4,7 +4,7 @@ export default { name: 'SystemUser' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Upload, Download, Close, Check } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, Key, Lock, Unlock, Upload, Download, Close, Check } from '@element-plus/icons-vue'
 import type { SysUser, SysRole, UserRequest, UserPageRequest } from '@/types/api'
 import {
   getUserPageApi,
@@ -266,7 +266,7 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'system:user:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'system:user:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:user:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">删除</el-button>
         <el-button type="primary" :icon="Upload">导入</el-button>
         <el-button v-permission="'system:user:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
@@ -285,19 +285,46 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'system:user:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:user:r2u'" type="primary" link @click="handleAssignRoles(row)">授权</el-button>
-            <el-button
-              v-permission="'system:user:switch'"
-              type="primary"
-              link
-              @click="handleToggleStatus(row)"
-            >
-              {{ row.status === 1 ? '禁用' : '启用' }}
-            </el-button>
-            <el-button v-permission="'system:user:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
+            <div>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'system:user:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="授权">
+                <el-button
+                  v-permission="'system:user:r2u'"
+                  type="primary"
+                  link
+                  :icon="Key"
+                  @click="handleAssignRoles(row)"
+                />
+              </el-tooltip>
+              <el-tooltip :content="row.status === 1 ? '禁用' : '启用'">
+                <el-button
+                  v-permission="'system:user:switch'"
+                  type="primary"
+                  link
+                  :icon="row.status === 1 ? Lock : Unlock"
+                  @click="handleToggleStatus(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'system:user:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

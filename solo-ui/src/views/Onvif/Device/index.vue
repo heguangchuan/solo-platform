@@ -4,7 +4,7 @@ export default { name: 'OnvifDevice' }
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Search } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search, Edit, Delete, Monitor } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { OnvifDevice, OnvifDevicePageRequest } from '@/types/api'
 import {
@@ -216,27 +216,36 @@ onMounted(fetchData)
         <el-table-column prop="lastCheckTime" label="最近探测" width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.lastCheckTime || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <div class="flex items-center gap-0">
-              <el-button
-                v-permission="'onvif:device:probe'"
-                type="primary"
-                link
-                @click="handleProbe(row)"
-              >探测</el-button>
-              <el-button
-                v-permission="'onvif:device:edit'"
-                type="primary"
-                link
-                @click="handleEdit(row)"
-              >编辑</el-button>
-              <el-button
-                v-permission="'onvif:device:delete'"
-                type="danger"
-                link
-                @click="handleDelete(row)"
-              >删除</el-button>
+            <div>
+              <el-tooltip content="探测">
+                <el-button
+                  v-permission="'onvif:device:probe'"
+                  type="primary"
+                  link
+                  :icon="Monitor"
+                  @click="handleProbe(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'onvif:device:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'onvif:device:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>

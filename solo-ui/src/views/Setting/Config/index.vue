@@ -4,7 +4,7 @@ export default { name: 'SettingConfig' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Download, Close, Check } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, Download, Close, Check } from '@element-plus/icons-vue'
 import type { SysConfig, ConfigRequest, ConfigPageRequest } from '@/types/api'
 import {
   getConfigPageApi,
@@ -182,7 +182,7 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'setting:config:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'setting:config:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'setting:config:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">删除</el-button>
         <el-button v-permission="'setting:config:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
@@ -193,17 +193,28 @@ onMounted(() => {
         <el-table-column prop="configValue" label="参数取值" min-width="200" show-overflow-tooltip />
         <el-table-column prop="remark" label="参数备注" min-width="180" show-overflow-tooltip />
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'setting:config:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button
-              v-permission="'setting:config:delete'"
-              type="danger"
-              link
-              @click="handleDelete(row)"
-            >
-              删除
-            </el-button>
+            <div>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'setting:config:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'setting:config:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

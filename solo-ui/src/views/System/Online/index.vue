@@ -4,7 +4,7 @@ export default { name: 'SystemOnline' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, Logout } from '@element-plus/icons-vue'
 import type { OnlineUser } from '@/types/api'
 import { getOnlineListApi, kickOnlineApi } from '@/api/online'
 import { useUserStore } from '@/stores/user'
@@ -128,17 +128,18 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="loginTime" label="登录时间" min-width="170" />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column label="操作" width="80" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'system:online:kick'"
-              type="primary"
-              link
-              :disabled="row.username === userStore.user?.username"
-              @click="handleKick(row)"
-            >
-              强踢
-            </el-button>
+            <el-tooltip content="强制下线">
+              <el-button
+                v-permission="'system:online:kick'"
+                type="danger"
+                link
+                :icon="Logout"
+                :disabled="row.username === userStore.user?.username"
+                @click="handleKick(row)"
+              />
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>

@@ -4,7 +4,7 @@ export default { name: 'SystemLog' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Delete, Download, Close } from '@element-plus/icons-vue'
+import { Search, Refresh, View, Delete, Download, Close } from '@element-plus/icons-vue'
 import type { SysLog, LogPageRequest } from '@/types/api'
 import {
   getLogPageApi,
@@ -191,7 +191,7 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:log:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:log:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">删除</el-button>
         <el-button v-permission="'system:log:export'" type="primary" :icon="Download" @click="handleExport">导出</el-button>
       </div>
 
@@ -221,10 +221,27 @@ onMounted(() => {
         <el-table-column prop="clientSource" label="客户来源" width="90" align="center" />
         <el-table-column prop="clientIp" label="客户地址" min-width="140" />
         <el-table-column prop="createTime" label="操作时间" min-width="170" />
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleViewDetail(row)">详情</el-button>
-            <el-button v-permission="'system:log:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
+            <div>
+              <el-tooltip content="详情">
+                <el-button
+                  type="primary"
+                  link
+                  :icon="View"
+                  @click="handleViewDetail(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'system:log:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
