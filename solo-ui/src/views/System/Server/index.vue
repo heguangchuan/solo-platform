@@ -4,7 +4,7 @@ export default { name: 'SystemServer' }
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Close, Check, SwitchButton } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, Monitor, Close, Check, SwitchButton } from '@element-plus/icons-vue'
 import type { SysServer, ServerRequest, ServerPageRequest } from '@/types/api'
 import XTerminal from '@/components/XTerminal.vue'
 import ServerFileTree from '@/components/ServerFileTree.vue'
@@ -305,7 +305,7 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'server:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
-        <el-button v-permission="'server:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'server:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">删除</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe @selection-change="handleSelectionChange" max-height="calc(100vh - 400px)">
@@ -327,11 +327,38 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="更新时间" min-width="180" />
-        <el-table-column label="操作" width="210" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'server:terminal'" type="primary" link @click="handleOpenTerminal(row)">终端</el-button>
-            <el-button v-permission="'server:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'server:delete'" type="danger" link @click="handleDelete(row)">删除</el-button>
+            <div>
+              <el-tooltip content="终端">
+                <el-button
+                  v-permission="'server:terminal'"
+                  type="primary"
+                  link
+                  :icon="Monitor"
+                  :disabled="row.status !== 1"
+                  @click="handleOpenTerminal(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'server:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'server:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

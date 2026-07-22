@@ -4,7 +4,7 @@ export default { name: 'SettingDict' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Close, Check } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, List } from '@element-plus/icons-vue'
 import type {
   SysDictType,
   DictTypeRequest,
@@ -345,7 +345,7 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'setting:dict:type:add'" type="primary" :icon="Plus" @click="handleAddType">新增</el-button>
-        <el-button v-permission="'setting:dict:type:delete'" type="primary" :icon="Delete" @click="handleBatchDeleteType">删除</el-button>
+        <el-button v-permission="'setting:dict:type:delete'" type="danger" :icon="Delete" @click="handleBatchDeleteType">删除</el-button>
       </div>
 
       <el-table
@@ -366,32 +366,37 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'setting:dict:data:list'"
-              type="primary"
-              link
-              @click="handleOpenData(row)"
-            >
-              字典数据
-            </el-button>
-            <el-button
-              v-permission="'setting:dict:type:edit'"
-              type="primary"
-              link
-              @click="handleEditType(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-permission="'setting:dict:type:delete'"
-              type="primary"
-              link
-              @click="handleDeleteType(row)"
-            >
-              删除
-            </el-button>
+            <div>
+              <el-tooltip content="字典数据">
+                <el-button
+                  v-permission="'setting:dict:data:list'"
+                  type="primary"
+                  link
+                  :icon="List"
+                  @click="handleOpenData(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'setting:dict:type:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEditType(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'setting:dict:type:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDeleteType(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -454,7 +459,7 @@ onMounted(() => {
 
       <div class="dialog-actions">
         <el-button v-permission="'setting:dict:data:add'" type="primary" :icon="Plus" @click="handleAddData">新增</el-button>
-        <el-button v-permission="'setting:dict:data:delete'" type="primary" :icon="Delete" @click="handleBatchDeleteData">
+        <el-button v-permission="'setting:dict:data:delete'" type="danger" :icon="Delete" @click="handleBatchDeleteData">
           删除
         </el-button>
       </div>
@@ -477,24 +482,28 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'setting:dict:data:edit'"
-              type="primary"
-              link
-              @click="handleEditData(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              v-permission="'setting:dict:data:delete'"
-              type="primary"
-              link
-              @click="handleDeleteData(row)"
-            >
-              删除
-            </el-button>
+            <div>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'setting:dict:data:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEditData(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'setting:dict:data:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDeleteData(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

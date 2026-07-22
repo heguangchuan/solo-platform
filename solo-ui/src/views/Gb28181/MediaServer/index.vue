@@ -4,7 +4,7 @@ export default { name: 'Gb28181MediaServer' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, View, Edit, Delete } from '@element-plus/icons-vue'
 import type { GbMediaServer, GbMediaServerPageRequest } from '@/types/api'
 import {
   getGbMediaServerPageApi,
@@ -170,24 +170,35 @@ onMounted(() => {
         <el-table-column prop="updateTime" label="更新时间" />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button
-              v-permission="'gb28181:media-server:list'"
-              type="primary"
-              link
-              @click="handleDetail(row)"
-            >详情</el-button>
-            <el-button
-              v-permission="'gb28181:media-server:save'"
-              type="primary"
-              link
-              @click="handleEdit(row)"
-            >编辑</el-button>
-            <el-button
-              v-permission="'gb28181:media-server:delete'"
-              type="danger"
-              link
-              @click="handleDelete(row)"
-            >删除</el-button>
+            <div>
+              <el-tooltip content="详情">
+                <el-button
+                  v-permission="'gb28181:media-server:list'"
+                  type="primary"
+                  link
+                  :icon="View"
+                  @click="handleDetail(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'gb28181:media-server:save'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'gb28181:media-server:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

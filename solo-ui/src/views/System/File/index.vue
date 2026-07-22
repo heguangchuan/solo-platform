@@ -4,7 +4,7 @@ export default { name: 'SystemFile' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Delete, Upload } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Delete, Link, Upload } from '@element-plus/icons-vue'
 import type { FilePageRequest, SysFile } from '@/types/api'
 import { deleteFileApi, deleteFileBatchApi, getFilePageApi } from '@/api/file'
 
@@ -159,12 +159,27 @@ onMounted(() => {
           <template #default="{ row }">{{ row.uploaderName || '—' }}</template>
         </el-table-column>
         <el-table-column prop="createTime" label="上传时间" />
-        <el-table-column label="操作" fixed="right">
+        <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link :icon="Upload" @click="handleCopyUrl(row)">复制链接</el-button>
-            <el-button v-permission="'system:file:delete'" type="danger" link :icon="Delete" @click="handleDelete(row)">
-              删除
-            </el-button>
+            <div>
+              <el-tooltip content="复制链接">
+                <el-button
+                  type="primary"
+                  link
+                  :icon="Link"
+                  @click="handleCopyUrl(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'system:file:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>

@@ -5,7 +5,7 @@ export default { name: 'SystemPermission' }
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-import { Plus, Delete, Close, Check } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Close, Check, ArrowDown } from '@element-plus/icons-vue'
 import type { SysPermission, PermissionRequest } from '@/types/api'
 import {
   getPermissionTreeApi,
@@ -237,7 +237,7 @@ onMounted(() => {
     <el-card shadow="hover">
       <div class="table-toolbar">
         <el-button v-permission="'system:permission:add'" type="primary" :icon="Plus" @click="handleAdd()">新增</el-button>
-        <el-button v-permission="'system:permission:delete'" type="primary" :icon="Delete" @click="handleBatchDelete">删除</el-button>
+        <el-button v-permission="'system:permission:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">删除</el-button>
         <el-button type="primary" @click="toggleExpandAll">
           <el-icon class="btn-icon"><component :is="allExpanded ? 'Fold' : 'Expand'" /></el-icon>
           {{ allExpanded ? '全部折叠' : '全部展开' }}
@@ -290,11 +290,37 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="160" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'system:permission:edit'" type="primary" link @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'system:permission:add'" type="primary" link @click="handleAdd(row.id)">新增</el-button>
-            <el-button v-permission="'system:permission:delete'" type="primary" link @click="handleDelete(row)">删除</el-button>
+            <div>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'system:permission:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="新增子权限">
+                <el-button
+                  v-permission="'system:permission:add'"
+                  type="primary"
+                  link
+                  :icon="Plus"
+                  @click="handleAdd(row.id)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'system:permission:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
+            </div>
           </template>
         </el-table-column>
       </el-table>
