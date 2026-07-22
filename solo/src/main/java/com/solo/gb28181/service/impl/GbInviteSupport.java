@@ -10,14 +10,13 @@ import com.solo.media.ssrc.SsrcFactory;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.media.service.MediaServerSelector;
 import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 /**
  * 点播/回放公共支撑：环境清扫、节点选择、字段反查、SSRC + ZLM 端口配套清理。
@@ -35,6 +34,7 @@ public class GbInviteSupport {
     private final GbDeviceService deviceService;
     private final GbDeviceChannelService channelService;
     private final MediaServerService mediaServerService;
+    private final MediaServerSelector mediaServerSelector;
     private final GbInviteSessionService inviteSessionService;
     private final SsrcFactory ssrcFactory;
     private final ZlmRestClient zlmRestClient;
@@ -60,17 +60,7 @@ public class GbInviteSupport {
     // ---- 节点选择 / 入参规整 ----
 
     public MediaServer pickMediaServer() {
-        List<MediaServer> all = mediaServerService.list();
-        for (MediaServer s : all) {
-            if (s.getStatus() != null && s.getStatus() == 1) {
-                return s;
-            }
-        }
-        if (!all.isEmpty()) {
-            log.warn("[流媒体] 无在线节点，使用首个登记节点 serverId={}", all.getFirst().getServerId());
-            return all.getFirst();
-        }
-        throw new ServiceException("无可用流媒体节点，请先在管理面登记 ZLM");
+        return mediaServerSelector.pick();
     }
 
     public String normalizeTransport(String t) {
