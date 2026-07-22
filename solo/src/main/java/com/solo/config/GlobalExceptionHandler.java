@@ -2,7 +2,7 @@ package com.solo.config;
 
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
-import com.solo.common.SystemConstants;
+import com.solo.system.constant.SystemConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;

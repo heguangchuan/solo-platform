@@ -1,11 +1,11 @@
 package com.solo.aop;
 
-import com.solo.common.BusinessType;
-import com.solo.entity.SysLog;
-import com.solo.request.LoginRequest;
-import com.solo.service.SysLogService;
-import com.solo.utils.UserHolderUtils;
-import com.solo.utils.WebUtils;
+import com.solo.common.enums.BusinessType;
+import com.solo.system.entity.SysLog;
+import com.solo.system.request.LoginRequest;
+import com.solo.system.service.SysLogService;
+import com.solo.common.utils.UserHolderUtils;
+import com.solo.common.utils.WebUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;

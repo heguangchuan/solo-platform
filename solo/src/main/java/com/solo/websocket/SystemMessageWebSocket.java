@@ -1,6 +1,6 @@
 package com.solo.websocket;
 
-import com.solo.utils.JwtUtils;
+import com.solo.common.utils.JwtUtils;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.websocket.*;
 import jakarta.websocket.server.ServerEndpoint;

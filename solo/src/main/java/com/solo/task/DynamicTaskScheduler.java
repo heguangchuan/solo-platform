@@ -1,11 +1,11 @@
 package com.solo.task;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.solo.common.SystemConstants;
-import com.solo.entity.SysTask;
-import com.solo.entity.SysTaskLog;
-import com.solo.service.SysTaskLogService;
-import com.solo.service.SysTaskService;
+import com.solo.system.constant.SystemConstants;
+import com.solo.system.entity.SysTask;
+import com.solo.system.entity.SysTaskLog;
+import com.solo.system.service.SysTaskLogService;
+import com.solo.system.service.SysTaskService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
