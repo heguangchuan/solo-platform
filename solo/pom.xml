@@ -205,11 +205,11 @@
             <version>${dom4j.version}</version>
         </dependency>
 
-        <!-- ONVIF 协议客户端封装（支持设备发现/配置/PTZ云台控制/媒体流获取等 WebService 接口调用）-->
+        <!-- jaxen：XPath 引擎，dom4j XPath 查询需要它 -->
         <dependency>
-            <groupId>com.solo</groupId>
-            <artifactId>onvif-ws-client</artifactId>
-            <version>1.0.1</version>
+            <groupId>jaxen</groupId>
+            <artifactId>jaxen</artifactId>
+            <version>1.2.0</version>
         </dependency>
     </dependencies>
 

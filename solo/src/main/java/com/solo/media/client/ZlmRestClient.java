@@ -25,13 +25,15 @@ import java.util.Map;
  * <p>所有调用都走 form-urlencoded body；响应统一 JSON：{@code {"code":0,...}}，
  * code != 0 抛 {@link ServiceException}。</p>
  *
- * <h3>覆盖的接口（S2.1/S2.2）</h3>
+ * <h3>覆盖的接口（S2.1/S2.2 + ONVIF）</h3>
  * <ul>
- *     <li>{@code openRtpServer}        — 申请 RTP 收流端口</li>
+ *     <li>{@code openRtpServer}        — 申请 RTP 收流端口（国标 INVITE）</li>
  *     <li>{@code closeRtpServer}       — 关闭 RTP 收流端口</li>
  *     <li>{@code updateRtpServerSSRC}  — 修改已开启 RTP 端口的 SSRC 过滤值（S2.2 SSRC 自适应）</li>
  *     <li>{@code getMediaList}         — 查询流是否还活着</li>
  *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
+ *     <li>{@code addStreamProxy}       — 让 ZLM 从 RTSP/RTMP 源拉流（ONVIF 点播）</li>
+ *     <li>{@code delStreamProxy}       — 移除拉流代理</li>
  * </ul>
  * <p>注：截图由 jessibuca 播放器自带，不在本类。</p>
  */
@@ -149,6 +151,63 @@ public class ZlmRestClient {
         }
     }
 
+    /**
+     * 让 ZLM 从一个 RTSP/RTMP 源拉流，产出 app/stream 名下的可分发流。
+     * <p>ONVIF 点播场景：源是 {@code rtsp://user:pwd@host:port/path}，ZLM 拉起后暴露 HTTP-FLV/HLS/WS-FLV/WebRTC。</p>
+     *
+     * @param server   节点
+     * @param app      app 名（ONVIF 约定 {@code rtsp}，与国标 GB 用的 {@code rtp} 区分）
+     * @param stream   stream 名（ONVIF 约定 {@code onvif_<deviceId>}）
+     * @param url      源 URL（含账密）
+     * @param rtpType  RTSP 传输：0=TCP+UDP 自适应，1=TCP，2=UDP，3=组播
+     * @param enableAudio 是否拉音频
+     * @param enableMp4   是否录制 MP4（跟随 media.record-push-live 全局开关时可关掉）
+     * @return ZLM 分配的代理 key（addStreamProxy.data.key），用于 delStreamProxy
+     */
+    public String addStreamProxy(MediaServer server, String app, String stream, String url,
+                                 int rtpType, boolean enableAudio, boolean enableMp4) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("url", url);
+        params.put("rtp_type", String.valueOf(rtpType));
+        params.put("enable_audio", enableAudio ? "1" : "0");
+        params.put("enable_mp4", enableMp4 ? "1" : "0");
+        JsonNode resp = post(server, "addStreamProxy", params);
+        String key = resp.path("data").path("key").asText(null);
+        if (key == null || key.isBlank()) {
+            throw new ServiceException("ZLM addStreamProxy 未返回 key: " + resp);
+        }
+        log.info("[流媒体] addStreamProxy ok server={} app={} stream={} rtpType={} key={}",
+                server.getServerId(), app, stream, rtpType, key);
+        return key;
+    }
+
+    /**
+     * 移除拉流代理
+     *
+     * @return true=命中并关闭；false=已经不存在
+     */
+    public boolean delStreamProxy(MediaServer server, String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("key", key);
+        try {
+            JsonNode resp = post(server, "delStreamProxy", params);
+            boolean flag = resp.path("data").path("flag").asBoolean(false);
+            log.info("[流媒体] delStreamProxy server={} key={} flag={}",
+                    server.getServerId(), key, flag);
+            return flag;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] delStreamProxy 失败（忽略） server={} key={} err={}",
+                    server.getServerId(), key, e.getMessage());
+            return false;
+        }
+    }
+
     // 注：截图功能由 jessibuca 播放器自带（操作栏内置 screenshot 按钮），不走后端 ZLM API。
 
     // ---------------- 底层 POST ----------------
@@ -190,7 +249,7 @@ public class ZlmRestClient {
     private static String urlEncodeForm(Map<String, String> params) {
         StringBuilder sb = new StringBuilder();
         for (Map.Entry<String, String> e : params.entrySet()) {
-            if (sb.length() > 0) {
+            if (!sb.isEmpty()) {
                 sb.append('&');
             }
             sb.append(URLEncoder.encode(e.getKey(), StandardCharsets.UTF_8))
