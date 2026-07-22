@@ -13,7 +13,7 @@ import {
   deleteGbDeviceChannelApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, View, Edit, VideoCamera, VideoPause, Delete } from '@element-plus/icons-vue'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
@@ -265,40 +265,55 @@ defineExpose({ fetchData })
         <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="270" fixed="right">
+        <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <div class="flex items-center gap-0">
-              <el-button
-                v-permission="'gb28181:device-channel:list'"
-                type="primary"
-                link
-                @click="handleDetail(row)"
-              >详情</el-button>
-              <el-button
-                v-permission="'gb28181:device-channel:edit'"
-                type="primary"
-                link
-                @click="handleEdit(row)"
-              >编辑</el-button>
-              <el-button
-                v-permission="'gb28181:play:start'"
-                :disabled="row.status !== 'ON'"
-                type="primary"
-                link
-                @click="handlePlay(row)"
-              >播放</el-button>
-              <el-button
-                v-permission="'gb28181:playback:start'"
-                type="primary"
-                link
-                @click="handlePlayback(row)"
-              >回放</el-button>
-              <el-button
-                v-permission="'gb28181:device-channel:delete'"
-                type="primary"
-                link
-                @click="handleDelete(row)"
-              >删除</el-button>
+            <div>
+              <el-tooltip content="详情">
+                <el-button
+                  v-permission="'gb28181:device-channel:list'"
+                  type="primary"
+                  link
+                  :icon="View"
+                  @click="handleDetail(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="编辑">
+                <el-button
+                  v-permission="'gb28181:device-channel:edit'"
+                  type="primary"
+                  link
+                  :icon="Edit"
+                  @click="handleEdit(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="播放">
+                <el-button
+                  v-permission="'gb28181:play:start'"
+                  :disabled="row.status !== 'ON'"
+                  type="primary"
+                  link
+                  :icon="VideoCamera"
+                  @click="handlePlay(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="回放">
+                <el-button
+                  v-permission="'gb28181:playback:start'"
+                  type="primary"
+                  link
+                  :icon="VideoPause"
+                  @click="handlePlayback(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="删除">
+                <el-button
+                  v-permission="'gb28181:device-channel:delete'"
+                  type="danger"
+                  link
+                  :icon="Delete"
+                  @click="handleDelete(row)"
+                />
+              </el-tooltip>
             </div>
           </template>
         </el-table-column>
@@ -316,7 +331,7 @@ defineExpose({ fetchData })
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" :close-on-click-modal="false" top="10vh" max-height="80vh">
       <el-alert
         title="状态由 Catalog 目录同步自动维护，手动录入的通道默认为“未注册”"
         type="info"
@@ -353,15 +368,15 @@ defineExpose({ fetchData })
           <el-input v-model="form.parentId" placeholder="虚拟目录父节点ID（可空）" />
         </el-form-item>
         <el-form-item label="云台类型">
-          <el-select v-model="form.ptzType" style="width: 160px">
+          <el-select v-model="form.ptzType" style="width: 100%">
             <el-option v-for="(label, val) in ptzTypeMap" :key="val" :label="label" :value="Number(val)" />
           </el-select>
         </el-form-item>
         <el-form-item label="经度坐标">
-          <el-input-number v-model="form.longitude" :precision="6" :step="0.000001" :controls="false" style="width: 200px" />
+          <el-input-number v-model="form.longitude" :precision="6" :step="0.000001" :controls="false" style="width: 100%" />
         </el-form-item>
         <el-form-item label="纬度坐标">
-          <el-input-number v-model="form.latitude" :precision="6" :step="0.000001" :controls="false" style="width: 200px" />
+          <el-input-number v-model="form.latitude" :precision="6" :step="0.000001" :controls="false" style="width: 100%" />
         </el-form-item>
       </el-form>
       <template #footer>
