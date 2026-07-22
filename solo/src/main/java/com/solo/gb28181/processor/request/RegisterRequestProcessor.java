@@ -130,7 +130,6 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         boolean firstTime = (exist == null);
         GbDevice device = exist != null ? exist : new GbDevice();
         device.setDeviceId(deviceId);
-        device.setSipDomain(properties.getDomain());
         device.setIp(remote.ip());
         device.setPort(remote.port());
         device.setHostAddress(remote.hostAddress());

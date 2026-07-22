@@ -22,7 +22,6 @@ CREATE TABLE gb_device
     manufacturer            varchar(100)          DEFAULT NULL COMMENT '厂商',
     model                   varchar(100)          DEFAULT NULL COMMENT '型号',
     firmware                varchar(50)           DEFAULT NULL COMMENT '固件版本',
-    sip_domain              varchar(50)           DEFAULT NULL COMMENT 'SIP域',
     ip                      varchar(64)           DEFAULT NULL COMMENT '最后注册来源IP',
     port                    int                   DEFAULT NULL COMMENT '最后注册来源端口',
     local_ip                varchar(64)           DEFAULT NULL COMMENT '本平台和该设备通信的本机IP',

@@ -90,7 +90,6 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         exist.setManufacturer(device.getManufacturer());
         exist.setModel(device.getModel());
         exist.setFirmware(device.getFirmware());
-        exist.setSipDomain(device.getSipDomain());
         exist.setCharset(device.getCharset());
         exist.setTransport(device.getTransport());
         exist.setExpires(device.getExpires());
