@@ -1,6 +1,6 @@
-package com.solo.gb28181.media;
+package com.solo.media;
 
-import com.solo.gb28181.entity.GbMediaServer;
+import com.solo.media.entity.MediaServer;
 import org.springframework.stereotype.Component;
 
 /**
@@ -20,19 +20,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class MediaUrlBuilder {
 
-    public String buildWsFlv(GbMediaServer server, String app, String stream) {
+    public String buildWsFlv(MediaServer server, String app, String stream) {
         return "ws://" + ip(server) + ":" + streamPort(server) + "/" + app + "/" + stream + ".live.flv";
     }
 
-    public String buildFlv(GbMediaServer server, String app, String stream) {
+    public String buildFlv(MediaServer server, String app, String stream) {
         return "http://" + ip(server) + ":" + streamPort(server) + "/" + app + "/" + stream + ".live.flv";
     }
 
-    public String buildHls(GbMediaServer server, String app, String stream) {
+    public String buildHls(MediaServer server, String app, String stream) {
         return "http://" + ip(server) + ":" + streamPort(server) + "/" + app + "/" + stream + "/hls.m3u8";
     }
 
-    public String buildRtc(GbMediaServer server, String app, String stream) {
+    public String buildRtc(MediaServer server, String app, String stream) {
         if (server.getRtcPort() == null || server.getRtcPort() <= 0) {
             return null;
         }
@@ -42,12 +42,12 @@ public class MediaUrlBuilder {
 
     // ---------------- helpers ----------------
 
-    private static String ip(GbMediaServer server) {
+    private static String ip(MediaServer server) {
         return server.getStreamIp() == null || server.getStreamIp().isBlank()
                 ? server.getHostIp() : server.getStreamIp();
     }
 
-    private static int streamPort(GbMediaServer server) {
+    private static int streamPort(MediaServer server) {
         return server.getStreamHttpPort() != null && server.getStreamHttpPort() > 0
                 ? server.getStreamHttpPort() : server.getHttpPort();
     }

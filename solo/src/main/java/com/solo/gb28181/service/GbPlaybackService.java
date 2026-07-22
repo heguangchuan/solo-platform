@@ -7,6 +7,7 @@ import com.solo.gb28181.request.PlaybackStopRequest;
 import com.solo.gb28181.request.RecordInfoQueryRequest;
 import com.solo.gb28181.response.PlaybackResultResponse;
 import com.solo.gb28181.response.RecordItemResponse;
+import com.solo.media.hook.ZlmHookService;
 
 import java.util.List;
 
@@ -68,7 +69,7 @@ public interface GbPlaybackService {
      *   <li>实时点播流（sessionType=PLAY）→ {@link GbPlayService#onStreamReady}</li>
      *   <li>历史回放流（sessionType=PLAYBACK）→ 本方法</li>
      * </ul>
-     * 路由判断在 {@link com.solo.gb28181.media.hook.ZlmHookService} 里按 streamId 反查 session 的 sessionType。
+     * 路由判断在 {@link ZlmHookService} 里按 streamId 反查 session 的 sessionType。
      */
     void onStreamReady(String app, String stream, String mediaServerId);
 

@@ -1,8 +1,8 @@
-package com.solo.gb28181.media;
+package com.solo.media;
 
-import com.solo.gb28181.config.MediaProperties;
-import com.solo.gb28181.entity.GbMediaServer;
-import com.solo.gb28181.service.GbMediaServerService;
+import com.solo.media.properties.MediaProperties;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.service.MediaServerService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 public class MediaServerBootstrap {
 
     private final MediaProperties mediaProperties;
-    private final GbMediaServerService mediaServerService;
+    private final MediaServerService mediaServerService;
 
     @PostConstruct
     void init() {
@@ -32,7 +32,7 @@ public class MediaServerBootstrap {
             log.warn("[流媒体] default-server.server-id 为空，跳过默认节点自举");
             return;
         }
-        GbMediaServer exist = mediaServerService.lambdaQuery().eq(GbMediaServer::getServerId, cfg.getServerId()).one();
+        MediaServer exist = mediaServerService.lambdaQuery().eq(MediaServer::getServerId, cfg.getServerId()).one();
         if (exist != null) {
             // 已存在则以配置为准整体更新，保留 id / status / hookAliveTime 等运行期状态
             applyConfig(exist, cfg);
@@ -41,7 +41,7 @@ public class MediaServerBootstrap {
                     cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
             return;
         }
-        GbMediaServer server = new GbMediaServer();
+        MediaServer server = new MediaServer();
         applyConfig(server, cfg);
         server.setStatus(0);
         mediaServerService.save(server);
@@ -52,7 +52,7 @@ public class MediaServerBootstrap {
     /**
      * 将配置中的默认节点字段应用到实体上（不含 id / status / hookAliveTime 等运行期状态）。
      */
-    private void applyConfig(GbMediaServer server, MediaProperties.DefaultServer cfg) {
+    private void applyConfig(MediaServer server, MediaProperties.DefaultServer cfg) {
         server.setServerId(cfg.getServerId());
         server.setName(cfg.getName());
         server.setHostIp(cfg.getHostIp());

@@ -1,10 +1,10 @@
-package com.solo.gb28181.media.hook;
+package com.solo.media.hook;
 
-import com.solo.gb28181.config.MediaProperties;
+import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.entity.GbMediaServer;
+import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.service.GbInviteSessionService;
-import com.solo.gb28181.service.GbMediaServerService;
+import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import java.util.Map;
  * <ul>
  *   <li>统一 secret 校验</li>
  *   <li>消息字段解析（{@code stringOf / booleanOf}）</li>
- *   <li>转发到对应业务服务（{@link GbMediaServerService} / {@link GbPlayService}）</li>
+ *   <li>转发到对应业务服务（{@link MediaServerService} / {@link GbPlayService}）</li>
  * </ul>
  *
  * <p>所有方法接收 ZLM 原始 body，返回 {@link HookResult}。Controller 只负责绑定 URL，
@@ -37,7 +37,7 @@ import java.util.Map;
 public class ZlmHookService {
 
     private final MediaProperties mediaProperties;
-    private final GbMediaServerService mediaServerService;
+    private final MediaServerService mediaServerService;
     private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
@@ -61,8 +61,8 @@ public class ZlmHookService {
         log.info("[ZLM 回调] on_server_started serverId={}", serverId);
         if (serverId == null) return HookResult.ok();
 
-        GbMediaServer exist = mediaServerService.lambdaQuery()
-                .eq(GbMediaServer::getServerId, serverId).one();
+        MediaServer exist = mediaServerService.lambdaQuery()
+                .eq(MediaServer::getServerId, serverId).one();
         if (exist == null) {
             log.warn("[ZLM 回调] on_server_started 但节点未在 gb_media_server 登记 serverId={}（请在管理面新增）", serverId);
         } else {

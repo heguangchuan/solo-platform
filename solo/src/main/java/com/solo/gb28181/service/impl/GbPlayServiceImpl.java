@@ -2,14 +2,14 @@ package com.solo.gb28181.service.impl;
 
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.config.MediaProperties;
+import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.entity.GbMediaServer;
-import com.solo.gb28181.media.MediaUrlBuilder;
-import com.solo.gb28181.media.client.ZlmRestClient;
-import com.solo.gb28181.media.ssrc.SsrcFactory;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.MediaUrlBuilder;
+import com.solo.media.client.ZlmRestClient;
+import com.solo.media.ssrc.SsrcFactory;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
@@ -144,7 +144,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             }
         }
 
-        GbMediaServer server = support.pickMediaServer();
+        MediaServer server = support.pickMediaServer();
         String transport = support.normalizeTransport(req.getTransport());
         String streamId = req.getDeviceId() + "_" + req.getChannelId();
 
@@ -287,7 +287,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         log.warn("[实时点播] SSRC 不一致 local={} remote={} stream={}，尝试改写 ZLM 过滤值",
                 session.getSsrc(), remoteSsrc, session.getStreamId());
-        GbMediaServer server = support.mediaServer(session.getServerId());
+        MediaServer server = support.mediaServer(session.getServerId());
         if (server == null) {
             log.error("[实时点播] SSRC 自适应失败：节点不存在 serverId={}", session.getServerId());
             support.failAndBye(session, LOG_TAG, "节点丢失 serverId=" + session.getServerId());
@@ -324,7 +324,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
             return; // 幂等
         }
-        GbMediaServer server = support.mediaServer(session.getServerId());
+        MediaServer server = support.mediaServer(session.getServerId());
         if (server == null) {
             log.error("[实时点播] on_stream_changed 节点丢失 serverId={}", session.getServerId());
             return;

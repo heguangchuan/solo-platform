@@ -1,4 +1,4 @@
-package com.solo.gb28181.entity;
+package com.solo.media.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -14,8 +14,8 @@ import java.time.LocalDateTime;
  * 否则 ZLM 发回的 hook 回调（params.mediaServerId）将匹配不到任何节点。</p>
  */
 @Data
-@TableName("gb_media_server")
-public class GbMediaServer {
+@TableName("media_server")
+public class MediaServer {
 
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)

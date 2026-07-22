@@ -1,8 +1,8 @@
-package com.solo.gb28181.media.ssrc;
+package com.solo.media.ssrc;
 
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.config.MediaProperties;
+import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.service.GbInviteSessionService;
 import jakarta.annotation.PostConstruct;
