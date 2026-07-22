@@ -32,7 +32,12 @@ public class GbDevice {
     private String deviceId;
 
     /**
-     * 设备名称（DeviceInfo 上报后填充）
+     * 设备上报原始名称（DeviceInfo 响应中获取）
+     */
+    private String reportName;
+
+    /**
+     * 用户自定义显示名称（展示优先级高于 reportName）
      */
     private String name;
 

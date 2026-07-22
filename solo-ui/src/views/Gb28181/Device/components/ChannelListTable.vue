@@ -65,6 +65,7 @@ const form = ref<Partial<GbDeviceChannel>>(makeEmpty())
 function makeEmpty(): Partial<GbDeviceChannel> {
   return {
     channelId: '',
+    reportName: '',
     name: '',
     manufacturer: '',
     model: '',
@@ -250,7 +251,9 @@ defineExpose({ fetchData })
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 200px)">
         <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
-        <el-table-column prop="name" label="通道名称" show-overflow-tooltip />
+        <el-table-column prop="name" label="通道名称" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
+        </el-table-column>
         <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />
         <el-table-column prop="deviceName" label="设备名称" v-if="showDeviceColumn" show-overflow-tooltip />
         <el-table-column label="云台类型" align="center" show-overflow-tooltip>
@@ -347,7 +350,10 @@ defineExpose({ fetchData })
           <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="通道名称" prop="name">
-          <el-input v-model="form.name" placeholder="通道显示名称" />
+          <el-input v-model="form.name" placeholder="设备上报名称" />
+        </el-form-item>
+        <el-form-item label="显示名称">
+          <el-input v-model="form.displayName" placeholder="自定义显示名称（优先级高于上报名称）" />
         </el-form-item>
         <el-form-item label="设备厂商">
           <el-input v-model="form.manufacturer" placeholder="厂商" />

@@ -202,7 +202,9 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
         <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
-        <el-table-column prop="name" label="设备名称" show-overflow-tooltip />
+        <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
+        </el-table-column>
         <el-table-column label="设备状态" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== 2" :active="row.status === 1" />
@@ -296,7 +298,7 @@ onMounted(() => {
           <el-input v-model="form.deviceId" placeholder="设备国标ID（20位）" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="设备名称" prop="name">
-          <el-input v-model="form.name" placeholder="设备显示名称" />
+          <el-input v-model="form.name" placeholder="设备上报名称" />
         </el-form-item>
         <el-form-item label="设备厂商">
           <el-input v-model="form.manufacturer" placeholder="厂商" />
