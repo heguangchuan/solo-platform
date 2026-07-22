@@ -245,7 +245,7 @@ defineExpose({ fetchData })
     </el-card>
 
     <el-card shadow="hover" :style="{ 'margin-top': showDeviceColumn ? '16px' : 0 }">
-      <div class="table-toolbar" v-if="showDeviceColumn">
+      <div class="table-toolbar">
         <el-button v-permission="'gb28181:device-channel:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
       </div>
 
@@ -259,7 +259,7 @@ defineExpose({ fetchData })
         <el-table-column label="云台类型" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ ptzTypeMap[row.ptzType ?? 0] }}</template>
         </el-table-column>
-        <el-table-column label="通道状态" align="center" show-overflow-tooltip>
+        <el-table-column label="通道状态" align="center" width="85" show-overflow-tooltip>
           <template #default="{ row }">
             <ListStatusBar v-if="row.status === 'ON' || row.status === 'OFF'" :active="row.status === 'ON'" />
             <el-tag v-else type="info" size="small">未注册</el-tag>
@@ -339,8 +339,8 @@ defineExpose({ fetchData })
         <el-form-item label="通道编码" prop="channelId">
           <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="显示名称" prop="name">
-          <el-input v-model="form.name" placeholder="自定义显示名称" />
+        <el-form-item label="通道名称" prop="name">
+          <el-input v-model="form.name" placeholder="通道显示名称" />
         </el-form-item>
         <el-form-item label="设备厂商">
           <el-input v-model="form.manufacturer" placeholder="厂商" />

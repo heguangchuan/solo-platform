@@ -246,7 +246,7 @@ onMounted(() => {
         <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.reportName || '—' }}</template>
         </el-table-column>
-        <el-table-column label="设备状态" align="center" show-overflow-tooltip>
+        <el-table-column label="设备状态" align="center" width="85" show-overflow-tooltip>
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== 2" :active="row.status === 1" />
             <el-tag v-else type="info" size="small">未注册</el-tag>
@@ -301,13 +301,13 @@ onMounted(() => {
                   :disabled="row.status !== 1"
                   @click="handleSync(row)"
                 >
-                  <el-icon>&#x1F504;</el-icon>
+                  <el-icon><Refresh /></el-icon>
                 </el-button>
               </el-tooltip>
               <el-tooltip content="删除">
                 <el-button
                   v-permission="'gb28181:device:delete'"
-                  type="primary"
+                  type="danger"
                   link
                   @click="handleDelete(row)"
                 >

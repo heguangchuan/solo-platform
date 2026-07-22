@@ -8,26 +8,10 @@ withDefaults(defineProps<{
 </script>
 
 <template>
-  <span
-    class="list-status-bar"
-    :class="{ 'is-active': active }"
-    :style="{ width }"
-    role="img"
-    :aria-label="active ? '1' : '0'"
-  />
+  <el-tag :type="active ? 'success' : 'danger'" size="small">
+    {{ active ? '在线' : '离线' }}
+  </el-tag>
 </template>
 
 <style scoped>
-.list-status-bar {
-  display: inline-block;
-  height: 10px;
-  border-radius: 999px;
-  background: var(--el-color-danger);
-  vertical-align: middle;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
-}
-
-.list-status-bar.is-active {
-  background: var(--el-color-success);
-}
 </style>

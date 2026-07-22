@@ -161,7 +161,7 @@ onMounted(() => {
         <el-table-column label="端口范围" align="center">
           <template #default="{ row }">{{ row.rtpPortStart }} - {{ row.rtpPortEnd }}</template>
         </el-table-column>
-        <el-table-column label="节点状态" align="center" width="110">
+        <el-table-column label="节点状态" align="center" width="85">
           <template #default="{ row }">
             <ListStatusBar :active="row.status === 1" />
           </template>
@@ -184,7 +184,7 @@ onMounted(() => {
             >编辑</el-button>
             <el-button
               v-permission="'gb28181:media-server:delete'"
-              type="primary"
+              type="danger"
               link
               @click="handleDelete(row)"
             >删除</el-button>
