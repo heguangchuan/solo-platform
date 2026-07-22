@@ -167,6 +167,14 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
         for (GbDeviceChannel ch : channels) {
+            // Catalog 同步上来：原始名称放 reportName，name 如果为空就填原始名称
+            String reportedName = ch.getName();
+            if (reportedName != null && !reportedName.isBlank()) {
+                ch.setReportName(reportedName);
+                if (ch.getName() == null || ch.getName().isBlank()) {
+                    ch.setName(reportedName);
+                }
+            }
             GbDeviceChannel exist = lambdaQuery()
                     .eq(GbDeviceChannel::getDeviceId, ch.getDeviceId())
                     .eq(GbDeviceChannel::getChannelId, ch.getChannelId())

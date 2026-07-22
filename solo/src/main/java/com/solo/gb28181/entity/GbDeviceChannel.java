@@ -36,7 +36,12 @@ public class GbDeviceChannel {
     /** 通道国标ID（20位） */
     private String channelId;
 
-    /** 通道名称 */
+    /** 通道上报原始名称（Catalog 目录同步中获取） */
+    private String reportName;
+
+    /**
+     * 用户自定义显示名称（展示优先级高于 reportName）
+     */
     private String name;
 
     private String manufacturer;

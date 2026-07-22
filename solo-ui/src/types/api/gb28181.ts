@@ -14,6 +14,9 @@ export interface GbDevicePageRequest extends PageRequest {
 export interface GbDevice {
   id: string
   deviceId: string
+  /** 设备上报原始名称（DeviceInfo 响应） */
+  reportName?: string
+  /** 用户自定义显示名称（展示优先级高于 reportName） */
   name?: string
   manufacturer?: string
   model?: string
@@ -56,6 +59,9 @@ export interface GbDeviceChannel {
   deviceDbId: string
   deviceId: string
   channelId: string
+  /** 通道上报原始名称（Catalog 目录同步） */
+  reportName?: string
+  /** 用户自定义显示名称（展示优先级高于 reportName） */
   name?: string
   manufacturer?: string
   model?: string

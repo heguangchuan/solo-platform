@@ -37,7 +37,16 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
         String channelStr = XmlUtils.childText(root, "Channel");
 
         boolean dirty = false;
-        if (notBlank(name) && !name.equals(device.getName())) { device.setName(name); dirty = true; }
+        // reportName 保存设备上报原始名称
+        if (notBlank(name) && !name.equals(device.getReportName())) {
+            device.setReportName(name);
+            dirty = true;
+        }
+        // 如果用户还没设置自定义名称，就把上报名称填到 name 让用户看见
+        if (notBlank(name) && device.getName() == null) {
+            device.setName(name);
+            dirty = true;
+        }
         if (notBlank(manufacturer) && !manufacturer.equals(device.getManufacturer())) { device.setManufacturer(manufacturer); dirty = true; }
         if (notBlank(model) && !model.equals(device.getModel())) { device.setModel(model); dirty = true; }
         if (notBlank(firmware) && !firmware.equals(device.getFirmware())) { device.setFirmware(firmware); dirty = true; }
@@ -52,7 +61,7 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
         }
         if (dirty) {
             deviceService.updateById(device);
-            log.info("[设备信息] 回填 deviceId={} name={} manufacturer={} model={} firmware={}",
+            log.info("[设备信息] 回填 deviceId={} reportName={} manufacturer={} model={} firmware={}",
                     device.getDeviceId(), name, manufacturer, model, firmware);
         }
     }
