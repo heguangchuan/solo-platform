@@ -97,8 +97,8 @@ CREATE TABLE gb_device_channel
 -- 流媒体节点表（ZLMediaKit 实例登记）
 -- 关联规则：通过 server_id（字符串）与 ZLM config.ini 中 [general].mediaServerId 对齐
 -- =====================================================
-DROP TABLE IF EXISTS gb_media_server;
-CREATE TABLE gb_media_server
+DROP TABLE IF EXISTS media_server;
+CREATE TABLE media_server
 (
     id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     server_id       varchar(64)  NOT NULL COMMENT 'ZLM 节点唯一标识（与 [general].mediaServerId 一致）',

@@ -1,13 +1,13 @@
-package com.solo.gb28181.controller;
+package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
-import com.solo.gb28181.entity.GbMediaServer;
+import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.request.GbMediaServerPageRequest;
-import com.solo.gb28181.service.GbMediaServerService;
+import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,19 +23,19 @@ import java.util.List;
  * 流媒体节点管理（ZLMediaKit）
  */
 @RestController
-@RequestMapping("/api/gb28181/media-server")
+@RequestMapping("/api/media-server")
 @RequiredArgsConstructor
-public class GbMediaServerController {
+public class MediaServerController {
 
-    private final GbMediaServerService mediaServerService;
+    private final MediaServerService mediaServerService;
 
     /**
      * 分页查询节点
      */
     @PostMapping("/page")
     @RequirePermission({"gb28181:media-server:list"})
-    public Result<PageResult<GbMediaServer>> page(@RequestBody GbMediaServerPageRequest request) {
-        Page<GbMediaServer> page = mediaServerService.pageQuery(request);
+    public Result<PageResult<MediaServer>> page(@RequestBody GbMediaServerPageRequest request) {
+        Page<MediaServer> page = mediaServerService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
@@ -44,7 +44,7 @@ public class GbMediaServerController {
      */
     @GetMapping("/list")
     @RequirePermission({"gb28181:media-server:list"})
-    public Result<List<GbMediaServer>> list() {
+    public Result<List<MediaServer>> list() {
         return Result.success(mediaServerService.list());
     }
 
@@ -53,8 +53,8 @@ public class GbMediaServerController {
      */
     @GetMapping("/{id}")
     @RequirePermission({"gb28181:media-server:list"})
-    public Result<GbMediaServer> detail(@PathVariable Long id) {
-        GbMediaServer server = mediaServerService.getById(id);
+    public Result<MediaServer> detail(@PathVariable Long id) {
+        MediaServer server = mediaServerService.getById(id);
         if (server == null) {
             throw new ServiceException("节点不存在");
         }
@@ -66,7 +66,7 @@ public class GbMediaServerController {
      */
     @PostMapping("/save")
     @RequirePermission({"gb28181:media-server:save"})
-    public Result<Void> save(@RequestBody GbMediaServer server) {
+    public Result<Void> save(@RequestBody MediaServer server) {
         if (server.getServerId() == null || server.getServerId().isBlank()) {
             throw new ServiceException("serverId 不能为空");
         }

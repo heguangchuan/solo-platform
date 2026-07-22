@@ -1,4 +1,4 @@
-package com.solo.gb28181.config;
+package com.solo.media.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;

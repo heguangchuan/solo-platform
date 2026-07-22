@@ -4,13 +4,13 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.entity.GbMediaServer;
-import com.solo.gb28181.media.client.ZlmRestClient;
-import com.solo.gb28181.media.ssrc.SsrcFactory;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.client.ZlmRestClient;
+import com.solo.media.ssrc.SsrcFactory;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
-import com.solo.gb28181.service.GbMediaServerService;
+import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +34,7 @@ public class GbInviteSupport {
 
     private final GbDeviceService deviceService;
     private final GbDeviceChannelService channelService;
-    private final GbMediaServerService mediaServerService;
+    private final MediaServerService mediaServerService;
     private final GbInviteSessionService inviteSessionService;
     private final SsrcFactory ssrcFactory;
     private final ZlmRestClient zlmRestClient;
@@ -53,15 +53,15 @@ public class GbInviteSupport {
                 .one();
     }
 
-    public GbMediaServer mediaServer(String serverId) {
-        return mediaServerService.lambdaQuery().eq(GbMediaServer::getServerId, serverId).one();
+    public MediaServer mediaServer(String serverId) {
+        return mediaServerService.lambdaQuery().eq(MediaServer::getServerId, serverId).one();
     }
 
     // ---- 节点选择 / 入参规整 ----
 
-    public GbMediaServer pickMediaServer() {
-        List<GbMediaServer> all = mediaServerService.list();
-        for (GbMediaServer s : all) {
+    public MediaServer pickMediaServer() {
+        List<MediaServer> all = mediaServerService.list();
+        for (MediaServer s : all) {
             if (s.getStatus() != null && s.getStatus() == 1) {
                 return s;
             }
@@ -84,7 +84,7 @@ public class GbInviteSupport {
     /**
      * 申请 RTP 端口；若 ZLM 报"stream already exists"，先 closeRtpServer 再开一次。
      */
-    public int openRtpServerWithRetry(GbMediaServer server, String streamId, String ssrc, int tcpMode) {
+    public int openRtpServerWithRetry(MediaServer server, String streamId, String ssrc, int tcpMode) {
         try {
             return zlmRestClient.openRtpServer(server, streamId, ssrc, tcpMode, 0);
         } catch (ServiceException e) {
@@ -105,7 +105,7 @@ public class GbInviteSupport {
      */
     public void cleanupZlm(GbInviteSession session) {
         try {
-            GbMediaServer server = mediaServer(session.getServerId());
+            MediaServer server = mediaServer(session.getServerId());
             if (server != null) {
                 zlmRestClient.closeRtpServer(server, session.getStreamId());
             }

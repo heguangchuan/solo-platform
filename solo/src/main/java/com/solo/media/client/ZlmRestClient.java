@@ -1,9 +1,9 @@
-package com.solo.gb28181.media.client;
+package com.solo.media.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solo.common.ServiceException;
-import com.solo.gb28181.entity.GbMediaServer;
+import com.solo.media.entity.MediaServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -58,7 +58,7 @@ public class ZlmRestClient {
      * @param port     0=自动分配（推荐），>0=指定端口
      * @return ZLM 实际分配的端口
      */
-    public int openRtpServer(GbMediaServer server, String streamId, String ssrc, int tcpMode, int port) {
+    public int openRtpServer(MediaServer server, String streamId, String ssrc, int tcpMode, int port) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         params.put("ssrc", ssrc);
@@ -79,7 +79,7 @@ public class ZlmRestClient {
      *
      * @return true=确实关闭了；false=已经不存在
      */
-    public boolean closeRtpServer(GbMediaServer server, String streamId) {
+    public boolean closeRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         try {
@@ -103,7 +103,7 @@ public class ZlmRestClient {
      * @param newSsrc 设备返回的 SSRC（10 位十进制）
      * @return true=ZLM 已更新；false=ZLM 拒绝/异常
      */
-    public boolean updateRtpServerSSRC(GbMediaServer server, String streamId, String newSsrc) {
+    public boolean updateRtpServerSSRC(MediaServer server, String streamId, String newSsrc) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         params.put("ssrc", newSsrc);
@@ -122,7 +122,7 @@ public class ZlmRestClient {
     /**
      * 流是否存在
      */
-    public boolean isMediaOnline(GbMediaServer server, String app, String stream) {
+    public boolean isMediaOnline(MediaServer server, String app, String stream) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("app", app);
         params.put("stream", stream);
@@ -138,7 +138,7 @@ public class ZlmRestClient {
     /**
      * RTP 端口保活查询
      */
-    public boolean isRtpServerAlive(GbMediaServer server, String streamId) {
+    public boolean isRtpServerAlive(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         try {
@@ -153,7 +153,7 @@ public class ZlmRestClient {
 
     // ---------------- 底层 POST ----------------
 
-    private JsonNode post(GbMediaServer server, String method, Map<String, String> params) {
+    private JsonNode post(MediaServer server, String method, Map<String, String> params) {
         String url = "http://" + server.getHostIp() + ":" + server.getHttpPort() + "/index/api/" + method;
         Map<String, String> merged = new LinkedHashMap<>(params);
         merged.put("secret", server.getSecret() == null ? "" : server.getSecret());

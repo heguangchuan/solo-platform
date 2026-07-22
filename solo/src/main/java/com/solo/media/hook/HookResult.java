@@ -1,4 +1,4 @@
-package com.solo.gb28181.media.hook;
+package com.solo.media.hook;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

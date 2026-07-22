@@ -2,14 +2,14 @@ package com.solo.gb28181.service.impl;
 
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.config.MediaProperties;
+import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.entity.GbMediaServer;
-import com.solo.gb28181.media.MediaUrlBuilder;
-import com.solo.gb28181.media.client.ZlmRestClient;
-import com.solo.gb28181.media.ssrc.SsrcFactory;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.MediaUrlBuilder;
+import com.solo.media.client.ZlmRestClient;
+import com.solo.media.ssrc.SsrcFactory;
 import com.solo.gb28181.request.PlaybackControlRequest;
 import com.solo.gb28181.request.PlaybackStartRequest;
 import com.solo.gb28181.request.PlaybackStopRequest;
@@ -29,7 +29,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.sip.header.CallIdHeader;
-import java.time.LocalDateTime;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -196,7 +195,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             throw new ServiceException("结束时间必须晚于起始时间");
         }
 
-        GbMediaServer server = support.pickMediaServer();
+        MediaServer server = support.pickMediaServer();
         String transport = support.normalizeTransport(req.getTransport());
         // streamId 带时间段后缀，避免不同时段并发回放同一通道冲突
         String streamId = req.getDeviceId() + "_" + req.getChannelId()
@@ -377,7 +376,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
 
         log.warn("[{}] SSRC 不一致 local={} remote={} stream={}，尝试改写 ZLM 过滤值",
                 LOG_TAG, session.getSsrc(), remoteSsrc, session.getStreamId());
-        GbMediaServer server = support.mediaServer(session.getServerId());
+        MediaServer server = support.mediaServer(session.getServerId());
         if (server == null) {
             log.error("[{}] SSRC 自适应失败：节点不存在 serverId={}", LOG_TAG, session.getServerId());
             support.failAndBye(session, LOG_TAG, "节点丢失");
@@ -410,7 +409,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
             return;
         }
-        GbMediaServer server = support.mediaServer(session.getServerId());
+        MediaServer server = support.mediaServer(session.getServerId());
         if (server == null) {
             log.error("[{}] on_stream_changed 节点丢失 serverId={}", LOG_TAG, session.getServerId());
             return;

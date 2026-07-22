@@ -1,4 +1,4 @@
-package com.solo.gb28181.media.hook;
+package com.solo.media.hook;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
