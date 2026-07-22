@@ -8,7 +8,7 @@ export default { name: 'Gb28181PlayMonitor' }
  * 右侧：可配置多窗口播放（1×1 2×2 4×4）
  */
 import { ref, onMounted, onUnmounted, computed } from 'vue'
-import { CircleClose, FullScreen, Brush, Grid } from '@element-plus/icons-vue'
+import { CircleClose, FullScreen, Brush, Grid, VideoCamera } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import type { GbDeviceChannelTreeNode } from '@/types/api'
 import { getDeviceChannelTreeApi } from '@/api/gb28181'
@@ -196,7 +196,7 @@ onUnmounted(() => {
                              (!node.data.isDevice && node.data.channelStatus !== 'ON'),
                 }"
               >
-                <CircleClose />
+                <VideoCamera />
               </el-icon>
               <span class="tree-label">{{ node.label }}</span>
             </template>
