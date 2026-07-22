@@ -189,7 +189,7 @@ onMounted(fetchData)
         <el-table-column label="网络地址" width="180" show-overflow-tooltip>
           <template #default="{ row }">{{ row.host }}:{{ row.port }}</template>
         </el-table-column>
-        <el-table-column label="设备状态" align="center" width="100">
+        <el-table-column label="设备状态" align="center" width="85">
           <template #default="{ row }">
             <el-tooltip v-if="row.status !== 1 && row.errorMsg" :content="row.errorMsg" placement="top">
               <ListStatusBar :active="false" />
@@ -233,7 +233,7 @@ onMounted(fetchData)
               >编辑</el-button>
               <el-button
                 v-permission="'onvif:device:delete'"
-                type="primary"
+                type="danger"
                 link
                 @click="handleDelete(row)"
               >删除</el-button>
