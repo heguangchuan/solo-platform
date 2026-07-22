@@ -3,6 +3,7 @@ package com.solo.gb28181.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDevicePageRequest;
 
 /**
@@ -17,8 +18,9 @@ public interface GbDeviceService extends IService<GbDevice> {
 
     /**
      * 手动新增设备（页面录入）。强制 status=未注册、source=系统新增，忽略入参 status/source。
+     * @param channels 同步新增的多条通道，可以为空
      */
-    void createByManual(GbDevice device);
+    void createByManual(GbDevice device, java.util.List<GbDeviceChannel> channels);
 
     /**
      * 手动编辑设备。只更新可编辑的资料字段，绝不覆盖 status/source 及 SIP 运行期字段

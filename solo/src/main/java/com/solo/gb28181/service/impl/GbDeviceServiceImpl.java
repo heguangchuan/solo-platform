@@ -8,15 +8,18 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
+import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -38,6 +41,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private final StringRedisTemplate redisTemplate;
     private final Gb28181Properties properties;
     private final GbInviteSessionService inviteSessionService;
+    private final GbDeviceChannelService deviceChannelService;
 
     @Override
     public Page<GbDevice> pageQuery(GbDevicePageRequest request) {
@@ -59,7 +63,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     }
 
     @Override
-    public void createByManual(GbDevice device) {
+    @Transactional(rollbackFor = Exception.class)
+    public void createByManual(GbDevice device, List<GbDeviceChannel> channels) {
         if (device.getDeviceId() == null || device.getDeviceId().isBlank()) {
             throw new ServiceException("设备国标ID不能为空");
         }
@@ -76,7 +81,29 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         device.setKeepaliveTime(null);
         device.setLastCatalogSyncTime(null);
         save(device);
-        log.info("[设备新增] 系统手动新增设备: {}", device.getDeviceId());
+        // 保存同步新增的通道
+        log.info("[设备新增] request.channels size = {}", channels != null ? channels.size() : "null");
+        if (channels != null && !channels.isEmpty()) {
+            for (GbDeviceChannel ch : channels) {
+                ch.setId(null);
+                ch.setDeviceDbId(device.getId());
+                ch.setDeviceId(device.getDeviceId());
+                ch.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
+                ch.setSource(GbSource.SYSTEM);
+                ch.setPlatformId(device.getPlatformId() != null ? device.getPlatformId() : "0000");
+                boolean saved = deviceChannelService.save(ch);
+                log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);
+            }
+            // 更新设备通道计数
+            long count = deviceChannelService.lambdaQuery()
+                    .eq(GbDeviceChannel::getDeviceDbId, device.getId())
+                    .count();
+            device.setChannelCount((int) count);
+            updateById(device);
+            log.info("[设备新增] 系统手动新增设备 {}，同步新增 {} 条通道", device.getDeviceId(), channels.size());
+        } else {
+            log.info("[设备新增] 系统手动新增设备: {}", device.getDeviceId());
+        }
     }
 
     @Override

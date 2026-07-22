@@ -6,19 +6,14 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.request.GbDeviceCreateWithChannelsRequest;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 /**
  * 国标设备管理
@@ -57,12 +52,12 @@ public class GbDeviceController {
     }
 
     /**
-     * 手动新增设备（页面录入）。状态与来源由后端强制设定，忽略入参。
+     * 手动新增设备（页面录入），同时可新增多条通道。状态与来源由后端强制设定，忽略入参。
      */
     @PostMapping("/save")
     @RequirePermission({"gb28181:device:add"})
-    public Result<Void> save(@RequestBody GbDevice device) {
-        gbDeviceService.createByManual(device);
+    public Result<Void> save(@RequestBody GbDeviceCreateWithChannelsRequest request) {
+        gbDeviceService.createByManual(request.getDevice(), request.getChannels());
         return Result.success();
     }
 
