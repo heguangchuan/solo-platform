@@ -1,7 +1,8 @@
 package com.solo.aop;
 
 import com.solo.common.ServiceException;
-import com.solo.common.SystemConstants;
+import com.solo.system.constant.SystemConstants;
+import com.solo.system.service.SysUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
@@ -30,9 +31,9 @@ public class PermissionAspect {
      */
     private static final Map<Long, List<String>> PERMISSION_CACHE = new ConcurrentHashMap<>();
 
-    private final com.solo.service.SysUserService sysUserService;
+    private final SysUserService sysUserService;
 
-    public PermissionAspect(com.solo.service.SysUserService sysUserService) {
+    public PermissionAspect(SysUserService sysUserService) {
         this.sysUserService = sysUserService;
     }
 

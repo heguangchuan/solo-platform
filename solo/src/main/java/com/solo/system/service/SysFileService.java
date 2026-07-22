@@ -1,0 +1,46 @@
+package com.solo.system.service;
+
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.service.IService;
+import com.solo.system.entity.SysFile;
+import com.solo.system.request.FilePageRequest;
+import com.solo.system.request.FileSaveRequest;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
+
+/**
+ * 文件管理服务接口
+ */
+public interface SysFileService extends IService<SysFile> {
+
+    /**
+     * 分页查询文件
+     */
+    Page<SysFile> pageQuery(FilePageRequest req);
+
+    /**
+     * 上传文件并返回可访问 URL。
+     */
+    SysFile upload(MultipartFile file);
+
+    /**
+     * 上传文件并显式指定上传人，用于异步任务等没有 HTTP 请求上下文的场景。
+     */
+    SysFile upload(MultipartFile file, Long uploaderId, String uploaderName);
+
+    /**
+     * 仅落库元数据（前端/独立服务已上传字节，只调本接口同步元信息到 sys_file）。
+     */
+    SysFile saveMeta(FileSaveRequest request);
+
+    /**
+     * 软删除单个
+     */
+    void deleteOne(Long id);
+
+    /**
+     * 软删除批量
+     */
+    void deleteBatch(List<Long> ids);
+}

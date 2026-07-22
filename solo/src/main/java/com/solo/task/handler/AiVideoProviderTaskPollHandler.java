@@ -1,6 +1,6 @@
 package com.solo.task.handler;
 
-import com.solo.service.AiVideoGenerationService;
+import com.solo.ai.service.AiVideoGenerationService;
 import com.solo.task.TaskHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;

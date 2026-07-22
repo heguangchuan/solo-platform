@@ -1,9 +1,9 @@
 package com.solo.aop;
 
 import com.solo.common.ServiceException;
-import com.solo.common.SystemConstants;
-import com.solo.utils.UserHolderUtils;
-import com.solo.utils.WebUtils;
+import com.solo.system.constant.SystemConstants;
+import com.solo.common.utils.UserHolderUtils;
+import com.solo.common.utils.WebUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;

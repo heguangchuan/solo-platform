@@ -1,6 +1,6 @@
 package com.solo.aop;
 
-import com.solo.common.BusinessType;
+import com.solo.common.enums.BusinessType;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

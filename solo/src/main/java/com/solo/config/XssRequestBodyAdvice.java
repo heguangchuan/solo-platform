@@ -1,6 +1,6 @@
 package com.solo.config;
 
-import com.solo.utils.XssUtils;
+import com.solo.common.utils.XssUtils;
 import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpInputMessage;
 import org.springframework.http.converter.HttpMessageConverter;

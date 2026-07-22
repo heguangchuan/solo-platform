@@ -1,9 +1,9 @@
 package com.solo.config;
 
-import com.solo.utils.JwtUtils;
-import com.solo.common.SystemConstants;
-import com.solo.entity.SysUser;
-import com.solo.service.SysUserService;
+import com.solo.common.utils.JwtUtils;
+import com.solo.system.constant.SystemConstants;
+import com.solo.system.entity.SysUser;
+import com.solo.system.service.SysUserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;

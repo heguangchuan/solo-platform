@@ -1,6 +1,6 @@
 package com.solo.config;
 
-import com.solo.utils.XssUtils;
+import com.solo.common.utils.XssUtils;
 import org.springframework.core.MethodParameter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.RequestParam;
