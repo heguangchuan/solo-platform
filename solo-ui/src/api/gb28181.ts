@@ -49,9 +49,9 @@ export function deleteGbDeviceApi(deviceId: string) {
 }
 
 /**
- * 手动新增设备（状态/来源由后端设定）
+ * 手动新增设备（状态/来源由后端设定），可同时新增多条通道
  */
-export function saveGbDeviceApi(data: Partial<GbDevice>) {
+export function saveGbDeviceApi(data: { device: Partial<GbDevice>, channels: Partial<GbDeviceChannel>[] }) {
   return post<void>('/api/gb28181/device/save', data)
 }
 

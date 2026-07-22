@@ -54,7 +54,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (request.getSource() != null) {
             wrapper.eq(GbDeviceChannel::getSource, request.getSource());
         }
-        wrapper.orderByAsc(GbDeviceChannel::getChannelId);
+        wrapper.orderByDesc(GbDeviceChannel::getCreateTime);
         Page<GbDeviceChannel> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
 
         // 转 response + 回填 deviceName
@@ -119,6 +119,10 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         channel.setSource(GbSource.SYSTEM);
         channel.setStreamId(null);
         save(channel);
+        // 更新设备通道计数
+        long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, device.getId()).count();
+        device.setChannelCount((int) count);
+        deviceMapper.updateById(device);
         log.info("[通道新增] 系统手动新增通道: device={} channel={}", device.getDeviceId(), channel.getChannelId());
     }
 
@@ -149,11 +153,18 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     public void deleteById(Long id) {
         GbDeviceChannel channel = getById(id);
         if (channel == null) return;
+        Long deviceDbId = channel.getDeviceDbId();
         removeById(id);
         log.info("[通道删除] id={}", id);
-        // 删除后若该设备名下已无任何通道，连同设备一起删除
-        Long deviceDbId = channel.getDeviceDbId();
+        // 更新设备通道计数
         if (deviceDbId != null) {
+            long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).count();
+            GbDevice device = deviceMapper.selectById(deviceDbId);
+            if (device != null) {
+                device.setChannelCount((int) count);
+                deviceMapper.updateById(device);
+            }
+            // 删除后若该设备名下已无任何通道，连同设备一起删除（这个逻辑保留）
             boolean hasOther = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).exists();
             if (!hasOther) {
                 deviceMapper.deleteById(deviceDbId);

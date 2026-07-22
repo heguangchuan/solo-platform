@@ -1,8 +1,9 @@
+
 <script lang="ts">
 export default { name: 'Gb28181Device' }
 </script>
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Upload, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
@@ -29,7 +30,7 @@ const searchForm = ref<GbDevicePageRequest>({ page: 1, pageSize: 10 })
 
 /** 数据来源文案 */
 const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
-function sourceText(source?: number) {
+function sourceText(source?: number): string {
   return source == null ? '-' : sourceMap[source] ?? '-'
 }
 
@@ -38,7 +39,34 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref()
 const isEdit = ref(false)
-const form = ref<Partial<GbDevice>>(makeEmpty())
+const currentStep = ref(1)
+
+interface FormData extends Partial<GbDevice> {
+  newChannels: GbDeviceChannel[]
+}
+
+const form = reactive<FormData>({
+  newChannels: [],
+  ...makeEmpty()
+})
+
+async function nextStep() {
+  if (!formRef.value) return
+  await formRef.value.validate()
+  currentStep.value++
+}
+
+function prevStep() {
+  currentStep.value--
+}
+
+function addEmptyChannel() {
+  form.newChannels.push({ channelId: '', name: '' } as GbDeviceChannel)
+}
+
+function removeChannel(index: number) {
+  form.newChannels.splice(index, 1)
+}
 
 function makeEmpty(): Partial<GbDevice> {
   return {
@@ -59,6 +87,13 @@ const rules = {
     { pattern: /^\d{20}$/, message: '设备国标ID为20位数字', trigger: 'blur' },
   ],
   name: [{ required: true, message: '请输入设备名称', trigger: 'blur' }],
+  'newChannels.*.channelId': [
+    { required: true, message: '请输入通道编码', trigger: 'blur' },
+    { pattern: /^\d{20}$/, message: '通道国标ID为20位数字', trigger: 'blur' },
+  ],
+  'newChannels.*.name': [
+    { required: true, message: '请输入通道名称', trigger: 'blur' },
+  ],
 }
 
 // ---------------- 列表 ----------------
@@ -98,15 +133,18 @@ function handleSizeChange(s: number) {
 // ---------------- 新增/编辑 ----------------
 function handleAdd() {
   isEdit.value = false
+  currentStep.value = 1
   dialogTitle.value = '新增设备'
-  form.value = makeEmpty()
+  form.newChannels = []
+  Object.assign(form, makeEmpty())
   dialogVisible.value = true
 }
 
 function handleEdit(row: GbDevice) {
   isEdit.value = true
+  currentStep.value = 1
   dialogTitle.value = '编辑设备'
-  form.value = { ...row }
+  Object.assign(form, { newChannels: [] }, row)
   dialogVisible.value = true
 }
 
@@ -114,10 +152,17 @@ async function handleConfirm() {
   if (!formRef.value) return
   await formRef.value.validate()
   if (isEdit.value) {
-    await updateGbDeviceApi(form.value)
+    // 编辑只提交设备基本信息，不包含通道
+    const { newChannels, ...deviceData } = form
+    await updateGbDeviceApi(deviceData)
     ElMessage.success('修改成功')
   } else {
-    await saveGbDeviceApi(form.value)
+    // 新增：分离设备信息和通道列表
+    const { newChannels, ...deviceData } = form
+    await saveGbDeviceApi({
+      device: deviceData,
+      channels: form.newChannels,
+    })
     ElMessage.success('新增成功')
   }
   dialogVisible.value = false
@@ -126,7 +171,7 @@ async function handleConfirm() {
 
 async function handleSync(row: GbDevice) {
   try {
-    await syncGbDeviceApi(row.deviceId)
+    await syncGbDeviceApi(row.deviceId!)
     ElMessage.success('已触发设备信息和通道目录同步，请稍后刷新查看')
   } catch {
     // handled
@@ -149,7 +194,7 @@ async function handleDelete(row: GbDevice) {
     await ElMessageBox.confirm(`确定要删除设备 "${row.deviceId}" 的记录吗？（不影响实际设备）`, '提示', {
       type: 'warning',
     })
-    await deleteGbDeviceApi(row.deviceId)
+    await deleteGbDeviceApi(row.deviceId!)
     ElMessage.success('删除成功')
     fetchData()
   } catch {
@@ -161,7 +206,6 @@ onMounted(() => {
   fetchData()
 })
 </script>
-
 <template>
   <div>
     <el-card shadow="hover" class="search-card">
@@ -181,9 +225,7 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="数据来源">
           <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 120px">
-            <el-option label="系统新增" :value="1" />
-            <el-option label="表格导入" :value="2" />
-            <el-option label="设备注册" :value="3" />
+            <el-option v-for="(val, key) in sourceMap" :key="key" :label="val" :value="key" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -202,7 +244,7 @@ onMounted(() => {
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
         <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
+          <template #default="{ row }">{{ row.name || row.reportName || '—' }}</template>
         </el-table-column>
         <el-table-column label="设备状态" align="center" show-overflow-tooltip>
           <template #default="{ row }">
@@ -226,46 +268,51 @@ onMounted(() => {
                   v-permission="'gb28181:device:list'"
                   type="primary"
                   link
-                  :icon="View"
                   @click="handleDetail(row)"
-                />
+                >
+                  <el-icon><View /></el-icon>
+                </el-button>
               </el-tooltip>
               <el-tooltip content="编辑">
                 <el-button
                   v-permission="'gb28181:device:edit'"
                   type="primary"
                   link
-                  :icon="Edit"
                   @click="handleEdit(row)"
-                />
+                >
+                  <el-icon><Edit /></el-icon>
+                </el-button>
               </el-tooltip>
               <el-tooltip content="通道">
                 <el-button
                   v-permission="'gb28181:device-channel:list'"
                   type="primary"
                   link
-                  :icon="VideoCamera"
                   @click="handleViewChannels(row)"
-                />
+                >
+                  <el-icon><VideoCamera /></el-icon>
+                </el-button>
               </el-tooltip>
               <el-tooltip content="同步">
                 <el-button
                   v-permission="'gb28181:device:sync'"
                   type="primary"
                   link
-                  :icon="Refresh"
                   :disabled="row.status !== 1"
                   @click="handleSync(row)"
-                />
+                >
+                  <el-icon>&#x1F504;</el-icon>
+                </el-button>
               </el-tooltip>
               <el-tooltip content="删除">
                 <el-button
                   v-permission="'gb28181:device:delete'"
-                  type="danger"
+                  type="primary"
                   link
-                  :icon="Delete"
                   @click="handleDelete(row)"
-                />
+                >
+                  <el-icon><Delete /></el-icon>
+                </el-button>
               </el-tooltip>
             </div>
           </template>
@@ -278,57 +325,87 @@ onMounted(() => {
         :total="total"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next, jumper"
-        class="pagination"
         @current-change="handlePageChange"
         @size-change="handleSizeChange"
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false" top="10vh">
-      <el-alert
-        title="状态由设备注册流程自动维护，手动录入的设备默认为“未注册”"
-        type="info"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 16px"
-      />
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px" max-height="80vh" :close-on-click-modal="false" top="10vh">
+      <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 24px">
+        <el-step title="设备信息" description="填写设备基本信息" />
+        <el-step title="添加通道" description="配置设备通道" v-if="!isEdit" />
+      </el-steps>
+
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="设备编码" prop="deviceId">
-          <el-input v-model="form.deviceId" placeholder="设备国标ID（20位）" :disabled="isEdit" />
-        </el-form-item>
-        <el-form-item label="设备名称" prop="name">
-          <el-input v-model="form.name" placeholder="设备上报名称" />
-        </el-form-item>
-        <el-form-item label="设备厂商">
-          <el-input v-model="form.manufacturer" placeholder="厂商" />
-        </el-form-item>
-        <el-form-item label="设备型号">
-          <el-input v-model="form.model" placeholder="型号" />
-        </el-form-item>
-        <el-form-item label="固件版本">
-          <el-input v-model="form.firmware" placeholder="固件版本" />
-        </el-form-item>
-        <el-form-item label="传输协议">
-          <el-select v-model="form.transport" style="width: 100%">
-            <el-option label="UDP" value="UDP" />
-            <el-option label="TCP" value="TCP" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="字符编码">
-          <el-select v-model="form.charset" style="width: 100%">
-            <el-option label="GB2312" value="GB2312" />
-            <el-option label="UTF-8" value="UTF-8" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="注册期限">
-          <el-input v-model.number="form.expires" placeholder="注册期限（秒）" style="width: 100%">
-            <template #append>秒</template>
-          </el-input>
-        </el-form-item>
+        <template v-if="currentStep === 1 || isEdit">
+          <el-form-item label="设备编码" prop="deviceId">
+            <el-input v-model="form.deviceId" placeholder="设备国标ID（20位）" :disabled="isEdit" />
+          </el-form-item>
+          <el-form-item label="设备名称" prop="name">
+            <el-input v-model="form.name" placeholder="自定义显示名称" />
+          </el-form-item>
+          <el-form-item label="设备厂商">
+            <el-input v-model="form.manufacturer" placeholder="厂商" />
+          </el-form-item>
+          <el-form-item label="设备型号">
+            <el-input v-model="form.model" placeholder="型号" />
+          </el-form-item>
+          <el-form-item label="固件版本">
+            <el-input v-model="form.firmware" placeholder="固件版本" />
+          </el-form-item>
+          <el-form-item label="传输协议">
+            <el-select v-model="form.transport" style="width: 100%">
+              <el-option label="UDP" value="UDP" />
+              <el-option label="TCP" value="TCP" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="字符编码">
+            <el-select v-model="form.charset" style="width: 100%">
+              <el-option label="GB2312" value="GB2312" />
+              <el-option label="UTF-8" value="UTF-8" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="注册期限">
+            <el-input v-model.number="form.expires" placeholder="注册期限（秒）" style="width: 100%">
+              <template #append>秒</template>
+            </el-input>
+          </el-form-item>
+        </template>
+
+        <template v-if="currentStep === 2 && !isEdit">
+          <el-table :data="form.newChannels" border style="width: 100%" :show-header="true">
+            <el-table-column label="通道编码" width="280">
+              <template #default="{ row, $index }">
+              <el-form-item :prop="`newChannels.${$index}.channelId`" class="no-margin">
+                <el-input v-model="row.channelId" placeholder="20位数字" style="width: 100%" />
+              </el-form-item>
+            </template>
+            </el-table-column>
+            <el-table-column label="通道名称" min-width="280">
+              <template #default="{ row, $index }">
+              <el-form-item :prop="`newChannels.${$index}.name`" class="no-margin">
+                <el-input v-model="row.name" placeholder="通道名称" style="width: 100%" />
+              </el-form-item>
+            </template>
+            </el-table-column>
+            <el-table-column width="100" align="center">
+              <template #header>
+                <el-button type="primary" plain :icon="Plus" size="small" @click="addEmptyChannel">添加</el-button>
+              </template>
+              <template #default="{ $index }">
+                <el-button type="danger" link @click="removeChannel($index)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取 消</el-button>
-        <el-button type="primary" @click="handleConfirm">确 定</el-button>
+        <el-button v-if="currentStep > 1 && !isEdit" type="primary" @click="prevStep">上一步</el-button>
+        <el-button v-if="currentStep < 2 && !isEdit" type="primary" @click="nextStep">下一步</el-button>
+        <el-button v-if="(isEdit || currentStep === 2)" type="primary" @click="handleConfirm">确 定</el-button>
       </template>
     </el-dialog>
 
@@ -346,6 +423,22 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 12px;
+}
+
+.channel-list {
+  margin-bottom: 8px;
+}
+
+.no-margin {
+  margin-bottom: 0;
+}
+
+:deep(.el-table td .el-form-item) {
+  margin-right: 0;
+}
+
+:deep(.el-table td .el-form-item__content) {
+  margin-left: 0 !important;
 }
 
 .pagination {
