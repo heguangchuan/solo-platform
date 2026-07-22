@@ -45,6 +45,11 @@ public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
     void deleteByDeviceDbId(Long deviceDbId);
 
     /**
+     * 批量删除通道，删除后更新所属设备的通道计数
+     */
+    void deleteBatch(List<Long> ids);
+
+    /**
      * 获取设备通道树（用于监控墙左侧树形选择）
      * 按 设备 -> 通道 层级组装
      */

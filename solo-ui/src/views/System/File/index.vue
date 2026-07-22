@@ -4,7 +4,7 @@ export default { name: 'SystemFile' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Delete, Upload } from '@element-plus/icons-vue'
 import type { FilePageRequest, SysFile } from '@/types/api'
 import { deleteFileApi, deleteFileBatchApi, getFilePageApi } from '@/api/file'
 
@@ -138,10 +138,10 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'system:file:upload'" type="primary" @click="openUploadDialog">
+        <el-button v-permission="'system:file:upload'" type="primary" :icon="Plus" @click="openUploadDialog">
           新增
         </el-button>
-        <el-button v-permission="'system:file:delete'" type="primary" @click="handleBatchDelete">
+        <el-button v-permission="'system:file:delete'" type="danger" :icon="Delete" @click="handleBatchDelete">
           删除
         </el-button>
       </div>
@@ -161,8 +161,8 @@ onMounted(() => {
         <el-table-column prop="createTime" label="上传时间" />
         <el-table-column label="操作" fixed="right">
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleCopyUrl(row)">复制链接</el-button>
-            <el-button v-permission="'system:file:delete'" type="primary" link @click="handleDelete(row)">
+            <el-button type="primary" link :icon="Upload" @click="handleCopyUrl(row)">复制链接</el-button>
+            <el-button v-permission="'system:file:delete'" type="danger" link :icon="Delete" @click="handleDelete(row)">
               删除
             </el-button>
           </template>

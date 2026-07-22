@@ -46,4 +46,9 @@ public interface GbDeviceService extends IService<GbDevice> {
      * 心跳收到后更新心跳时间和 Redis TTL
      */
     void keepalive(GbDevice device);
+
+    /**
+     * 批量删除设备，连同其名下所有通道
+     */
+    void deleteBatch(java.util.List<Long> ids);
 }

@@ -7,6 +7,7 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.request.GbDeviceCreateWithChannelsRequest;
+import com.solo.gb28181.request.GbDeviceBatchDeleteRequest;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
@@ -104,6 +105,17 @@ public class GbDeviceController {
             gbDeviceChannelService.deleteByDeviceDbId(device.getId());
             gbDeviceService.removeById(device.getId());
         }
+        return Result.success();
+    }
+
+    /**
+     * 批量删除设备记录，连同每台设备名下所有通道（不影响实际设备）
+     */
+    @PostMapping("/batch/delete")
+    @RequirePermission({"gb28181:device:delete"})
+    @Transactional
+    public Result<Void> batchDelete(@RequestBody GbDeviceBatchDeleteRequest request) {
+        gbDeviceService.deleteBatch(request.getIds());
         return Result.success();
     }
 }

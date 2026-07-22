@@ -210,6 +210,38 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     }
 
     @Override
+    @Transactional
+    public void deleteBatch(List<Long> ids) {
+        // 收集所有待删除通道所属的 deviceDbId
+        List<GbDeviceChannel> channels = listByIds(ids);
+        if (channels.isEmpty()) {
+            return;
+        }
+        // 按 deviceDbId 分组，方便后续更新计数
+        var channelsByDeviceDbId = channels.stream()
+                .filter(ch -> ch.getDeviceDbId() != null)
+                .collect(Collectors.groupingBy(GbDeviceChannel::getDeviceDbId));
+        // 批量删除
+        removeByIds(ids);
+        log.info("[通道批量删除] 删除 {} 条通道", ids.size());
+        // 更新每个设备的通道计数，若设备已无通道则删除设备
+        for (var entry : channelsByDeviceDbId.entrySet()) {
+            Long deviceDbId = entry.getKey();
+            long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).count();
+            GbDevice device = deviceMapper.selectById(deviceDbId);
+            if (device != null) {
+                device.setChannelCount((int) count);
+                deviceMapper.updateById(device);
+                // 若该设备名下已无任何通道，连同设备一起删除
+                if (count == 0) {
+                    deviceMapper.deleteById(deviceDbId);
+                    log.info("[通道批量删除] 设备已无通道，连同删除设备: deviceDbId={}", deviceDbId);
+                }
+            }
+        }
+    }
+
+    @Override
     public List<GbDeviceChannelTreeNodeResponse> getDeviceChannelTree() {
         // 查询所有设备（包括离线）
         List<GbDevice> devices = deviceMapper.selectList(
