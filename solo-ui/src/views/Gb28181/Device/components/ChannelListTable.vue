@@ -335,25 +335,12 @@ defineExpose({ fetchData })
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" :close-on-click-modal="false" top="10vh" max-height="80vh">
-      <el-alert
-        title="状态由 Catalog 目录同步自动维护，手动录入的通道默认为“未注册”"
-        type="info"
-        :closable="false"
-        show-icon
-        style="margin-bottom: 16px"
-      />
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="所属设备">
-          <el-input v-model="form.deviceId" disabled />
-        </el-form-item>
         <el-form-item label="通道编码" prop="channelId">
           <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="通道名称" prop="name">
-          <el-input v-model="form.name" placeholder="设备上报名称" />
-        </el-form-item>
-        <el-form-item label="显示名称">
-          <el-input v-model="form.displayName" placeholder="自定义显示名称（优先级高于上报名称）" />
+        <el-form-item label="显示名称" prop="name">
+          <el-input v-model="form.name" placeholder="自定义显示名称" />
         </el-form-item>
         <el-form-item label="设备厂商">
           <el-input v-model="form.manufacturer" placeholder="厂商" />

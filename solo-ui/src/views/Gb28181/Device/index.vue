@@ -47,7 +47,6 @@ function makeEmpty(): Partial<GbDevice> {
     manufacturer: '',
     model: '',
     firmware: '',
-    sipDomain: '',
     transport: 'UDP',
     charset: 'GB2312',
     expires: 3600,
@@ -308,9 +307,6 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="固件版本">
           <el-input v-model="form.firmware" placeholder="固件版本" />
-        </el-form-item>
-        <el-form-item label="信令域名">
-          <el-input v-model="form.sipDomain" placeholder="设备 SIP 域" />
         </el-form-item>
         <el-form-item label="传输协议">
           <el-select v-model="form.transport" style="width: 100%">

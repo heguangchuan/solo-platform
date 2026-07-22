@@ -57,11 +57,6 @@ public class GbDevice {
     private String firmware;
 
     /**
-     * 设备 SIP 域
-     */
-    private String sipDomain;
-
-    /**
      * 设备最后注册来源 IP
      */
     private String ip;
