@@ -7,11 +7,12 @@ import { ref, onMounted, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Upload, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
-import type { GbDevice, GbDevicePageRequest } from '@/types/api'
+import type { GbDevice, GbDevicePageRequest, GbDeviceChannel } from '@/types/api'
 import {
   getGbDevicePageApi,
   syncGbDeviceApi,
   deleteGbDeviceApi,
+  batchDeleteGbDeviceApi,
   saveGbDeviceApi,
   updateGbDeviceApi,
 } from '@/api/gb28181'
@@ -25,6 +26,7 @@ const tableData = ref<GbDevice[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
+const selectedRows = ref<GbDevice[]>([])
 
 const searchForm = ref<GbDevicePageRequest>({ page: 1, pageSize: 10 })
 
@@ -202,6 +204,32 @@ async function handleDelete(row: GbDevice) {
   }
 }
 
+async function handleBatchDelete() {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要删除的设备')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 台设备吗？此操作不可恢复。`,
+      '提示',
+      { type: 'warning' }
+    )
+    // 雪花 ID > 2^53 时 JS Number 会丢失精度，保持字符串传递
+    const ids = selectedRows.value.map(r => r.id)
+    await batchDeleteGbDeviceApi(ids as any)
+    ElMessage.success('删除成功')
+    fetchData()
+    selectedRows.value = []
+  } catch {
+    // cancelled
+  }
+}
+
+function handleSelectionChange(rows: GbDevice[]) {
+  selectedRows.value = rows
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -238,10 +266,12 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button v-permission="'gb28181:device:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'gb28181:device:delete'" type="danger" :icon="Delete" @click="handleBatchDelete" :disabled="selectedRows.length === 0">删除</el-button>
         <el-button v-permission="'gb28181:device:add'" :icon="Upload" disabled>导入</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.reportName || '—' }}</template>
@@ -325,6 +355,7 @@ onMounted(() => {
         :total="total"
         :page-sizes="[10, 20, 50]"
         layout="total, sizes, prev, pager, next, jumper"
+        class="pagination"
         @current-change="handlePageChange"
         @size-change="handleSizeChange"
       />

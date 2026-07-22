@@ -185,4 +185,21 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         long ttl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
         redisTemplate.opsForValue().set(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
     }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void deleteBatch(List<Long> ids) {
+        for (Long id : ids) {
+            GbDevice device = getById(id);
+            if (device != null) {
+                // 删除该设备下所有通道
+                deviceChannelService.deleteByDeviceDbId(id);
+                // 删除设备
+                removeById(id);
+                // 删除 Redis 在线状态键
+                redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + device.getDeviceId());
+                log.info("[批量删除] 删除设备: deviceId={}, name={}", device.getDeviceId(), device.getName());
+            }
+        }
+    }
 }

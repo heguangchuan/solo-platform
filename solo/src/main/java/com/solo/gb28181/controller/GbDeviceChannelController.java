@@ -6,11 +6,13 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.request.GbDeviceChannelBatchDeleteRequest;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -75,6 +77,15 @@ public class GbDeviceChannelController {
     @RequirePermission({"gb28181:device-channel:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         channelService.deleteById(id);
+        return Result.success();
+    }
+
+    /** 批量删除通道 */
+    @PostMapping("/batch/delete")
+    @RequirePermission({"gb28181:device-channel:delete"})
+    @Transactional
+    public Result<Void> batchDelete(@RequestBody GbDeviceChannelBatchDeleteRequest request) {
+        channelService.deleteBatch(request.getIds());
         return Result.success();
     }
 

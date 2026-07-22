@@ -49,6 +49,13 @@ export function deleteGbDeviceApi(deviceId: string) {
 }
 
 /**
+ * 批量删除设备记录
+ */
+export function batchDeleteGbDeviceApi(ids: number[]) {
+  return post<void>('/api/gb28181/device/batch/delete', { ids })
+}
+
+/**
  * 手动新增设备（状态/来源由后端设定），可同时新增多条通道
  */
 export function saveGbDeviceApi(data: { device: Partial<GbDevice>, channels: Partial<GbDeviceChannel>[] }) {
@@ -95,6 +102,13 @@ export function updateGbDeviceChannelApi(data: Partial<GbDeviceChannel>) {
  */
 export function deleteGbDeviceChannelApi(id: string) {
   return del<void>(`/api/gb28181/device-channel/${id}`)
+}
+
+/**
+ * 批量删除通道
+ */
+export function batchDeleteGbDeviceChannelApi(ids: string[]) {
+  return post<void>('/api/gb28181/device-channel/batch/delete', { ids })
 }
 
 /**

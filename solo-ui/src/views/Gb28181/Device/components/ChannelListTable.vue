@@ -11,6 +11,7 @@ import {
   saveGbDeviceChannelApi,
   updateGbDeviceChannelApi,
   deleteGbDeviceChannelApi,
+  batchDeleteGbDeviceChannelApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, Edit, VideoCamera, VideoPause, Delete } from '@element-plus/icons-vue'
@@ -34,6 +35,7 @@ const tableData = ref<GbDeviceChannelVO[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(20)
+const selectedRows = ref<GbDeviceChannelVO[]>([])
 
 const searchForm = ref<GbDeviceChannelPageRequest>({
   page: 1,
@@ -177,6 +179,31 @@ async function handleDelete(row: GbDeviceChannelVO) {
   }
 }
 
+function handleSelectionChange(rows: GbDeviceChannelVO[]) {
+  selectedRows.value = rows
+}
+
+async function handleBatchDelete() {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要删除的通道')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除选中的 ${selectedRows.value.length} 条通道吗？此操作不可恢复。`,
+      '提示',
+      { type: 'warning' }
+    )
+    const ids = selectedRows.value.map(r => r.id)
+    await batchDeleteGbDeviceChannelApi(ids)
+    ElMessage.success('删除成功')
+    fetchData()
+    selectedRows.value = []
+  } catch {
+    // cancelled
+  }
+}
+
 const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
 function handlePlay(row: GbDeviceChannelVO) {
@@ -247,9 +274,11 @@ defineExpose({ fetchData })
     <el-card shadow="hover" :style="{ 'margin-top': showDeviceColumn ? '16px' : 0 }">
       <div class="table-toolbar">
         <el-button v-permission="'gb28181:device-channel:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'gb28181:device-channel:delete'" type="danger" :icon="Delete" @click="handleBatchDelete" :disabled="selectedRows.length === 0">删除</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 200px)">
+      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 200px)" @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="通道名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
