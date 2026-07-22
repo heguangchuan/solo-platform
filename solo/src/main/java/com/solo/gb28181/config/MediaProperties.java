@@ -60,6 +60,18 @@ public class MediaProperties {
     private boolean streamOnDemand = true;
 
     /**
+     * 国标流是否自动录制 MP4：true=开启录制，false=不录制。
+     * 包括实时点播、语音广播、对讲等所有国标接入的流。
+     */
+    private boolean recordSip = true;
+
+    /**
+     * 外部推流直播是否自动录制 MP4：true=开启录制，false=不录制。
+     * 包括 RTMP/RTSP 等方式推送过来的直播流。
+     */
+    private boolean recordPushLive = true;
+
+    /**
      * 启动时若 gb_media_server 表为空则自动写入的默认节点。
      */
     private DefaultServer defaultServer = new DefaultServer();

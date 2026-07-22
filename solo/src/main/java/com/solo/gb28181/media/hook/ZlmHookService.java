@@ -93,8 +93,11 @@ public class ZlmHookService {
         // autoApplyPlay 开启时，流不存在自动发起点播
         if (mediaProperties.isAutoApplyPlay()) {
             // streamId 格式: {deviceId}_{channelId} 和前端点播一致
-            String[] parts = stream.split("_", 2);
-            if (parts.length == 2) {
+            String[] parts = null;
+            if (stream != null) {
+                parts = stream.split("_", 2);
+            }
+            if (parts != null && parts.length == 2) {
                 String deviceId = parts[0];
                 String channelId = parts[1];
                 log.info("[ZLM 回调] on_stream_not_found 自动发起点播 deviceId={} channelId={}", deviceId, channelId);
@@ -109,8 +112,28 @@ public class ZlmHookService {
     public HookResult onPublish(Map<String, Object> body) {
         if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         log.info("[ZLM 回调] on_publish {}", body);
-        // 默认：允许推流、开启音频、不录 MP4（录像由业务 API 控制）
-        return HookResult.ok().put("enable_audio", true).put("enable_mp4", false);
+
+        String app = stringOf(body, "app");
+        String stream = stringOf(body, "stream");
+        boolean enableMp4;
+
+        // 根据流类型和配置决定是否开启 MP4 录制
+        if ("rtp".equals(app)) {
+            GbInviteSession inviteSession = inviteSessionService.getByStreamId(stream);
+            if (inviteSession != null && inviteSession.getRecord() != null) {
+                enableMp4 = inviteSession.getRecord();
+            } else {
+                enableMp4 = mediaProperties.isRecordSip();
+            }
+        } else if ("broadcast".equals(app) || "talk".equals(app)) {
+            // 广播/对讲统一使用国标录制配置
+            enableMp4 = mediaProperties.isRecordSip();
+        } else {
+            // 其他 app（外部推流）使用推流录制配置
+            enableMp4 = mediaProperties.isRecordPushLive();
+        }
+
+        return HookResult.ok().put("enable_audio", true).put("enable_mp4", enableMp4);
     }
 
     public HookResult onStreamChanged(Map<String, Object> body) {
