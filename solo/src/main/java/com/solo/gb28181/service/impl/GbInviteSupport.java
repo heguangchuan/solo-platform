@@ -67,8 +67,8 @@ public class GbInviteSupport {
             }
         }
         if (!all.isEmpty()) {
-            log.warn("[流媒体] 无在线节点，使用首个登记节点 serverId={}", all.get(0).getServerId());
-            return all.get(0);
+            log.warn("[流媒体] 无在线节点，使用首个登记节点 serverId={}", all.getFirst().getServerId());
+            return all.getFirst();
         }
         throw new ServiceException("无可用流媒体节点，请先在管理面登记 ZLM");
     }
