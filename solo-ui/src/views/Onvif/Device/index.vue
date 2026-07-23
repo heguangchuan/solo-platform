@@ -4,7 +4,7 @@ export default { name: 'OnvifDevice' }
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Search, Edit, Delete, Monitor } from '@element-plus/icons-vue'
+import { Plus, Refresh, Search, Edit, Delete, Monitor, VideoCamera } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { OnvifDevice, OnvifDevicePageRequest } from '@/types/api'
 import {
@@ -15,6 +15,7 @@ import {
   updateOnvifDeviceApi,
 } from '@/api/onvif'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
+import OnvifPlayDialog from './components/OnvifPlayDialog.vue'
 
 const loading = ref(false)
 const tableData = ref<OnvifDevice[]>([])
@@ -151,6 +152,21 @@ async function handleDelete(row: OnvifDevice) {
   }
 }
 
+// ---------------- 播放 ----------------
+const playDialogRef = ref<InstanceType<typeof OnvifPlayDialog> | null>(null)
+
+function handlePlay(row: OnvifDevice) {
+  if (row.status !== 1) {
+    ElMessage.warning('设备离线，无法播放')
+    return
+  }
+  if (!row.streamUri) {
+    ElMessage.warning('设备尚未探测出 RTSP 地址，请先点『探测』')
+    return
+  }
+  playDialogRef.value?.open(row)
+}
+
 onMounted(fetchData)
 </script>
 
@@ -213,9 +229,19 @@ onMounted(fetchData)
         <el-table-column prop="lastCheckTime" label="最近探测" width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.lastCheckTime || '—' }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div>
+              <el-tooltip content="播放">
+                <el-button
+                  v-permission="'onvif:play:start'"
+                  type="primary"
+                  link
+                  :icon="VideoCamera"
+                  :disabled="row.status !== 1"
+                  @click="handlePlay(row)"
+                />
+              </el-tooltip>
               <el-tooltip content="探测">
                 <el-button
                   v-permission="'onvif:device:probe'"
@@ -308,6 +334,8 @@ onMounted(fetchData)
         <el-button type="primary" :loading="submitting" @click="handleConfirm">确 定</el-button>
       </template>
     </el-dialog>
+
+    <OnvifPlayDialog ref="playDialogRef" />
   </div>
 </template>
 

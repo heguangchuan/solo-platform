@@ -8,7 +8,7 @@ export default { name: 'MediaStreamProxy' }
  */
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, VideoPlay, VideoPause, Link } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, CircleCheck, CircleClose, VideoCamera, Link } from '@element-plus/icons-vue'
 import type { StreamProxy, StreamProxyPageRequest, GbMediaServer } from '@/types/api'
 import {
   getStreamProxyPageApi,
@@ -22,6 +22,7 @@ import {
   listGbMediaServerApi,
 } from '@/api/gb28181'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
+import StreamProxyPlayDialog from './components/StreamProxyPlayDialog.vue'
 
 const loading = ref(false)
 const tableData = ref<StreamProxy[]>([])
@@ -186,6 +187,13 @@ function handleSelectionChange(rows: StreamProxy[]) {
   selectedRows.value = rows
 }
 
+// ---------------- 播放 ----------------
+const playDialogRef = ref<InstanceType<typeof StreamProxyPlayDialog> | null>(null)
+
+function handlePlay(row: StreamProxy) {
+  playDialogRef.value?.open(row)
+}
+
 // ---------------- 播放地址 ----------------
 async function handleShowPlayUrls(row: StreamProxy) {
   const res = await getStreamProxyPlayUrlsApi(row.id)
@@ -218,19 +226,19 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="名称">
+        <el-form-item label="代理名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊" clearable />
         </el-form-item>
-        <el-form-item label="stream">
+        <el-form-item label="流标识符">
           <el-input v-model="searchForm.stream" placeholder="stream 模糊" clearable />
         </el-form-item>
-        <el-form-item label="启用">
+        <el-form-item label="启用状态">
           <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 120px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item label="运行状态">
+        <el-form-item label="推流状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
             <el-option label="已推流" :value="1" />
             <el-option label="未推流" :value="0" />
@@ -266,17 +274,17 @@ onMounted(() => {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="name" label="名称" show-overflow-tooltip>
+        <el-table-column prop="name" label="代理名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || '—' }}</template>
         </el-table-column>
-        <el-table-column label="app / stream" min-width="220" show-overflow-tooltip>
+        <el-table-column label="应用 / 流" min-width="220" show-overflow-tooltip>
           <template #default="{ row }">{{ row.app }} / {{ row.stream }}</template>
         </el-table-column>
-        <el-table-column prop="srcUrl" label="源地址" show-overflow-tooltip min-width="240" />
-        <el-table-column prop="mediaServerId" label="ZLM 节点" width="140" show-overflow-tooltip>
+        <el-table-column prop="srcUrl" label="流媒体源" show-overflow-tooltip min-width="240" />
+        <el-table-column prop="mediaServerId" label="目标节点" width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ row.mediaServerId || '自动' }}</template>
         </el-table-column>
-        <el-table-column label="运行状态" align="center" width="85">
+        <el-table-column label="推流状态" align="center" width="90">
           <template #default="{ row }">
             <el-tooltip v-if="row.status !== 1 && row.lastError" :content="row.lastError" placement="top">
               <ListStatusBar :active="false" />
@@ -284,7 +292,7 @@ onMounted(() => {
             <ListStatusBar v-else :active="row.status === 1" />
           </template>
         </el-table-column>
-        <el-table-column label="启用" align="center" width="80">
+        <el-table-column label="启用状态" align="center" width="90">
           <template #default="{ row }">
             <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
               {{ row.enabled === 1 ? '启用' : '禁用' }}
@@ -292,9 +300,19 @@ onMounted(() => {
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="更新时间" width="170" />
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <div>
+              <el-tooltip content="播放">
+                <el-button
+                  v-permission="'media:stream-proxy:list'"
+                  type="primary"
+                  link
+                  :icon="VideoCamera"
+                  :disabled="row.status !== 1"
+                  @click="handlePlay(row)"
+                />
+              </el-tooltip>
               <el-tooltip content="播放地址">
                 <el-button
                   v-permission="'media:stream-proxy:list'"
@@ -305,24 +323,13 @@ onMounted(() => {
                   @click="handleShowPlayUrls(row)"
                 />
               </el-tooltip>
-              <el-tooltip content="启用">
+              <el-tooltip :content="row.status === 1 ? '停用' : '启用'">
                 <el-button
                   v-permission="'media:stream-proxy:toggle'"
-                  type="success"
+                  :type="row.status === 1 ? 'warning' : 'success'"
                   link
-                  :icon="VideoPlay"
-                  :disabled="row.status === 1"
-                  @click="handleEnable(row)"
-                />
-              </el-tooltip>
-              <el-tooltip content="停用">
-                <el-button
-                  v-permission="'media:stream-proxy:toggle'"
-                  type="warning"
-                  link
-                  :icon="VideoPause"
-                  :disabled="row.status !== 1"
-                  @click="handleDisable(row)"
+                  :icon="row.status === 1 ? CircleClose : CircleCheck"
+                  @click="row.status === 1 ? handleDisable(row) : handleEnable(row)"
                 />
               </el-tooltip>
               <el-tooltip content="编辑">
@@ -361,17 +368,17 @@ onMounted(() => {
     </el-card>
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" :close-on-click-modal="false" top="10vh">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="名称">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item label="代理名称">
           <el-input v-model="form.name" placeholder="显示名（可空）" />
         </el-form-item>
-        <el-form-item label="app" prop="app">
+        <el-form-item label="应用名称" prop="app">
           <el-input v-model="form.app" placeholder="ZLM app，默认 proxy" />
         </el-form-item>
-        <el-form-item label="stream" prop="stream">
+        <el-form-item label="流标识符" prop="stream">
           <el-input v-model="form.stream" placeholder="ZLM stream 名，唯一标识一路流" />
         </el-form-item>
-        <el-form-item label="源地址" prop="srcUrl">
+        <el-form-item label="流媒体源" prop="srcUrl">
           <el-input
             v-model="form.srcUrl"
             type="textarea"
@@ -379,7 +386,7 @@ onMounted(() => {
             placeholder="rtsp:// rtmp:// http://...flv http://...m3u8"
           />
         </el-form-item>
-        <el-form-item label="ZLM 节点">
+        <el-form-item label="目标节点">
           <el-select v-model="form.mediaServerId" placeholder="留空自动挑选" clearable style="width: 100%">
             <el-option
               v-for="s in mediaServers"
@@ -389,7 +396,7 @@ onMounted(() => {
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="RTSP 传输">
+        <el-form-item label="传输方式">
           <el-select v-model="form.rtpType" style="width: 100%">
             <el-option label="TCP+UDP 自适应" :value="0" />
             <el-option label="TCP" :value="1" />
@@ -397,20 +404,20 @@ onMounted(() => {
             <el-option label="组播" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="音频">
+        <el-form-item label="启用音频">
           <el-switch v-model="form.enableAudio" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="录制 MP4">
+        <el-form-item label="录制视频">
           <el-switch v-model="form.enableMp4" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="无人观看停用">
+        <el-form-item label="闲时自停">
           <el-switch v-model="form.enableDisableNoneReader" :active-value="1" :inactive-value="0" />
         </el-form-item>
-        <el-form-item label="业务启用">
+        <el-form-item label="立即启用">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
           <span style="margin-left: 8px; color: #909399; font-size: 12px">保存后自动推流到 ZLM</span>
         </el-form-item>
-        <el-form-item label="备注">
+        <el-form-item label="备注信息">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注（可空）" />
         </el-form-item>
       </el-form>
@@ -419,6 +426,8 @@ onMounted(() => {
         <el-button type="primary" @click="handleConfirm">确 定</el-button>
       </template>
     </el-dialog>
+
+    <StreamProxyPlayDialog ref="playDialogRef" />
   </div>
 </template>
 
