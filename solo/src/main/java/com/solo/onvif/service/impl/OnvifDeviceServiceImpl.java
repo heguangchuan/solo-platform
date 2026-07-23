@@ -88,7 +88,7 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
             probeInternal(device);
         } catch (Exception e) {
             log.warn("[ONVIF探测] 保存后同步探测失败 id={} err={}", device.getId(), e.getMessage());
-            // 探测失败不影响保存，只把 error_msg 写回，具体错误在库里可见
+            // 探测失败不影响保存，日志里可查
         }
     }
 
@@ -102,14 +102,13 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
     }
 
     /**
-     * 探测逻辑：TCP ping → SOAP 探测 → 回填字段。永远更新 last_check_time / status / error_msg。
+     * 探测逻辑：TCP ping → SOAP 探测 → 回填字段。永远更新 last_check_time / status。
      */
     @Override
     public void probeInternal(OnvifDevice device) {
         device.setLastCheckTime(LocalDateTime.now());
         if (!OnvifClient.ping(device.getHost(), device.getPort(), 3000)) {
             device.setStatus(0);
-            device.setErrorMsg("TCP 端口不通");
             updateById(device);
             log.info("[ONVIF探测] {}:{} TCP 不通", device.getHost(), device.getPort());
             return;
@@ -125,19 +124,12 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
             device.setProfileToken(r.getProfileToken());
             device.setStreamUri(r.getStreamUri());
             device.setStatus(1);
-            device.setErrorMsg(null);
             log.info("[ONVIF探测] 成功 {}:{} manufacturer={} model={} uri={}",
                     device.getHost(), device.getPort(), r.getManufacturer(), r.getModel(), r.getStreamUri());
         } catch (Exception e) {
             device.setStatus(0);
-            device.setErrorMsg(shorten(e.getMessage()));
             log.info("[ONVIF探测] 失败 {}:{} err={}", device.getHost(), device.getPort(), e.getMessage());
         }
         updateById(device);
-    }
-
-    private static String shorten(String s) {
-        if (s == null) return null;
-        return s.length() > 250 ? s.substring(0, 250) : s;
     }
 }

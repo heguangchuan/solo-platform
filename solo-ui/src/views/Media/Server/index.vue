@@ -1,5 +1,5 @@
 <script lang="ts">
-export default { name: 'Gb28181MediaServer' }
+export default { name: 'MediaServer' }
 </script>
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
@@ -142,7 +142,7 @@ onMounted(() => {
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button v-permission="'gb28181:media-server:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+          <el-button v-permission="'media:server:list'" type="primary" :icon="Search" @click="handleSearch">查询</el-button>
           <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
@@ -150,7 +150,7 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button v-permission="'gb28181:media-server:save'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button v-permission="'media:server:save'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
@@ -173,7 +173,7 @@ onMounted(() => {
             <div>
               <el-tooltip content="详情">
                 <el-button
-                  v-permission="'gb28181:media-server:list'"
+                  v-permission="'media:server:list'"
                   type="primary"
                   link
                   :icon="View"
@@ -182,7 +182,7 @@ onMounted(() => {
               </el-tooltip>
               <el-tooltip content="编辑">
                 <el-button
-                  v-permission="'gb28181:media-server:save'"
+                  v-permission="'media:server:save'"
                   type="primary"
                   link
                   :icon="Edit"
@@ -191,7 +191,7 @@ onMounted(() => {
               </el-tooltip>
               <el-tooltip content="删除">
                 <el-button
-                  v-permission="'gb28181:media-server:delete'"
+                  v-permission="'media:server:delete'"
                   type="danger"
                   link
                   :icon="Delete"

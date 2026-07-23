@@ -17,6 +17,9 @@ import type {
   PlaybackStopRequest,
   PlaybackControlRequest,
   PlaybackResultVO,
+  StreamProxy,
+  StreamProxyPageRequest,
+  StreamProxyPlayUrl,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -186,4 +189,53 @@ export function playbackControlApi(data: PlaybackControlRequest) {
  */
 export function getDeviceChannelTreeApi() {
   return get<GbDeviceChannelTreeNode[]>('/api/gb28181/device-channel/tree')
+}
+
+// ============================================================
+//  拉流代理
+// ============================================================
+
+/** 分页 */
+export function getStreamProxyPageApi(data: StreamProxyPageRequest) {
+  return post<PageResult<StreamProxy>>('/api/stream-proxy/page', data)
+}
+
+/** 详情 */
+export function getStreamProxyApi(id: string) {
+  return get<StreamProxy>(`/api/stream-proxy/${id}`)
+}
+
+/** 新增 */
+export function saveStreamProxyApi(data: Partial<StreamProxy>) {
+  return post<void>('/api/stream-proxy/save', data)
+}
+
+/** 编辑 */
+export function updateStreamProxyApi(data: Partial<StreamProxy>) {
+  return post<void>('/api/stream-proxy/update', data)
+}
+
+/** 启用（推流） */
+export function enableStreamProxyApi(id: string) {
+  return post<void>(`/api/stream-proxy/${id}/enable`)
+}
+
+/** 停用（摘流） */
+export function disableStreamProxyApi(id: string) {
+  return post<void>(`/api/stream-proxy/${id}/disable`)
+}
+
+/** 播放地址 */
+export function getStreamProxyPlayUrlsApi(id: string) {
+  return get<StreamProxyPlayUrl>(`/api/stream-proxy/${id}/play-urls`)
+}
+
+/** 删除 */
+export function deleteStreamProxyApi(id: string) {
+  return del<void>(`/api/stream-proxy/${id}`)
+}
+
+/** 批量删除 */
+export function batchDeleteStreamProxyApi(ids: string[]) {
+  return post<void>('/api/stream-proxy/batch/delete', { ids })
 }

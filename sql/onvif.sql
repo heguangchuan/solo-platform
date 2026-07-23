@@ -32,7 +32,6 @@ CREATE TABLE onvif_device
     stream_uri       varchar(500)          DEFAULT NULL COMMENT 'GetStreamUri 探测填充的原始 RTSP（不含账密）',
     status           tinyint               DEFAULT 0    COMMENT '在线状态：0 离线 1 在线（由探测任务改）',
     last_check_time  datetime              DEFAULT NULL COMMENT '最近一次探测时间',
-    error_msg        varchar(255)          DEFAULT NULL COMMENT '探测失败原因',
     source           tinyint      NOT NULL DEFAULT 1 COMMENT '数据来源：1 系统新增 2 表格导入',
     create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

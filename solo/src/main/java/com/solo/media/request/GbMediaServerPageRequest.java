@@ -1,4 +1,4 @@
-package com.solo.gb28181.request;
+package com.solo.media.request;
 
 import lombok.Data;
 

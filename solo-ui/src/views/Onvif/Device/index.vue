@@ -191,10 +191,7 @@ onMounted(fetchData)
         </el-table-column>
         <el-table-column label="设备状态" align="center" width="85">
           <template #default="{ row }">
-            <el-tooltip v-if="row.status !== 1 && row.errorMsg" :content="row.errorMsg" placement="top">
-              <ListStatusBar :active="false" />
-            </el-tooltip>
-            <ListStatusBar v-else :active="row.status === 1" />
+            <ListStatusBar :active="row.status === 1" />
           </template>
         </el-table-column>
         <el-table-column prop="manufacturer" label="厂商" show-overflow-tooltip>
