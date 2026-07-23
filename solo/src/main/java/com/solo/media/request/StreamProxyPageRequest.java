@@ -1,0 +1,28 @@
+package com.solo.media.request;
+
+import lombok.Data;
+
+/**
+ * 拉流代理分页查询请求
+ */
+@Data
+public class StreamProxyPageRequest {
+
+    private Long page = 1L;
+    private Long pageSize = 20L;
+
+    /** 名称模糊 */
+    private String name;
+
+    /** app 精确 */
+    private String app;
+
+    /** stream 模糊 */
+    private String stream;
+
+    /** 运行状态 0未启动 1已推给 ZLM */
+    private Integer status;
+
+    /** 业务启用开关 0禁用 1启用 */
+    private Integer enabled;
+}

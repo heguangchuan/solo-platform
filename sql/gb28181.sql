@@ -124,6 +124,39 @@ CREATE TABLE media_server
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='流媒体节点表';
 
 -- =====================================================
+-- 拉流代理表（stream_proxy）
+-- 记录管理台建的第三方源拉流代理：RTSP / RTMP / HTTP-FLV / HLS 等。
+-- ZLM addStreamProxy 返回的 proxy_key 存 proxy_key，delStreamProxy 用得着。
+-- 一条 (app, stream, media_server_id) 三元组代表一路可播放流；unique 保护重名。
+-- =====================================================
+DROP TABLE IF EXISTS stream_proxy;
+CREATE TABLE stream_proxy
+(
+    id                bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name              varchar(100)          DEFAULT NULL COMMENT '显示名（用户填）',
+    app               varchar(50)  NOT NULL DEFAULT 'proxy' COMMENT 'ZLM app 名',
+    stream            varchar(100) NOT NULL COMMENT 'ZLM stream 名',
+    src_url           varchar(1000) NOT NULL COMMENT '源地址：rtsp:// rtmp:// http-flv/hls 等',
+    media_server_id   varchar(64)           DEFAULT NULL COMMENT '目标 ZLM 节点 serverId（留空则启动时自动挑一个可用节点）',
+    rtp_type          tinyint      NOT NULL DEFAULT 1 COMMENT 'RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播',
+    enable_audio      tinyint      NOT NULL DEFAULT 1 COMMENT '是否拉音频 0否 1是',
+    enable_mp4        tinyint      NOT NULL DEFAULT 0 COMMENT '是否录制 MP4 0否 1是',
+    enable_disable_none_reader tinyint NOT NULL DEFAULT 0 COMMENT '无人观看时是否自动停用 0否 1是',
+    enabled           tinyint      NOT NULL DEFAULT 1 COMMENT '业务启用开关 0禁用 1启用（禁用时不推给 ZLM）',
+    proxy_key         varchar(100)          DEFAULT NULL COMMENT 'ZLM addStreamProxy 返回的 key，用于 delStreamProxy',
+    status            tinyint      NOT NULL DEFAULT 0 COMMENT '运行状态 0未启动/离线 1已推给 ZLM',
+    last_error        varchar(500)          DEFAULT NULL COMMENT '最近一次启动失败原因（仅用于展示）',
+    remark            varchar(255)          DEFAULT NULL COMMENT '备注',
+    create_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_app_stream (app, stream),
+    KEY        idx_media_server_id (media_server_id),
+    KEY        idx_status (status),
+    KEY        idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='拉流代理表';
+
+-- =====================================================
 -- 注：点播 / 回放 / 下载会话（gb_invite_session）已迁移至 Redis（运行时状态表，
 -- 高频读写、按 callId/ssrc/streamId 反查、会话结束物理删除）。
 -- Key 布局见 com.solo.gb28181.service.impl.GbInviteSessionServiceImpl。

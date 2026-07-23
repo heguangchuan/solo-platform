@@ -1,4 +1,4 @@
-package com.solo.gb28181.mapper;
+package com.solo.media.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.solo.media.entity.MediaServer;

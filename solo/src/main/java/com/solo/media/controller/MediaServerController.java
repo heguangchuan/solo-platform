@@ -6,7 +6,7 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.media.entity.MediaServer;
-import com.solo.gb28181.request.GbMediaServerPageRequest;
+import com.solo.media.request.GbMediaServerPageRequest;
 import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,7 +33,7 @@ public class MediaServerController {
      * 分页查询节点
      */
     @PostMapping("/page")
-    @RequirePermission({"gb28181:media-server:list"})
+    @RequirePermission({"media:server:list"})
     public Result<PageResult<MediaServer>> page(@RequestBody GbMediaServerPageRequest request) {
         Page<MediaServer> page = mediaServerService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -43,7 +43,7 @@ public class MediaServerController {
      * 节点列表（不分页，下拉框用）
      */
     @GetMapping("/list")
-    @RequirePermission({"gb28181:media-server:list"})
+    @RequirePermission({"media:server:list"})
     public Result<List<MediaServer>> list() {
         return Result.success(mediaServerService.list());
     }
@@ -52,7 +52,7 @@ public class MediaServerController {
      * 详情（按主键）
      */
     @GetMapping("/{id}")
-    @RequirePermission({"gb28181:media-server:list"})
+    @RequirePermission({"media:server:list"})
     public Result<MediaServer> detail(@PathVariable Long id) {
         MediaServer server = mediaServerService.getById(id);
         if (server == null) {
@@ -65,7 +65,7 @@ public class MediaServerController {
      * 新增/更新节点（按 serverId 唯一）
      */
     @PostMapping("/save")
-    @RequirePermission({"gb28181:media-server:save"})
+    @RequirePermission({"media:server:save"})
     public Result<Void> save(@RequestBody MediaServer server) {
         if (server.getServerId() == null || server.getServerId().isBlank()) {
             throw new ServiceException("serverId 不能为空");
@@ -81,7 +81,7 @@ public class MediaServerController {
      * 删除节点
      */
     @DeleteMapping("/{id}")
-    @RequirePermission({"gb28181:media-server:delete"})
+    @RequirePermission({"media:server:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         mediaServerService.removeById(id);
         return Result.success();

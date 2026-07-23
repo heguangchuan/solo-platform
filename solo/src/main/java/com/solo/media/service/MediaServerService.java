@@ -3,7 +3,7 @@ package com.solo.media.service;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.media.entity.MediaServer;
-import com.solo.gb28181.request.GbMediaServerPageRequest;
+import com.solo.media.request.GbMediaServerPageRequest;
 
 /**
  * 流媒体节点服务

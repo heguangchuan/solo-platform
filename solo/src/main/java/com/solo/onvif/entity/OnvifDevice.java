@@ -71,9 +71,6 @@ public class OnvifDevice {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastCheckTime;
 
-    /** 探测失败原因 */
-    private String errorMsg;
-
     /** 数据来源：1 系统新增 2 表格导入 */
     private Integer source;
 

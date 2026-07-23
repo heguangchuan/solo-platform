@@ -28,7 +28,6 @@ export interface OnvifDevice {
   /** 0 离线 1 在线 */
   status: number
   lastCheckTime?: string
-  errorMsg?: string
   /** 1 系统新增 2 表格导入 */
   source?: number
   createTime: string
