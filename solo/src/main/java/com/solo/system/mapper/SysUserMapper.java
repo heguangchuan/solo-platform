@@ -13,7 +13,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     @Select("SELECT r.role_code FROM sys_user u " +
             "JOIN sys_user_role ur ON u.id = ur.user_id " +
             "JOIN sys_role r ON ur.role_id = r.id " +
-            "WHERE u.id = #{userId} AND u.deleted = 0 AND r.deleted = 0")
+            "WHERE u.id = #{userId} AND u.deleted = 0 AND r.deleted = 0 AND r.status = 1")
     List<String> selectRoleCodes(Long userId);
 
     @Select("SELECT DISTINCT p.permission_code FROM sys_user u " +
@@ -21,7 +21,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "JOIN sys_role_permission rp ON ur.role_id = rp.role_id " +
             "JOIN sys_permission p ON rp.permission_id = p.id " +
             "JOIN sys_role r ON ur.role_id = r.id " +
-            "WHERE u.id = #{userId} AND u.deleted = 0 AND r.deleted = 0 AND p.deleted = 0")
+            "WHERE u.id = #{userId} AND u.deleted = 0 AND r.deleted = 0 AND r.status = 1 AND p.deleted = 0")
     List<String> selectPermissionCodes(Long userId);
 
     /**
@@ -32,7 +32,7 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "JOIN sys_role_permission rp ON ur.role_id = rp.role_id " +
             "JOIN sys_permission p ON rp.permission_id = p.id " +
             "JOIN sys_role r ON ur.role_id = r.id " +
-            "WHERE ur.user_id = #{userId} AND p.type = 1 AND p.deleted = 0 AND r.deleted = 0 " +
+            "WHERE ur.user_id = #{userId} AND p.type = 1 AND p.deleted = 0 AND r.deleted = 0 AND r.status = 1 " +
             "ORDER BY p.sort ASC")
     List<UserAuthResponse> auth(Long userId);
 }

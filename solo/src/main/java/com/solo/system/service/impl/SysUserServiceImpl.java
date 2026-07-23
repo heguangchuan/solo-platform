@@ -3,6 +3,7 @@ package com.solo.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.solo.aop.PermissionCache;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.system.constant.SystemConstants;
@@ -43,6 +44,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     private final JwtUtils jwtUtils;
     private final SysUserRoleMapper sysUserRoleMapper;
+    private final PermissionCache permissionCache;
 
     @Override
     public SysUser getByUsername(String username) {
@@ -190,18 +192,24 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         user.setStatus(status);
         updateById(user);
+        // 禁用不影响缓存中已有的权限列表，但用户下次登录时应立即拦截——保守起见失效一次
+        permissionCache.evict(id);
     }
 
     @Override
     public void deleteUser(Long id) {
         sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
         removeById(id);
+        permissionCache.evict(id);
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
         sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, ids));
         removeByIds(ids);
+        if (ids != null) {
+            ids.forEach(permissionCache::evict);
+        }
     }
 
     @Override
@@ -223,7 +231,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
         }
         sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
-        if (roleIds == null || roleIds.isEmpty()) return;
+        if (roleIds == null || roleIds.isEmpty()) {
+            permissionCache.evict(userId);
+            return;
+        }
         for (Long roleId : roleIds) {
             if (roleId == null) continue;
             SysUserRole entry = new SysUserRole();
@@ -231,6 +242,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             entry.setRoleId(roleId);
             sysUserRoleMapper.insert(entry);
         }
+        permissionCache.evict(userId);
     }
 
     @Override

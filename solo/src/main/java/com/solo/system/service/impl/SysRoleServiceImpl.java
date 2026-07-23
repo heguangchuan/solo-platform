@@ -3,6 +3,7 @@ package com.solo.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.solo.aop.PermissionCache;
 import com.solo.common.ServiceException;
 import com.solo.system.constant.SystemConstants;
 import com.solo.system.entity.SysRole;
@@ -31,6 +32,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
 
     private final SysUserRoleMapper sysUserRoleMapper;
     private final SysRolePermissionMapper sysRolePermissionMapper;
+    private final PermissionCache permissionCache;
 
     @Override
     public Page<SysRole> pageQuery(RolePageRequest req) {
@@ -68,10 +70,15 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         if (role == null) {
             throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "角色不存在");
         }
+        Integer oldStatus = role.getStatus();
         if (request.getRoleName() != null) role.setRoleName(request.getRoleName());
         if (request.getDescription() != null) role.setDescription(request.getDescription());
         if (request.getStatus() != null) role.setStatus(request.getStatus());
         updateById(role);
+        // 启用/禁用切换会影响该角色下所有用户的权限计算，需要失效
+        if (request.getStatus() != null && !request.getStatus().equals(oldStatus)) {
+            permissionCache.evictAll();
+        }
     }
 
     @Override
@@ -79,6 +86,8 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, id));
         sysRolePermissionMapper.delete(new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, id));
         removeById(id);
+        // 该角色可能挂在若干用户身上；单个失效成本太高，直接全清。
+        permissionCache.evictAll();
     }
 
     @Override
@@ -108,7 +117,11 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
         }
         sysRolePermissionMapper.delete(
                 new LambdaQueryWrapper<SysRolePermission>().eq(SysRolePermission::getRoleId, roleId));
-        if (permissionIds == null || permissionIds.isEmpty()) return;
+        if (permissionIds == null || permissionIds.isEmpty()) {
+            // 角色权限被清空，仍需失效缓存
+            permissionCache.evictAll();
+            return;
+        }
         for (Long permissionId : permissionIds) {
             if (permissionId == null) continue;
             SysRolePermission entry = new SysRolePermission();
@@ -116,5 +129,7 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
             entry.setPermissionId(permissionId);
             sysRolePermissionMapper.insert(entry);
         }
+        // 该角色下所有用户的权限都可能变了，直接全清（简单可靠）
+        permissionCache.evictAll();
     }
 }
