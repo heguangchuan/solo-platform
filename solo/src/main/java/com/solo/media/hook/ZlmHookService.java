@@ -4,6 +4,7 @@ import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.media.service.StreamPushService;
 import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
@@ -41,6 +42,7 @@ public class ZlmHookService {
     private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
+    private final StreamPushService streamPushService;
 
     // ============ 服务级 ============
 
@@ -71,6 +73,12 @@ public class ZlmHookService {
             mediaServerService.updateById(exist);
         }
         // ZLM 重启：该节点下所有 INVITE 会话都已死；GbPlayService 的 onStreamStopped 会按需清扫
+        // 推流表兜底同步：ZLM 上没有的 push 行删掉
+        try {
+            streamPushService.reconcileWithZlm(serverId);
+        } catch (Exception e) {
+            log.warn("[ZLM 回调] on_server_started 推流兜底同步异常 serverId={} err={}", serverId, e.getMessage());
+        }
         return HookResult.ok();
     }
 
@@ -156,12 +164,15 @@ public class ZlmHookService {
                 } else {
                     playService.onStreamReady(app, stream, mediaServerId);
                 }
+                // 推流入表：仅当 originType∈PUSH 时，StreamPushService 内部会再判一次
+                streamPushService.onStreamRegist(app, stream, mediaServerId, body);
             } else {
                 if (isPlayback) {
                     playbackService.onStreamStopped(app, stream, mediaServerId);
                 } else {
                     playService.onStreamStopped(app, stream, mediaServerId);
                 }
+                streamPushService.onStreamCancel(app, stream, mediaServerId);
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_stream_changed 业务异常 stream={}", stream, e);
