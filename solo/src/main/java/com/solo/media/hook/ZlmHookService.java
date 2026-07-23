@@ -184,12 +184,19 @@ public class ZlmHookService {
         if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String stream = stringOf(body, "stream");
         String mediaServerId = stringOf(body, "mediaServerId");
+        String originTypeStr = stringOf(body, "originTypeStr");
         // close=false：前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟，立刻关流会导致前端拉不到。
         // 流的回收完全靠业务侧（stop API / on_rtp_server_timeout）
         boolean close = false;
 
-        // streamOnDemand 开启时，如果没有人看，告诉 ZLM 关闭流，释放资源
-        if (mediaProperties.isStreamOnDemand()) {
+        // 只对"平台自己拉起来"的流（国标 INVITE 的 rtp_push、拉流代理的 pull）应用按需回收；
+        // 推流类型（rtmp_push / rtsp_push / rtc_push）由客户端主动推，无人看 ≠ 该关，否则 ffmpeg 侧会 WSAECONNABORTED。
+        boolean isPullOrInvite = "rtp_push".equals(originTypeStr)
+                || "pull".equals(originTypeStr)
+                || "ffmpeg_pull".equals(originTypeStr);
+
+        // streamOnDemand 开启时，如果没有人看，告诉 ZLM 关闭流，释放资源（仅限拉起来的流）
+        if (mediaProperties.isStreamOnDemand() && isPullOrInvite) {
             close = true;
             // 异步清理 GB28181 会话资源
             if ("rtsp".equalsIgnoreCase(stringOf(body, "schema"))) {
@@ -206,7 +213,8 @@ public class ZlmHookService {
             }
         }
 
-        log.info("[ZLM 回调] on_stream_none_reader stream={} -> close={}", stream, close);
+        log.info("[ZLM 回调] on_stream_none_reader stream={} originType={} -> close={}",
+                stream, originTypeStr, close);
         return HookResult.ok().put("close", close);
     }
 
