@@ -21,17 +21,15 @@ import java.util.Map;
  *
  * <h3>职责</h3>
  * <ul>
- *   <li>统一 secret 校验</li>
  *   <li>消息字段解析（{@code stringOf / booleanOf}）</li>
  *   <li>转发到对应业务服务（{@link MediaServerService} / {@link GbPlayService}）</li>
  * </ul>
  *
- * <p>所有方法接收 ZLM 原始 body，返回 {@link HookResult}。Controller 只负责绑定 URL，
- * 不再做任何业务判断。</p>
+ * <p>所有方法接收 ZLM 原始 body，返回 {@link HookResult}。Secret 校验由 {@link ZlmHookController}
+ * 统一负责，业务方法内无需再判。</p>
  *
  * <h3>响应约定</h3>
- * <p>不管业务是否成功，对 ZLM 一律返回 {@code code=0}；secret 校验失败才返 401。
- * 业务异常用日志承担，避免 ZLM 因 4xx/5xx 反复重试。</p>
+ * <p>业务异常一律用日志承担并返 {@code code=0}，避免 ZLM 因 4xx/5xx 反复重试。</p>
  */
 @Slf4j
 @Service
@@ -49,7 +47,6 @@ public class ZlmHookService {
     // ============ 服务级 ============
 
     public HookResult onServerKeepalive(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String serverId = stringOf(body, "mediaServerId");
         if (serverId == null) {
             log.warn("[ZLM 回调] on_server_keepalive 缺少 mediaServerId: {}", body);
@@ -60,7 +57,6 @@ public class ZlmHookService {
     }
 
     public HookResult onServerStarted(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String serverId = stringOf(body, "mediaServerId");
         log.info("[ZLM 回调] on_server_started serverId={}", serverId);
         if (serverId == null) return HookResult.ok();
@@ -87,14 +83,12 @@ public class ZlmHookService {
     // ============ 流级 ============
 
     public HookResult onPlay(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         log.info("[ZLM 回调] on_play {}", body);
         // 实时点播默认放行；如需限制只许带正确 callId 的客户端拉流，可在此扩展
         return HookResult.ok();
     }
 
     public HookResult onStreamNotFound(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
         String mediaServerId = stringOf(body, "mediaServerId");
@@ -120,7 +114,6 @@ public class ZlmHookService {
     }
 
     public HookResult onPublish(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         log.info("[ZLM 回调] on_publish {}", body);
 
         String app = stringOf(body, "app");
@@ -162,7 +155,6 @@ public class ZlmHookService {
     }
 
     public HookResult onStreamChanged(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String schema = stringOf(body, "schema");
         // ZLM 对每个派生 schema 都会触发一次（ts/rtsp/rtmp/fmp4），业务侧只需处理一次：固定取 rtsp
         if (!"rtsp".equalsIgnoreCase(schema)) return HookResult.ok();
@@ -198,7 +190,6 @@ public class ZlmHookService {
     }
 
     public HookResult onStreamNoneReader(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String stream = stringOf(body, "stream");
         String mediaServerId = stringOf(body, "mediaServerId");
         String originTypeStr = stringOf(body, "originTypeStr");
@@ -236,7 +227,6 @@ public class ZlmHookService {
     }
 
     public HookResult onRtpServerTimeout(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
         try {
@@ -264,37 +254,18 @@ public class ZlmHookService {
     }
 
     public HookResult onRecordMp4(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         log.info("[ZLM 回调] on_record_mp4 {}", body);
         // S4 录像功能再接入
         return HookResult.ok();
     }
 
     public HookResult onSendRtpStopped(Map<String, Object> body) {
-        if (!checkSecret(body)) return HookResult.reject("secret mismatch");
         log.info("[ZLM 回调] on_send_rtp_stopped {}", body);
         // S6 级联用
         return HookResult.ok();
     }
 
     // ============ 工具 ============
-
-    /**
-     * Secret 校验策略：若 body 中存在 {@code secret} 字段则校验一致性；
-     * 不存在则放行（ZLM 默认 hook 不带 secret，生产环境建议配合防火墙限制来源 IP）。
-     */
-    private boolean checkSecret(Map<String, Object> body) {
-        if (body == null) return true;
-        String expected = mediaProperties.getHookSecret();
-        if (expected == null || expected.isBlank()) return true;
-        Object got = body.get("secret");
-        if (got == null) return true;
-        if (!expected.equals(got.toString())) {
-            log.warn("[ZLM 回调] secret 不匹配 from={}", got);
-            return false;
-        }
-        return true;
-    }
 
     private static String stringOf(Map<String, Object> body, String key) {
         Object v = body == null ? null : body.get(key);
