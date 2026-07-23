@@ -24,11 +24,18 @@ interface Props {
   deviceId?: string
   /** 是否显示设备编码列（独立页面需要显示，弹窗不需要） */
   showDeviceColumn?: boolean
+  /** 新增按钮是否由外部接管（独立页面用左设备选择+右多通道弹窗） */
+  externalAdd?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showDeviceColumn: true,
+  externalAdd: false,
 })
+
+const emit = defineEmits<{
+  (e: 'external-add'): void
+}>()
 
 const loading = ref(false)
 const tableData = ref<GbDeviceChannelVO[]>([])
@@ -125,6 +132,10 @@ function handleSizeChange(s: number) {
 
 // ---------------- 新增/编辑 ----------------
 async function handleAdd() {
+  if (props.externalAdd) {
+    emit('external-add')
+    return
+  }
   if (!searchForm.value.deviceId) {
     ElMessage.warning('所属设备不存在，无法新增通道')
     return
