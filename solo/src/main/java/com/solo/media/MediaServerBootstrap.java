@@ -24,6 +24,14 @@ public class MediaServerBootstrap {
 
     @PostConstruct
     void init() {
+        // 启动期显式检查 hook secret 配置
+        String hookSecret = mediaProperties.getHookSecret();
+        if (hookSecret == null || hookSecret.isBlank()) {
+            log.error("[流媒体] gb28181.media.hook-secret 未配置，ZLM 所有 hook 回调都会被拒。请在 application.yaml 补齐。");
+        } else {
+            log.info("[流媒体] hook secret 已启用，长度={}", hookSecret.length());
+        }
+
         MediaProperties.DefaultServer cfg = mediaProperties.getDefaultServer();
         if (cfg == null || !cfg.isEnabled()) {
             return;
