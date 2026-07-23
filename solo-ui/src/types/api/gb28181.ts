@@ -263,3 +263,42 @@ export interface StreamProxyPlayUrl {
   hlsUrl?: string
   rtcUrl?: string
 }
+
+/** 推流分页查询参数 */
+export interface StreamPushPageRequest extends PageRequest {
+  app?: string
+  stream?: string
+  mediaServerId?: string
+  /** 0 已断 1 推流中 */
+  pushing?: number
+}
+
+/** 推流 */
+export interface StreamPush {
+  id: string
+  app: string
+  stream: string
+  mediaServerId: string
+  vhost?: string
+  streamSchema?: string
+  /** 推流类型：rtmp / rtsp / rtc */
+  originType?: string
+  originUrl?: string
+  pushing?: number
+  readerCount?: number
+  aliveSecond?: number
+  pushTime?: string
+  createTime?: string
+  updateTime?: string
+}
+
+/** 推流播放地址（复用与拉流代理一样的字段） */
+export interface StreamPushPlayUrl {
+  app: string
+  stream: string
+  mediaServerId?: string
+  flvUrl?: string
+  wsFlvUrl?: string
+  hlsUrl?: string
+  rtcUrl?: string
+}

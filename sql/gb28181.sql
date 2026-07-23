@@ -157,26 +157,34 @@ CREATE TABLE stream_proxy
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='拉流代理表';
 
 -- =====================================================
--- 注：点播 / 回放 / 下载会话（gb_invite_session）已迁移至 Redis（运行时状态表，
--- 高频读写、按 callId/ssrc/streamId 反查、会话结束物理删除）。
--- Key 布局见 com.solo.gb28181.service.impl.GbInviteSessionServiceImpl。
--- 真要做"播放历史 / 审计"请另建 gb_play_history 表，schema 不同。
+-- 推流表（stream_push）
+-- 记录 ZLM 上第三方推上来的流（RTMP / RTSP / WebRTC push）。
+-- 数据由 ZLM Hook 事件驱动：on_stream_changed(regist=true) → upsert，regist=false → 物理删。
+-- on_server_started 时兜底：拉 getMediaList，只保留 origin_type∈{rtmp,rtsp,rtc}，与库对齐后删掉库里 ZLM 已无的僵尸行。
 -- =====================================================
+DROP TABLE IF EXISTS stream_push;
+CREATE TABLE stream_push
+(
+    id                bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    app               varchar(50)  NOT NULL COMMENT 'ZLM app 名',
+    stream            varchar(100) NOT NULL COMMENT 'ZLM stream 名',
+    media_server_id   varchar(64)  NOT NULL COMMENT '所属 ZLM 节点 serverId',
+    vhost             varchar(100)          DEFAULT '__defaultVhost__' COMMENT 'ZLM vhost',
+    stream_schema     varchar(100)          DEFAULT NULL COMMENT '推流协议（rtsp/rtmp/hls/ts/fmp4，通常只留 rtsp）',
+    origin_type       varchar(20)           DEFAULT NULL COMMENT '推流类型：rtmp / rtsp / rtc',
+    origin_url        varchar(500)          DEFAULT NULL COMMENT '来源 URL / 来源 socket',
+    pushing           tinyint      NOT NULL DEFAULT 0 COMMENT '当前是否在推流：0已断 1推流中',
+    reader_count      int                   DEFAULT 0 COMMENT '当前观看人数（totalReaderCount 快照）',
+    alive_second      int                   DEFAULT 0 COMMENT '存活秒数（快照，展示用）',
+    push_time         datetime              DEFAULT NULL COMMENT '首次开始推流时间',
+    update_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    create_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_app_stream (app, stream),
+    KEY        idx_media_server_id (media_server_id),
+    KEY        idx_pushing (pushing)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流记录表';
 
--- =====================================================
--- 存量库升级：
--- 1) 为已存在的 gb_device / gb_device_channel 补 source 列
--- 2) 设备/通道改为物理删除，移除 deleted 列（清理前请先删掉历史 deleted=1 的垃圾行）
--- （全新执行本脚本时上面 CREATE 已是最新结构，以下 ALTER 会因列已存在/不存在而报错，可忽略）
--- =====================================================
--- ALTER TABLE gb_device        ADD COLUMN source tinyint NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册' AFTER status;
--- ALTER TABLE gb_device        ADD KEY idx_source (source);
--- ALTER TABLE gb_device_channel ADD COLUMN source tinyint NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册' AFTER platform_id;
--- ALTER TABLE gb_device_channel ADD KEY idx_source (source);
--- DELETE FROM gb_device         WHERE deleted = 1;
--- DELETE FROM gb_device_channel WHERE deleted = 1;
--- ALTER TABLE gb_device         DROP COLUMN deleted;
--- ALTER TABLE gb_device_channel DROP COLUMN deleted;
 
 SET
 FOREIGN_KEY_CHECKS = 1;

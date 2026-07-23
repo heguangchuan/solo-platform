@@ -15,7 +15,9 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -133,6 +135,50 @@ public class ZlmRestClient {
             JsonNode data = resp.path("data");
             return data.isArray() && !data.isEmpty();
         } catch (ServiceException e) {
+            return false;
+        }
+    }
+
+    /**
+     * 获取节点上的所有流列表（推流管理"兜底同步"用）
+     * <p>与 {@link #isMediaOnline} 复用同一底层，只是不加过滤参数，全量拉。</p>
+     *
+     * @return 每条包含 app/stream/schema/originType/originTypeStr/originUrl/totalReaderCount/aliveSecond 等
+     */
+    public List<JsonNode> getMediaList(MediaServer server) {
+        try {
+            JsonNode resp = post(server, "getMediaList", new LinkedHashMap<>());
+            JsonNode data = resp.path("data");
+            if (!data.isArray()) return List.of();
+            List<JsonNode> out = new ArrayList<>();
+            data.forEach(out::add);
+            return out;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] getMediaList 失败 server={} err={}", server.getServerId(), e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * 关闭指定 app/stream 的流（强制中止推流用）
+     *
+     * @param force true=不管有没有观众都关
+     * @return true=有一路流被关；false=不存在或失败
+     */
+    public boolean closeStream(MediaServer server, String app, String stream, boolean force) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("force", force ? "1" : "0");
+        try {
+            JsonNode resp = post(server, "close_streams", params);
+            int count = resp.path("count_hit").asInt(0);
+            log.info("[流媒体] close_streams server={} app={} stream={} count_hit={}",
+                    server.getServerId(), app, stream, count);
+            return count > 0;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] close_streams 失败 server={} app={} stream={} err={}",
+                    server.getServerId(), app, stream, e.getMessage());
             return false;
         }
     }

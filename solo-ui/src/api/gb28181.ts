@@ -20,6 +20,9 @@ import type {
   StreamProxy,
   StreamProxyPageRequest,
   StreamProxyPlayUrl,
+  StreamPush,
+  StreamPushPageRequest,
+  StreamPushPlayUrl,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -238,4 +241,33 @@ export function deleteStreamProxyApi(id: string) {
 /** 批量删除 */
 export function batchDeleteStreamProxyApi(ids: string[]) {
   return post<void>('/api/stream-proxy/batch/delete', { ids })
+}
+
+// ============================================================
+//  推流管理
+// ============================================================
+
+/** 分页 */
+export function getStreamPushPageApi(data: StreamPushPageRequest) {
+  return post<PageResult<StreamPush>>('/api/stream-push/page', data)
+}
+
+/** 播放地址 */
+export function getStreamPushPlayUrlsApi(id: string) {
+  return get<StreamPushPlayUrl>(`/api/stream-push/${id}/play-urls`)
+}
+
+/** 强制中止 */
+export function stopStreamPushApi(id: string) {
+  return post<void>(`/api/stream-push/${id}/stop`)
+}
+
+/** 删除（仅对已中止） */
+export function deleteStreamPushApi(id: string) {
+  return del<void>(`/api/stream-push/${id}`)
+}
+
+/** 批量删除 */
+export function batchDeleteStreamPushApi(ids: string[]) {
+  return post<void>('/api/stream-push/batch/delete', { ids })
 }
