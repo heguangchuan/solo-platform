@@ -43,12 +43,8 @@ public class StreamPush {
     /** 推流类型：rtmp / rtsp / rtc（ZLM originType 整数已映射为字符串再入库） */
     private String originType;
 
-    private String originUrl;
-
     /** 当前是否在推流：0已断 1推流中 */
     private Integer pushing;
-
-    private Integer readerCount;
 
     private Integer aliveSecond;
 
@@ -56,9 +52,8 @@ public class StreamPush {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime pushTime;
 
-    @TableField(fill = FieldFill.INSERT_UPDATE)
-    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime updateTime;
+    /** 推流方标识（关联 stream_push_client.client_id）；未开启鉴权时为空 */
+    private String clientId;
 
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

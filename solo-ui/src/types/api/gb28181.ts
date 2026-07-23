@@ -283,13 +283,11 @@ export interface StreamPush {
   streamSchema?: string
   /** 推流类型：rtmp / rtsp / rtc */
   originType?: string
-  originUrl?: string
   pushing?: number
-  readerCount?: number
   aliveSecond?: number
   pushTime?: string
+  clientId?: string
   createTime?: string
-  updateTime?: string
 }
 
 /** 推流播放地址（复用与拉流代理一样的字段） */
@@ -301,4 +299,21 @@ export interface StreamPushPlayUrl {
   wsFlvUrl?: string
   hlsUrl?: string
   rtcUrl?: string
+}
+
+/** 推流方鉴权 */
+export interface StreamPushClient {
+  id: string
+  clientId: string
+  token: string
+  enabled?: number
+  remark?: string
+  createTime?: string
+  updateTime?: string
+}
+
+/** 推流方分页查询参数 */
+export interface StreamPushClientPageRequest extends PageRequest {
+  clientId?: string
+  enabled?: number
 }

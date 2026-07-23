@@ -172,18 +172,37 @@ CREATE TABLE stream_push
     vhost             varchar(100)          DEFAULT '__defaultVhost__' COMMENT 'ZLM vhost',
     stream_schema     varchar(100)          DEFAULT NULL COMMENT '推流协议（rtsp/rtmp/hls/ts/fmp4，通常只留 rtsp）',
     origin_type       varchar(20)           DEFAULT NULL COMMENT '推流类型：rtmp / rtsp / rtc',
-    origin_url        varchar(500)          DEFAULT NULL COMMENT '来源 URL / 来源 socket',
     pushing           tinyint      NOT NULL DEFAULT 0 COMMENT '当前是否在推流：0已断 1推流中',
-    reader_count      int                   DEFAULT 0 COMMENT '当前观看人数（totalReaderCount 快照）',
     alive_second      int                   DEFAULT 0 COMMENT '存活秒数（快照，展示用）',
     push_time         datetime              DEFAULT NULL COMMENT '首次开始推流时间',
-    update_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    client_id         varchar(64)           DEFAULT NULL COMMENT '推流方标识（关联 stream_push_client.client_id，未开启鉴权则为空）',
     create_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_app_stream (app, stream),
     KEY        idx_media_server_id (media_server_id),
-    KEY        idx_pushing (pushing)
+    KEY        idx_pushing (pushing),
+    KEY        idx_client_id (client_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流记录表';
+
+-- =====================================================
+-- 推流方鉴权表（stream_push_client）
+-- 一条 = 一个推流方。推流时在 RTMP/RTSP URL 上带 ?token=xxx，ZLM on_publish 里查此表。
+-- token 明文存储（256 位随机熵），泄漏时管理员点"重置 token"重发。
+-- =====================================================
+DROP TABLE IF EXISTS stream_push_client;
+CREATE TABLE stream_push_client
+(
+    id           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    client_id    varchar(64)  NOT NULL COMMENT '推流方标识（用户填，唯一）',
+    token        varchar(64)  NOT NULL COMMENT '鉴权令牌（SecureRandom 32 字节 Base64URL）',
+    enabled      tinyint      NOT NULL DEFAULT 1 COMMENT '0禁用 1启用',
+    remark       varchar(255)          DEFAULT NULL COMMENT '备注',
+    create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_client_id (client_id),
+    UNIQUE KEY uk_token (token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流方鉴权表';
 
 
 SET
