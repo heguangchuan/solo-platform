@@ -4,6 +4,7 @@ import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.media.service.StreamPushClientService;
 import com.solo.media.service.StreamPushService;
 import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.service.GbPlayService;
@@ -43,6 +44,7 @@ public class ZlmHookService {
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
     private final StreamPushService streamPushService;
+    private final StreamPushClientService streamPushClientService;
 
     // ============ 服务级 ============
 
@@ -124,6 +126,21 @@ public class ZlmHookService {
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
         boolean enableMp4;
+
+        // ============ 推流鉴权 ============
+        // 国标 rtp / 广播 / 对讲 是平台自己触发的推流，不需要 token；其他外部推流才校验。
+        boolean isPlatformInternalApp = "rtp".equals(app) || "broadcast".equals(app) || "talk".equals(app);
+        if (mediaProperties.isPushAuthEnabled() && !isPlatformInternalApp) {
+            String token = parseParam(stringOf(body, "params"), "token");
+            String clientId = streamPushClientService.authenticate(token);
+            if (clientId == null) {
+                log.warn("[推流鉴权] 拒绝 app={} stream={} ip={} tokenPrefix={} 原因={}",
+                        app, stream, stringOf(body, "ip"), maskToken(token),
+                        token == null ? "缺少 token" : "token 无效或已禁用");
+                return HookResult.rejectPublish("push token invalid");
+            }
+            log.info("[推流鉴权] 通过 app={} stream={} clientId={}", app, stream, clientId);
+        }
 
         // 根据流类型和配置决定是否开启 MP4 录制
         if ("rtp".equals(app)) {
@@ -289,5 +306,72 @@ public class ZlmHookService {
         if (v == null) return null;
         if (v instanceof Boolean b) return b;
         return Boolean.parseBoolean(v.toString());
+    }
+
+    /**
+     * 解析 ZLM 上报的 {@code params} 串（形如 {@code token=abc&other=1}）取指定 key 的值。
+     * <p>ZLM 在上报时会把 URL 里的 {@code =} / {@code &} 做 HTML 实体转义（{@code &#61;} / {@code &#38;}），
+     * 因此拆分前先跑一遍简单的 HTML 实体解码。</p>
+     */
+    private static String parseParam(String params, String key) {
+        if (params == null || params.isEmpty() || key == null) return null;
+        String decoded = decodeHtmlEntities(params);
+        for (String pair : decoded.split("&")) {
+            int idx = pair.indexOf('=');
+            if (idx <= 0) continue;
+            if (key.equals(pair.substring(0, idx))) {
+                return pair.substring(idx + 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 极简 HTML 实体解码：只处理 ZLM params 里可能出现的 {@code &amp; &#38; &#61; &quot;}。
+     * 不引第三方库，覆盖数字实体（{@code &#N;} / {@code &#xNN;}）+ 常见命名实体。
+     */
+    private static String decodeHtmlEntities(String s) {
+        if (s == null || s.indexOf('&') < 0) return s;
+        StringBuilder sb = new StringBuilder(s.length());
+        int i = 0;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            if (c != '&') { sb.append(c); i++; continue; }
+            int semi = s.indexOf(';', i + 1);
+            if (semi < 0 || semi - i > 8) { sb.append(c); i++; continue; }
+            String ent = s.substring(i + 1, semi);
+            char decoded;
+            try {
+                if (ent.startsWith("#x") || ent.startsWith("#X")) {
+                    decoded = (char) Integer.parseInt(ent.substring(2), 16);
+                } else if (ent.startsWith("#")) {
+                    decoded = (char) Integer.parseInt(ent.substring(1));
+                } else {
+                    decoded = switch (ent) {
+                        case "amp" -> '&';
+                        case "lt" -> '<';
+                        case "gt" -> '>';
+                        case "quot" -> '"';
+                        case "apos" -> '\'';
+                        default -> 0;
+                    };
+                    if (decoded == 0) { sb.append(c); i++; continue; }
+                }
+            } catch (NumberFormatException e) {
+                sb.append(c);
+                i++;
+                continue;
+            }
+            sb.append(decoded);
+            i = semi + 1;
+        }
+        return sb.toString();
+    }
+
+    /** 日志脱敏：token 只保留前 6 位 */
+    private static String maskToken(String token) {
+        if (token == null) return "null";
+        if (token.length() < 6) return "***";
+        return token.substring(0, 6) + "***";
     }
 }

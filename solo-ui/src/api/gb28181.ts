@@ -23,6 +23,8 @@ import type {
   StreamPush,
   StreamPushPageRequest,
   StreamPushPlayUrl,
+  StreamPushClient,
+  StreamPushClientPageRequest,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -270,4 +272,28 @@ export function deleteStreamPushApi(id: string) {
 /** 批量删除 */
 export function batchDeleteStreamPushApi(ids: string[]) {
   return post<void>('/api/stream-push/batch/delete', { ids })
+}
+
+// ============================================================
+//  推流方鉴权
+// ============================================================
+
+export function getStreamPushClientPageApi(data: StreamPushClientPageRequest) {
+  return post<PageResult<StreamPushClient>>('/api/stream-push-client/page', data)
+}
+
+export function saveStreamPushClientApi(data: Partial<StreamPushClient>) {
+  return post<StreamPushClient>('/api/stream-push-client/save', data)
+}
+
+export function updateStreamPushClientApi(data: Partial<StreamPushClient>) {
+  return post<void>('/api/stream-push-client/update', data)
+}
+
+export function resetStreamPushClientTokenApi(id: string) {
+  return post<StreamPushClient>(`/api/stream-push-client/${id}/reset-token`)
+}
+
+export function deleteStreamPushClientApi(id: string) {
+  return del<void>(`/api/stream-push-client/${id}`)
 }

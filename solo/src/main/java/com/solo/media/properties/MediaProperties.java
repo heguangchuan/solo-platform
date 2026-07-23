@@ -72,6 +72,13 @@ public class MediaProperties {
     private boolean recordPushLive = true;
 
     /**
+     * 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中
+     * stream_push_client 且 enabled=1；未命中或未传 token 一律拒绝。
+     * false（默认）=不做任何校验，任何客户端都能往 ZLM 推流（生产环境务必开启）。
+     */
+    private boolean pushAuthEnabled = false;
+
+    /**
      * 启动时若 gb_media_server 表为空则自动写入的默认节点。
      */
     private DefaultServer defaultServer = new DefaultServer();

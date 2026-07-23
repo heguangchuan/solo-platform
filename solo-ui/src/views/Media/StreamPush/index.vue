@@ -9,7 +9,7 @@ export default { name: 'MediaStreamPush' }
  */
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Delete, VideoCamera, Link, CircleClose } from '@element-plus/icons-vue'
+import { Search, Refresh, Delete, VideoCamera, Link, CircleClose, Key } from '@element-plus/icons-vue'
 import type { StreamPush, StreamPushPageRequest, GbMediaServer } from '@/types/api'
 import {
   getStreamPushPageApi,
@@ -21,6 +21,7 @@ import {
 } from '@/api/gb28181'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 import StreamPushPlayDialog from './components/StreamPushPlayDialog.vue'
+import StreamPushClientDialog from './components/StreamPushClientDialog.vue'
 
 const loading = ref(false)
 const tableData = ref<StreamPush[]>([])
@@ -144,6 +145,12 @@ function handlePlay(row: StreamPush) {
   playDialogRef.value?.open(row)
 }
 
+// ---------------- 授权 ----------------
+const clientDialogRef = ref<InstanceType<typeof StreamPushClientDialog> | null>(null)
+function handleOpenClientDialog() {
+  clientDialogRef.value?.open()
+}
+
 async function handleShowPlayUrls(row: StreamPush) {
   const res = await getStreamPushPlayUrlsApi(row.id)
   const d = res.data
@@ -202,6 +209,14 @@ onMounted(() => {
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
         <el-button
+          v-permission="'media:stream-push-client:list'"
+          type="primary"
+          :icon="Key"
+          @click="handleOpenClientDialog"
+        >
+          授权
+        </el-button>
+        <el-button
           v-permission="'media:stream-push:delete'"
           type="danger"
           :icon="Delete"
@@ -221,23 +236,22 @@ onMounted(() => {
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column label="应用 / 流" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.app }} / {{ row.stream }}</template>
-        </el-table-column>
+        <el-table-column prop="app" label="应用名称" min-width="140" show-overflow-tooltip />
+        <el-table-column prop="stream" label="流名称" min-width="220" show-overflow-tooltip />
         <el-table-column label="推流类型" width="120" align="center">
           <template #default="{ row }">{{ originTypeText(row.originType) }}</template>
         </el-table-column>
         <el-table-column prop="mediaServerId" label="目标节点" width="140" show-overflow-tooltip />
-        <el-table-column prop="originUrl" label="来源" show-overflow-tooltip min-width="200" />
+        <el-table-column prop="clientId" label="推流方" width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.clientId || '—' }}</template>
+        </el-table-column>
         <el-table-column label="推流状态" align="center" width="90">
           <template #default="{ row }">
             <ListStatusBar :active="row.pushing === 1" />
           </template>
         </el-table-column>
-        <el-table-column prop="readerCount" label="观看数" align="center" width="80" />
         <el-table-column prop="pushTime" label="开始时间" width="170" />
-        <el-table-column prop="updateTime" label="更新时间" width="170" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="140" align="center" fixed="right">
           <template #default="{ row }">
             <div>
               <el-tooltip content="播放">
@@ -298,6 +312,7 @@ onMounted(() => {
     </el-card>
 
     <StreamPushPlayDialog ref="playDialogRef" />
+    <StreamPushClientDialog ref="clientDialogRef" />
   </div>
 </template>
 

@@ -13,6 +13,7 @@ import com.solo.media.mapper.StreamPushMapper;
 import com.solo.media.request.StreamPushPageRequest;
 import com.solo.media.response.StreamPushPlayUrlResponse;
 import com.solo.media.service.StreamPushService;
+import com.solo.media.service.StreamPushClientService;
 import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     private final ZlmRestClient zlmRestClient;
     private final MediaServerService mediaServerService;
     private final MediaUrlBuilder urlBuilder;
+    private final StreamPushClientService streamPushClientService;
 
     @Override
     public Page<StreamPush> pageQuery(StreamPushPageRequest req) {
@@ -56,7 +58,7 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         if (req.getPushing() != null) {
             w.eq(StreamPush::getPushing, req.getPushing());
         }
-        w.orderByDesc(StreamPush::getUpdateTime);
+        w.orderByDesc(StreamPush::getCreateTime);
         return page(new Page<>(req.getPage(), req.getPageSize()), w);
     }
 
@@ -142,10 +144,11 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         entity.setVhost(stringOf(body, "vhost"));
         entity.setStreamSchema(stringOf(body, "schema"));
         entity.setOriginType(originType);
-        entity.setOriginUrl(stringOf(body, "originUrl"));
         entity.setPushing(1);
-        entity.setReaderCount(intOf(body, "totalReaderCount"));
         entity.setAliveSecond(intOf(body, "aliveSecond"));
+        // 反查 client_id 做溯源；未开启鉴权 or 找不到时为空
+        String token = parseParam(stringOf(body, "params"), "token");
+        entity.setClientId(streamPushClientService.clientIdOfToken(token));
         if (old == null) {
             entity.setPushTime(LocalDateTime.now());
             save(entity);
@@ -241,5 +244,61 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         } catch (NumberFormatException e) {
             return 0;
         }
+    }
+
+    /** 解析 ZLM 上报的 params 串（形如 {@code token=abc&other=1}）取指定 key */
+    private static String parseParam(String params, String key) {
+        if (params == null || params.isEmpty() || key == null) return null;
+        String decoded = decodeHtmlEntities(params);
+        for (String pair : decoded.split("&")) {
+            int idx = pair.indexOf('=');
+            if (idx <= 0) continue;
+            if (key.equals(pair.substring(0, idx))) {
+                return pair.substring(idx + 1);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * ZLM 上报 params 时会把 {@code =} / {@code &} 做 HTML 实体转义（{@code &#61;} / {@code &#38;}），
+     * 拆分前先跑一遍简单解码。
+     */
+    private static String decodeHtmlEntities(String s) {
+        if (s == null || s.indexOf('&') < 0) return s;
+        StringBuilder sb = new StringBuilder(s.length());
+        int i = 0;
+        while (i < s.length()) {
+            char c = s.charAt(i);
+            if (c != '&') { sb.append(c); i++; continue; }
+            int semi = s.indexOf(';', i + 1);
+            if (semi < 0 || semi - i > 8) { sb.append(c); i++; continue; }
+            String ent = s.substring(i + 1, semi);
+            char decoded;
+            try {
+                if (ent.startsWith("#x") || ent.startsWith("#X")) {
+                    decoded = (char) Integer.parseInt(ent.substring(2), 16);
+                } else if (ent.startsWith("#")) {
+                    decoded = (char) Integer.parseInt(ent.substring(1));
+                } else {
+                    decoded = switch (ent) {
+                        case "amp" -> '&';
+                        case "lt" -> '<';
+                        case "gt" -> '>';
+                        case "quot" -> '"';
+                        case "apos" -> '\'';
+                        default -> 0;
+                    };
+                    if (decoded == 0) { sb.append(c); i++; continue; }
+                }
+            } catch (NumberFormatException e) {
+                sb.append(c);
+                i++;
+                continue;
+            }
+            sb.append(decoded);
+            i = semi + 1;
+        }
+        return sb.toString();
     }
 }
