@@ -260,6 +260,10 @@ watch(
 
 onMounted(() => {
   fetchData()
+  // 独立通道管理页展示搜索区，需预载资源目录树供筛选
+  if (props.showDeviceColumn) {
+    fetchGroupTree()
+  }
 })
 
 defineExpose({ fetchData })
@@ -277,6 +281,18 @@ defineExpose({ fetchData })
         </el-form-item>
         <el-form-item label="通道名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable />
+        </el-form-item>
+        <el-form-item label="资源目录">
+          <el-tree-select
+            v-model="searchForm.groupId"
+            :data="groupTree"
+            :props="{ value: 'id', label: 'name', children: 'children' }"
+            placeholder="按资源目录筛选"
+            clearable
+            filterable
+            check-strictly
+            style="width: 180px"
+          />
         </el-form-item>
         <el-form-item label="通道状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 130px">
