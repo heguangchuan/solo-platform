@@ -5,6 +5,8 @@ import type {
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
   GbDeviceChannelTreeNode,
+  GbGroup,
+  GbGroupPageRequest,
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
@@ -117,6 +119,48 @@ export function deleteGbDeviceChannelApi(id: string) {
  */
 export function batchDeleteGbDeviceChannelApi(ids: string[]) {
   return post<void>('/api/gb28181/device-channel/batch/delete', { ids })
+}
+
+/**
+ * 虚拟目录分组分页
+ */
+export function getGbGroupPageApi(data: GbGroupPageRequest) {
+  return post<PageResult<GbGroup>>('/api/gb28181/group/page', data)
+}
+
+/**
+ * 虚拟目录分组树（列表页展示用）
+ */
+export function getGbGroupTreeApi() {
+  return get<GbGroup[]>('/api/gb28181/group/tree')
+}
+
+/**
+ * 虚拟目录分组全量列表（下拉/选父级用）
+ */
+export function listGbGroupApi() {
+  return get<GbGroup[]>('/api/gb28181/group/list')
+}
+
+/**
+ * 新增虚拟目录分组
+ */
+export function saveGbGroupApi(data: Partial<GbGroup>) {
+  return post<void>('/api/gb28181/group/save', data)
+}
+
+/**
+ * 编辑虚拟目录分组
+ */
+export function updateGbGroupApi(data: Partial<GbGroup>) {
+  return post<void>('/api/gb28181/group/update', data)
+}
+
+/**
+ * 删除虚拟目录分组
+ */
+export function deleteGbGroupApi(id: string) {
+  return del<void>(`/api/gb28181/group/${id}`)
 }
 
 /**

@@ -90,6 +90,38 @@ export interface GbDeviceChannelVO extends GbDeviceChannel {
   deviceName?: string
 }
 
+/** 虚拟目录分组分页查询参数 */
+export interface GbGroupPageRequest extends PageRequest {
+  /** 分组国标ID（模糊） */
+  groupId?: string
+  /** 分组名称（模糊） */
+  name?: string
+  /** 父节点主键 */
+  parentId?: string
+  /** 所属平台ID：0000=自有；其他=级联来源 */
+  platformId?: string
+}
+
+/** 国标虚拟目录分组（业务分组 215 / 虚拟组织 216） */
+export interface GbGroup {
+  /** 数据主键：默认分组固定 0000，其余雪花ID；通道 groupId 引用此列 */
+  id: string
+  /** 分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用） */
+  groupId: string
+  /** 分组名称（作为 Catalog Item Name 上报上级） */
+  name: string
+  /** 父节点主键：0=根节点 */
+  parentId?: string
+  /** 数据来源：0000=自有平台；其他=级联来源平台ID */
+  platformId?: string
+  /** 排序值（同层从小到大） */
+  sort?: number
+  createTime?: string
+  updateTime?: string
+  /** 子节点（树形接口返回） */
+  children?: GbGroup[]
+}
+
 /** 流媒体节点（ZLMediaKit）分页查询参数 */
 export interface GbMediaServerPageRequest extends PageRequest {
   serverId?: string

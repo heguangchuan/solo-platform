@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 流媒体（ZLMediaKit）相关配置，对应 application.yaml 中 gb28181.media.* 段。
+ * 流媒体（ZLMediaKit）相关配置，对应 application.yaml 中 media.* 段。
  * <p>
  * 注意 ZLM 是独立部署的（Docker），本服务通过两条通道与之交互：
  * <ul>
@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
  */
 @Data
 @Component
-@ConfigurationProperties(prefix = "gb28181.media")
+@ConfigurationProperties(prefix = "media")
 public class MediaProperties {
 
     /**

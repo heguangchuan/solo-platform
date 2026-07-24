@@ -22,7 +22,7 @@ import java.util.Map;
  * 全部业务编排在 Service 中；secret 校验失败直接返 HTTP 401，让 ZLM 停止 retry。</p>
  *
  * <h3>Secret 校验策略</h3>
- * <p>{@code gb28181.media.hook-secret} <b>必须配置</b>（生产 / 测试 / 内网一视同仁），
+ * <p>{@code media.hook-secret} <b>必须配置</b>（生产 / 测试 / 内网一视同仁），
  * 未配置时所有 hook 一律拒绝。ZLM 侧需在 {@code [hook].on_xxx} URL 上带 {@code ?secret=xxx}
  * 或让 body 携带 secret 字段。</p>
  */
@@ -101,13 +101,13 @@ public class ZlmHookController {
 
     /**
      * 校验 hook 请求携带的 secret。返回 true 表示通过、false 表示拒绝。
-     * <p>{@code gb28181.media.hook-secret} <b>必须配置</b>，未配置一律拒绝；
+     * <p>{@code media.hook-secret} <b>必须配置</b>，未配置一律拒绝；
      * secret 必须命中 body.secret 或 URL query 参数 secret 之一。</p>
      */
     private boolean checkSecret(HttpServletRequest req, Map<String, Object> body) {
         String expected = mediaProperties.getHookSecret();
         if (expected == null || expected.isBlank()) {
-            log.error("[ZLM 回调] 拒绝：gb28181.media.hook-secret 未配置，请在 application.yaml 补齐 uri={}",
+            log.error("[ZLM 回调] 拒绝：media.hook-secret 未配置，请在 application.yaml 补齐 uri={}",
                     req.getRequestURI());
             return false;
         }
