@@ -78,19 +78,23 @@ export interface GbDeviceChannel {
   streamId?: string
   /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID（与所属设备一致） */
   platformId?: string
+  /** 所属资源目录主键（引用 gb_group.id；默认分组 0000） */
+  groupId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
   createTime: string
   updateTime: string
 }
 
-/** 通道列表分页响应：在 entity 之上补充设备名 */
+/** 通道列表分页响应：在 entity 之上补充设备名/目录名 */
 export interface GbDeviceChannelVO extends GbDeviceChannel {
   /** 所属设备名称（后端按 deviceId 反查 gb_device.name 回填） */
   deviceName?: string
+  /** 所属资源目录名称（后端按 groupId 反查 gb_group.name 回填） */
+  groupName?: string
 }
 
-/** 虚拟目录分组分页查询参数 */
+/** 资源目录分组分页查询参数 */
 export interface GbGroupPageRequest extends PageRequest {
   /** 分组国标ID（模糊） */
   groupId?: string
@@ -102,7 +106,7 @@ export interface GbGroupPageRequest extends PageRequest {
   platformId?: string
 }
 
-/** 国标虚拟目录分组（业务分组 215 / 虚拟组织 216） */
+/** 国标资源目录分组（业务分组 215 / 虚拟组织 216） */
 export interface GbGroup {
   /** 数据主键：默认分组固定 0000，其余雪花ID；通道 groupId 引用此列 */
   id: string

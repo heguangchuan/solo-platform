@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 /**
- * 国标虚拟目录分组服务实现
+ * 国标资源目录分组服务实现
  */
 @Slf4j
 @Service
@@ -82,7 +82,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
                 ? "0000" : group.getPlatformId());
         group.setSort(group.getSort() == null ? 0 : group.getSort());
         save(group);
-        log.info("[虚拟目录] 新增分组 id={} groupId={} name={}",
+        log.info("[资源目录] 新增分组 id={} groupId={} name={}",
                 group.getId(), group.getGroupId(), group.getName());
     }
 
@@ -112,7 +112,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         exist.setParentId(group.getParentId());
         exist.setSort(group.getSort() == null ? exist.getSort() : group.getSort());
         updateById(exist);
-        log.info("[虚拟目录] 更新分组 id={} name={}", exist.getId(), exist.getName());
+        log.info("[资源目录] 更新分组 id={} name={}", exist.getId(), exist.getName());
     }
 
     @Override
@@ -137,7 +137,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
                 .set(GbGroup::getParentId, "0")
                 .update();
         removeById(id);
-        log.info("[虚拟目录] 删除分组 id={}，通道已回落默认分组 defaultGroup={}，子节点已回落根节点",
+        log.info("[资源目录] 删除分组 id={}，通道已回落默认分组 defaultGroup={}，子节点已回落根节点",
                 group.getId(), defaultId);
     }
 

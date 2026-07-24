@@ -67,7 +67,7 @@ gb28181:  # 是否启用国标服务
   # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线
   keepalive-timeout-multiplier: 3
 
-  # 默认虚拟目录分组：通道注册/导入/新增未指定分组时统一挂到此分组下
+  # 默认资源目录分组：通道注册/导入/新增未指定分组时统一挂到此分组下
   # id 为分组业务短码（默认分组固定 0000），是 gb_device_channel.group_id 的兜底值，须与 sql/gb28181.sql 中该列 DB 默认值一致
   # group-id 为 20 位国标业务分组码（第 11-13 位 216），拼级联 Catalog 上报上级时作目录节点 ID
   default-group:

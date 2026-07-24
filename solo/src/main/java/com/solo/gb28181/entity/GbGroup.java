@@ -12,9 +12,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 国标虚拟目录分组（业务分组 215 / 虚拟组织 216）
+ * 国标资源目录分组（业务分组 215 / 虚拟组织 216）
  * <p>平台侧自建目录树，用于级联时向上级共享通道时组织目录结构；与下级设备上报的原始 Catalog
- * 目录无关，是本平台人为编排的虚拟目录。</p>
+ * 目录无关，是本平台人为编排的资源目录。</p>
  * <p>逻辑关联：{@link GbDeviceChannel#getGroupId()} 引用本表 {@link #id}（数据主键），不建外键。</p>
  */
 @Data

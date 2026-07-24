@@ -5,7 +5,7 @@ import com.solo.gb28181.entity.GbGroup;
 import org.apache.ibatis.annotations.Mapper;
 
 /**
- * 国标虚拟目录分组 Mapper
+ * 国标资源目录分组 Mapper
  */
 @Mapper
 public interface GbGroupMapper extends BaseMapper<GbGroup> {

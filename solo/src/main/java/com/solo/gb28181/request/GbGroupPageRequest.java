@@ -3,7 +3,7 @@ package com.solo.gb28181.request;
 import lombok.Data;
 
 /**
- * 国标虚拟目录分组分页查询请求
+ * 国标资源目录分组分页查询请求
  */
 @Data
 public class GbGroupPageRequest {
