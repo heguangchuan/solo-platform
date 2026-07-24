@@ -3,11 +3,11 @@
 export default { name: 'Gb28181Device' }
 </script>
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Upload, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
-import type { GbDevice, GbDevicePageRequest, GbDeviceChannel } from '@/types/api'
+import type { GbDevice, GbDevicePageRequest, GbDeviceChannel, GbGroupVO } from '@/types/api'
 import {
   getGbDevicePageApi,
   syncGbDeviceApi,
@@ -15,6 +15,7 @@ import {
   batchDeleteGbDeviceApi,
   saveGbDeviceApi,
   updateGbDeviceApi,
+  getGbGroupTreeApi,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
 import ChannelListDialog from './components/ChannelListDialog.vue'
@@ -52,6 +53,18 @@ const form = reactive<FormData>({
   ...makeEmpty()
 })
 
+/** 资源目录树（第二步给每条通道选所属分组用；不选后端 resolveGroupId 回落默认分组） */
+const groupTree = ref<GbGroupVO[]>([])
+
+async function fetchGroupTree() {
+  try {
+    const res = await getGbGroupTreeApi()
+    groupTree.value = res.data || []
+  } catch {
+    groupTree.value = []
+  }
+}
+
 async function nextStep() {
   if (!formRef.value) return
   await formRef.value.validate()
@@ -63,7 +76,7 @@ function prevStep() {
 }
 
 function addEmptyChannel() {
-  form.newChannels.push({ channelId: '', name: '' } as GbDeviceChannel)
+  form.newChannels.push({ channelId: '', name: '', groupId: '' } as GbDeviceChannel)
 }
 
 function removeChannel(index: number) {
@@ -139,7 +152,9 @@ function handleAdd() {
   dialogTitle.value = '新增设备'
   form.newChannels = []
   Object.assign(form, makeEmpty())
+  fetchGroupTree()
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 function handleEdit(row: GbDevice) {
@@ -148,6 +163,7 @@ function handleEdit(row: GbDevice) {
   dialogTitle.value = '编辑设备'
   Object.assign(form, { newChannels: [] }, row)
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 async function handleConfirm() {
@@ -361,7 +377,7 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="800px" max-height="80vh" :close-on-click-modal="false" top="10vh">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="960px" max-height="80vh" :close-on-click-modal="false" top="10vh">
       <el-steps :active="currentStep" finish-status="success" align-center style="margin-bottom: 24px">
         <el-step title="设备信息" description="填写设备基本信息" />
         <el-step title="添加通道" description="配置设备通道" v-if="!isEdit" />
@@ -405,21 +421,34 @@ onMounted(() => {
 
         <template v-if="currentStep === 2 && !isEdit">
           <el-table :data="form.newChannels" border style="width: 100%" :show-header="true">
-            <el-table-column label="通道编码" width="280">
+            <el-table-column label="通道编码" width="240">
               <template #default="{ row, $index }">
               <el-form-item :prop="`newChannels.${$index}.channelId`" class="no-margin">
                 <el-input v-model="row.channelId" placeholder="20位数字" style="width: 100%" />
               </el-form-item>
             </template>
             </el-table-column>
-            <el-table-column label="通道名称" min-width="280">
+            <el-table-column label="通道名称" min-width="200">
               <template #default="{ row, $index }">
               <el-form-item :prop="`newChannels.${$index}.name`" class="no-margin">
                 <el-input v-model="row.name" placeholder="通道名称" style="width: 100%" />
               </el-form-item>
             </template>
             </el-table-column>
-            <el-table-column width="100" align="center">
+            <el-table-column label="资源目录" min-width="200">
+              <template #default="{ row }">
+                <el-tree-select
+                  v-model="row.groupId"
+                  :data="groupTree"
+                  :props="{ value: 'id', label: 'name', children: 'children' }"
+                  placeholder="不选则默认分组"
+                  clearable
+                  filterable
+                  style="width: 100%"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column width="80" align="center">
               <template #header>
                 <el-button type="primary" plain :icon="Plus" size="small" @click="addEmptyChannel">添加</el-button>
               </template>

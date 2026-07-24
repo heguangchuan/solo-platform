@@ -6,8 +6,8 @@
 import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Search, VideoCamera } from '@element-plus/icons-vue'
-import type { GbDevice, GbDeviceChannel } from '@/types/api'
-import { getGbDevicePageApi, saveGbDeviceChannelApi } from '@/api/gb28181'
+import type { GbDevice, GbDeviceChannel, GbGroupVO } from '@/types/api'
+import { getGbDevicePageApi, saveGbDeviceChannelApi, getGbGroupTreeApi } from '@/api/gb28181'
 
 interface Emits {
   (e: 'refresh'): void
@@ -23,6 +23,18 @@ const keyword = ref('')
 const selectedDevice = ref<GbDevice | null>(null)
 const channels = ref<Partial<GbDeviceChannel>[]>([])
 const formRef = ref()
+
+/** 资源目录树（供每行选择所属分组，非必填；不选后端 resolveGroupId 回落默认分组） */
+const groupTree = ref<GbGroupVO[]>([])
+
+async function fetchGroupTree() {
+  try {
+    const res = await getGbGroupTreeApi()
+    groupTree.value = res.data || []
+  } catch {
+    groupTree.value = []
+  }
+}
 
 const rules = {
   'channels.*.channelId': [
@@ -61,6 +73,8 @@ function open() {
   selectedDevice.value = null
   channels.value = []
   loadDevices()
+  fetchGroupTree()
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 function handleSelectDevice(device: GbDevice) {
@@ -71,7 +85,7 @@ function handleSelectDevice(device: GbDevice) {
 }
 
 function addEmptyChannel() {
-  channels.value.push({ channelId: '', name: '' })
+  channels.value.push({ channelId: '', name: '', groupId: '' })
 }
 
 function removeChannel(index: number) {
@@ -115,7 +129,7 @@ defineExpose({ open })
   <el-dialog
     v-model="visible"
     title="新增通道"
-    width="960px"
+    width="1080px"
     top="8vh"
     :close-on-click-modal="false"
   >
@@ -179,11 +193,24 @@ defineExpose({ open })
                   </el-form-item>
                 </template>
               </el-table-column>
-              <el-table-column label="通道名称" min-width="220">
+              <el-table-column label="通道名称" min-width="120">
                 <template #default="{ row, $index }">
                   <el-form-item :prop="`channels.${$index}.name`" class="no-margin">
                     <el-input v-model="row.name" placeholder="通道名称" />
                   </el-form-item>
+                </template>
+              </el-table-column>
+              <el-table-column label="资源目录" min-width="150">
+                <template #default="{ row }">
+                  <el-tree-select
+                    v-model="row.groupId"
+                    :data="groupTree"
+                    :props="{ value: 'id', label: 'name', children: 'children' }"
+                    placeholder="不选则默认分组"
+                    clearable
+                    filterable
+                    style="width: 100%"
+                  />
                 </template>
               </el-table-column>
               <el-table-column width="90" align="center">
