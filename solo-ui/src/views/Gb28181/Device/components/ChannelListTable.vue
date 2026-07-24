@@ -274,13 +274,13 @@ defineExpose({ fetchData })
     <el-card shadow="hover" v-if="showDeviceColumn" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="设备编码">
-          <el-input v-model="searchForm.deviceId" placeholder="所属设备国标编码精确" clearable />
+          <el-input v-model="searchForm.deviceId" placeholder="所属设备国标编码精确" clearable style="width: 180px" />
         </el-form-item>
         <el-form-item label="通道编码">
-          <el-input v-model="searchForm.channelId" placeholder="通道国标编码模糊" clearable />
+          <el-input v-model="searchForm.channelId" placeholder="通道国标编码模糊" clearable style="width: 180px" />
         </el-form-item>
         <el-form-item label="通道名称">
-          <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable />
+          <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable style="width: 180px" />
         </el-form-item>
         <el-form-item label="资源目录">
           <el-tree-select
@@ -295,14 +295,14 @@ defineExpose({ fetchData })
           />
         </el-form-item>
         <el-form-item label="通道状态">
-          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 130px">
+          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
             <el-option label="ON" value="ON" />
             <el-option label="OFF" value="OFF" />
             <el-option label="未注册" value="UNREGISTERED" />
           </el-select>
         </el-form-item>
         <el-form-item label="数据来源">
-          <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 120px">
+          <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 180px">
             <el-option label="系统新增" :value="1" />
             <el-option label="表格导入" :value="2" />
             <el-option label="设备注册" :value="3" />
