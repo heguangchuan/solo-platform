@@ -62,7 +62,7 @@ public class GbDeviceChannel {
     /** 是否有子设备：0 否 1 是 */
     private Integer parental;
 
-    /** 父节点ID（虚拟目录用） */
+    /** 父节点ID（资源目录用） */
     private String parentId;
 
     /** 信令安全模式 */
@@ -110,7 +110,7 @@ public class GbDeviceChannel {
     private String platformId;
 
     /**
-     * 所属虚拟目录分组（逻辑关联 {@link GbGroup#getGroupId()}，20 位 215 业务分组码）。
+     * 所属资源目录分组（逻辑关联 {@link GbGroup#getGroupId()}，20 位 215 业务分组码）。
      * <p>通道注册/导入/新增未指定时，由入库流程回填 {@code gb28181.default-group.id}；
      * 编辑不动此字段，仅由目录编排功能变更。</p>
      */

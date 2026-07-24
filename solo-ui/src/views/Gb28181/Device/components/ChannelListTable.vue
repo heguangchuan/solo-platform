@@ -294,6 +294,9 @@ defineExpose({ fetchData })
         <el-table-column prop="name" label="通道名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
         </el-table-column>
+        <el-table-column prop="groupName" label="所属目录" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.groupName || '—' }}</template>
+        </el-table-column>
         <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />
         <el-table-column prop="deviceName" label="设备名称" v-if="showDeviceColumn" show-overflow-tooltip />
         <el-table-column label="云台类型" align="center" show-overflow-tooltip>
@@ -398,7 +401,7 @@ defineExpose({ fetchData })
           <el-input v-model="form.address" placeholder="安装地址" />
         </el-form-item>
         <el-form-item label="父节点码">
-          <el-input v-model="form.parentId" placeholder="虚拟目录父节点ID（可空）" />
+          <el-input v-model="form.parentId" placeholder="资源目录父节点ID（可空）" />
         </el-form-item>
         <el-form-item label="云台类型">
           <el-select v-model="form.ptzType" style="width: 100%">

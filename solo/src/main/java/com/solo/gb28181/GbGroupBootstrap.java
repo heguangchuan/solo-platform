@@ -26,17 +26,17 @@ public class GbGroupBootstrap {
     void init() {
         Gb28181Properties.DefaultGroup cfg = properties.getDefaultGroup();
         if (cfg == null || cfg.getId() == null || cfg.getId().isBlank()) {
-            log.error("[虚拟目录] gb28181.default-group.id 未配置，通道无默认分组可挂。请在 application.yaml 补齐。");
+            log.error("[资源目录] gb28181.default-group.id 未配置，通道无默认分组可挂。请在 application.yaml 补齐。");
             return;
         }
         String id = cfg.getId().trim();
         String groupId = cfg.getGroupId() == null ? null : cfg.getGroupId().trim();
         if (groupId == null || groupId.isBlank()) {
-            log.error("[虚拟目录] gb28181.default-group.group-id 未配置，级联 Catalog 无法上报默认目录。请在 application.yaml 补齐。");
+            log.error("[资源目录] gb28181.default-group.group-id 未配置，级联 Catalog 无法上报默认目录。请在 application.yaml 补齐。");
             return;
         }
         if (groupId.length() != 20) {
-            log.warn("[虚拟目录] gb28181.default-group.group-id={} 非 20 位国标码，级联 Catalog 上报上级会被拒识，请修正", groupId);
+            log.warn("[资源目录] gb28181.default-group.group-id={} 非 20 位国标码，级联 Catalog 上报上级会被拒识，请修正", groupId);
         }
         String name = cfg.getName() == null || cfg.getName().isBlank() ? "默认目录" : cfg.getName();
 
@@ -54,9 +54,9 @@ public class GbGroupBootstrap {
             }
             if (changed) {
                 groupService.updateById(exist);
-                log.info("[虚拟目录] 默认分组已按配置更新 id={} groupId={} name={}", id, groupId, name);
+                log.info("[资源目录] 默认分组已按配置更新 id={} groupId={} name={}", id, groupId, name);
             } else {
-                log.info("[虚拟目录] 默认分组已就绪 id={} groupId={} name={}", id, groupId, name);
+                log.info("[资源目录] 默认分组已就绪 id={} groupId={} name={}", id, groupId, name);
             }
             return;
         }
@@ -68,6 +68,6 @@ public class GbGroupBootstrap {
         group.setPlatformId("0000");
         group.setSort(0);
         groupService.save(group);
-        log.info("[虚拟目录] 默认分组已写入 id={} groupId={} name={}", id, groupId, name);
+        log.info("[资源目录] 默认分组已写入 id={} groupId={} name={}", id, groupId, name);
     }
 }

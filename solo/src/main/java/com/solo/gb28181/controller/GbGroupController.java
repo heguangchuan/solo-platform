@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 国标虚拟目录分组管理
+ * 国标资源目录分组管理
  * <p>平台侧自建目录树（业务分组 215 / 虚拟组织 216），用于级联时组织向上级共享的通道目录。</p>
  */
 @RestController

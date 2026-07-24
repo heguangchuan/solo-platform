@@ -8,7 +8,7 @@ import com.solo.gb28181.request.GbGroupPageRequest;
 import java.util.List;
 
 /**
- * 国标虚拟目录分组服务
+ * 国标资源目录分组服务
  *
  * <p>简单按字段查询直接走 {@code lambdaQuery()}，本接口只保留"业务动作"。</p>
  */

@@ -81,6 +81,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                 .map(GbDeviceChannelServiceImpl::toResponse)
                 .collect(Collectors.toCollection(ArrayList::new));
         fillDeviceName(rows);
+        fillGroupName(rows);
 
         Page<GbDeviceChannelResponse> resp = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
         resp.setRecords(rows);
@@ -110,6 +111,25 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                         d -> d.getName() == null ? "" : d.getName(),
                         (a, b) -> a));
         rows.forEach(r -> r.setDeviceName(nameMap.get(r.getDeviceId())));
+    }
+
+    /**
+     * 按 groupId 批量查目录名，回填到当前页所有 response。一次性 IN 查询，避免 N+1。
+     */
+    private void fillGroupName(List<GbDeviceChannelResponse> rows) {
+        if (rows.isEmpty()) return;
+        Set<String> groupIds = rows.stream()
+                .map(GbDeviceChannelResponse::getGroupId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toCollection(HashSet::new));
+        if (groupIds.isEmpty()) return;
+        Map<String, String> nameMap = groupMapper.selectList(
+                        new LambdaQueryWrapper<GbGroup>().in(GbGroup::getId, groupIds))
+                .stream()
+                .collect(Collectors.toMap(GbGroup::getId,
+                        g -> g.getName() == null ? "" : g.getName(),
+                        (a, b) -> a));
+        rows.forEach(r -> r.setGroupName(nameMap.get(r.getGroupId())));
     }
 
     @Override
