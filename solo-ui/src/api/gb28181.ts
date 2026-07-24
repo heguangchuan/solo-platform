@@ -6,6 +6,7 @@ import type {
   GbDeviceChannelVO,
   GbDeviceChannelTreeNode,
   GbGroup,
+  GbGroupVO,
   GbGroupPageRequest,
   GbMediaServer,
   GbMediaServerPageRequest,
@@ -125,14 +126,14 @@ export function batchDeleteGbDeviceChannelApi(ids: string[]) {
  * 资源目录分组分页
  */
 export function getGbGroupPageApi(data: GbGroupPageRequest) {
-  return post<PageResult<GbGroup>>('/api/gb28181/group/page', data)
+  return post<PageResult<GbGroupVO>>('/api/gb28181/group/page', data)
 }
 
 /**
  * 资源目录分组树（列表页展示用）
  */
 export function getGbGroupTreeApi() {
-  return get<GbGroup[]>('/api/gb28181/group/tree')
+  return get<GbGroupVO[]>('/api/gb28181/group/tree')
 }
 
 /**

@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.request.GbGroupPageRequest;
+import com.solo.gb28181.response.GbGroupResponse;
 
 import java.util.List;
 
@@ -14,12 +15,12 @@ import java.util.List;
  */
 public interface GbGroupService extends IService<GbGroup> {
 
-    Page<GbGroup> pageQuery(GbGroupPageRequest request);
+    Page<GbGroupResponse> pageQuery(GbGroupPageRequest request);
 
     /**
-     * 全量分组组装成树（parentId=0 为根），按 sort 升序。
+     * 全量分组组装成树（parentId=0 为根），按 sort 升序。返回 VO 含 children / defaultGroup。
      */
-    List<GbGroup> tree();
+    List<GbGroupResponse> tree();
 
     /**
      * 新增分组。id 由雪花算法生成；校验 groupId 20 位唯一，父节点存在。
@@ -28,6 +29,7 @@ public interface GbGroupService extends IService<GbGroup> {
 
     /**
      * 编辑分组资料。id / groupId / type 不可改（改了会导致通道 group_id 悬挂），只更新名称/父节点/排序。
+     * 默认分组（gb28181.default-group.id）特殊：仅允许改名称/排序。
      */
     void updateGroup(GbGroup group);
 

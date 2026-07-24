@@ -10,14 +10,17 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.mapper.GbGroupMapper;
 import com.solo.gb28181.request.GbGroupPageRequest;
+import com.solo.gb28181.response.GbGroupResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbGroupService;
 import com.solo.gb28181.utils.SipUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -31,8 +34,26 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
     private final Gb28181Properties properties;
     private final GbDeviceChannelService channelService;
 
+    /**
+     * entity → VO：透传所有 entity 字段，视图字段留空由后续 markDefault / buildTree 填
+     */
+    private GbGroupResponse toResponse(GbGroup src) {
+        GbGroupResponse vo = new GbGroupResponse();
+        BeanUtils.copyProperties(src, vo);
+        return vo;
+    }
+
+    /**
+     * 打上 defaultGroup 标识（主键等于 gb28181.default-group.id），供前端禁用删除/限制编辑
+     */
+    private void markDefault(List<GbGroupResponse> groups) {
+        if (groups == null || groups.isEmpty()) return;
+        String defaultId = properties.getDefaultGroup().getId();
+        groups.forEach(g -> g.setDefaultGroup(defaultId.equals(g.getId())));
+    }
+
     @Override
-    public Page<GbGroup> pageQuery(GbGroupPageRequest request) {
+    public Page<GbGroupResponse> pageQuery(GbGroupPageRequest request) {
         LambdaQueryWrapper<GbGroup> wrapper = new LambdaQueryWrapper<>();
         if (request.getGroupId() != null && !request.getGroupId().isBlank()) {
             wrapper.like(GbGroup::getGroupId, request.getGroupId());
@@ -46,18 +67,30 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         if (request.getPlatformId() != null && !request.getPlatformId().isBlank()) {
             wrapper.eq(GbGroup::getPlatformId, request.getPlatformId());
         }
-        wrapper.orderByAsc(GbGroup::getSort).orderByAsc(GbGroup::getId);
-        return page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+        wrapper.orderByAsc(GbGroup::getSort).orderByDesc(GbGroup::getId).orderByDesc(GbGroup::getCreateTime);
+        Page<GbGroup> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+
+        List<GbGroupResponse> rows = new ArrayList<>(raw.getRecords().size());
+        raw.getRecords().forEach(g -> rows.add(toResponse(g)));
+        markDefault(rows);
+
+        Page<GbGroupResponse> resp = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
+        resp.setRecords(rows);
+        return resp;
     }
 
     @Override
-    public List<GbGroup> tree() {
+    public List<GbGroupResponse> tree() {
         List<GbGroup> all = lambdaQuery()
                 .orderByAsc(GbGroup::getSort)
                 .orderByAsc(GbGroup::getId)
                 .list();
+        List<GbGroupResponse> rows = new ArrayList<>(all.size());
+        all.forEach(g -> rows.add(toResponse(g)));
+        // 扁平列表先打标，节点引用同一份，组装成树后自然带上
+        markDefault(rows);
         // parentId 不指向列表中任一 id 的节点即为根（根节点 parentId=0）
-        return TreeUtils.buildTree(all, GbGroup::getParentId, GbGroup::getId, GbGroup::setChildren);
+        return TreeUtils.buildTree(rows, GbGroupResponse::getParentId, GbGroupResponse::getId, GbGroupResponse::setChildren);
     }
 
     @Override
@@ -94,6 +127,17 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         GbGroup exist = getById(group.getId());
         if (exist == null) {
             throw new ServiceException("分组不存在");
+        }
+        // 默认分组是通道归属兜底，仅允许改名称/排序，不可改国标ID/父节点
+        if (properties.getDefaultGroup().getId().equals(exist.getId())) {
+            if (group.getName() == null || group.getName().isBlank()) {
+                throw new ServiceException("分组名称不能为空");
+            }
+            exist.setName(group.getName());
+            exist.setSort(group.getSort() == null ? exist.getSort() : group.getSort());
+            updateById(exist);
+            log.info("[资源目录] 更新默认分组 id={} name={} sort={}", exist.getId(), exist.getName(), exist.getSort());
+            return;
         }
         // 国标ID可改，但仍须满足 20 位且第 11-13 位为 215/216
         if (group.getGroupId() != null && !group.getGroupId().equals(exist.getGroupId())) {

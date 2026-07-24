@@ -5,7 +5,7 @@ export default { name: 'Gb28181Group' }
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Edit, Delete } from '@element-plus/icons-vue'
-import type { GbGroup } from '@/types/api'
+import type { GbGroup, GbGroupVO } from '@/types/api'
 import {
   getGbGroupTreeApi,
   saveGbGroupApi,
@@ -13,11 +13,9 @@ import {
   deleteGbGroupApi,
 } from '@/api/gb28181'
 
-/** 默认分组主键（后端约定固定 0000，前端据此禁用编辑/删除） */
-const DEFAULT_GROUP_ID = '0000'
-
+/** 默认分组由后端 defaultGroup 标识判定（读 gb28181.default-group.id，避免前端硬编码失配） */
 const loading = ref(false)
-const treeData = ref<GbGroup[]>([])
+const treeData = ref<GbGroupVO[]>([])
 const tableRef = ref()
 const allExpanded = ref(true)
 
@@ -26,6 +24,7 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const formRef = ref()
 const isEdit = ref(false)
+const isEditingDefault = ref(false)
 const form = ref<Partial<GbGroup>>(makeEmpty())
 
 function makeEmpty(): Partial<GbGroup> {
@@ -66,16 +65,16 @@ function typeTagType(groupId?: string) {
   return groupId && groupId.substring(10, 13) === '216' ? 'warning' : 'primary'
 }
 
-function isDefaultGroup(row: GbGroup) {
-  return row.id === DEFAULT_GROUP_ID
+function isDefaultGroup(row: GbGroupVO) {
+  return row.defaultGroup === true
 }
 
 /** 父级下拉选项：根 + 全部分组（树形）；编辑时排除自身及其子树，避免成环 */
-const parentOptions = ref<GbGroup[]>([])
+const parentOptions = ref<GbGroupVO[]>([])
 
 /** 深拷贝树并剔除 excludeId 节点（连带其子树一并剔除） */
-function cloneTreeExclude(rows: GbGroup[], excludeId?: string): GbGroup[] {
-  const result: GbGroup[] = []
+function cloneTreeExclude(rows: GbGroupVO[], excludeId?: string): GbGroupVO[] {
+  const result: GbGroupVO[] = []
   rows.forEach((row) => {
     if (excludeId && row.id === excludeId) return
     result.push({
@@ -88,7 +87,7 @@ function cloneTreeExclude(rows: GbGroup[], excludeId?: string): GbGroup[] {
 
 function buildParentOptions(excludeId?: string) {
   parentOptions.value = [
-    { id: '0', groupId: '', name: '根节点', children: cloneTreeExclude(treeData.value, excludeId) } as GbGroup,
+    { id: '0', groupId: '', name: '根节点', children: cloneTreeExclude(treeData.value, excludeId) } as GbGroupVO,
   ]
 }
 
@@ -104,8 +103,9 @@ async function fetchData() {
 }
 
 // ---------------- 编辑/新增 ----------------
-function handleAdd(parent?: GbGroup) {
+function handleAdd(parent?: GbGroupVO) {
   isEdit.value = false
+  isEditingDefault.value = false
   dialogTitle.value = parent ? `在「${parent.name}」下新增` : '新增分组'
   form.value = makeEmpty()
   if (parent) form.value.parentId = parent.id
@@ -113,11 +113,13 @@ function handleAdd(parent?: GbGroup) {
   dialogVisible.value = true
 }
 
-function handleEdit(row: GbGroup) {
+function handleEdit(row: GbGroupVO) {
   isEdit.value = true
-  dialogTitle.value = '编辑分组'
+  isEditingDefault.value = row.defaultGroup === true
+  dialogTitle.value = isEditingDefault.value ? '编辑默认分组' : '编辑分组'
   form.value = { ...row, children: undefined }
   // 编辑时排除自身及子树，防止把节点挂到自己的后代下形成环
+  // 默认分组另做限制，但仍需构建选项供弹窗校验引用
   buildParentOptions(row.id)
   dialogVisible.value = true
 }
@@ -136,7 +138,7 @@ async function handleConfirm() {
   fetchData()
 }
 
-async function handleDelete(row: GbGroup) {
+async function handleDelete(row: GbGroupVO) {
   if (isDefaultGroup(row)) {
     ElMessage.warning('默认分组不可删除')
     return
@@ -165,7 +167,7 @@ function handleDialogOpened() {
   formRef.value?.clearValidate()
 }
 
-function setTreeExpanded(rows: GbGroup[], expanded: boolean) {
+function setTreeExpanded(rows: GbGroupVO[], expanded: boolean) {
   rows.forEach((row) => {
     tableRef.value?.toggleRowExpansion(row, expanded)
     if (row.children?.length) setTreeExpanded(row.children, expanded)
@@ -249,6 +251,14 @@ onMounted(() => {
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false" @opened="handleDialogOpened">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+        <el-alert
+          v-if="isEditingDefault"
+          title="默认分组为通道归属兜底，仅允许修改名称和排序"
+          type="info"
+          :closable="false"
+          show-icon
+          style="margin-bottom: 16px"
+        />
         <el-form-item label="上级节点">
           <el-tree-select
             v-model="form.parentId"
@@ -258,6 +268,7 @@ onMounted(() => {
             check-strictly
             :render-after-expand="false"
             placeholder="不选则挂在根节点"
+            :disabled="isEditingDefault"
             style="width: 100%"
           />
         </el-form-item>
@@ -268,6 +279,7 @@ onMounted(() => {
           <el-input
             v-model="form.groupId"
             placeholder="20位数字；第11-13位 215业务分组 / 216虚拟组织"
+            :disabled="isEditingDefault"
           />
         </el-form-item>
         <el-form-item label="排序序号">

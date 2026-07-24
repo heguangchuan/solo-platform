@@ -4,7 +4,7 @@
  * <p>供弹窗和独立页面共同使用</p>
  */
 import { ref, onMounted, watch } from 'vue'
-import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO } from '@/types/api'
+import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbGroupVO } from '@/types/api'
 import {
   getGbDeviceChannelPageApi,
   getGbDeviceApi,
@@ -12,6 +12,7 @@ import {
   updateGbDeviceChannelApi,
   deleteGbDeviceChannelApi,
   batchDeleteGbDeviceChannelApi,
+  getGbGroupTreeApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, Edit, VideoCamera, VideoPause, Delete } from '@element-plus/icons-vue'
@@ -64,6 +65,18 @@ const ptzTypeMap: Record<number, string> = {
   4: '遥控枪机',
 }
 
+/** 资源目录树数据 */
+const groupTree = ref<GbGroupVO[]>([])
+
+async function fetchGroupTree() {
+  try {
+    const res = await getGbGroupTreeApi()
+    groupTree.value = res.data || []
+  } catch {
+    groupTree.value = []
+  }
+}
+
 // ---------------- 新增/编辑对话框 ----------------
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -81,7 +94,7 @@ function makeEmpty(): Partial<GbDeviceChannel> {
     owner: '',
     civilCode: '',
     address: '',
-    parentId: '',
+    groupId: '',
     ptzType: 0,
     longitude: undefined,
     latitude: undefined,
@@ -155,6 +168,7 @@ async function handleAdd() {
   isEdit.value = false
   dialogTitle.value = '新增通道'
   form.value = { ...makeEmpty(), deviceDbId: device.id, deviceId: device.deviceId }
+  fetchGroupTree()
   dialogVisible.value = true
 }
 
@@ -162,6 +176,7 @@ function handleEdit(row: GbDeviceChannelVO) {
   isEdit.value = true
   dialogTitle.value = '编辑通道'
   form.value = { ...row }
+  fetchGroupTree()
   dialogVisible.value = true
 }
 
@@ -400,8 +415,16 @@ defineExpose({ fetchData })
         <el-form-item label="安装地址">
           <el-input v-model="form.address" placeholder="安装地址" />
         </el-form-item>
-        <el-form-item label="父节点码">
-          <el-input v-model="form.parentId" placeholder="资源目录父节点ID（可空）" />
+        <el-form-item label="资源目录">
+          <el-tree-select
+            v-model="form.groupId"
+            :data="groupTree"
+            :props="{ value: 'id', label: 'name', children: 'children' }"
+            placeholder="选择资源目录（不选则使用默认分组）"
+            clearable
+            filterable
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="云台类型">
           <el-select v-model="form.ptzType" style="width: 100%">

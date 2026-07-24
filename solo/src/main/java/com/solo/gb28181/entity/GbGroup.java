@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 /**
  * 国标资源目录分组（业务分组 215 / 虚拟组织 216）
@@ -47,8 +46,4 @@ public class GbGroup {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
-
-    /** 子节点（树形返回用，不入库） */
-    @TableField(exist = false)
-    private List<GbGroup> children;
 }

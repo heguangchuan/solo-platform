@@ -62,9 +62,6 @@ public class GbDeviceChannel {
     /** 是否有子设备：0 否 1 是 */
     private Integer parental;
 
-    /** 父节点ID（资源目录用） */
-    private String parentId;
-
     /** 信令安全模式 */
     private Integer safetyWay;
 
@@ -99,9 +96,6 @@ public class GbDeviceChannel {
 
     /** 云台类型：0 未知 1 球机 2 半球 3 固定枪机 4 遥控枪机 */
     private Integer ptzType;
-
-    /** 运行时点播 stream id（点播开始时回填，结束清空） */
-    private String streamId;
 
     /**
      * 所属平台 ID：{@code 0000} = 自有平台（默认）；其他值代表上级级联平台 ID。
