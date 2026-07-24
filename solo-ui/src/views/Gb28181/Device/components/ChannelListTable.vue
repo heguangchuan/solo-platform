@@ -3,7 +3,7 @@
  * 通道列表表格（可复用组件）
  * <p>供弹窗和独立页面共同使用</p>
  */
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, nextTick } from 'vue'
 import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbGroupVO } from '@/types/api'
 import {
   getGbDeviceChannelPageApi,
@@ -170,6 +170,7 @@ async function handleAdd() {
   form.value = { ...makeEmpty(), deviceDbId: device.id, deviceId: device.deviceId }
   fetchGroupTree()
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 function handleEdit(row: GbDeviceChannelVO) {
@@ -178,6 +179,7 @@ function handleEdit(row: GbDeviceChannelVO) {
   form.value = { ...row }
   fetchGroupTree()
   dialogVisible.value = true
+  nextTick(() => formRef.value?.clearValidate())
 }
 
 async function handleConfirm() {
@@ -392,7 +394,7 @@ defineExpose({ fetchData })
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" :close-on-click-modal="false" top="10vh" max-height="80vh">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="780px" :close-on-click-modal="false" top="10vh" max-height="80vh">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="通道编码" prop="channelId">
           <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
