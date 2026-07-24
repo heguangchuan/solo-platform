@@ -13,7 +13,6 @@ import com.solo.media.ssrc.SsrcFactory;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
-import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.sip.SipLayer;
@@ -77,7 +76,6 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final SipRequestHeaderProvider headerProvider;
     private final MediaUrlBuilder urlBuilder;
     private final GbInviteSupport support;
-    private final GbDeviceChannelService channelService;
     private final java.util.concurrent.ThreadPoolExecutor gb28181BizExecutor;
 
     /** 等待 on_stream_changed 的 future，key=streamId */
@@ -338,13 +336,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setHlsUrl(urlBuilder.buildHls(server, APP, stream));
         session.setRtcUrl(urlBuilder.buildRtc(server, APP, stream));
         inviteSessionService.update(session);
-
-        // 回填通道 streamId
-        GbDeviceChannel channel = support.channel(session.getDeviceId(), session.getChannelId());
-        if (channel != null) {
-            channel.setStreamId(stream);
-            channelService.updateById(channel);
-        }
 
         log.info("[实时点播] 流就绪 stream={} wsFlv={}", stream, session.getWsFlvUrl());
 

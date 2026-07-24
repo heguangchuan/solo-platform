@@ -23,9 +23,6 @@ public class GbDeviceChannelPageRequest {
     /** 在线状态 ON / OFF */
     private String status;
 
-    /** 父节点ID（按目录树查询） */
-    private String parentId;
-
     /** 所属资源目录分组ID（按分组筛选通道） */
     private String groupId;
 

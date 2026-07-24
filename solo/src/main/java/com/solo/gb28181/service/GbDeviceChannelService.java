@@ -24,7 +24,7 @@ public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
     void createByManual(GbDeviceChannel channel);
 
     /**
-     * 手动编辑通道。只更新可编辑资料字段，绝不覆盖 status/source/streamId。
+     * 手动编辑通道。只更新可编辑资料字段，绝不覆盖 status/source 及设备归属。
      */
     void updateByManual(GbDeviceChannel channel);
 

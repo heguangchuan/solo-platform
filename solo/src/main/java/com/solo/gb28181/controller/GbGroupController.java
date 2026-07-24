@@ -7,6 +7,7 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.request.GbGroupPageRequest;
+import com.solo.gb28181.response.GbGroupResponse;
 import com.solo.gb28181.service.GbGroupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -33,15 +34,15 @@ public class GbGroupController {
     /** 分页查询分组 */
     @PostMapping("/page")
     @RequirePermission({"gb28181:group:list"})
-    public Result<PageResult<GbGroup>> page(@RequestBody GbGroupPageRequest request) {
-        Page<GbGroup> page = groupService.pageQuery(request);
+    public Result<PageResult<GbGroupResponse>> page(@RequestBody GbGroupPageRequest request) {
+        Page<GbGroupResponse> page = groupService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
     /** 分组树（列表页展示用，parentId=0 为根） */
     @GetMapping("/tree")
     @RequirePermission({"gb28181:group:list"})
-    public Result<List<GbGroup>> tree() {
+    public Result<List<GbGroupResponse>> tree() {
         return Result.success(groupService.tree());
     }
 

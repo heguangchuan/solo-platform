@@ -61,7 +61,7 @@ public class GbDeviceChannelController {
         return Result.success();
     }
 
-    /** 手动编辑通道资料。状态/来源/streamId 不受影响。 */
+    /** 手动编辑通道资料。状态/来源不受影响。 */
     @PostMapping("/update")
     @RequirePermission({"gb28181:device-channel:edit"})
     public Result<Void> update(@RequestBody GbDeviceChannel channel) {

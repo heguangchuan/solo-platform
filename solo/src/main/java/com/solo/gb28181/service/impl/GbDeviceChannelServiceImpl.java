@@ -64,9 +64,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             wrapper.eq(GbDeviceChannel::getStatus, request.getStatus());
         }
-        if (request.getParentId() != null && !request.getParentId().isBlank()) {
-            wrapper.eq(GbDeviceChannel::getParentId, request.getParentId());
-        }
         if (request.getGroupId() != null && !request.getGroupId().isBlank()) {
             wrapper.eq(GbDeviceChannel::getGroupId, request.getGroupId());
         }
@@ -156,7 +153,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         channel.setDeviceId(device.getDeviceId());
         channel.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
         channel.setSource(GbSource.SYSTEM);
-        channel.setStreamId(null);
         channel.setGroupId(resolveGroupId(channel.getGroupId()));
         save(channel);
         // 更新设备通道计数
@@ -172,7 +168,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (exist == null) {
             throw new ServiceException("通道不存在");
         }
-        // 只更新可编辑资料字段，绝不触碰 status/source/streamId 及归属关系
+        // 只更新可编辑资料字段，绝不触碰 status/source 及设备归属关系
         exist.setName(channel.getName());
         exist.setManufacturer(channel.getManufacturer());
         exist.setModel(channel.getModel());
@@ -180,7 +176,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         exist.setCivilCode(channel.getCivilCode());
         exist.setBlock(channel.getBlock());
         exist.setAddress(channel.getAddress());
-        exist.setParentId(channel.getParentId());
+        exist.setGroupId(resolveGroupId(channel.getGroupId()));
         exist.setPtzType(channel.getPtzType());
         exist.setLongitude(channel.getLongitude());
         exist.setLatitude(channel.getLatitude());

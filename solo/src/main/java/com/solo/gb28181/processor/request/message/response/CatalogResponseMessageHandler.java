@@ -97,7 +97,6 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         ch.setBlock(emptyToNull(XmlUtils.childText(item, "Block")));
         ch.setAddress(emptyToNull(XmlUtils.childText(item, "Address")));
         ch.setParental(parseInt(XmlUtils.childText(item, "Parental"), 0));
-        ch.setParentId(emptyToNull(XmlUtils.childText(item, "ParentID")));
         ch.setSafetyWay(parseInt(XmlUtils.childText(item, "SafetyWay"), 0));
         ch.setRegisterWay(parseInt(XmlUtils.childText(item, "RegisterWay"), 1));
         ch.setCertNum(emptyToNull(XmlUtils.childText(item, "CertNum")));

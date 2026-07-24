@@ -76,7 +76,6 @@ gb28181:  # 是否启用国标服务
     name: 192.168.1.21
 
 # 流媒体（ZLMediaKit）相关配置
-# 独立领域，供国标（gb28181）与 ONVIF 复用，故提升到顶级，与 gb28181 / onvif 平级
 media:
   hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
   default-server:

@@ -48,7 +48,8 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
   channelId?: string
   name?: string
   status?: string
-  parentId?: string
+  /** 所属资源目录分组ID（按分组筛选通道） */
+  groupId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
 }
@@ -70,12 +71,10 @@ export interface GbDeviceChannel {
   block?: string
   address?: string
   parental?: number
-  parentId?: string
   status?: string
   longitude?: number
   latitude?: number
   ptzType?: number
-  streamId?: string
   /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID（与所属设备一致） */
   platformId?: string
   /** 所属资源目录主键（引用 gb_group.id；默认分组 0000） */
@@ -122,8 +121,17 @@ export interface GbGroup {
   sort?: number
   createTime?: string
   updateTime?: string
+}
+
+/**
+ * 分组分页 / 树形响应 VO：在 entity 之上扩出 children / defaultGroup 视图字段
+ * 分页接口无 children，树接口两者都有；用同一类型简化前端处理
+ */
+export interface GbGroupVO extends GbGroup {
   /** 子节点（树形接口返回） */
-  children?: GbGroup[]
+  children?: GbGroupVO[]
+  /** 是否默认分组（后端按 gb28181.default-group.id 回填）：默认分组不可删除、只可改名称/排序 */
+  defaultGroup?: boolean
 }
 
 /** 流媒体节点（ZLMediaKit）分页查询参数 */
