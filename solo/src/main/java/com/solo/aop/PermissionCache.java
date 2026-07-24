@@ -1,6 +1,6 @@
 package com.solo.aop;
 
-import com.solo.system.service.SysUserService;
+import com.solo.system.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,8 +16,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 权限变更后（角色 / 分配 / 删除）必须显式失效——本组件对外只暴露 {@link #evict(Long)} 和
  * {@link #evictAll()}，业务侧调用不需要感知底层数据结构。</p>
  *
- * <p><b>为什么单进程内存缓存足够</b>：solo 部署一般单实例；分布式部署再换 Redis
- * 的话本组件是唯一改点，不影响调用方。</p>
+ * <p><b>依赖选择</b>：直接依赖 {@link SysUserMapper} 而不是 {@code SysUserService}，
+ * 避免与 Service 层形成循环依赖（Service 会调 {@code evict}，Cache 若又依赖 Service 就构成环）。</p>
  */
 @Slf4j
 @Component
@@ -27,7 +27,7 @@ public class PermissionCache {
     /** key=userId, value=权限编码列表 */
     private final Map<Long, List<String>> cache = new ConcurrentHashMap<>();
 
-    private final SysUserService sysUserService;
+    private final SysUserMapper sysUserMapper;
 
     /**
      * 取用户权限；缓存未命中时回源到 sys_user_role ⨝ sys_role_permission ⨝ sys_permission。
@@ -35,7 +35,7 @@ public class PermissionCache {
     public List<String> get(Long userId) {
         return cache.computeIfAbsent(userId, id -> {
             try {
-                return sysUserService.getPermissionCodes(id);
+                return sysUserMapper.selectPermissionCodes(id);
             } catch (Exception e) {
                 log.error("[权限缓存] 加载失败 userId={}", id, e);
                 return List.of();
