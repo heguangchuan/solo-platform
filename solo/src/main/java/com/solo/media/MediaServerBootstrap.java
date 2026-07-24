@@ -9,7 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 /**
- * 启动时根据 application.yaml 中 {@code gb28181.media.default-server.*} 自动 upsert
+ * 启动时根据 application.yaml 中 {@code media.default-server.*} 自动 upsert
  * 一个默认 ZLM 节点。
  * <p>这样部署只需启动 ZLM + solo 即可完成对接：solo 启动后默认节点已就绪，
  * ZLM hook 进来即可匹配。生产环境一般通过管理面再手工调整 hostIp / streamIp 等字段。</p>
@@ -27,7 +27,7 @@ public class MediaServerBootstrap {
         // 启动期显式检查 hook secret 配置
         String hookSecret = mediaProperties.getHookSecret();
         if (hookSecret == null || hookSecret.isBlank()) {
-            log.error("[流媒体] gb28181.media.hook-secret 未配置，ZLM 所有 hook 回调都会被拒。请在 application.yaml 补齐。");
+            log.error("[流媒体] media.hook-secret 未配置，ZLM 所有 hook 回调都会被拒。请在 application.yaml 补齐。");
         } else {
             log.info("[流媒体] hook secret 已启用，长度={}", hookSecret.length());
         }

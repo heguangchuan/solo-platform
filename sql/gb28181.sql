@@ -81,6 +81,7 @@ CREATE TABLE gb_device_channel
     ptz_type        tinyint               DEFAULT 0    COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机',
     stream_id       varchar(100)          DEFAULT NULL COMMENT '运行时点播 stream id',
     platform_id     varchar(20)  NOT NULL DEFAULT '0000' COMMENT '所属平台ID：0000=自有平台；其他=上级级联平台ID（与所属设备保持一致）',
+    group_id        varchar(20)  NOT NULL DEFAULT '0000' COMMENT '所属虚拟目录分组（逻辑关联 gb_group.id 业务短码）；默认值 0000 须与 application.yaml gb28181.default-group.id 保持一致',
     source          tinyint      NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -90,9 +91,34 @@ CREATE TABLE gb_device_channel
     KEY        idx_channel_id (channel_id),
     KEY        idx_parent_id (parent_id),
     KEY        idx_platform_id (platform_id),
+    KEY        idx_group_id (group_id),
     KEY        idx_status (status),
     KEY        idx_source (source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备通道表';
+
+-- =====================================================
+-- 国标虚拟目录分组表（业务分组 215 / 虚拟组织 216）
+-- 平台侧自建目录树，用于级联时向上级共享通道时组织目录结构；
+-- 与下级设备上报的原始 Catalog 目录无关，是本平台人为编排的虚拟目录。
+-- 主键 id 为业务短码（默认分组固定 0000）；group_id 为拼 Catalog 上报上级用的 20 位国标码。
+-- 逻辑关联：gb_device_channel.group_id 引用本表 id（业务短码），不建物理外键。
+-- =====================================================
+DROP TABLE IF EXISTS gb_group;
+CREATE TABLE gb_group
+(
+    id           varchar(20)  NOT NULL COMMENT '数据主键：默认分组固定 0000，其余雪花ID；通道 group_id 引用此列',
+    group_id     varchar(20)  NOT NULL COMMENT '分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用）',
+    name         varchar(255) NOT NULL COMMENT '分组名称（作为 Catalog <Item><Name> 上报上级）',
+    parent_id    varchar(20)  NOT NULL DEFAULT '0' COMMENT '父节点主键：0=根节点',
+    platform_id  varchar(20)  NOT NULL DEFAULT '0000' COMMENT '数据来源：0000=自有平台；其他=级联来源平台ID',
+    sort         int          NOT NULL DEFAULT 0 COMMENT '排序值（同层从小到大）',
+    create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_group_id (group_id),
+    KEY        idx_parent_id (parent_id),
+    KEY        idx_platform_id (platform_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标虚拟目录分组表';
 
 -- =====================================================
 -- 流媒体节点表（ZLMediaKit 实例登记）

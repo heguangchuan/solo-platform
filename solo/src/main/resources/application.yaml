@@ -53,7 +53,7 @@ logging:
 gb28181:  # 是否启用国标服务
   enabled: true
   # SIP 监听 IP，留空表示监听所有网卡；公网/多网卡部署时建议填设备能访问到的 IP
-  ip: 192.168.1.39
+  ip: 192.168.1.21
   # SIP 监听端口
   port: 15060
   # 本平台 SIP ID（20 位，前 10 位行政区划编码 + 后 10 位平台编号）
@@ -67,34 +67,43 @@ gb28181:  # 是否启用国标服务
   # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线
   keepalive-timeout-multiplier: 3
 
-  # 流媒体（ZLMediaKit）相关配置
-  media:
-    hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
-    default-server:
-      enabled: true
-      server-id: zlmediakit-local
-      name: 默认节点
-      host-ip: 192.168.1.25
-      http-port: 10005
-      secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
-      rtp-port-start: 30000
-      rtp-port-end: 35000
-      # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
-      stream-ip:
-    # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
-    invite-timeout-seconds: 30
-    record-info-timeout-seconds: 30
-    # PLAYBACK INVITE 等待流就绪超时（秒）
-    playback-timeout-seconds: 30
-    # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
-    ssrc-domain-start: 0
-    # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）
-    auto-apply-play: true
-    # 按需拉流：无人观看时自动关闭流释放资源；false 则拉起后一直保持推送
-    stream-on-demand: true
-    # 国标流录制：国标设备实时点播/广播/对讲流是否自动录制保存为 MP4
-    record-sip: false
-    # 推流直播录制：外部 RTMP/RTSP 推流是否自动录制保存为 MP4
-    record-push-live: false
-    # 推流鉴权是否启用
-    push-auth-enabled: true
+  # 默认虚拟目录分组：通道注册/导入/新增未指定分组时统一挂到此分组下
+  # id 为分组业务短码（默认分组固定 0000），是 gb_device_channel.group_id 的兜底值，须与 sql/gb28181.sql 中该列 DB 默认值一致
+  # group-id 为 20 位国标业务分组码（第 11-13 位 216），拼级联 Catalog 上报上级时作目录节点 ID
+  default-group:
+    id: '0000'
+    group-id: 60000000042160000001
+    name: 192.168.1.21
+
+# 流媒体（ZLMediaKit）相关配置
+# 独立领域，供国标（gb28181）与 ONVIF 复用，故提升到顶级，与 gb28181 / onvif 平级
+media:
+  hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+  default-server:
+    enabled: true
+    server-id: zlmediakit-local
+    name: 默认节点
+    host-ip: 192.168.1.25
+    http-port: 10005
+    secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+    rtp-port-start: 30000
+    rtp-port-end: 35000
+    # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
+    stream-ip:
+  # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
+  invite-timeout-seconds: 30
+  record-info-timeout-seconds: 30
+  # PLAYBACK INVITE 等待流就绪超时（秒）
+  playback-timeout-seconds: 30
+  # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
+  ssrc-domain-start: 0
+  # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）
+  auto-apply-play: true
+  # 按需拉流：无人观看时自动关闭流释放资源；false 则拉起后一直保持推送
+  stream-on-demand: true
+  # 国标流录制：国标设备实时点播/广播/对讲流是否自动录制保存为 MP4
+  record-sip: false
+  # 推流直播录制：外部 RTMP/RTSP 推流是否自动录制保存为 MP4
+  record-push-live: false
+  # 推流鉴权是否启用
+  push-auth-enabled: true

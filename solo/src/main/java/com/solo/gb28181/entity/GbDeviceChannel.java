@@ -110,6 +110,13 @@ public class GbDeviceChannel {
     private String platformId;
 
     /**
+     * 所属虚拟目录分组（逻辑关联 {@link GbGroup#getGroupId()}，20 位 215 业务分组码）。
+     * <p>通道注册/导入/新增未指定时，由入库流程回填 {@code gb28181.default-group.id}；
+     * 编辑不动此字段，仅由目录编排功能变更。</p>
+     */
+    private String groupId;
+
+    /**
      * 数据来源：1 系统新增，2 表格导入，3 设备注册（Catalog 同步自动入库）
      */
     private Integer source;

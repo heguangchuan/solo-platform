@@ -4,11 +4,14 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
+import com.solo.gb28181.mapper.GbGroupMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
@@ -32,6 +35,19 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         implements GbDeviceChannelService {
 
     private final GbDeviceMapper deviceMapper;
+    private final GbGroupMapper groupMapper;
+    private final Gb28181Properties properties;
+
+    /**
+     * 解析通道所属分组：入参已指定则用入参，否则回落到配置的默认分组。
+     * 通道注册 / 导入 / 新增三条入库路径统一走此兜底。
+     */
+    private String resolveGroupId(String input) {
+        if (input != null && !input.isBlank()) {
+            return input;
+        }
+        return properties.getDefaultGroup().getId();
+    }
 
     @Override
     public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
@@ -50,6 +66,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         }
         if (request.getParentId() != null && !request.getParentId().isBlank()) {
             wrapper.eq(GbDeviceChannel::getParentId, request.getParentId());
+        }
+        if (request.getGroupId() != null && !request.getGroupId().isBlank()) {
+            wrapper.eq(GbDeviceChannel::getGroupId, request.getGroupId());
         }
         if (request.getSource() != null) {
             wrapper.eq(GbDeviceChannel::getSource, request.getSource());
@@ -118,6 +137,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         channel.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
         channel.setSource(GbSource.SYSTEM);
         channel.setStreamId(null);
+        channel.setGroupId(resolveGroupId(channel.getGroupId()));
         save(channel);
         // 更新设备通道计数
         long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, device.getId()).count();
@@ -191,12 +211,15 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                     .eq(GbDeviceChannel::getChannelId, ch.getChannelId())
                     .one();
             if (exist == null) {
+                ch.setGroupId(resolveGroupId(ch.getGroupId()));
                 save(ch);
             } else {
                 ch.setId(exist.getId());
                 ch.setCreateTime(exist.getCreateTime());
                 // 保留最初来源：系统新增/导入的通道被 Catalog 同步后仍标记为原来源
                 ch.setSource(exist.getSource());
+                // 保留人工编排的分组：Catalog 重复同步不覆盖已挂分组
+                ch.setGroupId(exist.getGroupId());
                 updateById(ch);
             }
         }
