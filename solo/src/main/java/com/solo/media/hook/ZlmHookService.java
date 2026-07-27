@@ -118,7 +118,6 @@ public class ZlmHookService {
 
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
-        boolean enableMp4;
 
         // ============ 推流鉴权 ============
         // 国标 rtp / 广播 / 对讲 是平台自己触发的推流，不需要 token；其他外部推流才校验。
@@ -135,23 +134,7 @@ public class ZlmHookService {
             log.info("[推流鉴权] 通过 app={} stream={} clientId={}", app, stream, clientId);
         }
 
-        // 根据流类型和配置决定是否开启 MP4 录制
-        if ("rtp".equals(app)) {
-            GbInviteSession inviteSession = inviteSessionService.getByStreamId(stream);
-            if (inviteSession != null && inviteSession.getRecord() != null) {
-                enableMp4 = inviteSession.getRecord();
-            } else {
-                enableMp4 = mediaProperties.isRecordSip();
-            }
-        } else if ("broadcast".equals(app) || "talk".equals(app)) {
-            // 广播/对讲统一使用国标录制配置
-            enableMp4 = mediaProperties.isRecordSip();
-        } else {
-            // 其他 app（外部推流）使用推流录制配置
-            enableMp4 = mediaProperties.isRecordPushLive();
-        }
-
-        return HookResult.ok().put("enable_audio", true).put("enable_mp4", enableMp4);
+        return HookResult.ok().put("enable_audio", true);
     }
 
     public HookResult onStreamChanged(Map<String, Object> body) {

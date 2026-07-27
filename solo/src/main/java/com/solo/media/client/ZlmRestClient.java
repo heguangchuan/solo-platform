@@ -207,7 +207,7 @@ public class ZlmRestClient {
      * @param url      源 URL（含账密）
      * @param rtpType  RTSP 传输：0=TCP+UDP 自适应，1=TCP，2=UDP，3=组播
      * @param enableAudio 是否拉音频
-     * @param enableMp4   是否录制 MP4（跟随 media.record-push-live 全局开关时可关掉）
+     * @param enableMp4   是否录制 MP4（由拉流代理表单的"录制视频"开关控制）
      * @return ZLM 分配的代理 key（addStreamProxy.data.key），用于 delStreamProxy
      */
     public String addStreamProxy(MediaServer server, String app, String stream, String url,

@@ -178,7 +178,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setSessionType(GbInviteSession.TYPE_PLAY);
         session.setStatus(GbInviteSession.STATUS_INVITING);
         session.setStartTime(LocalDateTime.now());
-        session.setRecord(mediaProperties.isRecordSip());
         inviteSessionService.save(session);
 
         CompletableFuture<PlayResultResponse> future = new CompletableFuture<>();

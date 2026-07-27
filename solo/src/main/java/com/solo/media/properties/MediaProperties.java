@@ -60,18 +60,6 @@ public class MediaProperties {
     private boolean streamOnDemand = true;
 
     /**
-     * 国标流是否自动录制 MP4：true=开启录制，false=不录制。
-     * 包括实时点播、语音广播、对讲等所有国标接入的流。
-     */
-    private boolean recordSip = true;
-
-    /**
-     * 外部推流直播是否自动录制 MP4：true=开启录制，false=不录制。
-     * 包括 RTMP/RTSP 等方式推送过来的直播流。
-     */
-    private boolean recordPushLive = true;
-
-    /**
      * 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中
      * stream_push_client 且 enabled=1；未命中或未传 token 一律拒绝。
      * false（默认）=不做任何校验，任何客户端都能往 ZLM 推流（生产环境务必开启）。

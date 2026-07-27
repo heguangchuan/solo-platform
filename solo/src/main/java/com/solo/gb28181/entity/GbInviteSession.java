@@ -76,9 +76,4 @@ public class GbInviteSession {
     private LocalDateTime stopTime;
 
     private String failReason;
-
-    /**
-     * 是否录制 MP4（null 表示使用全局配置 record-sip）
-     */
-    private Boolean record;
 }
