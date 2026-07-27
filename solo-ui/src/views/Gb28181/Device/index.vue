@@ -303,7 +303,7 @@ onMounted(() => {
         <el-table-column type="selection" width="55" align="center" />
         <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.name || row.reportName || '—' }}</template>
+          <template #default="{ row }">{{ row.name || row.reportName || row.hostAddress || '—' }}</template>
         </el-table-column>
         <el-table-column label="设备状态" align="center" width="85" show-overflow-tooltip>
           <template #default="{ row }">

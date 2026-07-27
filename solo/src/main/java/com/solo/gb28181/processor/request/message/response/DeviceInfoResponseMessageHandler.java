@@ -42,8 +42,8 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
             device.setReportName(name);
             dirty = true;
         }
-        // 如果用户还没设置自定义名称，就把上报名称填到 name 让用户看见
-        if (notBlank(name) && device.getName() == null) {
+        // 如果用户还没设置自定义名称，就把上报名称（reportName）填到 name 让用户看见
+        if (notBlank(name) && (device.getName() == null || device.getName().isBlank())) {
             device.setName(name);
             dirty = true;
         }

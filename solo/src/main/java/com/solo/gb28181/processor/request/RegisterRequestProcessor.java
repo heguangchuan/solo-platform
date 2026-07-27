@@ -95,7 +95,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             return;
         }
         final boolean isPlatform = (platform != null);
-        String password = isPlatform ? platform.getPassword() : properties.getPassword();
+        String password = isPlatform ? platform.getAuthKey() : properties.getPassword();
         String title = isUnregister ? (isPlatform ? "[级联注销]" : "[设备注销]")
                 : (isPlatform ? "[级联注册]" : "[设备注册]");
         log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
@@ -162,10 +162,16 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             // 设备直接注册到本平台 → 自有平台；级联平台同步过来的设备会在级联接入处显式赋值
             device.setPlatformId("0000");
         }
+        // 级联平台：platformId 设为自身国标ID，使其推上来的通道/目录带来源标记
+        if (isPlatform) {
+            device.setPlatformId(deviceId);
+        }
         // 级联平台：首次接入时用白名单名称播种显示名，便于设备列表区分
         if (isPlatform && firstTime && (device.getName() == null || device.getName().isBlank())) {
             device.setName(platform.getName());
         }
+        // 普通设备不在此处兜底 name：REGISTER 报文不带设备名，
+        // 由 DeviceOnlineListener 异步查 DeviceInfo 后用 reportName 回填（见 DeviceInfoResponseMessageHandler）。
         gbDeviceService.online(device);
 
         // 级联平台接入：标记来源为级联（online 对新设备会强制写 source=REGISTER，这里纠正）
