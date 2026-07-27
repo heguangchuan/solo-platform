@@ -248,7 +248,6 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         session.setEndTimeStr(String.valueOf(endEpoch));
         session.setStatus(GbInviteSession.STATUS_INVITING);
         session.setStartTime(LocalDateTime.now());
-        session.setRecord(mediaProperties.isRecordSip());
         inviteSessionService.save(session);
 
         CompletableFuture<PlaybackResultResponse> future = new CompletableFuture<>();
