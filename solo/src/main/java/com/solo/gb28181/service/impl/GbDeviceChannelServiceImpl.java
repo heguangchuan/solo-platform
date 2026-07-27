@@ -141,6 +141,8 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (device == null) {
             throw new ServiceException("所属设备不存在");
         }
+        // 通道国标ID在同一所属设备下唯一（跟 uk_device_channel 对齐）。GB/T 28181 语义上
+        // 通道号由所属物理设备自身分配，不同厂商 NVR 出现相同末位序号是正常情况。
         boolean dup = lambdaQuery()
                 .eq(GbDeviceChannel::getDeviceDbId, channel.getDeviceDbId())
                 .eq(GbDeviceChannel::getChannelId, channel.getChannelId())
@@ -151,6 +153,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // 回填冗余字段，状态与来源由系统决定
         channel.setId(null);
         channel.setDeviceId(device.getDeviceId());
+        channel.setPlatformId(device.getPlatformId());
         channel.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
         channel.setSource(GbSource.SYSTEM);
         channel.setGroupId(resolveGroupId(channel.getGroupId()));

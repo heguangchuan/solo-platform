@@ -7,7 +7,8 @@ import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Search, VideoCamera } from '@element-plus/icons-vue'
 import type { GbDevice, GbDeviceChannel, GbGroupVO } from '@/types/api'
-import { getGbDevicePageApi, saveGbDeviceChannelApi, getGbGroupTreeApi } from '@/api/gb28181'
+import { getGbDevicePageApi, saveGbDeviceChannelApi, getGbGroupTreeApi, getNextGbChannelCodeApi } from '@/api/gb28181'
+import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE, buildGbCode, nextSeqFromCodes } from '@/utils/gbCode'
 
 interface Emits {
   (e: 'refresh'): void
@@ -23,6 +24,11 @@ const keyword = ref('')
 const selectedDevice = ref<GbDevice | null>(null)
 const channels = ref<Partial<GbDeviceChannel>[]>([])
 const formRef = ref()
+
+/** 自动生成编码用的类型码（11-13位），默认 131 摄像机 */
+const typeCode = ref(DEFAULT_CHANNEL_TYPE)
+/** 选中设备后从后端取到的下一个可用编码（作为本次本地递增的基准，已计入已入库通道） */
+const baseCode = ref('')
 
 /** 资源目录树（供每行选择所属分组，非必填；不选后端 resolveGroupId 回落默认分组） */
 const groupTree = ref<GbGroupVO[]>([])
@@ -72,20 +78,63 @@ function open() {
   keyword.value = ''
   selectedDevice.value = null
   channels.value = []
+  typeCode.value = DEFAULT_CHANNEL_TYPE
+  baseCode.value = ''
   loadDevices()
   fetchGroupTree()
   nextTick(() => formRef.value?.clearValidate())
 }
 
-function handleSelectDevice(device: GbDevice) {
+async function handleSelectDevice(device: GbDevice) {
   selectedDevice.value = device
-  if (channels.value.length === 0) {
-    addEmptyChannel()
+  channels.value = []
+  await refreshBaseCode()
+  addEmptyChannel()
+}
+
+/** 切换类型码 / 选中设备后，从后端取该设备下下一个可用编码作为本次批量本地递增的基准 */
+async function refreshBaseCode() {
+  baseCode.value = ''
+  const device = selectedDevice.value
+  if (!device?.id) return
+  try {
+    const res = await getNextGbChannelCodeApi(device.id, typeCode.value)
+    baseCode.value = res.data || ''
+  } catch {
+    baseCode.value = ''
+  }
+}
+
+/** 类型码变更：重算基准并把已生成的空/自动编码行重新填一遍 */
+async function handleTypeChange() {
+  await refreshBaseCode()
+  regenerateAll()
+}
+
+/** 依据基准编码 + 当前所有行已填编码，算出下一个不冲突的编码 */
+function computeNextCode(): string {
+  if (!baseCode.value) return ''
+  const prefix13 = baseCode.value.slice(0, 13)
+  const domain10 = prefix13.slice(0, 10)
+  const type = prefix13.slice(10)
+  // baseCode 是后端给的「下一个可用」= 已入库最大 +1；减 1 得已占用最大值作为比较基线
+  const baseSeq = Number.parseInt(baseCode.value.slice(13), 10)
+  const occupiedMax = Number.isNaN(baseSeq) ? '' : prefix13 + String(baseSeq - 1).padStart(7, '0')
+  // 与当前所有行已填编码一起取最大 +1，保证不与未保存行冲突
+  const pool = [occupiedMax, ...channels.value.map(c => c.channelId || '')]
+  const seq = nextSeqFromCodes(pool, prefix13)
+  return buildGbCode(domain10, type, seq)
+}
+
+/** 重填所有「非手改」的自动编码（简单起见：仅覆盖空编码行） */
+function regenerateAll() {
+  for (const ch of channels.value) {
+    if (!ch.channelId) ch.channelId = computeNextCode()
   }
 }
 
 function addEmptyChannel() {
-  channels.value.push({ channelId: '', name: '', groupId: '' })
+  channels.value.push({ channelId: computeNextCode(), name: '', groupId: '' })
 }
 
 function removeChannel(index: number) {
@@ -183,6 +232,18 @@ defineExpose({ open })
               {{ selectedDevice.deviceId }}
             </el-descriptions-item>
           </el-descriptions>
+
+          <div class="type-bar">
+            <span class="type-label">通道类型码</span>
+            <el-select v-model="typeCode" size="small" class="type-select" @change="handleTypeChange">
+              <el-option
+                v-for="opt in CHANNEL_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </div>
 
           <el-form ref="formRef" :model="{ channels }" :rules="rules">
             <el-table :data="channels" border style="width: 100%; margin-top: 12px" :show-header="true">
@@ -327,6 +388,23 @@ defineExpose({ open })
 
 .dev-desc {
   margin-bottom: 4px;
+}
+
+.type-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.type-label {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  flex-shrink: 0;
+}
+
+.type-select {
+  flex: 1;
 }
 
 .no-margin {

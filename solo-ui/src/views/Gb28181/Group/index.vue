@@ -11,6 +11,7 @@ import {
   saveGbGroupApi,
   updateGbGroupApi,
   deleteGbGroupApi,
+  getNextGbGroupCodeApi,
 } from '@/api/gb28181'
 
 /** 默认分组由后端 defaultGroup 标识判定（读 gb28181.default-group.id，避免前端硬编码失配） */
@@ -103,7 +104,7 @@ async function fetchData() {
 }
 
 // ---------------- 编辑/新增 ----------------
-function handleAdd(parent?: GbGroupVO) {
+async function handleAdd(parent?: GbGroupVO) {
   isEdit.value = false
   isEditingDefault.value = false
   dialogTitle.value = parent ? `在「${parent.name}」下新增` : '新增分组'
@@ -111,6 +112,13 @@ function handleAdd(parent?: GbGroupVO) {
   if (parent) form.value.parentId = parent.id
   buildParentOptions()
   dialogVisible.value = true
+  // 自动带出下一个可用分组国标编码（默认 216 虚拟组织）；失败留空由用户手输
+  try {
+    const res = await getNextGbGroupCodeApi()
+    form.value.groupId = res.data || ''
+  } catch {
+    // 静默失败
+  }
 }
 
 function handleEdit(row: GbGroupVO) {

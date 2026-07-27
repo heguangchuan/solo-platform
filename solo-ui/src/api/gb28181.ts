@@ -387,3 +387,33 @@ export function resetStreamPushClientTokenApi(id: string) {
 export function deleteStreamPushClientApi(id: string) {
   return del<void>(`/api/stream-push-client/${id}`)
 }
+
+// -------- GB28181 国标编码自动生成 --------
+
+/** 本平台身份信息，供前端在设备未入库时本地拼编码使用 */
+export interface GbPlatformInfo {
+  /** 前 10 位行政区划中心编码，对应 gb28181.domain */
+  domain: string
+  /** 本平台 20 位 SIP ID */
+  platformId: string
+}
+
+/** 读取本平台域 / SIP ID */
+export function getGbPlatformInfoApi() {
+  return get<GbPlatformInfo>('/api/gb28181/code/platform-info')
+}
+
+/** 生成下一个可用设备国标编码（20位）。type 为空后端默认 132（IPC） */
+export function getNextGbDeviceCodeApi(type?: string) {
+  return get<string>('/api/gb28181/code/next-device', { params: { type } })
+}
+
+/** 生成指定设备下一个可用通道国标编码（20位）。通道编码在所属设备内唯一。type 为空后端默认 131（摄像机） */
+export function getNextGbChannelCodeApi(deviceDbId: string, type?: string) {
+  return get<string>('/api/gb28181/code/next-channel', { params: { deviceDbId, type } })
+}
+
+/** 生成下一个可用资源目录分组国标编码（20位）。type 为空后端默认 216（虚拟组织） */
+export function getNextGbGroupCodeApi(type?: string) {
+  return get<string>('/api/gb28181/code/next-group', { params: { type } })
+}

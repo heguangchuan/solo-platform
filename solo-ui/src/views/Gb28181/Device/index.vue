@@ -17,10 +17,19 @@ import {
   updateGbDeviceApi,
   getGbGroupTreeApi,
   detectGbDeviceApi,
+  getNextGbDeviceCodeApi,
+  getGbPlatformInfoApi,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
 import ChannelListDialog from './components/ChannelListDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
+import {
+  DEVICE_TYPE_OPTIONS,
+  CHANNEL_TYPE_OPTIONS,
+  DEFAULT_DEVICE_TYPE,
+  DEFAULT_CHANNEL_TYPE,
+  nextGbCodeLocal,
+} from '@/utils/gbCode'
 
 const router = useRouter()
 const loading = ref(false)
@@ -57,6 +66,13 @@ const form = reactive<FormData>({
 /** 资源目录树（第二步给每条通道选所属分组用；不选后端 resolveGroupId 回落默认分组） */
 const groupTree = ref<GbGroupVO[]>([])
 
+/** 新增向导第 1 步：设备编码类型码，默认 132 IPC。切换后重新调后端取下一个可用设备 ID */
+const deviceTypeCode = ref(DEFAULT_DEVICE_TYPE)
+/** 新增向导第 2 步：通道编码类型码，默认 131 摄像机 */
+const channelTypeCode = ref(DEFAULT_CHANNEL_TYPE)
+/** 本平台 domain 前 10 位，进入新增弹窗时拉取，供第 2 步通道编码本地递增 */
+const platformDomain = ref('')
+
 async function fetchGroupTree() {
   try {
     const res = await getGbGroupTreeApi()
@@ -77,7 +93,27 @@ function prevStep() {
 }
 
 function addEmptyChannel() {
-  form.newChannels.push({ channelId: '', name: '', groupId: '' } as GbDeviceChannel)
+  form.newChannels.push({
+    channelId: genChannelCode(),
+    name: '',
+    groupId: '',
+  } as GbDeviceChannel)
+}
+
+/** 依据 domain 前 10 位 + 类型码 + 已填通道编码，生成下一个可用通道编码（设备未入库，纯前端） */
+function genChannelCode(): string {
+  return nextGbCodeLocal(
+    platformDomain.value,
+    channelTypeCode.value,
+    form.newChannels.map(c => c.channelId || ''),
+  )
+}
+
+/** 切换类型码后，重填所有空/自动编码的通道行 */
+function handleChannelTypeChange() {
+  for (const ch of form.newChannels) {
+    if (!ch.channelId) ch.channelId = genChannelCode()
+  }
 }
 
 function removeChannel(index: number) {
@@ -147,15 +183,45 @@ function handleSizeChange(s: number) {
 }
 
 // ---------------- 新增/编辑 ----------------
-function handleAdd() {
+async function handleAdd() {
   isEdit.value = false
   currentStep.value = 1
   dialogTitle.value = '新增设备'
   form.newChannels = []
   Object.assign(form, makeEmpty())
-  fetchGroupTree()
+  deviceTypeCode.value = DEFAULT_DEVICE_TYPE
+  channelTypeCode.value = DEFAULT_CHANNEL_TYPE
   dialogVisible.value = true
+  // 并发拉：分组树 / 平台 domain / 下一个可用设备编码
+  fetchGroupTree()
+  await Promise.all([fetchPlatformDomain(), fillNextDeviceCode()])
   nextTick(() => formRef.value?.clearValidate())
+}
+
+/** 从后端拉本平台 domain，用于第 2 步通道编码本地递增；失败留空由 nextGbCodeLocal 兜底 */
+async function fetchPlatformDomain() {
+  try {
+    const res = await getGbPlatformInfoApi()
+    platformDomain.value = res.data?.domain || ''
+  } catch {
+    platformDomain.value = ''
+  }
+}
+
+/** 按当前 deviceTypeCode 从后端取下一个可用设备编码填入表单 */
+async function fillNextDeviceCode() {
+  try {
+    const res = await getNextGbDeviceCodeApi(deviceTypeCode.value)
+    form.deviceId = res.data || ''
+  } catch {
+    // 静默失败，保留空值让用户手输
+  }
+}
+
+/** 新增态下切换设备类型码，重取编码 */
+async function handleDeviceTypeChange() {
+  if (isEdit.value) return
+  await fillNextDeviceCode()
 }
 
 function handleEdit(row: GbDevice) {
@@ -398,6 +464,16 @@ onMounted(() => {
 
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <template v-if="currentStep === 1 || isEdit">
+          <el-form-item v-if="!isEdit" label="设备类型">
+            <el-select v-model="deviceTypeCode" style="width: 100%" @change="handleDeviceTypeChange">
+              <el-option
+                v-for="opt in DEVICE_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </el-form-item>
           <el-form-item label="设备编码" prop="deviceId">
             <el-input v-model="form.deviceId" placeholder="设备国标ID（20位）" :disabled="isEdit" />
           </el-form-item>
@@ -433,6 +509,17 @@ onMounted(() => {
         </template>
 
         <template v-if="currentStep === 2 && !isEdit">
+          <div class="type-bar">
+            <span class="type-label">通道类型码</span>
+            <el-select v-model="channelTypeCode" size="small" class="type-select" @change="handleChannelTypeChange">
+              <el-option
+                v-for="opt in CHANNEL_TYPE_OPTIONS"
+                :key="opt.value"
+                :label="opt.label"
+                :value="opt.value"
+              />
+            </el-select>
+          </div>
           <el-table :data="form.newChannels" border style="width: 100%" :show-header="true">
             <el-table-column label="通道编码" width="240">
               <template #default="{ row, $index }">
@@ -518,5 +605,22 @@ onMounted(() => {
   margin-top: 16px;
   display: flex;
   justify-content: flex-end;
+}
+
+.type-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.type-label {
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  flex-shrink: 0;
+}
+
+.type-select {
+  flex: 1;
 }
 </style>
