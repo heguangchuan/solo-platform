@@ -52,7 +52,7 @@ public class GbCodeController {
         return Result.success(codeGenerator.nextChannelCode(deviceDbId, type));
     }
 
-    /** 生成下一个可用资源目录分组国标 ID（20 位）。type 为空默认 216（虚拟组织）。 */
+    /** 生成下一个可用资源目录分组国标 ID（20 位）。type 为空默认 215（业务分组），虚拟组织传 216。 */
     @GetMapping("/next-group")
     @RequirePermission({"gb28181:group:add"})
     public Result<String> nextGroup(@RequestParam(required = false) String type) {

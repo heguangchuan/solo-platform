@@ -41,8 +41,8 @@ public class GbCodeGenerator {
     public static final String DEFAULT_DEVICE_TYPE = "132";
     /** 通道类型码默认值：131 摄像机 */
     public static final String DEFAULT_CHANNEL_TYPE = "131";
-    /** 分组类型码默认值：216 虚拟组织（业务分组请显式传 215） */
-    public static final String DEFAULT_GROUP_TYPE = "216";
+    /** 分组类型码默认值：215 业务分组（虚拟组织请显式传 216） */
+    public static final String DEFAULT_GROUP_TYPE = "215";
 
     private final Gb28181Properties properties;
     private final GbDeviceMapper deviceMapper;
