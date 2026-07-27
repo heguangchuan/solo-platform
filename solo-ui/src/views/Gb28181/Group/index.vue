@@ -13,12 +13,16 @@ import {
   deleteGbGroupApi,
   getNextGbGroupCodeApi,
 } from '@/api/gb28181'
+import { GROUP_TYPE_OPTIONS, DEFAULT_GROUP_TYPE } from '@/utils/gbCode'
 
 /** 默认分组由后端 defaultGroup 标识判定（读 gb28181.default-group.id，避免前端硬编码失配） */
 const loading = ref(false)
 const treeData = ref<GbGroupVO[]>([])
 const tableRef = ref()
 const allExpanded = ref(true)
+
+/** 新增时分组类型码（第11-13位），215 业务分组 / 216 虚拟组织；切换后重取编码 */
+const groupType = ref(DEFAULT_GROUP_TYPE)
 
 // ---------------- 编辑对话框 ----------------
 const dialogVisible = ref(false)
@@ -110,15 +114,25 @@ async function handleAdd(parent?: GbGroupVO) {
   dialogTitle.value = parent ? `在「${parent.name}」下新增` : '新增分组'
   form.value = makeEmpty()
   if (parent) form.value.parentId = parent.id
+  groupType.value = DEFAULT_GROUP_TYPE
   buildParentOptions()
   dialogVisible.value = true
-  // 自动带出下一个可用分组国标编码（默认 216 虚拟组织）；失败留空由用户手输
+  await fillGroupCode()
+}
+
+/** 按当前类型码从后端取下一个可用分组编码填入表单；失败留空由用户手输 */
+async function fillGroupCode() {
   try {
-    const res = await getNextGbGroupCodeApi()
+    const res = await getNextGbGroupCodeApi(groupType.value)
     form.value.groupId = res.data || ''
   } catch {
     // 静默失败
   }
+}
+
+/** 新增态下切换类型码，重新生成编码 */
+async function handleGroupTypeChange() {
+  if (!isEdit.value) await fillGroupCode()
 }
 
 function handleEdit(row: GbGroupVO) {
@@ -282,6 +296,16 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="分组名称" prop="name">
           <el-input v-model="form.name" placeholder="上报上级 Catalog 的目录名" />
+        </el-form-item>
+        <el-form-item v-if="!isEdit" label="分组类型">
+          <el-select v-model="groupType" style="width: 100%" @change="handleGroupTypeChange">
+            <el-option
+              v-for="opt in GROUP_TYPE_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
         </el-form-item>
         <el-form-item label="国标编码" prop="groupId">
           <el-input

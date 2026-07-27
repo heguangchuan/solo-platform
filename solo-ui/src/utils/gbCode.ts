@@ -28,15 +28,16 @@ export const CHANNEL_TYPE_OPTIONS = [
   { label: '编码器 137', value: '137' },
 ]
 
-/** 分组类型码 —— 项目当前只用虚拟组织 216 */
+/** 分组类型码：215 业务分组 / 216 虚拟组织 */
 export const GROUP_TYPE_OPTIONS = [
+  { label: '业务分组 215', value: '215' },
   { label: '虚拟组织 216', value: '216' },
 ]
 
 /** 默认类型码 */
 export const DEFAULT_DEVICE_TYPE = '132'
 export const DEFAULT_CHANNEL_TYPE = '131'
-export const DEFAULT_GROUP_TYPE = '216'
+export const DEFAULT_GROUP_TYPE = '215'
 
 /** 7 位序号左补零 */
 function pad7(seq: number): string {
