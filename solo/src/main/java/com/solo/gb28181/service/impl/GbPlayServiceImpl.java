@@ -2,6 +2,7 @@ package com.solo.gb28181.service.impl;
 
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.constant.GbSource;
 import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
@@ -78,7 +79,9 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final GbInviteSupport support;
     private final java.util.concurrent.ThreadPoolExecutor gb28181BizExecutor;
 
-    /** 等待 on_stream_changed 的 future，key=streamId */
+    /**
+     * 等待 on_stream_changed 的 future，key=streamId
+     */
     private final Map<String, CompletableFuture<PlayResultResponse>> pending = new ConcurrentHashMap<>();
 
     // ============================================================
@@ -278,24 +281,28 @@ public class GbPlayServiceImpl implements GbPlayService {
             log.warn("[实时点播] onInviteOk 无对应会话 callId={}", callId);
             return;
         }
+        // 区分向下级点播（级联接入设备 source=CASCADE）与自由设备点播，日志前缀随之切换
+        GbDevice device = support.device(session.getDeviceId());
+        boolean cascade = device != null && Integer.valueOf(GbSource.CASCADE).equals(device.getSource());
+        String tag = cascade ? LOG_TAG + "->下级" : LOG_TAG;
         if (remoteSsrc == null || remoteSsrc.isBlank() || remoteSsrc.equals(session.getSsrc())) {
             // 设备没回 y= 或 SSRC 一致：不需要任何动作
             return;
         }
-        log.warn("[实时点播] SSRC 不一致 local={} remote={} stream={}，尝试改写 ZLM 过滤值",
-                session.getSsrc(), remoteSsrc, session.getStreamId());
+        log.warn("[{}] SSRC 不一致 local={} remote={} stream={}，尝试改写 ZLM 过滤值",
+                tag, session.getSsrc(), remoteSsrc, session.getStreamId());
         MediaServer server = support.mediaServer(session.getServerId());
         if (server == null) {
-            log.error("[实时点播] SSRC 自适应失败：节点不存在 serverId={}", session.getServerId());
-            support.failAndBye(session, LOG_TAG, "节点丢失 serverId=" + session.getServerId());
+            log.error("[{}] SSRC 自适应失败：节点不存在 serverId={}", tag, session.getServerId());
+            support.failAndBye(session, tag, "节点丢失 serverId=" + session.getServerId());
             failPending(session.getStreamId(), "节点丢失");
             return;
         }
         boolean ok = zlmRestClient.updateRtpServerSSRC(server, session.getStreamId(), remoteSsrc);
         if (!ok) {
             // ZLM 拒绝改写：发 BYE 让设备停推；后续流自然不会上来 → on_rtp_server_timeout 兜底
-            log.error("[实时点播] ZLM updateRtpServerSSRC 失败，主动 BYE stream={}", session.getStreamId());
-            support.failAndBye(session, LOG_TAG, "ZLM updateRtpServerSSRC 失败");
+            log.error("[{}] ZLM updateRtpServerSSRC 失败，主动 BYE stream={}", tag, session.getStreamId());
+            support.failAndBye(session, tag, "ZLM updateRtpServerSSRC 失败");
             failPending(session.getStreamId(), "ZLM updateRtpServerSSRC 失败");
             return;
         }
@@ -304,9 +311,10 @@ public class GbPlayServiceImpl implements GbPlayService {
         ssrcFactory.release(session.getServerId(), oldSsrc);
         session.setSsrc(remoteSsrc);
         inviteSessionService.update(session);
-        log.info("[实时点播] SSRC 自适应成功 stream={} {} → {}",
-                session.getStreamId(), oldSsrc, remoteSsrc);
+        log.info("[{}] SSRC 自适应成功 stream={} {} -> {}",
+                tag, session.getStreamId(), oldSsrc, remoteSsrc);
     }
+
 
     @Override
     public void onStreamReady(String app, String stream, String mediaServerId) {
