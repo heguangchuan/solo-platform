@@ -8,7 +8,9 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.request.GbDeviceCreateWithChannelsRequest;
 import com.solo.gb28181.request.GbDeviceBatchDeleteRequest;
+import com.solo.gb28181.request.GbDeviceDetectRequest;
 import com.solo.gb28181.request.GbDevicePageRequest;
+import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
@@ -91,6 +93,17 @@ public class GbDeviceController {
         sipCommander.queryDeviceInfo(device);
         sipCommander.queryCatalog(device);
         return Result.success();
+    }
+
+    /**
+     * 批量探测设备存活
+     * <p>向每台设备发送 DeviceInfo 查询（SIP MESSAGE），等待应答。
+     * 有应答→在线，超时→离线，无网络地址→跳过。</p>
+     */
+    @PostMapping("/detect")
+    @RequirePermission({"gb28181:device:sync"})
+    public Result<GbDeviceDetectResponse> detect(@RequestBody GbDeviceDetectRequest request) {
+        return Result.success(gbDeviceService.detectBatch(request.getIds()));
     }
 
     /**

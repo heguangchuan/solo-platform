@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDevicePageRequest;
+import com.solo.gb28181.response.GbDeviceDetectResponse;
 
 /**
  * 国标设备服务
@@ -51,4 +52,13 @@ public interface GbDeviceService extends IService<GbDevice> {
      * 批量删除设备，连同其名下所有通道
      */
     void deleteBatch(java.util.List<Long> ids);
+
+    /**
+     * 批量探测设备存活
+     * <p>向每台设备发送 DeviceInfo 查询（SIP MESSAGE），等待应答。
+     * 有应答 → online（写回 status=1 + 刷新 Redis TTL）；
+     * 超时/异常 → offline（写回 status=0 + 清 Redis）；
+     * 无网络地址（从未注册）→ skipped，不改 status。</p>
+     */
+    GbDeviceDetectResponse detectBatch(java.util.List<Long> ids);
 }

@@ -20,10 +20,10 @@ import java.util.regex.Pattern;
 
 /**
  * GB28181 MESSAGE 报文 XML 工具
- * <p>编码处理：以<b>字节内容嗅探</b>为准，不盲信报文里的 {@code <?xml encoding="..."?>} 声明——
- * 大量国标设备（尤其海康/大华）会声明 GB2312 却实际发 UTF-8，或干脆不声明。
- * 策略：能按 UTF-8 严格解码则判 UTF-8，否则回退 GBK（GB2312 超集，避免丢字）。
- * 这样无论设备是否声明、声明是否撒谎，中文都不会乱码。</p>
+ * <p>编码处理：先看报文 XML 声明的 {@code encoding}——若为中文族（GB2312/GBK/GB18030）则直接按 GB18030 解码，
+ * 因为这类编码的中文字节常恰好是合法 UTF-8 序列，纯嗅探会误判为 UTF-8 而乱码（海康声明 GB18030 却被解成"韩文"即此故）。
+ * 声明为 UTF-8 或无声明时，再按字节嗅探：能严格 UTF-8 解码则判 UTF-8，否则回退 GBK。
+ * 这样无论设备声明与否、是否撒谎，中文都不会乱码。</p>
  * <p>包含海康设备的两个兼容补丁：</p>
  * <ol>
  *   <li>未转义的 {@code &} 字符（仅允许 {@code &lt;/&gt;/&amp;/&apos;/&quot;}）</li>
@@ -48,15 +48,17 @@ public class XmlUtils {
     /** 匹配并移除 XML 声明中的 encoding="xxx"（我们已用 Reader 传入解码后的字符，声明反而会干扰 dom4j） */
     private static final Pattern ENCODING_DECL =
             Pattern.compile("\\s+encoding\\s*=\\s*[\"'][^\"']*[\"']", Pattern.CASE_INSENSITIVE);
+    /** 从 XML 声明提取 encoding 属性值，如 {@code GB18030}、{@code UTF-8}；无声明返回 null */
+    private static final Pattern ENCODING_VALUE =
+            Pattern.compile("encoding\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
 
-    /** 从字节数组解析 XML，返回根元素；编码按内容嗅探（UTF-8 优先，否则 GBK）。失败返回 null */
+    /** 从字节数组解析 XML，返回根元素；编码按 {@link #resolveCharset} 判定（中文族声明优先，否则嗅探）。失败返回 null */
     public static Element parseRoot(byte[] content) {
         return parseRoot(content, null);
     }
 
     /**
-     * @param charset 显式指定编码；传 null 则按内容嗅探。注意：即使传入声明，也以“能否严格解码”为准，
-     *                不盲信设备自报的 encoding。
+     * @param charset 显式指定编码（最高优先级）；传 null 则按声明/嗅探判定，见 {@link #resolveCharset}。
      */
     public static Element parseRoot(byte[] content, String charset) {
         if (content == null || content.length == 0) return null;
@@ -86,9 +88,16 @@ public class XmlUtils {
     }
 
     /**
-     * 判定报文真实编码：显式指定优先（若能解码），否则按字节嗅探。
-     * <p>核心：能按 UTF-8 <b>严格</b>解码（无非法字节序列）就判 UTF-8，否则 GBK。
-     * 不采信 {@code <?xml encoding?>} 声明——国标设备经常声明与实际不符。</p>
+     * 判定报文真实编码。优先级：
+     * <ol>
+     *   <li>显式传入的 charset（若可解析）</li>
+     *   <li>XML 声明里的 encoding，且为中文族（GB2312/GBK/GB18030）时直接采信——
+     *       这类编码的中文字节常常<b>恰好</b>是合法 UTF-8 序列，纯嗅探会误判成 UTF-8 导致乱码
+     *       （典型：海康声明 GB18030，中文被错解成"韩文"）。GB18030 是 GB2312/GBK 的超集，统一按它解码更稳。</li>
+     *   <li>其余情况按字节嗅探：能严格 UTF-8 解码则 UTF-8，否则回退 GBK。</li>
+     * </ol>
+     * <p>之所以只对中文族声明采信、不采信 UTF-8 声明：UTF-8 可用严格解码验证真伪（见 {@link #isValidUtf8}），
+     * 而声明 UTF-8 实发 GBK 的设备也不少，嗅探反而更可靠。</p>
      */
     private static Charset resolveCharset(String charset, byte[] content) {
         if (charset != null && !charset.isBlank()) {
@@ -98,7 +107,34 @@ public class XmlUtils {
                 log.warn("[报文解析] 不支持的编码 {}，改按内容嗅探", charset);
             }
         }
+        // 采信 XML 声明中的中文族编码（GB2312/GBK/GB18030），避开 UTF-8 误判
+        Charset declared = declaredChineseCharset(content);
+        if (declared != null) {
+            return declared;
+        }
         return isValidUtf8(content) ? StandardCharsets.UTF_8 : FALLBACK_CHARSET;
+    }
+
+    /**
+     * 若报文 XML 声明的 encoding 属于中文族（GB2312/GBK/GB18030），返回对应 Charset；否则 null。
+     * <p>GB2312/GBK 一律升格为 GB18030 解码（后者是前两者的严格超集，不会丢字）。</p>
+     */
+    private static Charset declaredChineseCharset(byte[] content) {
+        // 只需嗅探声明所在的头部，用 ASCII 兼容方式读取（encoding 值必为 ASCII 字符）
+        int probeLen = Math.min(content.length, 128);
+        String head = new String(content, 0, probeLen, StandardCharsets.ISO_8859_1);
+        var m = ENCODING_VALUE.matcher(head);
+        if (!m.find()) return null;
+        String enc = m.group(1).trim().toUpperCase();
+        if (enc.startsWith("GB")) {
+            // GB2312 / GBK / GB18030 统一用 GB18030 解码
+            try {
+                return Charset.forName("GB18030");
+            } catch (Exception ignore) {
+                return FALLBACK_CHARSET;
+            }
+        }
+        return null;
     }
 
     /** 严格判断字节是否为合法 UTF-8（含非法序列则判否） */
@@ -127,6 +163,16 @@ public class XmlUtils {
         if (root == null) return "";
         Element child = root.element(name);
         return child == null ? "" : child.getTextTrim();
+    }
+
+    /**
+     * 按报文真实编码把字节体解码成字符串（供日志显示等场景）。
+     * <p>编码判定同 {@link #resolveCharset}：中文族声明优先，否则按字节嗅探 UTF-8/GBK。
+     * 与 {@link #parseRoot} 用同一套判定，避免日志与入库数据编码不一致。</p>
+     */
+    public static String decodeBody(byte[] content) {
+        if (content == null || content.length == 0) return "";
+        return new String(content, resolveCharset(null, content));
     }
 
     /** 移除报文中不合法的裸 {@code &} 字符 */

@@ -42,6 +42,16 @@ export interface GbDevice {
   updateTime: string
 }
 
+/** 设备存活探测结果（异步：仅汇报已发起/跳过，结果需刷新列表查看） */
+export interface GbDeviceDetectResult {
+  /** 已发起探测台数（状态异步更新） */
+  detecting: number
+  /** 跳过台数（无网络地址，无法探测） */
+  skipped: number
+  /** 每台设备处理明细 */
+  items: Array<{ id: string; deviceId: string; result: 'detecting' | 'skipped' }>
+}
+
 /** 通道列表分页查询参数 */
 export interface GbDeviceChannelPageRequest extends PageRequest {
   deviceId?: string

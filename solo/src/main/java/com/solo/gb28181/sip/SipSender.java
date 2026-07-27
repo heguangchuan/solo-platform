@@ -56,6 +56,19 @@ public class SipSender {
                      Consumer<ResponseEvent> onOk,
                      Consumer<ResponseEvent> onError,
                      long timeoutMs) throws SipException, ParseException {
+        send(localIp, message, onOk, onError, null, timeoutMs);
+    }
+
+    /**
+     * 发送 SIP 消息并按需注册响应回调（含超时）
+     *
+     * @param onTimeout 超时回调（可空，仅当 onOk/onError 非空时有效）
+     */
+    public void send(String localIp, Message message,
+                     Consumer<ResponseEvent> onOk,
+                     Consumer<ResponseEvent> onError,
+                     Runnable onTimeout,
+                     long timeoutMs) throws SipException, ParseException {
 
         String transport = "UDP";
         ViaHeader via = (ViaHeader) message.getHeader(ViaHeader.NAME);
@@ -70,6 +83,7 @@ public class SipSender {
                 SipSubscribeEvent ev = new SipSubscribeEvent(key, timeoutMs <= 0 ? 10_000L : timeoutMs);
                 ev.setOnOk(onOk);
                 ev.setOnError(onError);
+                ev.setOnTimeout(onTimeout);
                 sipSubscribe.add(ev);
             }
         }

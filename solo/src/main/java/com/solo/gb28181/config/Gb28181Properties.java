@@ -54,6 +54,12 @@ public class Gb28181Properties {
     private int keepaliveTimeoutMultiplier = 3;
 
     /**
+     * 手动存活探测超时（毫秒）。向设备发 DeviceInfo 查询后等待应答的时长，
+     * 超时无应答判定离线。NAT 后 / 广域网 / 老旧设备响应慢，不宜过短。
+     */
+    private long detectTimeoutMs = 10000;
+
+    /**
      * 是否打印 SIP 协议栈收发报文日志（开启会非常啰嗦，仅在调试设备方言时启用）
      */
     private boolean sipLog = false;

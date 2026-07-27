@@ -12,18 +12,24 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
+import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.sip.ResponseEvent;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Consumer;
 
 /**
  * 国标设备服务实现
@@ -42,6 +48,19 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private final Gb28181Properties properties;
     private final GbInviteSessionService inviteSessionService;
     private final GbDeviceChannelService deviceChannelService;
+
+    /**
+     * {@code @Lazy} 注入打破循环依赖：
+     * <pre>
+     *   GbDeviceServiceImpl → SipCommander → SipLayer → SipProcessorObserver →
+     *   MessageRequestProcessor → KeepaliveNotifyMessageHandler → GbDeviceService
+     * </pre>
+     * 与 {@link com.solo.gb28181.sip.SipSender} / {@link com.solo.gb28181.transmit.cmd.SipRequestHeaderProvider}
+     * 对 {@link com.solo.gb28181.sip.SipLayer} 的处理方式一致。手动探测才会用到，延迟初始化无副作用。
+     */
+    @Lazy
+    @Autowired
+    private SipCommander sipCommander;
 
     @Override
     public Page<GbDevice> pageQuery(GbDevicePageRequest request) {
@@ -186,6 +205,94 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private void refreshOnlineKey(String deviceId) {
         long ttl = DEFAULT_KEEPALIVE_INTERVAL * Math.max(1, properties.getKeepaliveTimeoutMultiplier());
         redisTemplate.opsForValue().set(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId, "1", ttl, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public GbDeviceDetectResponse detectBatch(List<Long> ids) {
+        GbDeviceDetectResponse result = new GbDeviceDetectResponse();
+        if (ids == null || ids.isEmpty()) {
+            return result;
+        }
+
+        long detectTimeoutMs = properties.getDetectTimeoutMs();
+
+        for (Long id : ids) {
+            GbDevice device = baseMapper.selectById(id);
+            if (device == null) {
+                continue;
+            }
+            // 无网络地址（从未注册）无法发包探测，跳过且不改 status
+            if (device.getHostAddress() == null || device.getHostAddress().isBlank()) {
+                result.setSkipped(result.getSkipped() + 1);
+                result.getItems().add(new GbDeviceDetectResponse.Item(id, device.getDeviceId(), "skipped"));
+                log.info("[设备检测] 跳过（无网络地址）deviceId={}", device.getDeviceId());
+                continue;
+            }
+
+            // 保存 deviceId 快照供回调使用（避免 device 对象被后续循环覆盖）
+            final String deviceId = device.getDeviceId();
+            final Long deviceDbId = device.getId();
+
+            // 收到设备应答 → 在线
+            Consumer<ResponseEvent> onOk = ev -> markOnline(deviceId, deviceDbId);
+            // 设备回非 2xx 仍是存活（只是查询被拒）
+            Consumer<ResponseEvent> onError = ev -> markOnline(deviceId, deviceDbId);
+            // 超时无应答 → 离线
+            Runnable onTimeout = () -> markOffline(deviceId, deviceDbId);
+
+            sipCommander.queryDeviceInfo(device, onOk, onError, onTimeout, detectTimeoutMs);
+            result.getItems().add(new GbDeviceDetectResponse.Item(id, device.getDeviceId(), "detecting"));
+            result.setDetecting(result.getDetecting() + 1);
+        }
+        log.info("[设备检测] 发起 {} 台检测，跳过 {} 台", result.getDetecting(), result.getSkipped());
+        return result;
+    }
+
+    /** 异步标记设备在线 */
+    private void markOnline(String deviceId, Long deviceDbId) {
+        try {
+            GbDevice device = new GbDevice();
+            device.setId(deviceDbId);
+            device.setStatus(1);
+            device.setKeepaliveTime(LocalDateTime.now());
+            baseMapper.updateById(device);
+            refreshOnlineKey(deviceId);
+            log.info("[设备检测] 在线 deviceId={}", deviceId);
+        } catch (Exception e) {
+            log.error("[设备检测] 标记在线失败 deviceId={}", deviceId, e);
+        }
+    }
+
+    /** 异步标记设备离线 */
+    private void markOffline(String deviceId, Long deviceDbId) {
+        try {
+            GbDevice device = new GbDevice();
+            device.setId(deviceDbId);
+            device.setStatus(0);
+            baseMapper.updateById(device);
+            redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId);
+            cleanupSessions(deviceId);
+            log.info("[设备检测] 离线 deviceId={}", deviceId);
+        } catch (Exception e) {
+            log.error("[设备检测] 标记离线失败 deviceId={}", deviceId, e);
+        }
+    }
+
+    /**
+     * 清扫设备所有活跃点播/回放会话（释放 SSRC / RTP 端口 / Redis 资源）
+     */
+    private void cleanupSessions(String deviceId) {
+        List<GbInviteSession> allSessions = inviteSessionService.listAllActive();
+        int cleaned = 0;
+        for (GbInviteSession s : allSessions) {
+            if (deviceId.equals(s.getDeviceId())) {
+                inviteSessionService.removeByStreamId(s.getStreamId());
+                cleaned++;
+            }
+        }
+        if (cleaned > 0) {
+            log.info("[设备离线] 已同步清理该设备 {} 个活跃会话", cleaned);
+        }
     }
 
     @Override
