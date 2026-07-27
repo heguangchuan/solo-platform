@@ -35,7 +35,6 @@ function makeEmpty(): Partial<GbPlatform> {
   return {
     platformId: '',
     name: '',
-    password: '',
     enabled: 1,
     remark: '',
   }
@@ -183,8 +182,8 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="platformId" label="平台编码" width="200" show-overflow-tooltip />
-        <el-table-column prop="name" label="平台名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="platformId" label="平台编码" show-overflow-tooltip />
+        <el-table-column prop="name" label="平台名称" show-overflow-tooltip />
         <el-table-column label="在线状态" align="center" width="85">
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== undefined && row.status !== 2" :active="row.status === 1" />
@@ -199,15 +198,20 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column prop="authKey" label="鉴权密钥" show-overflow-tooltip />
         <el-table-column prop="channelCount" label="通道数" align="center" width="80">
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
-        <el-table-column prop="keepaliveTime" label="最近心跳" min-width="170" />
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
+        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            <el-button v-permission="'gb28181:platform:edit'" type="primary" link :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-            <el-button v-permission="'gb28181:platform:delete'" type="danger" link :icon="Delete" @click="handleDelete(row)">删除</el-button>
+            <el-tooltip content="编辑">
+              <el-button v-permission="'gb28181:platform:edit'" type="primary" link :icon="Edit" @click="handleEdit(row)" />
+            </el-tooltip>
+            <el-tooltip content="删除">
+              <el-button v-permission="'gb28181:platform:delete'" type="danger" link :icon="Delete" @click="handleDelete(row)" />
+            </el-tooltip>
           </template>
         </el-table-column>
       </el-table>
@@ -224,16 +228,13 @@ onMounted(() => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" :close-on-click-modal="false">
+      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="平台编码" prop="platformId">
-          <el-input v-model="form.platformId" placeholder="平台国标ID（20位）" :disabled="isEdit" />
+          <el-input v-model="form.platformId" placeholder="20位数字" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="平台名称" prop="name">
           <el-input v-model="form.name" placeholder="显示名称" />
-        </el-form-item>
-        <el-form-item label="鉴权密码">
-          <el-input v-model="form.password" placeholder="留空则无密码（设备注册时用全局密码）" type="password" show-password />
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />

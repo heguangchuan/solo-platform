@@ -16,6 +16,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -53,7 +54,7 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         vo.setId(platform.getId());
         vo.setPlatformId(platform.getPlatformId());
         vo.setName(platform.getName());
-        vo.setPassword(platform.getPassword());
+        vo.setAuthKey(platform.getAuthKey());
         vo.setEnabled(platform.getEnabled());
         vo.setRemark(platform.getRemark());
         vo.setCreateTime(platform.getCreateTime());
@@ -87,6 +88,8 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         if (platform.getEnabled() == null) {
             platform.setEnabled(1);
         }
+        // 鉴权密钥后端自动生成 32 位 UUID，忽略前端入参
+        platform.setAuthKey(UUID.randomUUID().toString().replace("-", ""));
         save(platform);
         log.info("[级联平台] 新增白名单: platformId={} name={}", platform.getPlatformId(), platform.getName());
     }
@@ -97,9 +100,8 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         if (exist == null) {
             throw new ServiceException("平台不存在");
         }
-        // platformId 不可改
+        // platformId、authKey 不可改（authKey 是设备侧配置基准，改了下级要重新配置）
         exist.setName(platform.getName());
-        exist.setPassword(platform.getPassword());
         exist.setEnabled(platform.getEnabled());
         exist.setRemark(platform.getRemark());
         updateById(exist);

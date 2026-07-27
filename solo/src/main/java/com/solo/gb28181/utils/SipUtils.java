@@ -141,6 +141,17 @@ public class SipUtils {
         return type > 130 && type < 199;
     }
 
+    /**
+     * 将任意 20 位国标码的类型段（第 11-13 位）替换为 215（业务分组），
+     * 行政区划+行业段（前 10 位）和序号段（后 7 位）保留不变。
+     * <p>用于把下级平台的 200 系国标 ID 转成合规的业务分组 ID，
+     * 作为自动创建的平台根目录的 groupId，避免 validateGroupId 校验失败。</p>
+     */
+    public static String toBusinessGroupId(String gbCode) {
+        if (gbCode == null || gbCode.length() != 20) return gbCode;
+        return gbCode.substring(0, 10) + "215" + gbCode.substring(13);
+    }
+
     // ---------------- PTZ 控制码（GB/T 28181-2016 附录 A） ----------------
 
     /**

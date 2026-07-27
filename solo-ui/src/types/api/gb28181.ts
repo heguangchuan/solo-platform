@@ -59,8 +59,8 @@ export interface GbPlatform {
   platformId: string
   /** 平台名称 */
   name: string
-  /** 注册鉴权密码 */
-  password?: string
+  /** 注册鉴权密钥（后端自动生成 32 位 UUID，不可编辑） */
+  authKey?: string
   /** 启用状态：0 禁用 1 启用 */
   enabled: number
   /** 备注 */
@@ -82,7 +82,6 @@ export interface GbPlatformPageRequest {
   platformId?: string
   name?: string
   enabled?: number
-}
 }
 
 /** 通道列表分页查询参数 */

@@ -129,7 +129,7 @@ CREATE TABLE gb_platform
     id           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     platform_id  varchar(20)  NOT NULL COMMENT '下级平台国标ID（20位），唯一且等于 gb_device.device_id',
     name         varchar(255) NOT NULL COMMENT '平台名称',
-    password     varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密码',
+    auth_key     varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密钥（后端自动生成 32 位 UUID）',
     enabled      tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用（拒绝注册）1启用',
     remark       varchar(255)          DEFAULT NULL COMMENT '备注',
     create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
