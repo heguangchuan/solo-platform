@@ -2,12 +2,15 @@ package com.solo.gb28181.processor.request;
 
 import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbPlatform;
 import com.solo.gb28181.event.DeviceOfflineEvent;
 import com.solo.gb28181.event.DeviceOnlineEvent;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.service.GbPlatformService;
 import com.solo.gb28181.sip.bean.GbSipDate;
 import com.solo.gb28181.utils.SipUtils;
 import gov.nist.javax.sip.header.SIPDateHeader;
@@ -53,6 +56,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
 
     private final Gb28181Properties properties;
     private final GbDeviceService gbDeviceService;
+    private final GbPlatformService gbPlatformService;
     private final ApplicationEventPublisher eventPublisher;
 
     @Override
@@ -78,12 +82,24 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         // 取 NAT 真实地址
         SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request, properties.isUseSourceIpAsRemoteAddress());
         String requestAddress = remote.hostAddress();
-        String title = isUnregister ? "[设备注销]" : "[设备注册]";
-        log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
 
-        // 取设备已存在记录 + 设备级密码
+        // 取设备已存在记录 + 鉴权密码
+        // 先查是否命中白名单（下级平台用专属密码鉴权，禁用平台直接拒绝）
+        GbPlatform platform = gbPlatformService.lambdaQuery()
+                .eq(GbPlatform::getPlatformId, deviceId).one();
+        if (platform != null && platform.getEnabled() != null && platform.getEnabled() == 0) {
+            SIPResponse forbidden = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.FORBIDDEN, request);
+            forbidden.setReasonPhrase("platform disabled");
+            sipSender.send(request.getLocalAddress().getHostAddress(), forbidden);
+            log.warn("[级联注册] 平台已禁用: deviceId={}", deviceId);
+            return;
+        }
+        final boolean isPlatform = (platform != null);
+        String password = isPlatform ? platform.getPassword() : properties.getPassword();
+        String title = isUnregister ? (isPlatform ? "[级联注销]" : "[设备注销]")
+                : (isPlatform ? "[级联注册]" : "[设备注册]");
+        log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
         GbDevice exist = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
-        String password = properties.getPassword(); // 当前模型暂不支持设备级密码字段，预留扩展
 
         // 校验 Digest
         if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) == null && password != null && !password.isBlank()) {
@@ -146,7 +162,17 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             // 设备直接注册到本平台 → 自有平台；级联平台同步过来的设备会在级联接入处显式赋值
             device.setPlatformId("0000");
         }
+        // 级联平台：首次接入时用白名单名称播种显示名，便于设备列表区分
+        if (isPlatform && firstTime && (device.getName() == null || device.getName().isBlank())) {
+            device.setName(platform.getName());
+        }
         gbDeviceService.online(device);
+
+        // 级联平台接入：标记来源为级联（online 对新设备会强制写 source=REGISTER，这里纠正）
+        if (isPlatform && device.getSource() != null && device.getSource() != GbSource.CASCADE) {
+            device.setSource(GbSource.CASCADE);
+            gbDeviceService.updateById(device);
+        }
 
         // 发布上线事件 → DeviceOnlineListener 异步拉取 DeviceInfo + Catalog
         eventPublisher.publishEvent(new DeviceOnlineEvent(this, deviceId, firstTime));

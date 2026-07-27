@@ -52,6 +52,39 @@ export interface GbDeviceDetectResult {
   items: Array<{ id: string; deviceId: string; result: 'detecting' | 'skipped' }>
 }
 
+/** 下级级联平台白名单 */
+export interface GbPlatform {
+  id: string
+  /** 平台国标 ID（20 位） */
+  platformId: string
+  /** 平台名称 */
+  name: string
+  /** 注册鉴权密码 */
+  password?: string
+  /** 启用状态：0 禁用 1 启用 */
+  enabled: number
+  /** 备注 */
+  remark?: string
+  /** 关联设备状态：0 离线 1 在线 2 未注册（由 service 关联回填） */
+  status?: number
+  /** 关联设备最后心跳时间 */
+  keepaliveTime?: string
+  /** 该平台同步来的通道总数 */
+  channelCount?: number
+  createTime: string
+  updateTime: string
+}
+
+/** 下级级联平台分页查询参数 */
+export interface GbPlatformPageRequest {
+  page: number
+  pageSize: number
+  platformId?: string
+  name?: string
+  enabled?: number
+}
+}
+
 /** 通道列表分页查询参数 */
 export interface GbDeviceChannelPageRequest extends PageRequest {
   deviceId?: string

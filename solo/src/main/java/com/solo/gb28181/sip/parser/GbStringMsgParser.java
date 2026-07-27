@@ -15,7 +15,7 @@ import java.text.ParseException;
  * 国标专用 SIP 消息解析器
  * <p>JAIN-SIP 默认按 ISO-8859-1 解析 SIP 行/头，遇到中文设备名/地址会乱码。
  * 本类强制按 UTF-8 解码所有 SIP 行/头，报文体（XML）仍按字节传递给业务层处理。</p>
- * <p>核心实现移植自 wvp-pro GBStringMsgParser，保留兼容 MESSAGE 体长度的特殊判断。</p>
+ * <p>兼容 MESSAGE 体长度的特殊判断（部分国标设备的 Content-Length 与实际体长不一致，需按字节兜底）。</p>
  * <p>注：JAIN-SIP 1.3.0-91 的 {@link MessageParser} 接口只声明了 {@link #parseSIPMessage}
  * 一个方法，旧版本残留的 parseAddress/parseHost 等已不在接口中。</p>
  */

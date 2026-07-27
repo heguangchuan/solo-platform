@@ -10,7 +10,7 @@ const visible = ref(false)
 const detail = ref<GbDevice | null>(null)
 
 /** 数据来源文案 */
-const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册', 4: '级联平台' }
 function sourceText(source?: number) {
   return source == null ? '—' : sourceMap[source] ?? '—'
 }

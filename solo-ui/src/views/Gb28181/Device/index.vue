@@ -33,7 +33,7 @@ const selectedRows = ref<GbDevice[]>([])
 const searchForm = ref<GbDevicePageRequest>({ page: 1, pageSize: 10 })
 
 /** 数据来源文案 */
-const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册' }
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册', 4: '级联平台' }
 function sourceText(source?: number): string {
   return source == null ? '-' : sourceMap[source] ?? '-'
 }

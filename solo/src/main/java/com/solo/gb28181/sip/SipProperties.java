@@ -4,7 +4,7 @@ import java.util.Properties;
 
 /**
  * JAIN-SIP Stack 启动属性工厂
- * <p>关键属性按 wvp-pro 实战经验配置，详细说明见每一项注释。</p>
+ * <p>关键属性说明见每一项注释。</p>
  * <p>完整可选项见 gov.nist.javax.sip.SipStackImpl</p>
  */
 public final class SipProperties {

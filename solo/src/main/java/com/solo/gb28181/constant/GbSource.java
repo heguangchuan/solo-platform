@@ -16,6 +16,8 @@ public final class GbSource {
     public static final int IMPORT = 2;
     /** 设备注册（SIP REGISTER / Catalog 自动入库） */
     public static final int REGISTER = 3;
+    /** 级联接入（下级级联平台通过 REGISTER 接入，视为设备） */
+    public static final int CASCADE = 4;
 
     /** 设备默认状态：未注册（系统新增/导入后、真正 REGISTER 上来前） */
     public static final int DEVICE_STATUS_UNREGISTERED = 2;
