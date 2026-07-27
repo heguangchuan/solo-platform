@@ -39,6 +39,47 @@ public class SipCommander {
     }
 
     /**
+     * 查询设备信息并等待应答（用于手动存活探测）
+     * <p>通过 {@link SipSender#send} 带回调发送：设备回任何响应触发 {@code onOk}，
+     * 事务超时触发 {@code onError}，业务超时由 {@link com.solo.gb28181.sip.SipSubscribe#sweep()} 回收。</p>
+     *
+     * @param onOk      收到设备应答回调（存活）
+     * @param onError   非 2xx 回调
+     * @param timeoutMs 订阅超时（毫秒，0 = 用默认 10s）
+     */
+    public void queryDeviceInfo(GbDevice device,
+                                Consumer<ResponseEvent> onOk,
+                                Consumer<ResponseEvent> onError,
+                                long timeoutMs) {
+        queryDeviceInfo(device, onOk, onError, null, timeoutMs);
+    }
+
+    /**
+     * 查询设备信息并登记存活/超时回调（用于手动存活探测，fire-and-forget）
+     * <p>设备回包→{@code onOk}；超时无应答→{@code onTimeout}。
+     * 发送失败时同步调 {@code onError} 让调用方知晓。</p>
+     */
+    public void queryDeviceInfo(GbDevice device,
+                                Consumer<ResponseEvent> onOk,
+                                Consumer<ResponseEvent> onError,
+                                Runnable onTimeout,
+                                long timeoutMs) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildQuery("DeviceInfo", sn, device.getDeviceId(), charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, onTimeout, timeoutMs);
+            log.info("[设备检测] DeviceInfo 探测 → deviceId={} sn={} timeoutMs={}", device.getDeviceId(), sn, timeoutMs);
+        } catch (Exception e) {
+            log.error("[设备检测] DeviceInfo 探测发送失败 deviceId={}", device.getDeviceId(), e);
+            if (onError != null) {
+                try { onError.accept(null); } catch (Exception ignore) {}
+            }
+        }
+    }
+
+    /**
      * 查询设备目录（Catalog）
      * 设备会通过多个 MESSAGE Response/Catalog 报文分批返回所有 Item（按 SumNum 累加）
      */

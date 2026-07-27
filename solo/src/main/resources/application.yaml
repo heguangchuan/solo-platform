@@ -1,3 +1,6 @@
+project:
+  ip: 192.168.1.10
+
 server:
   port: 10003
 
@@ -50,10 +53,10 @@ logging:
     com.solo: info
 
 # GB/T 28181 国标平台配置
-gb28181:  # 是否启用国标服务
+gb28181: # 是否启用国标服务
   enabled: true
   # SIP 监听 IP，留空表示监听所有网卡；公网/多网卡部署时建议填设备能访问到的 IP
-  ip: 192.168.1.21
+  ip: ${project.ip}
   # SIP 监听端口
   port: 15060
   # 本平台 SIP ID（20 位，前 10 位行政区划编码 + 后 10 位平台编号）
@@ -73,7 +76,7 @@ gb28181:  # 是否启用国标服务
   default-group:
     id: '0000'
     group-id: 60000000042160000001
-    name: 192.168.1.21
+    name: ${project.ip}
 
 # 流媒体（ZLMediaKit）相关配置
 media:

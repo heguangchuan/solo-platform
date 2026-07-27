@@ -1,6 +1,7 @@
 import type {
   GbDevice,
   GbDevicePageRequest,
+  GbDeviceDetectResult,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
@@ -50,6 +51,13 @@ export function getGbDeviceApi(deviceId: string) {
  */
 export function syncGbDeviceApi(deviceId: string) {
   return post<void>(`/api/gb28181/device/${deviceId}/sync`)
+}
+
+/**
+ * 批量探测设备存活（主动发 SIP DeviceInfo 查询，写回 status）
+ */
+export function detectGbDeviceApi(ids: (number | string)[]) {
+  return post<GbDeviceDetectResult>('/api/gb28181/device/detect', { ids })
 }
 
 /**

@@ -6,7 +6,7 @@ export default { name: 'Gb28181Device' }
 import { ref, onMounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Upload, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
 import type { GbDevice, GbDevicePageRequest, GbDeviceChannel, GbGroupVO } from '@/types/api'
 import {
   getGbDevicePageApi,
@@ -16,6 +16,7 @@ import {
   saveGbDeviceApi,
   updateGbDeviceApi,
   getGbGroupTreeApi,
+  detectGbDeviceApi,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
 import ChannelListDialog from './components/ChannelListDialog.vue'
@@ -196,6 +197,18 @@ async function handleSync(row: GbDevice) {
   }
 }
 
+// ---------------- 存活检测 ----------------
+function handleDetect() {
+  if (selectedRows.value.length === 0) {
+    ElMessage.warning('请先选择要检测的设备')
+    return
+  }
+  const ids = selectedRows.value.map(r => r.id)
+  // 后端异步探测（发完即返回），前端不等待结果，直接提示成功
+  detectGbDeviceApi(ids).catch(() => {})
+  ElMessage.success('检测已发起，请稍后刷新查看设备状态')
+}
+
 function handleViewChannels(row: GbDevice) {
   channelListDialogRef.value?.open(row.deviceId!)
 }
@@ -283,7 +296,7 @@ onMounted(() => {
       <div class="table-toolbar">
         <el-button v-permission="'gb28181:device:add'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
         <el-button v-permission="'gb28181:device:delete'" type="danger" :icon="Delete" @click="handleBatchDelete" :disabled="selectedRows.length === 0">删除</el-button>
-        <el-button v-permission="'gb28181:device:add'" :icon="Upload" disabled>导入</el-button>
+        <el-button v-permission="'gb28181:device:sync'" :icon="Refresh" @click="handleDetect" :disabled="selectedRows.length === 0">检测</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)" @selection-change="handleSelectionChange">
