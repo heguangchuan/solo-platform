@@ -3,7 +3,7 @@ package com.solo.gb28181.constant;
 /**
  * GB28181 Redis Key 常量定义
  * <p>
- * 命名规范：统一前缀 {@code gb28181:} + 模块分类 + 冒号分隔，对齐 wvp-pro 最佳实践
+ * 命名规范：统一前缀 {@code gb28181:} + 模块分类 + 冒号分隔
  * 格式：{@code gb28181:<category>:<sub>:<key>}
  * </p>
  */

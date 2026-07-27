@@ -2,6 +2,8 @@ import type {
   GbDevice,
   GbDevicePageRequest,
   GbDeviceDetectResult,
+  GbPlatform,
+  GbPlatformPageRequest,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
@@ -58,6 +60,41 @@ export function syncGbDeviceApi(deviceId: string) {
  */
 export function detectGbDeviceApi(ids: (number | string)[]) {
   return post<GbDeviceDetectResult>('/api/gb28181/device/detect', { ids })
+}
+
+/**
+ * 下级级联平台分页
+ */
+export function getGbPlatformPageApi(data: GbPlatformPageRequest) {
+  return post<PageResult<GbPlatform>>('/api/gb28181/platform/page', data)
+}
+
+/**
+ * 新增下级级联平台白名单
+ */
+export function saveGbPlatformApi(data: Partial<GbPlatform>) {
+  return post<void>('/api/gb28181/platform/save', data)
+}
+
+/**
+ * 编辑下级级联平台白名单
+ */
+export function updateGbPlatformApi(data: Partial<GbPlatform>) {
+  return post<void>('/api/gb28181/platform/update', data)
+}
+
+/**
+ * 删除下级级联平台白名单
+ */
+export function deleteGbPlatformApi(id: string) {
+  return del<void>(`/api/gb28181/platform/${id}`)
+}
+
+/**
+ * 批量删除下级级联平台白名单
+ */
+export function batchDeleteGbPlatformApi(ids: (number | string)[]) {
+  return post<void>('/api/gb28181/platform/batch/delete', { ids })
 }
 
 /**

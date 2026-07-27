@@ -5,7 +5,7 @@ package com.solo.gb28181.transmit.cmd;
  * <p>S2.2 范围：仅生成实时点播（{@code s=Play}）所需的最小 SDP；
  * 回放/下载（{@code s=Playback/Download}）后续 Sprint 接入时再扩。</p>
  *
- * <h3>SDP 结构（参考 GB/T 28181-2016 附录 G、wvp-pro {@code SIPCommander.playStreamCmd}）</h3>
+ * <h3>SDP 结构（参考 GB/T 28181-2016 附录 G）</h3>
  * <pre>
  * v=0
  * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;

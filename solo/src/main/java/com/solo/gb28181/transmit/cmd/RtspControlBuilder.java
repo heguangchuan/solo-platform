@@ -86,7 +86,7 @@ public final class RtspControlBuilder {
 
     /**
      * RTSP body 自己的 CSeq（跟 SIP CSeq 是两码事；SIP CSeq 在 INFO 头部，由 SipRequestHeaderProvider 管理）。
-     * 9 位随机数，参考 wvp 实现。
+     * 9 位随机数。
      */
     private static int nextCseq() {
         return ThreadLocalRandom.current().nextInt(100_000_000, 999_999_999);

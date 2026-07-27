@@ -118,6 +118,27 @@ CREATE TABLE gb_group
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标资源目录分组表';
 
 -- =====================================================
+-- 下级级联平台白名单表
+-- 本平台作为上级时，下级平台在此登记后可通过 REGISTER 接入。
+-- SIP 接入时视为设备（gb_device），平台与设备通过 platform_id 自动关联。
+-- 运行态（在线/心跳/通道数）查关联的 gb_device 行，不在本表冗余。
+-- =====================================================
+DROP TABLE IF EXISTS gb_platform;
+CREATE TABLE gb_platform
+(
+    id           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    platform_id  varchar(20)  NOT NULL COMMENT '下级平台国标ID（20位），唯一且等于 gb_device.device_id',
+    name         varchar(255) NOT NULL COMMENT '平台名称',
+    password     varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密码',
+    enabled      tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用（拒绝注册）1启用',
+    remark       varchar(255)          DEFAULT NULL COMMENT '备注',
+    create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_id (platform_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='下级级联平台白名单表';
+
+-- =====================================================
 -- 流媒体节点表（ZLMediaKit 实例登记）
 -- 关联规则：通过 server_id（字符串）与 ZLM config.ini 中 [general].mediaServerId 对齐
 -- =====================================================

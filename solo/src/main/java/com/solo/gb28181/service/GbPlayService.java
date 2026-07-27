@@ -41,8 +41,6 @@ public interface GbPlayService {
      * 调 ZLM {@code updateRtpServerSSRC} 把节点过滤值切到设备实际用的 SSRC；
      * 切换失败则发 BYE 主动终止，避免设备一直推一个 ZLM 收不下的流。</p>
      *
-     * <p>对齐 wvp {@code PlayServiceImpl.InviteOKHandler} (lines 876-967)。</p>
-     *
      * @param callId    INVITE Dialog Call-Id（按它反查会话）
      * @param remoteSsrc 200 OK SDP 中 {@code y=} 行解析出的 SSRC；为 null 表示设备没回 y=
      */

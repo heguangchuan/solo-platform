@@ -26,8 +26,7 @@ import java.util.List;
  *   <li>达到 SumNum 时回调 {@link GbPlaybackService#onRecordInfoReceived}，完成等待中的 future</li>
  * </ol>
  *
- * <p>对齐 wvp {@code RecordInfoResponseMessageHandler} (event/record + RedisHash 实现)；
- * 本平台用 in-memory cache 替代 Redis，足够 — 单条 RecordInfo 查询生命周期通常只有几秒。</p>
+ * <p>分片累积用 in-memory cache — 单条 RecordInfo 查询生命周期通常只有几秒，无需 Redis 持久化。</p>
  */
 @Slf4j
 @Component
