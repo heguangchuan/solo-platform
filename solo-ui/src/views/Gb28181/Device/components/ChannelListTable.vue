@@ -13,9 +13,11 @@ import {
   deleteGbDeviceChannelApi,
   batchDeleteGbDeviceChannelApi,
   getGbGroupTreeApi,
+  getNextGbChannelCodeApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, Edit, VideoCamera, VideoPause, Delete } from '@element-plus/icons-vue'
+import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE } from '@/utils/gbCode'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
@@ -83,6 +85,8 @@ const dialogTitle = ref('')
 const formRef = ref()
 const isEdit = ref(false)
 const form = ref<Partial<GbDeviceChannel>>(makeEmpty())
+/** 新增时自动生成编码用的类型码，默认 131 摄像机 */
+const typeCode = ref(DEFAULT_CHANNEL_TYPE)
 
 function makeEmpty(): Partial<GbDeviceChannel> {
   return {
@@ -167,10 +171,29 @@ async function handleAdd() {
   }
   isEdit.value = false
   dialogTitle.value = '新增通道'
+  typeCode.value = DEFAULT_CHANNEL_TYPE
   form.value = { ...makeEmpty(), deviceDbId: device.id, deviceId: device.deviceId }
   fetchGroupTree()
   dialogVisible.value = true
+  // 自动带出下一个可用国标编码，失败则留空让用户手输
+  await fillNextCode()
   nextTick(() => formRef.value?.clearValidate())
+}
+
+/** 按当前类型码从后端取下一个可用编码填入表单 */
+async function fillNextCode() {
+  if (!form.value.deviceDbId) return
+  try {
+    const res = await getNextGbChannelCodeApi(String(form.value.deviceDbId), typeCode.value)
+    form.value.channelId = res.data || ''
+  } catch {
+    // 静默失败，保留空值让用户手输
+  }
+}
+
+/** 新增态下切换类型码，重新生成编码 */
+async function handleTypeChange() {
+  if (!isEdit.value) await fillNextCode()
 }
 
 function handleEdit(row: GbDeviceChannelVO) {
@@ -412,6 +435,16 @@ defineExpose({ fetchData })
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="780px" :close-on-click-modal="false" top="10vh" max-height="80vh">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
+        <el-form-item v-if="!isEdit" label="类型码">
+          <el-select v-model="typeCode" style="width: 100%" @change="handleTypeChange">
+            <el-option
+              v-for="opt in CHANNEL_TYPE_OPTIONS"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="通道编码" prop="channelId">
           <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
         </el-form-item>
