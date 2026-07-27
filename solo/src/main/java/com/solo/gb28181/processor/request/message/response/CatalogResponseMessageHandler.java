@@ -191,6 +191,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
                 }
                 // 设置 platformId 继承自设备
                 ch.setPlatformId(device.getPlatformId());
+                // 级联平台推上来的通道来源标记为级联，普通设备推的标记为设备注册
+                ch.setSource(isPlatform ? GbSource.CASCADE : GbSource.REGISTER);
             }
             channelService.saveOrUpdateBatch(channels);
         }
@@ -234,8 +236,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         ch.setDeviceDbId(device.getId());
         ch.setDeviceId(device.getDeviceId());
         ch.setChannelId(channelId);
-        // 来源标记为设备注册（Catalog 自动入库）；已存在记录的 source 在 saveOrUpdateBatch 中会被保留
-        ch.setSource(GbSource.REGISTER);
+        // source 由 processBatch 按 isPlatform 统一回填（级联=CASCADE，普通设备=REGISTER），此处不设
         ch.setName(emptyToNull(XmlUtils.childText(item, "Name")));
         ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
         ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));
