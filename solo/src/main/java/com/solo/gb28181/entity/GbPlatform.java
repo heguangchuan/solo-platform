@@ -49,11 +49,6 @@ public class GbPlatform {
      */
     private Integer enabled;
 
-    /**
-     * 备注
-     */
-    private String remark;
-
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

@@ -63,8 +63,6 @@ export interface GbPlatform {
   authKey?: string
   /** 启用状态：0 禁用 1 启用 */
   enabled: number
-  /** 备注 */
-  remark?: string
   /** 关联设备状态：0 离线 1 在线 2 未注册（由 service 关联回填） */
   status?: number
   /** 关联设备最后心跳时间 */

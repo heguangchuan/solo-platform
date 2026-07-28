@@ -36,7 +36,6 @@ function makeEmpty(): Partial<GbPlatform> {
     platformId: '',
     name: '',
     enabled: 1,
-    remark: '',
   }
 }
 
@@ -182,8 +181,8 @@ onMounted(() => {
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="platformId" label="平台编码" show-overflow-tooltip />
-        <el-table-column prop="name" label="平台名称" show-overflow-tooltip />
+        <el-table-column prop="platformId" label="平台编码" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="name" label="平台名称" min-width="160" show-overflow-tooltip />
         <el-table-column label="在线状态" align="center" width="85">
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== undefined && row.status !== 2" :active="row.status === 1" />
@@ -198,12 +197,11 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="authKey" label="鉴权密钥" show-overflow-tooltip />
+        <el-table-column prop="authKey" label="鉴权密钥" min-width="200" show-overflow-tooltip />
         <el-table-column prop="channelCount" label="通道数" align="center" width="80">
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
-        <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
-        <el-table-column prop="remark" label="备注" show-overflow-tooltip />
+        <el-table-column prop="keepaliveTime" label="最近心跳" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <el-tooltip content="编辑">
@@ -238,9 +236,6 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="form.remark" placeholder="备注信息" type="textarea" :rows="3" />
         </el-form-item>
       </el-form>
       <template #footer>
