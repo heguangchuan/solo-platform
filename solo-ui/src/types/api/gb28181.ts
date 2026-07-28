@@ -130,6 +130,25 @@ export interface GbParentPlatformPageRequest {
   enabled?: number
 }
 
+/** 共享目录树节点（通道推送弹窗用）：分组作枝干，通道挂在分组下 */
+export interface GbShareTreeNode {
+  /** 节点唯一键：分组 g_xxx / 通道 c_xxx */
+  id: string
+  /** 节点显示标签 */
+  label: string
+  /** 节点类型：GROUP 分组 / CHANNEL 通道 */
+  type: 'GROUP' | 'CHANNEL'
+  children?: GbShareTreeNode[]
+}
+
+/** 上级平台已共享的节点 id 集合 */
+export interface GbPlatformSharedIds {
+  /** 已共享的分组节点 id（g_ 前缀） */
+  groupIds: string[]
+  /** 已共享的通道节点 id（c_ 前缀） */
+  channelIds: string[]
+}
+
 /** 通道列表分页查询参数 */
 export interface GbDeviceChannelPageRequest extends PageRequest {
   deviceId?: string

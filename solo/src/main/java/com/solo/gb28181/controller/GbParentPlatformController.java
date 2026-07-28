@@ -9,10 +9,15 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.request.GbParentPlatformBatchDeleteRequest;
 import com.solo.gb28181.request.GbParentPlatformPageRequest;
+import com.solo.gb28181.request.GbPlatformShareSaveRequest;
+import com.solo.gb28181.response.GbPlatformSharedResponse;
+import com.solo.gb28181.response.GbShareTreeNodeResponse;
+import com.solo.gb28181.service.CatalogShareService;
 import com.solo.gb28181.service.GbParentPlatformService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,6 +30,7 @@ import java.util.Map;
 public class GbParentPlatformController {
 
     private final GbParentPlatformService gbParentPlatformService;
+    private final CatalogShareService catalogShareService;
     private final Gb28181Properties gb28181Properties;
 
     /**
@@ -95,6 +101,36 @@ public class GbParentPlatformController {
     @RequirePermission({"gb28181:parent-platform:delete"})
     public Result<Void> batchDelete(@RequestBody GbParentPlatformBatchDeleteRequest request) {
         gbParentPlatformService.deleteBatch(request.getIds());
+        return Result.success();
+    }
+
+    // ==================== 通道推送 ====================
+
+    /**
+     * 获取可共享的资源目录树（分组 + 通道）
+     */
+    @GetMapping("/share-tree")
+    @RequirePermission({"gb28181:parent-platform:list"})
+    public Result<List<GbShareTreeNodeResponse>> shareTree() {
+        return Result.success(catalogShareService.shareTree());
+    }
+
+    /**
+     * 获取某上级平台已共享的目录 / 通道节点 id（回填前端勾选态）
+     */
+    @GetMapping("/{id}/shared")
+    @RequirePermission({"gb28181:parent-platform:list"})
+    public Result<GbPlatformSharedResponse> getShared(@PathVariable Long id) {
+        return Result.success(catalogShareService.getShared(id));
+    }
+
+    /**
+     * 全量覆盖保存某上级平台的共享目录 / 通道
+     */
+    @PostMapping("/{id}/shared")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Void> saveShared(@PathVariable Long id, @RequestBody GbPlatformShareSaveRequest request) {
+        catalogShareService.saveShared(id, request);
         return Result.success();
     }
 }

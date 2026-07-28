@@ -6,6 +6,8 @@ import type {
   GbPlatformPageRequest,
   GbParentPlatform,
   GbParentPlatformPageRequest,
+  GbShareTreeNode,
+  GbPlatformSharedIds,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
@@ -126,6 +128,21 @@ export function getParentPlatformServerConfigApi() {
   return get<{ deviceGbId: string; deviceIp: string; devicePort: number; domain: string }>(
     '/api/gb28181/parent-platform/server-config'
   )
+}
+
+/** 获取可共享的资源目录树（分组 + 通道） */
+export function getParentPlatformShareTreeApi() {
+  return get<GbShareTreeNode[]>('/api/gb28181/parent-platform/share-tree')
+}
+
+/** 获取某上级平台已共享的目录 / 通道节点 id */
+export function getParentPlatformSharedApi(id: string | number) {
+  return get<GbPlatformSharedIds>(`/api/gb28181/parent-platform/${id}/shared`)
+}
+
+/** 全量覆盖保存某上级平台的共享目录 / 通道 */
+export function saveParentPlatformSharedApi(id: string | number, data: GbPlatformSharedIds) {
+  return post<void>(`/api/gb28181/parent-platform/${id}/shared`, data)
 }
 
 /**
