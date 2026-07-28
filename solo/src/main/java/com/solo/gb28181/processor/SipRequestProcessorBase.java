@@ -55,7 +55,8 @@ public abstract class SipRequestProcessorBase {
     /** 回复状态码 + Reason Phrase */
     protected SIPResponse responseAck(SIPRequest request, int statusCode, String reason)
             throws SipException, ParseException {
-        if (request.getToHeader().getTag() == null) {
+        // 仅 final 响应（>=200）才补 To-tag 建立 Dialog；provisional（如 100 Trying）不加，避免误建对话
+        if (statusCode >= 200 && request.getToHeader().getTag() == null) {
             request.getToHeader().setTag(SipUtils.newToTag());
         }
         SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(statusCode, request);

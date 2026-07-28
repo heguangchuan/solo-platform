@@ -33,4 +33,24 @@ public interface GbRedisKeys {
 
     /** 所有活跃会话全集 Set */
     String INVITE_ALL_ACTIVE = INVITE_PREFIX + "all";
+
+    // ========== 级联推流会话（本平台作为下级被上级点播，向上级 sendRtp）==========
+
+    /** 级联推流会话前缀 */
+    String CASCADE_SEND_PREFIX = "gb28181:cascade:send:";
+
+    /** 会话主体：s:{sendStreamId} */
+    String CASCADE_SEND_SESSION = CASCADE_SEND_PREFIX + "s:";
+
+    /** 上级 INVITE Call-ID 索引：c:{callId} = sendStreamId */
+    String CASCADE_SEND_BY_CALL = CASCADE_SEND_PREFIX + "c:";
+
+    /** 源流（ZLM app/stream 里的 stream）索引：st:{srcStream} = Set&lt;sendStreamId&gt;（一路源流可被多个上级点播） */
+    String CASCADE_SEND_BY_SRC_STREAM = CASCADE_SEND_PREFIX + "st:";
+
+    /** 所有活跃推流会话全集 Set */
+    String CASCADE_SEND_ALL_ACTIVE = CASCADE_SEND_PREFIX + "all";
+
+    /** 本地发送端口分配自增计数器 */
+    String CASCADE_SEND_PORT_SEQ = CASCADE_SEND_PREFIX + "portseq";
 }
