@@ -1,0 +1,12 @@
+package com.solo.gb28181.mapper;
+
+import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.solo.gb28181.entity.GbParentPlatform;
+import org.apache.ibatis.annotations.Mapper;
+
+/**
+ * 上级平台 Mapper
+ */
+@Mapper
+public interface GbParentPlatformMapper extends BaseMapper<GbParentPlatform> {
+}

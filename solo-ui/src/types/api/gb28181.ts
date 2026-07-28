@@ -82,6 +82,54 @@ export interface GbPlatformPageRequest {
   enabled?: number
 }
 
+/** 上级平台配置 */
+export interface GbParentPlatform {
+  id: string
+  /** 上级平台名称 */
+  name: string
+  /** 上级平台国标编码 */
+  serverGbId: string
+  /** 上级平台国标域 */
+  serverGbDomain: string
+  /** 上级平台 SIP IP */
+  serverIp: string
+  /** 上级平台 SIP 端口 */
+  serverPort: number
+  /** 本平台作为下级的国标编号 */
+  deviceGbId: string
+  /** 本平台 SIP IP（留空取配置默认值） */
+  deviceIp?: string
+  /** 本平台 SIP 端口 */
+  devicePort?: number
+  /** SIP 认证用户名 */
+  username?: string
+  /** SIP 认证密码 */
+  password?: string
+  /** 注册有效期（秒） */
+  expires: number
+  /** 心跳周期（秒） */
+  keepTimeout: number
+  /** 传输协议 UDP/TCP */
+  transport: string
+  /** 字符集 */
+  characterSet: string
+  /** 启用状态：0禁用 1启用 */
+  enabled: number
+  /** 在线状态：0离线 1在线（后续注册成功回填） */
+  status?: number
+  createTime?: string
+  updateTime?: string
+}
+
+/** 上级平台分页查询参数 */
+export interface GbParentPlatformPageRequest {
+  page: number
+  pageSize: number
+  name?: string
+  serverGbId?: string
+  enabled?: number
+}
+
 /** 通道列表分页查询参数 */
 export interface GbDeviceChannelPageRequest extends PageRequest {
   deviceId?: string

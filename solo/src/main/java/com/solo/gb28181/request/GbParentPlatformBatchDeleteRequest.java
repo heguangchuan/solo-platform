@@ -1,0 +1,17 @@
+package com.solo.gb28181.request;
+
+import lombok.Data;
+
+import java.util.List;
+
+/**
+ * 批量删除上级平台请求
+ */
+@Data
+public class GbParentPlatformBatchDeleteRequest {
+
+    /**
+     * 要删除的上级平台主键 ID 列表
+     */
+    private List<Long> ids;
+}

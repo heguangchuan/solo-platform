@@ -248,5 +248,37 @@ CREATE TABLE stream_push_client
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流方鉴权表';
 
 
+-- =====================================================
+-- 上级平台配置表（gb_parent_platform）
+-- 本平台作为下级向上级平台注册时的配置。一行 = 一个上级平台。
+-- 注册成功后 status 回填为 1（在线），注册失败/超时回填 0。
+-- =====================================================
+DROP TABLE IF EXISTS gb_parent_platform;
+CREATE TABLE gb_parent_platform
+(
+    id               bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name             varchar(255) NOT NULL COMMENT '上级平台名称',
+    server_gb_id     varchar(20)  NOT NULL COMMENT '上级平台国标编码（SIP 服务器 ID）',
+    server_gb_domain varchar(20)  NOT NULL COMMENT '上级平台国标域',
+    server_ip        varchar(64)  NOT NULL COMMENT '上级平台 SIP IP',
+    server_port      int          NOT NULL DEFAULT 5060 COMMENT '上级平台 SIP 端口',
+    device_gb_id     varchar(20)  NOT NULL COMMENT '本平台作为下级的国标编号（向上注册用）',
+    device_ip        varchar(64)  NOT NULL DEFAULT '' COMMENT '本平台 SIP IP（留空取 gb28181.ip）',
+    device_port      int          NOT NULL DEFAULT 5060 COMMENT '本平台 SIP 端口（留空取 gb28181.port）',
+    username         varchar(64)  NOT NULL DEFAULT '' COMMENT 'SIP 认证用户名（默认同 device_gb_id）',
+    password         varchar(64)  NOT NULL DEFAULT '' COMMENT 'SIP 认证密码',
+    expires          int          NOT NULL DEFAULT 3600 COMMENT '注册有效期（秒）',
+    keep_timeout     int          NOT NULL DEFAULT 60 COMMENT '心跳周期（秒）',
+    transport        varchar(16)  NOT NULL DEFAULT 'UDP' COMMENT '传输协议 UDP/TCP',
+    character_set    varchar(16)  NOT NULL DEFAULT 'GB2312' COMMENT '字符集',
+    enabled          tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用 1启用',
+    status           tinyint      NOT NULL DEFAULT 0 COMMENT '在线状态：0离线 1在线（后续注册成功回填）',
+    create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_server_gb_id (server_gb_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台配置表';
+
+
 SET
 FOREIGN_KEY_CHECKS = 1;
