@@ -93,6 +93,11 @@ public class Gb28181Properties {
     private DefaultGroup defaultGroup = new DefaultGroup();
 
     /**
+     * 级联下级侧配置（本平台作为下级向上级平台推送数据时使用）。
+     */
+    private Cascade cascade = new Cascade();
+
+    /**
      * 默认资源目录分组配置。
      * <p>{@link #id} 是默认分组的固定主键 {@code 0000}（其余分组主键走雪花ID），作为 {@code gb_device_channel.group_id} 的兜底值；
      * {@link #groupId} 是 20 位国标业务分组码（第 11-13 位应为 215），拼 Catalog 上报上级时作目录节点 ID，
@@ -115,5 +120,25 @@ public class Gb28181Properties {
          * 默认分组名称
          */
         private String name = "默认目录";
+    }
+
+    /**
+     * 级联下级侧配置。
+     * <p>本平台作为下级向上级平台推送数据（Catalog 响应、Notify 变更）时的分片/节奏控制。</p>
+     */
+    @Data
+    public static class Cascade {
+
+        /**
+         * Catalog 响应分片大小：每包 XML 中 &lt;Item&gt; 数量上限。
+         * <p>过大易触发上级 SIP MSG 长度限制或 UDP 分片，过小徒增交互次数；WVP 默认 3-5，本项目取 3。</p>
+         */
+        private int catalogPageSize = 3;
+
+        /**
+         * Catalog 响应分片间隔（毫秒）：连续两片 MESSAGE 之间的睡眠时间。
+         * <p>UDP 突发发送易被上级丢包或触发 fair-queuing，间隔 50ms 足够宽松且总耗时可控。</p>
+         */
+        private long catalogPageIntervalMs = 50;
     }
 }

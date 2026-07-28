@@ -170,4 +170,14 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         log.info("[通道推送] 保存共享: platformId={} 分组数={} 通道数={}",
                 platformId, groupIds.size(), channelIds.size());
     }
+
+    @Override
+    public List<GbGroup> loadSharedGroups(Long platformId) {
+        return catalogMapper.selectSharedGroups(platformId);
+    }
+
+    @Override
+    public List<GbDeviceChannel> loadSharedChannels(Long platformId) {
+        return channelShareMapper.selectSharedChannels(platformId);
+    }
 }

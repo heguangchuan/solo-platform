@@ -78,6 +78,13 @@ gb28181: # 是否启用国标服务
     group-id: 60000000042160000001
     name: ${project.ip}
 
+  # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏
+  cascade:
+    # 每片 Catalog Response 中 <Item> 上限（过大易触 UDP 分片；WVP 默认 3-5）
+    catalog-page-size: 3
+    # 相邻两片 MESSAGE 间的睡眠（毫秒），避免瞬时刷屏
+    catalog-page-interval-ms: 50
+
 # 流媒体（ZLMediaKit）相关配置
 media:
   hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
