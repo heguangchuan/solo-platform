@@ -4,6 +4,8 @@ import type {
   GbDeviceDetectResult,
   GbPlatform,
   GbPlatformPageRequest,
+  GbParentPlatform,
+  GbParentPlatformPageRequest,
   GbDeviceChannel,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
@@ -95,6 +97,35 @@ export function deleteGbPlatformApi(id: string) {
  */
 export function batchDeleteGbPlatformApi(ids: (number | string)[]) {
   return post<void>('/api/gb28181/platform/batch/delete', { ids })
+}
+
+// ==================== 上级平台 ====================
+
+export function getGbParentPlatformPageApi(data: GbParentPlatformPageRequest) {
+  return post<PageResult<GbParentPlatform>>('/api/gb28181/parent-platform/page', data)
+}
+
+export function saveGbParentPlatformApi(data: Partial<GbParentPlatform>) {
+  return post<void>('/api/gb28181/parent-platform/save', data)
+}
+
+export function updateGbParentPlatformApi(data: Partial<GbParentPlatform>) {
+  return post<void>('/api/gb28181/parent-platform/update', data)
+}
+
+export function deleteGbParentPlatformApi(id: string | number) {
+  return del<void>(`/api/gb28181/parent-platform/${id}`)
+}
+
+export function batchDeleteGbParentPlatformApi(ids: (number | string)[]) {
+  return post<void>('/api/gb28181/parent-platform/batch/delete', { ids })
+}
+
+/** 获取本平台 SIP 配置（新增上级平台时回显默认值） */
+export function getParentPlatformServerConfigApi() {
+  return get<{ deviceGbId: string; deviceIp: string; devicePort: number; domain: string }>(
+    '/api/gb28181/parent-platform/server-config'
+  )
 }
 
 /**
