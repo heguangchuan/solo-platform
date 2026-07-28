@@ -4,10 +4,14 @@
  * <p>维护本平台向上级注册所需的 SIP 连接参数（基础信息 CRUD）。
  * 注册/在线状态/推送功能后续 S6.b 接通。</p>
  */
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, View } from '@element-plus/icons-vue'
-import type { GbParentPlatform, GbParentPlatformPageRequest } from '@/types/api'
+import { Search, Refresh, Plus, Edit, Delete, View, Share } from '@element-plus/icons-vue'
+import type {
+  GbParentPlatform,
+  GbParentPlatformPageRequest,
+  GbShareTreeNode,
+} from '@/types/api'
 import {
   getGbParentPlatformPageApi,
   saveGbParentPlatformApi,
@@ -15,6 +19,9 @@ import {
   deleteGbParentPlatformApi,
   batchDeleteGbParentPlatformApi,
   getParentPlatformServerConfigApi,
+  getParentPlatformShareTreeApi,
+  getParentPlatformSharedApi,
+  saveParentPlatformSharedApi,
 } from '@/api/gb28181'
 
 const loading = ref(false)
@@ -191,6 +198,67 @@ async function handleBatchDelete() {
   }
 }
 
+// ---------------- 通道推送（共享目录 + 通道） ----------------
+const shareVisible = ref(false)
+const shareLoading = ref(false)
+const shareSubmitting = ref(false)
+const shareTreeRef = ref<any>()
+const shareTree = ref<GbShareTreeNode[]>([])   // 全平台共用同一棵资源目录树，首次加载后缓存
+const shareTreeProps = { label: 'label', children: 'children' }
+const sharePlatform = ref<GbParentPlatform | null>(null)
+
+/** 递归收集所有通道叶子节点 id（c_ 前缀），用于过滤回填避免父节点强制勾选 */
+function collectChannelIds(nodes: GbShareTreeNode[] | undefined, into: Set<string>) {
+  if (!nodes?.length) return
+  nodes.forEach((n) => {
+    if (n.type === 'CHANNEL') into.add(n.id)
+    if (n.children?.length) collectChannelIds(n.children, into)
+  })
+}
+
+async function handleShare(row: GbParentPlatform) {
+  sharePlatform.value = row
+  shareVisible.value = true
+  shareLoading.value = true
+  let checkedLeaves: string[] = []
+  try {
+    if (!shareTree.value.length) {
+      const treeRes = await getParentPlatformShareTreeApi()
+      shareTree.value = treeRes.data
+    }
+    const sharedRes = await getParentPlatformSharedApi(row.id)
+    // 只回填叶子（通道）节点。non-strict 模式下 setCheckedKeys 传入父分组会强制勾选其全部子通道，
+    // 从而把"分组下只共享部分通道"的真实状态吃掉；父分组的勾选态由子节点联动自然得出。
+    const leafSet = new Set<string>()
+    collectChannelIds(shareTree.value, leafSet)
+    checkedLeaves = (sharedRes.data.channelIds || []).filter((id) => leafSet.has(id))
+  } finally {
+    shareLoading.value = false
+  }
+  // loading=false 后 v-loading 容器内的 el-tree 才渲染完，等 DOM 更新再回填
+  await nextTick()
+  shareTreeRef.value?.setCheckedKeys([])
+  shareTreeRef.value?.setCheckedKeys(checkedLeaves)
+}
+
+async function handleConfirmShare() {
+  if (!sharePlatform.value) return
+  // getCheckedKeys + getHalfCheckedKeys：把半选的父分组也算上，否则保存后重开会丢父分组本身
+  const checked = (shareTreeRef.value?.getCheckedKeys() || []) as string[]
+  const half = (shareTreeRef.value?.getHalfCheckedKeys() || []) as string[]
+  const all = [...checked, ...half]
+  const groupIds = all.filter((id) => id.startsWith('g_'))
+  const channelIds = all.filter((id) => id.startsWith('c_'))
+  shareSubmitting.value = true
+  try {
+    await saveParentPlatformSharedApi(sharePlatform.value.id, { groupIds, channelIds })
+    ElMessage.success('推送配置已保存')
+    shareVisible.value = false
+  } finally {
+    shareSubmitting.value = false
+  }
+}
+
 onMounted(async () => {
   // 并行加载列表和本平台配置
   fetchData()
@@ -255,10 +323,13 @@ onMounted(async () => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <el-tooltip content="详情">
               <el-button type="info" link :icon="View" @click="handleView(row)" />
+            </el-tooltip>
+            <el-tooltip content="通道推送">
+              <el-button type="success" link :icon="Share" @click="handleShare(row)" />
             </el-tooltip>
             <el-tooltip content="编辑">
               <el-button type="primary" link :icon="Edit" @click="handleEdit(row)" />
@@ -341,6 +412,32 @@ onMounted(async () => {
         <el-button v-if="!isView" type="primary" @click="handleConfirm">确 定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 通道推送（共享目录 + 通道）弹窗 -->
+    <el-dialog
+      v-model="shareVisible"
+      title="通道推送"
+      width="560px"
+      destroy-on-close
+      :close-on-click-modal="false"
+    >
+      <div v-loading="shareLoading" style="min-height: 300px">
+        <el-tree
+          v-if="!shareLoading"
+          ref="shareTreeRef"
+          :data="shareTree"
+          :props="shareTreeProps"
+          node-key="id"
+          show-checkbox
+          default-expand-all
+          class="share-tree"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="shareVisible = false">取 消</el-button>
+        <el-button type="primary" :loading="shareSubmitting" @click="handleConfirmShare">保 存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -368,5 +465,10 @@ onMounted(async () => {
 .parent-form :deep(.el-form-item .el-select),
 .parent-form :deep(.el-form-item .el-input-number) {
   width: 200px;
+}
+/* 共享目录树：限高滚动，避免通道过多撑爆弹窗 */
+.share-tree {
+  max-height: 460px;
+  overflow-y: auto;
 }
 </style>

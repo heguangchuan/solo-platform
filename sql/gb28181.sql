@@ -15,7 +15,7 @@ FOREIGN_KEY_CHECKS = 0;
 DROP TABLE IF EXISTS gb_device;
 CREATE TABLE gb_device
 (
-    id                      bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id                      bigint       NOT NULL COMMENT '主键ID（雪花）',
     device_id               varchar(50)  NOT NULL COMMENT '设备国标ID（20位）',
     report_name             varchar(100)          DEFAULT NULL COMMENT '设备上报原始名称（DeviceInfo 响应）',
     name                    varchar(100)          DEFAULT NULL COMMENT '用户自定义显示名称（展示优先级高于 report_name）',
@@ -51,7 +51,7 @@ CREATE TABLE gb_device
 DROP TABLE IF EXISTS gb_device_channel;
 CREATE TABLE gb_device_channel
 (
-    id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id              bigint       NOT NULL COMMENT '主键ID（雪花）',
     device_db_id    bigint       NOT NULL COMMENT '所属设备数据库主键（逻辑关联 gb_device.id）',
     device_id       varchar(50)  NOT NULL COMMENT '所属设备国标ID（冗余存储便于查询）',
     channel_id      varchar(50)  NOT NULL COMMENT '通道国标ID（20位）',
@@ -126,7 +126,7 @@ CREATE TABLE gb_group
 DROP TABLE IF EXISTS gb_platform;
 CREATE TABLE gb_platform
 (
-    id           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id           bigint       NOT NULL COMMENT '主键ID（雪花）',
     platform_id  varchar(20)  NOT NULL COMMENT '下级平台国标ID（20位），唯一且等于 gb_device.device_id',
     name         varchar(255) NOT NULL COMMENT '平台名称',
     auth_key     varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密钥（后端自动生成 32 位 UUID）',
@@ -144,7 +144,7 @@ CREATE TABLE gb_platform
 DROP TABLE IF EXISTS media_server;
 CREATE TABLE media_server
 (
-    id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id              bigint       NOT NULL COMMENT '主键ID（雪花）',
     server_id       varchar(64)  NOT NULL COMMENT 'ZLM 节点唯一标识（与 [general].mediaServerId 一致）',
     name            varchar(100)          DEFAULT NULL COMMENT '节点显示名',
     host_ip         varchar(64)  NOT NULL COMMENT 'ZLM 内网/管理面 IP',
@@ -175,7 +175,7 @@ CREATE TABLE media_server
 DROP TABLE IF EXISTS stream_proxy;
 CREATE TABLE stream_proxy
 (
-    id                bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id                bigint       NOT NULL COMMENT '主键ID（雪花）',
     name              varchar(100)          DEFAULT NULL COMMENT '显示名（用户填）',
     app               varchar(50)  NOT NULL DEFAULT 'proxy' COMMENT 'ZLM app 名',
     stream            varchar(100) NOT NULL COMMENT 'ZLM stream 名',
@@ -208,7 +208,7 @@ CREATE TABLE stream_proxy
 DROP TABLE IF EXISTS stream_push;
 CREATE TABLE stream_push
 (
-    id                bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id                bigint       NOT NULL COMMENT '主键ID（雪花）',
     app               varchar(50)  NOT NULL COMMENT 'ZLM app 名',
     stream            varchar(100) NOT NULL COMMENT 'ZLM stream 名',
     media_server_id   varchar(64)  NOT NULL COMMENT '所属 ZLM 节点 serverId',
@@ -235,7 +235,7 @@ CREATE TABLE stream_push
 DROP TABLE IF EXISTS stream_push_client;
 CREATE TABLE stream_push_client
 (
-    id           bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id           bigint       NOT NULL COMMENT '主键ID（雪花）',
     client_id    varchar(64)  NOT NULL COMMENT '推流方标识（用户填，唯一）',
     token        varchar(64)  NOT NULL COMMENT '鉴权令牌（SecureRandom 32 字节 Base64URL）',
     enabled      tinyint      NOT NULL DEFAULT 1 COMMENT '0禁用 1启用',
@@ -256,7 +256,7 @@ CREATE TABLE stream_push_client
 DROP TABLE IF EXISTS gb_parent_platform;
 CREATE TABLE gb_parent_platform
 (
-    id               bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    id               bigint       NOT NULL COMMENT '主键ID（雪花）',
     name             varchar(255) NOT NULL COMMENT '上级平台名称',
     server_gb_id     varchar(20)  NOT NULL COMMENT '上级平台国标编码（SIP 服务器 ID）',
     server_gb_domain varchar(20)  NOT NULL COMMENT '上级平台国标域',
@@ -278,6 +278,40 @@ CREATE TABLE gb_parent_platform
     PRIMARY KEY (id),
     UNIQUE KEY uk_server_gb_id (server_gb_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台配置表';
+
+
+-- =====================================================
+-- 上级平台共享目录表（gb_platform_catalog）
+-- 本平台作为下级向上级共享资源目录时，选中的分组（目录）记录。
+-- 一行 = 一个上级平台 × 一个共享目录分组，无物理外键（ADR-011）。
+-- =====================================================
+DROP TABLE IF EXISTS gb_platform_catalog;
+CREATE TABLE gb_platform_catalog
+(
+    id          bigint   NOT NULL COMMENT '主键ID（雪花）',
+    platform_id bigint   NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
+    group_id    varchar(32) NOT NULL COMMENT '分组主键（gb_group.id）',
+    create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_group (platform_id, group_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享目录表';
+
+
+-- =====================================================
+-- 上级平台共享通道表（gb_platform_gb_channel）
+-- 本平台作为下级向上级共享通道时，选中的通道记录。
+-- 一行 = 一个上级平台 × 一个通道，无物理外键（ADR-011）。
+-- =====================================================
+DROP TABLE IF EXISTS gb_platform_gb_channel;
+CREATE TABLE gb_platform_gb_channel
+(
+    id          bigint   NOT NULL COMMENT '主键ID（雪花）',
+    platform_id bigint   NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
+    channel_id  bigint   NOT NULL COMMENT '通道主键（gb_device_channel.id）',
+    create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_channel (platform_id, channel_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享通道表';
 
 
 SET

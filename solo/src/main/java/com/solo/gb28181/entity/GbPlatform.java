@@ -25,7 +25,7 @@ public class GbPlatform {
     /**
      * 主键 ID
      */
-    @TableId(type = IdType.AUTO)
+    @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
