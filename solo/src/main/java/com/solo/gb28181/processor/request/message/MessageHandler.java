@@ -1,6 +1,7 @@
 package com.solo.gb28181.processor.request.message;
 
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbParentPlatform;
 import org.dom4j.Element;
 
 import javax.sip.RequestEvent;
@@ -30,9 +31,10 @@ public interface MessageHandler {
     void handleForDevice(RequestEvent event, GbDevice device, Element root);
 
     /**
-     * 来自国标上级平台的 MESSAGE（后续 Sprint 6 国标级联使用，本期可空实现）
+     * 来自国标上级平台的 MESSAGE（本平台作为下级挂上级场景，如 S6.b-2 Catalog 查询响应）。
+     * 默认空实现，需要处理的 handler 覆写。
      */
-    default void handleForPlatform(RequestEvent event, Object platform, Element root) {
+    default void handleForPlatform(RequestEvent event, GbParentPlatform platform, Element root) {
         // 默认空实现
     }
 }
