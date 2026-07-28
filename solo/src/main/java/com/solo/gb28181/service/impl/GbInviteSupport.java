@@ -66,6 +66,7 @@ public class GbInviteSupport {
     public String normalizeTransport(String t) {
         if (t == null || t.isBlank()) return SdpBuilder.TRANSPORT_UDP;
         if (SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(t)) return SdpBuilder.TRANSPORT_TCP_PASSIVE;
+        if (SdpBuilder.TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(t)) return SdpBuilder.TRANSPORT_TCP_ACTIVE;
         return SdpBuilder.TRANSPORT_UDP;
     }
 

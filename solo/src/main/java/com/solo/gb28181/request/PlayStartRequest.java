@@ -23,7 +23,7 @@ public class PlayStartRequest {
     /**
      * 收流模式：{@code UDP} / {@code TCP-passive}；缺省 {@code UDP}
      */
-    private String transport;
+    private String transport = "TCP-passive";
 
     /**
      * 码流标识 token：留空 / null 表示主码流（不改报文），子码流传厂商约定的 wire token。
@@ -31,5 +31,5 @@ public class PlayStartRequest {
      * 通道段后缀（{@code sip:<channelId>:<token>@host}）。token 由前端 / 配置给出，
      * 后端不解析其含义，以此兼容各厂商写法（如 {@code 1} / {@code stream:sub} / {@code streamnumber:1}）。</p>
      */
-    private String streamNumber;
+    private String streamNumber = "streamnumber:1";
 }

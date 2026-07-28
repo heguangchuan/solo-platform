@@ -56,7 +56,7 @@ const props = withDefaults(
     /** 当前码流档位 value（业务层维护，传给 toolbar 显示） */
     currentStream?: string
     /** 当前收流模式（业务层维护，传给 toolbar 显示） */
-    transport?: 'UDP' | 'TCP-passive'
+    transport?: 'UDP' | 'TCP-passive' | 'TCP-active'
   }>(),
   { hasAudio: true, height: '420px', streams: () => [], currentStream: '', transport: 'UDP' },
 )
@@ -68,7 +68,7 @@ const emit = defineEmits<{
   timeout: []
   streamEnd: []
   'switch-stream': [value: string]
-  'switch-transport': [t: 'UDP' | 'TCP-passive']
+  'switch-transport': [t: 'UDP' | 'TCP-passive' | 'TCP-active']
   refresh: []
 }>()
 
@@ -108,6 +108,15 @@ const fpsText = computed(() => (playFps.value > 0 ? `${playFps.value} fps` : '�
 // 业务层传入 streams（>=2 档）才显示切换按钮；点击按钮弹出码流选项浮层，点选即切换。
 const showStreamSwitch = computed(() => props.streams.length >= 2)
 const streamMenuVisible = ref(false)
+
+// ============ 收流模式切换 ============
+// 与码流切换同款交互：点击按钮弹出浮层，点选即切换。写死三档。
+const transportMenuVisible = ref(false)
+const TRANSPORTS: Array<{ label: string; value: 'UDP' | 'TCP-passive' | 'TCP-active' }> = [
+  { label: 'UDP', value: 'UDP' },
+  { label: 'TCP 被动', value: 'TCP-passive' },
+  { label: 'TCP 主动', value: 'TCP-active' },
+]
 
 // ============ 播放器生命周期 ============
 
@@ -415,8 +424,10 @@ function handleSwitchStream(value: string) {
   emit('switch-stream', value)
 }
 
-function handleSwitchTransport() {
-  emit('switch-transport', props.transport === 'UDP' ? 'TCP-passive' : 'UDP')
+function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
+  transportMenuVisible.value = false
+  if (value === props.transport) return
+  emit('switch-transport', value)
 }
 </script>
 
@@ -455,9 +466,6 @@ function handleSwitchTransport() {
         <el-tooltip content="全屏">
           <el-button text size="small" :icon="FullScreen" @click="toggleFullscreen" />
         </el-tooltip>
-        <el-tooltip :content="props.transport === 'UDP' ? 'UDP 收流 · 点击切 TCP' : 'TCP 收流 · 点击切 UDP'">
-          <el-button text size="small" :icon="Connection" @click="handleSwitchTransport" />
-        </el-tooltip>
         <el-tooltip content="放大（滚轮 / 双击复位）">
           <el-button text size="small" :icon="ZoomIn" :disabled="zoomScale >= MAX_ZOOM" @click="zoomIn" />
         </el-tooltip>
@@ -495,6 +503,28 @@ function handleSwitchTransport() {
             </div>
           </template>
           <el-button text size="small" :icon="Switch" title="码流切换" />
+        </el-tooltip>
+        <el-tooltip
+          v-model:visible="transportMenuVisible"
+          trigger="click"
+          placement="top"
+          effect="dark"
+          popper-class="stream-menu"
+        >
+          <template #content>
+            <div class="stream-menu-list">
+              <div
+                v-for="t in TRANSPORTS"
+                :key="t.value"
+                class="stream-menu-item"
+                :class="{ 'is-active': t.value === transport }"
+                @click="handleSwitchTransport(t.value)"
+              >
+                {{ t.label }}
+              </div>
+            </div>
+          </template>
+          <el-button text size="small" :icon="Connection" title="收流模式" />
         </el-tooltip>
         <el-tooltip content="截图">
           <el-button text size="small" :icon="Camera" @click="takeScreenshot" />

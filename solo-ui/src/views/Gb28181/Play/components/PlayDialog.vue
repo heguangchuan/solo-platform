@@ -19,7 +19,7 @@ const errorText = ref('')
 const deviceIdRef = ref('')
 const channelIdRef = ref('')
 const channelNameRef = ref('')
-const transport = ref<'UDP' | 'TCP-passive'>('UDP')
+const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
 
 /**
  * 码流档位：value 即发给后端的码流 token，后端原样写进 INVITE 的 SDP `a=<token>` 行（如 a=streamnumber:1），
@@ -59,7 +59,7 @@ async function open(deviceId: string, channelId: string, name?: string) {
   statusText.value = ''
   streamInfo.value = null
   currentStream.value = ''
-  transport.value = 'UDP'
+  transport.value = 'TCP-passive'
   await nextTick()
   await startPlay()
 }
@@ -121,7 +121,7 @@ async function handleSwitchStream(next: string) {
   await startPlay()
 }
 
-async function handleSwitchTransport(next: 'UDP' | 'TCP-passive') {
+async function handleSwitchTransport(next: 'UDP' | 'TCP-passive' | 'TCP-active') {
   transport.value = next
   await handleRefresh()
 }
