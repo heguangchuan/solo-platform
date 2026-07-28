@@ -43,6 +43,7 @@ public class ZlmHookService {
     private final GbPlaybackService playbackService;
     private final StreamPushService streamPushService;
     private final StreamPushClientService streamPushClientService;
+    private final com.solo.gb28181.service.impl.CascadeSendService cascadeSendService;
 
     // ============ 服务级 ============
 
@@ -223,7 +224,16 @@ public class ZlmHookService {
 
     public HookResult onSendRtpStopped(Map<String, Object> body) {
         log.info("[ZLM 回调] on_send_rtp_stopped {}", body);
-        // S6 级联用
+        // 级联推流被 ZLM 中止（对端断开 / 超时）：按 stream + ssrc 清理级联推流会话（S6.b-3）
+        try {
+            String stream = stringOf(body, "stream");
+            String ssrc = stringOf(body, "ssrc");
+            if (stream != null) {
+                cascadeSendService.onSendRtpStopped(stream, ssrc);
+            }
+        } catch (Exception e) {
+            log.error("[ZLM 回调] on_send_rtp_stopped 业务异常 {}", body, e);
+        }
         return HookResult.ok();
     }
 

@@ -36,6 +36,9 @@ import java.util.Map;
  *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
  *     <li>{@code addStreamProxy}       — 让 ZLM 从 RTSP/RTMP 源拉流（ONVIF 点播）</li>
  *     <li>{@code delStreamProxy}       — 移除拉流代理</li>
+ *     <li>{@code startSendRtp}         — 把 ZLM 里一路流按 PS/RTP 推到指定 ip:port（级联上级点播）</li>
+ *     <li>{@code startSendRtpPassive}  — 开监听端口等对端来连后推流（TCP 主动模式，上级来连本平台）</li>
+ *     <li>{@code stopSendRtp}          — 停止推流</li>
  * </ul>
  * <p>注：截图由 jessibuca 播放器自带，不在本类。</p>
  */
@@ -255,6 +258,94 @@ public class ZlmRestClient {
     }
 
     // 注：截图功能由 jessibuca 播放器自带（操作栏内置 screenshot 按钮），不走后端 ZLM API。
+
+    // ---------------- 级联推流（sendRtp）----------------
+
+    /**
+     * 把 ZLM 里的一路流按 PS/RTP 主动推到指定目的地址（UDP 或 TCP 主动去连对端）。
+     * <p>用于本平台作为下级被上级点播：先向真实设备取流拿到 {@code app=rtp/stream}，
+     * 再用本方法把这路流转推给上级给出的 {@code dstIp:dstPort}。</p>
+     *
+     * @param server  流所在 ZLM 节点
+     * @param app     源流 app（国标取流固定 {@code rtp}）
+     * @param stream  源流 stream 名
+     * @param ssrc    RTP 头 SSRC（10 位十进制，取上级 SDP 的 {@code y=} 值）
+     * @param dstIp   上级收流 IP（{@code c=} 行）
+     * @param dstPort 上级收流端口（{@code m=} 行）
+     * @param udp     true=UDP，false=TCP 主动（本平台去连上级）
+     * @param srcPort 本地发送端口（可空；null=ZLM 自行选）
+     * @return ZLM 实际使用的本地发送端口（无则返回 0）
+     */
+    public int startSendRtp(MediaServer server, String app, String stream, String ssrc,
+                            String dstIp, int dstPort, boolean udp, Integer srcPort) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("ssrc", ssrc);
+        params.put("dst_url", dstIp);
+        params.put("dst_port", String.valueOf(dstPort));
+        params.put("is_udp", udp ? "1" : "0");   // 注意语义：UDP=1，TCP=0
+        params.put("pt", "96");
+        params.put("use_ps", "1");
+        if (srcPort != null && srcPort > 0) {
+            params.put("src_port", String.valueOf(srcPort));
+        }
+        JsonNode resp = post(server, "startSendRtp", params);
+        int localPort = resp.path("local_port").asInt(0);
+        log.info("[流媒体] startSendRtp ok server={} app={} stream={} ssrc={} dst={}:{} udp={} localPort={}",
+                server.getServerId(), app, stream, ssrc, dstIp, dstPort, udp, localPort);
+        return localPort;
+    }
+
+    /**
+     * 开一个监听端口等对端来连后再推流（TCP 主动模式：上级主动来连本平台的端口）。
+     * <p>回给上级 200 OK 后立即调用；上级据 SDP 里本平台返回的端口来建立 TCP 连接。</p>
+     *
+     * @return ZLM 实际监听的本地端口（供本平台写进回复 SDP 的 {@code m=} 行）
+     */
+    public int startSendRtpPassive(MediaServer server, String app, String stream, String ssrc) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("ssrc", ssrc);
+        params.put("pt", "96");
+        params.put("use_ps", "1");
+        JsonNode resp = post(server, "startSendRtpPassive", params);
+        int localPort = resp.path("local_port").asInt(0);
+        if (localPort <= 0) {
+            throw new ServiceException("ZLM startSendRtpPassive 未返回有效端口: " + resp);
+        }
+        log.info("[流媒体] startSendRtpPassive ok server={} app={} stream={} ssrc={} localPort={}",
+                server.getServerId(), app, stream, ssrc, localPort);
+        return localPort;
+    }
+
+    /**
+     * 停止推流。
+     *
+     * @return true=确实停了；false=已不存在/异常（忽略）
+     */
+    public boolean stopSendRtp(MediaServer server, String app, String stream, String ssrc) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        if (ssrc != null && !ssrc.isBlank()) {
+            params.put("ssrc", ssrc);
+        }
+        try {
+            post(server, "stopSendRtp", params);
+            log.info("[流媒体] stopSendRtp ok server={} app={} stream={} ssrc={}",
+                    server.getServerId(), app, stream, ssrc);
+            return true;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] stopSendRtp 失败（忽略） server={} app={} stream={} err={}",
+                    server.getServerId(), app, stream, e.getMessage());
+            return false;
+        }
+    }
 
     // ---------------- 底层 POST ----------------
 

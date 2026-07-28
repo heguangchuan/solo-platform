@@ -4,6 +4,8 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.utils.SipUtils;
+import gov.nist.javax.sip.message.SIPRequest;
+import gov.nist.javax.sip.message.SIPResponse;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.util.DigestUtils;
@@ -29,6 +31,7 @@ import javax.sip.header.ViaHeader;
 import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
+import javax.sip.message.Response;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -226,5 +229,90 @@ public class PlatformSipHeaderProvider {
 
     private static String md5(String s) {
         return DigestUtils.md5DigestAsHex(s.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 构造对上级的 BYE（本平台作为被叫 UAS 主动结束推流会话：无 ACK 超时 / 无人观看兜底）。
+     * <p>Dialog 角色与注册相反：本次 INVITE 由上级发起，本平台是被叫。故 From=本平台(deviceGbId, toTag)、
+     * To=上级(serverGbId, fromTag)、Request-URI 指向上级。复用会话记录的 callId / fromTag(上级) / toTag(本平台)。</p>
+     *
+     * @param p        上级平台配置
+     * @param callId   上级 INVITE 的 Call-Id
+     * @param upstreamFromTag 上级 INVITE 的 from-tag（对本平台而言是 To-tag 方向）
+     * @param localToTag      本平台回 200 OK 时生成的 to-tag
+     */
+    public Request createByeToUpstream(GbParentPlatform p, String callId,
+                                       String upstreamFromTag, String localToTag)
+            throws ParseException, InvalidArgumentException {
+        String localIp = localIp(p);
+        String transport = transport(p);
+        String serverHost = p.getServerIp() + ":" + p.getServerPort();
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(p), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        // From = 本平台（被叫方，带本平台在 200 OK 里生成的 to-tag）
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), p.getServerGbDomain());
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), localToTag);
+
+        // To = 上级（主叫方，带上级 INVITE 的 from-tag）
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(ADDRESS_FACTORY.createAddress(toUri), upstreamFromTag);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CallIdHeader callIdHeader = HEADER_FACTORY.createCallIdHeader(callId);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.BYE);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.BYE, callIdHeader, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), localIp + ":" + localPort(p));
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
+        request.addHeader(contact);
+        return request;
+    }
+
+    /**
+     * 构造对上级 INVITE 的 200 OK（携带 sendonly SDP + Contact + To-tag）。
+     * <p>本平台作为被叫应答上级点播。To-tag 由本方法写入 {@code request} 回显出的 To 头，
+     * 调用方须把它持久化到会话（后续 BYE 要用）。Contact 指向本平台 SIP 地址，供上级发 ACK/BYE 定位。</p>
+     *
+     * @param p          上级平台配置
+     * @param request    上级发来的 INVITE 原始请求（回显 Via/From/To/Call-Id/CSeq）
+     * @param sdpBody    本平台 sendonly SDP（{@link SdpBuilder#buildSendAnswer}）
+     * @param localToTag 本平台生成的 to-tag（须与写入会话的一致）
+     */
+    public SIPResponse buildInviteOk(GbParentPlatform p, SIPRequest request, String sdpBody, String localToTag)
+            throws ParseException {
+        SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.OK, request);
+        response.getToHeader().setTag(localToTag);
+
+        String localIp = localIp(p);
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), localIp + ":" + localPort(p));
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
+        response.setHeader(contact);
+
+        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "SDP");
+        response.setContent(sdpBody, ct);
+        return response;
+    }
+
+    /**
+     * 构造无 body 的简单状态应答（100 Trying / 404 / 400 / 486 / 500 等），并按需补 To-tag。
+     * <p>供级联被点播编排在异步取流失败等场景回错误码用。</p>
+     */
+    public SIPResponse buildResponse(SIPRequest request, int statusCode, String reason) throws ParseException {
+        if (request.getToHeader().getTag() == null && statusCode >= 200) {
+            request.getToHeader().setTag(SipUtils.newToTag());
+        }
+        SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(statusCode, request);
+        if (reason != null) {
+            response.setReasonPhrase(reason);
+        }
+        return response;
     }
 }

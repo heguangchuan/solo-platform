@@ -135,4 +135,128 @@ public final class SdpBuilder {
         }
         return null;
     }
+
+    /**
+     * 从 SDP body 抓连接地址 {@code c=IN IP4 <ip>} 的 IP；不存在返回 null。
+     * <p>上级 INVITE 里 c= 行即上级期望收流的 IP。</p>
+     */
+    public static String extractConnectionIp(String sdpBody) {
+        if (sdpBody == null) return null;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            if (line.startsWith("c=")) {
+                // c=IN IP4 1.2.3.4
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length >= 3) {
+                    return parts[2];
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 从 SDP body 抓 {@code m=video <port> ...} 的端口；不存在/非法返回 -1。
+     * <p>上级 INVITE 里 m= 行端口即上级期望收流的端口（UDP/TCP 主动去连的目标端口）。</p>
+     */
+    public static int extractMediaPort(String sdpBody) {
+        if (sdpBody == null) return -1;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            if (line.startsWith("m=video")) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length >= 2) {
+                    try {
+                        return Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException ignore) {
+                        return -1;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 从 SDP body 抓会话名 {@code s=<name>}（Play / Playback / Download）；不存在返回 null。
+     */
+    public static String extractSessionName(String sdpBody) {
+        if (sdpBody == null) return null;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            if (line.startsWith("s=")) {
+                return line.substring(2).trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 判断上级 SDP 的传输语义，返回归一后的 transport 常量。
+     * <p>{@code m=video <port> TCP/RTP/AVP ...} + {@code a=setup:active} → 上级主动来连本平台（本平台 TCP 被动收听）；
+     * {@code a=setup:passive} → 上级被动等本平台去连；无 TCP 协议 → UDP。</p>
+     *
+     * @return {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE} / {@link #TRANSPORT_TCP_ACTIVE}
+     *         语义站在<strong>上级</strong>视角：TCP_ACTIVE=上级主动来连；TCP_PASSIVE=上级等本平台去连
+     */
+    public static String extractTransport(String sdpBody) {
+        if (sdpBody == null) return TRANSPORT_UDP;
+        boolean tcp = false;
+        String setup = null;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            String l = line.trim();
+            if (l.startsWith("m=video") && l.toUpperCase().contains("TCP/RTP/AVP")) {
+                tcp = true;
+            } else if (l.toLowerCase().startsWith("a=setup:")) {
+                setup = l.substring("a=setup:".length()).trim().toLowerCase();
+            }
+        }
+        if (!tcp) return TRANSPORT_UDP;
+        return "active".equals(setup) ? TRANSPORT_TCP_ACTIVE : TRANSPORT_TCP_PASSIVE;
+    }
+
+    /**
+     * 构造本平台作为<strong>发流方</strong>回给上级的 200 OK SDP（{@code a=sendonly}）。
+     * <p>用于级联被上级点播：本平台向真实设备取流后，用此 SDP 告诉上级最终的媒体地址/端口/SSRC。</p>
+     *
+     * <pre>
+     * v=0
+     * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;
+     * s=Play
+     * c=IN IP4 &lt;sdpIp&gt;
+     * t=0 0
+     * m=video &lt;sendPort&gt; {RTP/AVP|TCP/RTP/AVP} 96
+     * a=sendonly
+     * a=rtpmap:96 PS/90000
+     * [a=setup:active|passive]      -- TCP 时，与上级取反
+     * y=&lt;ssrc&gt;
+     * </pre>
+     *
+     * @param platformId    本平台对该上级使用的国标编号（deviceGbId），写 o= 行 username
+     * @param sdpIp         本平台发流的媒体 IP（c=/o= 行）
+     * @param sendPort      本平台发流端口（m= 行；UDP/TCP 主动去连时可为 0，TCP 被动监听时为 ZLM 监听端口）
+     * @param ssrc          最终 SSRC（y= 行，回给上级）
+     * @param upstreamTransport 上级 SDP 解析出的传输语义（{@link #extractTransport} 的结果）
+     */
+    public static String buildSendAnswer(String platformId, String sdpIp, int sendPort,
+                                         String ssrc, String upstreamTransport) {
+        boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(upstreamTransport)
+                || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
+        // setup 与上级取反：上级 active(来连)→本平台 passive(被动)；上级 passive→本平台 active(主动去连)
+        boolean upstreamActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
+        StringBuilder sb = new StringBuilder(256);
+        sb.append("v=0\r\n");
+        sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("s=Play\r\n");
+        sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("t=0 0\r\n");
+        sb.append("m=video ").append(sendPort).append(' ')
+                .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
+                .append(" 96\r\n");
+        sb.append("a=sendonly\r\n");
+        sb.append("a=rtpmap:96 PS/90000\r\n");
+        if (tcp) {
+            sb.append("a=setup:").append(upstreamActive ? "passive" : "active").append("\r\n");
+            sb.append("a=connection:new\r\n");
+        }
+        sb.append("y=").append(ssrc).append("\r\n");
+        return sb.toString();
+    }
 }

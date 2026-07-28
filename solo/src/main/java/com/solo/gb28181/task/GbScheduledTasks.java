@@ -2,6 +2,7 @@ package com.solo.gb28181.task;
 
 import com.solo.gb28181.processor.request.message.notify.KeepaliveNotifyMessageHandler;
 import com.solo.gb28181.service.PlatformRegisterService;
+import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.sip.SipSubscribe;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class GbScheduledTasks {
     private final KeepaliveNotifyMessageHandler keepaliveNotifyMessageHandler;
     private final SipSubscribe sipSubscribe;
     private final PlatformRegisterService platformRegisterService;
+    private final CascadeSendService cascadeSendService;
 
     /** 设备离线检测：每 30s 扫库比对 Redis 在线 key，并清理目录分片缓存 */
     @Scheduled(fixedDelay = 30_000)
@@ -47,6 +49,12 @@ public class GbScheduledTasks {
     @Scheduled(initialDelay = 5_000, fixedDelay = 5_000)
     public void sweepSipSubscribe() {
         sipSubscribe.sweep();
+    }
+
+    /** 级联被点播：回 200 OK 后等上级 ACK 超时的会话回收（每 10s 扫一次） */
+    @Scheduled(initialDelay = 10_000, fixedDelay = 10_000)
+    public void sweepCascadeSendAckTimeout() {
+        cascadeSendService.sweepAckTimeout();
     }
 
     // ============================================================

@@ -140,5 +140,21 @@ public class Gb28181Properties {
          * <p>UDP 突发发送易被上级丢包或触发 fair-queuing，间隔 50ms 足够宽松且总耗时可控。</p>
          */
         private long catalogPageIntervalMs = 50;
+
+        /**
+         * 上级点播（sendRtp）本地发送端口段起始。
+         * <p>本平台把流转推给上级时，ZLM 从此段选一个本地端口发流。需与 ZLM 收流端口段错开，并在防火墙放行。</p>
+         */
+        private int sendRtpPortStart = 50000;
+
+        /**
+         * 上级点播（sendRtp）本地发送端口段结束。
+         */
+        private int sendRtpPortEnd = 60000;
+
+        /**
+         * 上级点播回 200 OK 后等待上级 ACK 的超时（毫秒）。超时未收到 ACK 即释放会话并向上级发 BYE。
+         */
+        private long sendAckTimeoutMs = 60_000;
     }
 }
