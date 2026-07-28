@@ -217,7 +217,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         String ssrc = ssrcFactory.acquire(server.getServerId(), true);
         int rtpPort;
         try {
-            int tcpMode = SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport) ? 1 : 0;
+            int tcpMode = transportToTcpMode(transport);
             rtpPort = support.openRtpServerWithRetry(server, streamId, ssrc, tcpMode);
         } catch (Exception e) {
             ssrcFactory.release(server.getServerId(), ssrc);
@@ -487,6 +487,13 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
 
     private static String pendingKey(String deviceId, int sn) {
         return deviceId + ":" + sn;
+    }
+
+    /** transport 字符串 → ZLM openRtpServer 的 tcp_mode 参数（0=UDP, 1=TCP-passive, 2=TCP-active） */
+    private static int transportToTcpMode(String transport) {
+        if (SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)) return 1;
+        if (SdpBuilder.TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport)) return 2;
+        return 0;
     }
 
     private static String toIso(String uiTime) {

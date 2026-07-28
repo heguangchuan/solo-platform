@@ -213,8 +213,8 @@ export interface GbMediaServer {
 export interface PlayStartRequest {
   deviceId: string
   channelId: string
-  /** 收流模式，默认 UDP */
-  transport?: 'UDP' | 'TCP-passive'
+  /** 收流模式，默认 UDP。TCP-active 前端已可选，后端暂未实现 */
+  transport?: 'UDP' | 'TCP-passive' | 'TCP-active'
   /** 码流 token：空 / 不传主码流，非空子码流（如 '1' / 'stream:sub'） */
   streamNumber?: string
 }

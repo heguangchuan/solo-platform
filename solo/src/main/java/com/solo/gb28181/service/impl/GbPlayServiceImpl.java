@@ -161,7 +161,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         String ssrc = ssrcFactory.acquire(server.getServerId(), false);
         int rtpPort;
         try {
-            int tcpMode = SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport) ? 1 : 0;
+            int tcpMode = transportToTcpMode(transport);
             rtpPort = support.openRtpServerWithRetry(server, streamId, ssrc, tcpMode);
         } catch (Exception e) {
             ssrcFactory.release(server.getServerId(), ssrc);
@@ -505,6 +505,13 @@ public class GbPlayServiceImpl implements GbPlayService {
     /** 码流类型日志标签 */
     private static String streamLabel(String streamNumber) {
         return streamNumber == null || streamNumber.isBlank() ? "主码流" : "子码流(token=" + streamNumber.trim() + ")";
+    }
+
+    /** transport 字符串 → ZLM openRtpServer 的 tcp_mode 参数（0=UDP, 1=TCP-passive, 2=TCP-active） */
+    private static int transportToTcpMode(String transport) {
+        if (SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)) return 1;
+        if (SdpBuilder.TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport)) return 2;
+        return 0;
     }
 
     @Override

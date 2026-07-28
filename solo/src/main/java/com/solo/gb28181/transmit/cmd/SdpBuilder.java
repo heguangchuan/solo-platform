@@ -28,6 +28,8 @@ public final class SdpBuilder {
     public static final String TRANSPORT_UDP = "UDP";
     /** 收流模式 — TCP 被动（设备主动连 ZLM） */
     public static final String TRANSPORT_TCP_PASSIVE = "TCP-passive";
+    /** 收流模式 — TCP 主动（ZLM 主动连设备） */
+    public static final String TRANSPORT_TCP_ACTIVE = "TCP-active";
 
     private SdpBuilder() {
     }
@@ -39,7 +41,7 @@ public final class SdpBuilder {
      * @param sdpIp      本平台对设备暴露的 IP（c= 行 + o= 行）
      * @param rtpPort    ZLM 分配的收流 RTP 端口（m= 行）
      * @param ssrc       10 位 SSRC（y= 行）
-     * @param transport  {@link #TRANSPORT_UDP} 或 {@link #TRANSPORT_TCP_PASSIVE}
+     * @param transport  {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE} / {@link #TRANSPORT_TCP_ACTIVE}
      */
     public static String buildPlay(String platformId, String sdpIp, int rtpPort,
                                    String ssrc, String transport, String streamNumber) {
@@ -74,7 +76,9 @@ public final class SdpBuilder {
     private static String buildInternal(String sessionName, String platformId, String sdpIp, int rtpPort,
                                         String ssrc, String transport, long startEpoch, long endEpoch,
                                         Integer downloadSpeed, String streamNumber) {
-        boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport);
+        boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)
+                || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport);
+        boolean tcpActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport);
         StringBuilder sb = new StringBuilder(320);
         sb.append("v=0\r\n");
         sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
@@ -89,7 +93,7 @@ public final class SdpBuilder {
         sb.append("a=rtpmap:98 H264/90000\r\n");
         sb.append("a=rtpmap:99 H265/90000\r\n");
         if (tcp) {
-            sb.append("a=setup:passive\r\n");
+            sb.append("a=setup:").append(tcpActive ? "active" : "passive").append("\r\n");
             sb.append("a=connection:new\r\n");
         }
         // 码流标识（GB/T 28181-2022 streamnumber 及各厂商写法），原样写入 a= 行（允许带冒号，如
