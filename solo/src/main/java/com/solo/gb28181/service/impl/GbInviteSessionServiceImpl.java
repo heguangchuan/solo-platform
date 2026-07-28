@@ -23,7 +23,8 @@ import java.util.Set;
  *   <li>{@link GbRedisKeys#INVITE_SESSION}{streamId}  主体 JSON（业务唯一标识，单点写入）</li>
  *   <li>{@link GbRedisKeys#INVITE_BY_CALL}{callId}    = streamId    INVITE Dialog Call-Id 反查</li>
  *   <li>{@link GbRedisKeys#INVITE_BY_SSRC}{ssrc}    = streamId    SSRC 反查（备用）</li>
- *   <li>{@link GbRedisKeys#INVITE_BY_DEVICE_CHANNEL}{deviceId}:{channelId} = streamId  通道反查（幂等检测）</li>
+ *   <li>{@link GbRedisKeys#INVITE_BY_DEVICE_CHANNEL}{deviceId}:{channelId} = Set&lt;streamId&gt;  通道反查（幂等检测）
+ *       —— 同一通道可并存多路流（不同码流号各一路），故用 Set 而非单值</li>
  *   <li>{@link GbRedisKeys#INVITE_ALL_ACTIVE}       Set&lt;streamId&gt;   全集，启动清扫 + SsrcFactory 预占用</li>
  * </ul>
  *
@@ -63,7 +64,7 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         if (s.getCallId() != null) redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_CALL + s.getCallId(), streamId);
         if (s.getSsrc() != null)   redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_SSRC + s.getSsrc(), streamId);
         if (s.getDeviceId() != null && s.getChannelId() != null) {
-            redisTemplate.opsForValue().set(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId(), streamId);
+            redisTemplate.opsForSet().add(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId(), streamId);
         }
         redisTemplate.opsForSet().add(GbRedisKeys.INVITE_ALL_ACTIVE, streamId);
     }
@@ -88,7 +89,7 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
             if (s.getCallId() != null) redisTemplate.delete(GbRedisKeys.INVITE_BY_CALL + s.getCallId());
             if (s.getSsrc() != null)   redisTemplate.delete(GbRedisKeys.INVITE_BY_SSRC + s.getSsrc());
             if (s.getDeviceId() != null && s.getChannelId() != null) {
-                redisTemplate.delete(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId());
+                redisTemplate.opsForSet().remove(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + s.getDeviceId() + ":" + s.getChannelId(), streamId);
             }
         }
     }
@@ -113,15 +114,20 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
     @Override
     public List<GbInviteSession> listActiveByDeviceAndChannel(String deviceId, String channelId) {
         if (deviceId == null || channelId == null) return Collections.emptyList();
-        String streamId = redisTemplate.opsForValue().get(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + deviceId + ":" + channelId);
-        if (streamId == null) return Collections.emptyList();
-        GbInviteSession s = getByStreamId(streamId);
-        if (s == null) {
-            // 索引脏（主体被删而索引漏删，理论极少见）
-            redisTemplate.delete(GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + deviceId + ":" + channelId);
-            return Collections.emptyList();
+        String idxKey = GbRedisKeys.INVITE_BY_DEVICE_CHANNEL + deviceId + ":" + channelId;
+        Set<String> streamIds = redisTemplate.opsForSet().members(idxKey);
+        if (streamIds == null || streamIds.isEmpty()) return Collections.emptyList();
+        List<GbInviteSession> out = new ArrayList<>(streamIds.size());
+        for (String streamId : streamIds) {
+            GbInviteSession s = getByStreamId(streamId);
+            if (s != null) {
+                out.add(s);
+            } else {
+                // 索引脏（主体被删而索引漏删，理论极少见）：顺手从 Set 摘掉
+                redisTemplate.opsForSet().remove(idxKey, streamId);
+            }
         }
-        return List.of(s);
+        return out;
     }
 
     @Override

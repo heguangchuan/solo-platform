@@ -215,6 +215,8 @@ export interface PlayStartRequest {
   channelId: string
   /** 收流模式，默认 UDP */
   transport?: 'UDP' | 'TCP-passive'
+  /** 码流 token：空 / 不传主码流，非空子码流（如 '1' / 'stream:sub'） */
+  streamNumber?: string
 }
 
 /** 停止点播请求 */
@@ -230,6 +232,8 @@ export interface PlayResultVO {
   ssrc: string
   rtpPort: number
   transport: string
+  /** 码流 token：空主码流，非空子码流 */
+  streamNumber?: string
   flvUrl?: string
   wsFlvUrl?: string
   hlsUrl?: string

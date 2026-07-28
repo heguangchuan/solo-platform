@@ -56,7 +56,7 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         vo.setName(platform.getName());
         vo.setAuthKey(platform.getAuthKey());
         vo.setEnabled(platform.getEnabled());
-        vo.setRemark(platform.getRemark());
+
         vo.setCreateTime(platform.getCreateTime());
         vo.setUpdateTime(platform.getUpdateTime());
 
@@ -103,7 +103,7 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         // platformId、authKey 不可改（authKey 是设备侧配置基准，改了下级要重新配置）
         exist.setName(platform.getName());
         exist.setEnabled(platform.getEnabled());
-        exist.setRemark(platform.getRemark());
+
         updateById(exist);
         log.info("[级联平台] 编辑白名单: platformId={}", exist.getPlatformId());
     }

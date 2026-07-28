@@ -18,6 +18,7 @@ package com.solo.gb28181.transmit.cmd;
  * a=rtpmap:98 H264/90000
  * a=rtpmap:99 H265/90000
  * [a=setup:passive\na=connection:new]    -- TCP-passive 时
+ * [a=&lt;streamNumber&gt;]                     -- 子码流时（如 a=streamnumber:1 / a=stream:1 / a=streamMode:sub）
  * y=&lt;ssrc&gt;
  * </pre>
  */
@@ -41,8 +42,8 @@ public final class SdpBuilder {
      * @param transport  {@link #TRANSPORT_UDP} 或 {@link #TRANSPORT_TCP_PASSIVE}
      */
     public static String buildPlay(String platformId, String sdpIp, int rtpPort,
-                                   String ssrc, String transport) {
-        return buildInternal("Play", platformId, sdpIp, rtpPort, ssrc, transport, 0L, 0L, null);
+                                   String ssrc, String transport, String streamNumber) {
+        return buildInternal("Play", platformId, sdpIp, rtpPort, ssrc, transport, 0L, 0L, null, streamNumber);
     }
 
     /**
@@ -54,7 +55,7 @@ public final class SdpBuilder {
     public static String buildPlayback(String platformId, String sdpIp, int rtpPort, String ssrc,
                                        String transport, long startEpochSec, long endEpochSec) {
         return buildInternal("Playback", platformId, sdpIp, rtpPort, ssrc, transport,
-                startEpochSec, endEpochSec, null);
+                startEpochSec, endEpochSec, null, null);
     }
 
     /**
@@ -67,12 +68,12 @@ public final class SdpBuilder {
                                        String transport, long startEpochSec, long endEpochSec,
                                        int downloadSpeed) {
         return buildInternal("Download", platformId, sdpIp, rtpPort, ssrc, transport,
-                startEpochSec, endEpochSec, downloadSpeed);
+                startEpochSec, endEpochSec, downloadSpeed, null);
     }
 
     private static String buildInternal(String sessionName, String platformId, String sdpIp, int rtpPort,
                                         String ssrc, String transport, long startEpoch, long endEpoch,
-                                        Integer downloadSpeed) {
+                                        Integer downloadSpeed, String streamNumber) {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport);
         StringBuilder sb = new StringBuilder(320);
         sb.append("v=0\r\n");
@@ -90,6 +91,11 @@ public final class SdpBuilder {
         if (tcp) {
             sb.append("a=setup:passive\r\n");
             sb.append("a=connection:new\r\n");
+        }
+        // 码流标识（GB/T 28181-2022 streamnumber 及各厂商写法），原样写入 a= 行（允许带冒号，如
+        // a=streamnumber:1 / a=stream:1 / a=streamMode:sub）。空表示主码流，不写此行、报文与旧版一致。
+        if (streamNumber != null && !streamNumber.isBlank()) {
+            sb.append("a=").append(streamNumber.trim()).append("\r\n");
         }
         if (downloadSpeed != null && downloadSpeed > 0) {
             sb.append("a=downloadspeed:").append(downloadSpeed).append("\r\n");

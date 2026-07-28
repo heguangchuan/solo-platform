@@ -148,12 +148,12 @@ public class SipRequestHeaderProvider {
     /**
      * 构造发往设备的 INVITE 请求（实时点播 / 回放共用）
      *
-     * @param device     目标设备
-     * @param channelId  通道国标 ID（写入 Request-URI / To / Subject）
-     * @param sdpBody    SDP 报文体（由 {@link SdpBuilder} 生成）
-     * @param ssrc       10 位 SSRC（写入 Subject）
-     * @param callId     调用方持有的 Call-Id
-     * @param fromTag    调用方持有的 from-tag
+     * @param device       目标设备
+     * @param channelId    通道国标 ID（写入 Request-URI / To / Subject）
+     * @param sdpBody      SDP 报文体（由 {@link SdpBuilder} 生成）
+     * @param ssrc         10 位 SSRC（写入 Subject）
+     * @param callId       调用方持有的 Call-Id
+     * @param fromTag      调用方持有的 from-tag
      */
     public Request buildInviteRequest(GbDevice device, String channelId, String sdpBody,
                                       String ssrc, CallIdHeader callId, String fromTag)

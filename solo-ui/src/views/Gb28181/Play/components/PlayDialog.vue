@@ -20,7 +20,32 @@ const deviceIdRef = ref('')
 const channelIdRef = ref('')
 const channelNameRef = ref('')
 const transport = ref<'UDP' | 'TCP-passive'>('UDP')
-const streamType = ref<'main' | 'sub'>('main')
+
+/**
+ * 码流档位：value 即发给后端的码流 token，后端原样写进 INVITE 的 SDP `a=<token>` 行（如 a=streamnumber:1），
+ * 设备据此选主/子码流；streamId 后缀则用冒号转下划线的归一值。主码流传空串（不写 a= 行、兼容回放）。
+ * 各厂商 / 国标平台写法不一（对齐 WVP GbSteamIdentification），这里把主流写法列出，按真机点选。
+ * 当前无通道码流元数据，故前端写死。
+ */
+const STREAMS = [
+  { label: '主码流', value: '' },
+  // GB/T 28181-2022 streamnumber
+  { label: '子码流 (streamnumber:1)', value: 'streamnumber:1' },
+  { label: '主码流 (streamnumber:0)', value: 'streamnumber:0' },
+  // stream:
+  { label: '子码流 (stream:1)', value: 'stream:1' },
+  { label: '主码流 (stream:0)', value: 'stream:0' },
+  // streamprofile:
+  { label: '子码流 (streamprofile:1)', value: 'streamprofile:1' },
+  { label: '主码流 (streamprofile:0)', value: 'streamprofile:0' },
+  // streamMode（TP-LINK 等）
+  { label: '子码流 (streamMode:sub)', value: 'streamMode:sub' },
+  { label: '主码流 (streamMode:main)', value: 'streamMode:main' },
+  // 纯序号 / 字面量
+  { label: '子码流 (1)', value: '1' },
+  { label: '子码流 (sub)', value: 'sub' },
+]
+const currentStream = ref('')
 
 const streamInfo = ref<PlayResultVO | null>(null)
 const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
@@ -33,7 +58,7 @@ async function open(deviceId: string, channelId: string, name?: string) {
   errorText.value = ''
   statusText.value = ''
   streamInfo.value = null
-  streamType.value = 'main'
+  currentStream.value = ''
   transport.value = 'UDP'
   await nextTick()
   await startPlay()
@@ -49,6 +74,7 @@ async function startPlay() {
       deviceId: deviceIdRef.value,
       channelId: channelIdRef.value,
       transport: transport.value,
+      streamNumber: currentStream.value,
     })
     streamInfo.value = res.data
     statusText.value = ''
@@ -85,11 +111,14 @@ async function handleRefresh() {
 }
 
 /**
- * 子码流切换 — S2.2 暂占位（INVITE SDP 还没区分主/辅）；预留事件已通；后端 S2.3 / S3 加 subStream 参数后接通
+ * 码流切换（独立流模型）：主/子各是一路独立流、可能有别人正在看，
+ * 因此切换时**不 stop 旧流**，只发起新码流的点播并让本播放器切到新 URL；
+ * 被本人放弃的旧流若无人观看，由 ZLM 按需拉流（stream-on-demand）自动回收，避免误断他人观看。
  */
-function handleSwitchStream(next: 'main' | 'sub') {
-  streamType.value = next
-  ElMessage.info('子码流切换功能开发中（S2.3 接通）')
+async function handleSwitchStream(next: string) {
+  if (next === currentStream.value) return
+  currentStream.value = next
+  await startPlay()
 }
 
 async function handleSwitchTransport(next: 'UDP' | 'TCP-passive') {
@@ -144,7 +173,8 @@ defineExpose({ open })
     <JessibucaPlayer
       ref="playerRef"
       height="480px"
-      :stream-type="streamType"
+      :streams="STREAMS"
+      :current-stream="currentStream"
       :transport="transport"
       @error="errorText = $event"
       @stream-end="onStreamEnd"

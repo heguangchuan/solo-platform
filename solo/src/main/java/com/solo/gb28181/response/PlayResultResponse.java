@@ -41,6 +41,11 @@ public class PlayResultResponse {
     private String transport;
 
     /**
+     * 码流 token：空主码流，非空子码流。前端切换后据此回显当前档位。
+     */
+    private String streamNumber;
+
+    /**
      * HTTP-FLV 地址
      */
     private String flvUrl;

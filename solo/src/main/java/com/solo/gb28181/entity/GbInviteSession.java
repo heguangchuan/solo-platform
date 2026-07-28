@@ -48,6 +48,9 @@ public class GbInviteSession {
     /** 收流模式：UDP / TCP-active / TCP-passive */
     private String transport;
 
+    /** 码流 token：空 / null 主码流（实时点播默认；回放固定 null），非空子码流（如 1 / stream:sub） */
+    private String streamNumber;
+
     private String callId;
     private String fromTag;
     private String toTag;
