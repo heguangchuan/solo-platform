@@ -280,6 +280,18 @@ export function playbackControlApi(data: PlaybackControlRequest) {
 }
 
 /**
+ * 云台控制
+ * @param deviceId  设备国标 ID
+ * @param channelId 通道国标 ID
+ * @param command   方向：left/right/up/down/upleft/upright/downleft/downright/zoomin/zoomout/stop
+ * @param speed     移动速度 0-255
+ * @param zoomSpeed 缩放速度 0-15
+ */
+export function ptzControlApi(deviceId: string, channelId: string, command: string, speed = 100, zoomSpeed = 5) {
+  return post<void>(`/api/gb28181/ptz/control/${deviceId}/${channelId}?command=${command}&speed=${speed}&zoomSpeed=${zoomSpeed}`)
+}
+
+/**
  * 获取设备通道树（用于监控墙左侧树形选择）
  */
 export function getDeviceChannelTreeApi() {

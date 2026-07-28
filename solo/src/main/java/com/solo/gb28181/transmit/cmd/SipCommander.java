@@ -173,6 +173,26 @@ public class SipCommander {
 
     // ---------------- 内部 ----------------
 
+    /**
+     * 发送 PTZ 云台控制指令（SIP MESSAGE → DeviceControl/PTZCmd）
+     *
+     * @param device    目标设备
+     * @param channelId 通道国标 ID
+     * @param ptzCmd    8 字节 PTZ 控制码十六进制串（{@link com.solo.gb28181.utils.SipUtils#buildPtzCmd}）
+     */
+    public void sendPtzCmd(GbDevice device, String channelId, String ptzCmd) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildPtzControl(sn, channelId, ptzCmd, charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[云台控制] PTZ → deviceId={} channelId={} cmd={}", device.getDeviceId(), channelId, ptzCmd);
+        } catch (Exception e) {
+            log.error("[云台控制] PTZ 发送失败 deviceId={} channelId={}", device.getDeviceId(), channelId, e);
+        }
+    }
+
     private void send(GbDevice device, String xml, String cmdType, int sn) {
         try {
             CallIdHeader callId = headerProvider.newCallId(device);

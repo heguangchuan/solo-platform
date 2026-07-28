@@ -68,4 +68,41 @@ public final class DeviceCommandXml {
         sb.append("</Query>\r\n");
         return sb.toString();
     }
+
+    /**
+     * 构造一个 PTZ 云台控制 Control 报文（DeviceControl + PTZCmd）
+     *
+     * <p>报文示例：</p>
+     * <pre>
+     * &lt;?xml version="1.0" encoding="GB2312"?&gt;
+     * &lt;Control&gt;
+     *   &lt;CmdType&gt;DeviceControl&lt;/CmdType&gt;
+     *   &lt;SN&gt;123456&lt;/SN&gt;
+     *   &lt;DeviceID&gt;34020000001310000001&lt;/DeviceID&gt;
+     *   &lt;PTZCmd&gt;A50F01080064006416&lt;/PTZCmd&gt;
+     *   &lt;Info&gt;
+     *     &lt;ControlPriority&gt;5&lt;/ControlPriority&gt;
+     *   &lt;/Info&gt;
+     * &lt;/Control&gt;
+     * </pre>
+     *
+     * @param sn        命令序号
+     * @param channelId 通道国标 ID（PTZ 指令发给通道，不是设备）
+     * @param ptzCmd    8 字节 PTZ 控制码十六进制字符串（由 {@link com.solo.gb28181.utils.SipUtils#buildPtzCmd} 生成）
+     * @param charset   设备字符集
+     */
+    public static String buildPtzControl(int sn, String channelId, String ptzCmd, String charset) {
+        StringBuilder sb = new StringBuilder(320);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Control>\r\n");
+        sb.append("<CmdType>DeviceControl</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(channelId).append("</DeviceID>\r\n");
+        sb.append("<PTZCmd>").append(ptzCmd).append("</PTZCmd>\r\n");
+        sb.append("<Info>\r\n");
+        sb.append("<ControlPriority>5</ControlPriority>\r\n");
+        sb.append("</Info>\r\n");
+        sb.append("</Control>\r\n");
+        return sb.toString();
+    }
 }

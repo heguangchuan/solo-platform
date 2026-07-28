@@ -42,6 +42,7 @@ import {
   Aim,
   Switch,
   Connection,
+  Position,
 } from '@element-plus/icons-vue'
 import type { JessibucaInstance } from '@/types/jessibuca'
 
@@ -70,6 +71,8 @@ const emit = defineEmits<{
   'switch-stream': [value: string]
   'switch-transport': [t: 'UDP' | 'TCP-passive' | 'TCP-active']
   refresh: []
+  /** 云台控制：direction 为方向/动作，pressing=true 开始、false 停止 */
+  ptz: [direction: string, pressing: boolean]
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -117,6 +120,28 @@ const TRANSPORTS: Array<{ label: string; value: 'UDP' | 'TCP-passive' | 'TCP-act
   { label: 'TCP 被动', value: 'TCP-passive' },
   { label: 'TCP 主动', value: 'TCP-active' },
 ]
+
+// ============ 云台控制 ============
+const ptzVisible = ref(false)
+let ptzActive = '' // 当前按住的方向
+
+function onPtzStart(direction: string) {
+  ptzActive = direction
+  emit('ptz', direction, true)
+  window.addEventListener('mouseup', onPtzGlobalUp, { once: true })
+}
+
+function onPtzGlobalUp() {
+  if (!ptzActive) return
+  emit('ptz', ptzActive, false)
+  ptzActive = ''
+}
+
+function onPtzStop(_direction: string) {
+  // 中间停止键专用（单击即停）
+  ptzActive = ''
+  emit('ptz', 'stop', false)
+}
 
 // ============ 播放器生命周期 ============
 
@@ -526,6 +551,35 @@ function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
           </template>
           <el-button text size="small" :icon="Connection" title="收流模式" />
         </el-tooltip>
+        <el-tooltip
+          v-model:visible="ptzVisible"
+          trigger="click"
+          placement="top"
+          effect="dark"
+          popper-class="ptz-panel-popper"
+          :show-arrow="false"
+        >
+          <template #content>
+            <div class="ptz-panel">
+              <div class="ptz-grid">
+                <div class="ptz-btn" @mousedown="onPtzStart('up-left')">↖</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('up')">↑</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('up-right')">↗</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('left')">←</div>
+                <div class="ptz-btn ptz-center" @click="onPtzStop('stop')">●</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('right')">→</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('down-left')">↙</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('down')">↓</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('down-right')">↘</div>
+              </div>
+              <div class="ptz-zoom">
+                <div class="ptz-btn" @mousedown="onPtzStart('zoom-in')">🔍+</div>
+                <div class="ptz-btn" @mousedown="onPtzStart('zoom-out')">🔍−</div>
+              </div>
+            </div>
+          </template>
+          <el-button text size="small" :icon="Position" title="云台控制" />
+        </el-tooltip>
         <el-tooltip content="截图">
           <el-button text size="small" :icon="Camera" @click="takeScreenshot" />
         </el-tooltip>
@@ -683,5 +737,59 @@ function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
 .stream-menu-item.is-active {
   color: #409eff;
   font-weight: 600;
+}
+
+/* 云台控制面板 */
+.ptz-panel-popper.el-popper.is-dark {
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 10px;
+}
+.ptz-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+.ptz-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  grid-template-rows: repeat(3, 36px);
+  gap: 4px;
+}
+.ptz-zoom {
+  display: flex;
+  gap: 4px;
+}
+.ptz-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d6d8db;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s, color 0.15s;
+}
+.ptz-btn:hover {
+  background: rgba(64, 158, 255, 0.25);
+  color: #409eff;
+}
+.ptz-btn:active {
+  background: rgba(64, 158, 255, 0.45);
+  color: #fff;
+}
+.ptz-center {
+  background: rgba(255, 255, 255, 0.15);
+  color: #f56c6c;
+  font-size: 12px;
+}
+.ptz-center:hover {
+  background: rgba(245, 108, 108, 0.25);
+  color: #f56c6c;
 }
 </style>
