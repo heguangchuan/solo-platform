@@ -8,7 +8,7 @@
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import type { PlayResultVO } from '@/types/api'
-import { startPlayApi, stopPlayApi } from '@/api/gb28181'
+import { startPlayApi, stopPlayApi, ptzControlApi } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
 
 const visible = ref(false)
@@ -135,6 +135,31 @@ function onStreamEnd() {
   statusText.value = '视频流已结束'
 }
 
+/**
+ * 云台控制（PTZ）— 前端方向映射到后端 command
+ * pressing=true → 发起移动/缩放；pressing=false → 发 stop
+ */
+const PTZ_CMD_MAP: Record<string, string> = {
+  'up': 'up',
+  'down': 'down',
+  'left': 'left',
+  'right': 'right',
+  'up-left': 'upleft',
+  'up-right': 'upright',
+  'down-left': 'downleft',
+  'down-right': 'downright',
+  'zoom-in': 'zoomin',
+  'zoom-out': 'zoomout',
+}
+
+function handlePtz(direction: string, pressing: boolean) {
+  if (!deviceIdRef.value || !channelIdRef.value) return
+  const command = pressing ? (PTZ_CMD_MAP[direction] || 'stop') : 'stop'
+  ptzControlApi(deviceIdRef.value, channelIdRef.value, command).catch(() => {
+    // 云台指令静默失败，不打断用户操作
+  })
+}
+
 async function handleStopBackend(silent: boolean) {  if (!streamInfo.value?.streamId) return
   try {
     await stopPlayApi({ streamId: streamInfo.value.streamId })
@@ -181,6 +206,7 @@ defineExpose({ open })
       @refresh="handleRefresh"
       @switch-stream="handleSwitchStream"
       @switch-transport="handleSwitchTransport"
+      @ptz="handlePtz"
     />
 
     <template #footer>

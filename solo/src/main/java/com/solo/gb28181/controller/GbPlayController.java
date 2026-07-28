@@ -1,6 +1,5 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
@@ -28,7 +27,6 @@ public class GbPlayController {
      * 开始点播
      */
     @PostMapping("/start")
-    @RequirePermission({"gb28181:play:start"})
     public Result<PlayResultResponse> start(@RequestBody PlayStartRequest req) {
         return Result.success(playService.start(req));
     }
@@ -37,7 +35,6 @@ public class GbPlayController {
      * 停止点播
      */
     @PostMapping("/stop")
-    @RequirePermission({"gb28181:play:stop"})
     public Result<Void> stop(@RequestBody PlayStopRequest req) {
         playService.stop(req);
         return Result.success();

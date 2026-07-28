@@ -1,6 +1,5 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.gb28181.request.PlaybackControlRequest;
 import com.solo.gb28181.request.PlaybackStartRequest;
@@ -30,21 +29,18 @@ public class GbPlaybackController {
 
     /** 录像查询（RecordInfo） */
     @PostMapping("/query")
-    @RequirePermission({"gb28181:playback:query"})
     public Result<List<RecordItemResponse>> query(@RequestBody RecordInfoQueryRequest req) {
         return Result.success(playbackService.queryRecordInfo(req));
     }
 
     /** 开始回放 */
     @PostMapping("/start")
-    @RequirePermission({"gb28181:playback:start"})
     public Result<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req) {
         return Result.success(playbackService.start(req));
     }
 
     /** 停止回放 */
     @PostMapping("/stop")
-    @RequirePermission({"gb28181:playback:stop"})
     public Result<Void> stop(@RequestBody PlaybackStopRequest req) {
         playbackService.stop(req);
         return Result.success();
@@ -52,7 +48,6 @@ public class GbPlaybackController {
 
     /** 回放控制：pause / resume / seek / speed */
     @PostMapping("/control")
-    @RequirePermission({"gb28181:playback:control"})
     public Result<Void> control(@RequestBody PlaybackControlRequest req) {
         playbackService.control(req);
         return Result.success();

@@ -173,17 +173,17 @@ public class SipUtils {
         if (inOut == 2) cmdCode |= 0x10;           // 放大
         else if (inOut == 1) cmdCode |= 0x20;      // 缩小
 
-        // 低倍速 zoom 优化
-        if (zoomSpeed > 0 && zoomSpeed < 16) zoomSpeed = 16;
+        // zoom 速度：byte6 高 4 位有效(0x00-0xF0)，低 4 位固定 0
+        int zoomByte = (zoomSpeed & 0x0F) << 4;
 
         StringBuilder b = new StringBuilder("A50F01");
         b.append(String.format("%02X", cmdCode));
         b.append(String.format("%02X", moveSpeed));
         b.append(String.format("%02X", moveSpeed));
-        b.append(String.format("%X", zoomSpeed)).append('0');
+        b.append(String.format("%02X", zoomByte));
 
-        // 校验和：低 8 位
-        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + moveSpeed + moveSpeed + (zoomSpeed & 0xF0)) % 0x100;
+        // 校验和：字节 0-6 累加取低 8 位
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + moveSpeed + moveSpeed + zoomByte) & 0xFF;
         b.append(String.format("%02X", checkCode));
         return b.toString();
     }
