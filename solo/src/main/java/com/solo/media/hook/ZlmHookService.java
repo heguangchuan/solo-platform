@@ -96,17 +96,18 @@ public class ZlmHookService {
 
         // autoApplyPlay 开启时，流不存在自动发起点播
         if (mediaProperties.isAutoApplyPlay()) {
-            // streamId 格式: {deviceId}_{channelId} 和前端点播一致
-            String[] parts = null;
-            if (stream != null) {
-                parts = stream.split("_", 2);
-            }
+            // streamId 格式: 主码流 {deviceId}_{channelId}（与前端点播一致）；
+            // 子码流为 {deviceId}_{channelId}_{sanitize(码流token)}，其后缀经过 sanitize 不可逆推回原始
+            // 厂商 token，故按需拉流只对主码流生效；子码流靠前端显式 start（带 token）拉起，此处跳过。
+            String[] parts = stream == null ? null : stream.split("_");
             if (parts != null && parts.length == 2) {
                 String deviceId = parts[0];
                 String channelId = parts[1];
                 log.info("[ZLM 回调] on_stream_not_found 自动发起点播 deviceId={} channelId={}", deviceId, channelId);
                 // 异步发起点播，不阻塞 ZLM 回调
                 playService.autoStartPlay(deviceId, channelId, mediaServerId);
+            } else if (parts != null && parts.length > 2) {
+                log.info("[ZLM 回调] on_stream_not_found 子码流流名 stream={}，按需拉流跳过（需前端带 token 显式点播）", stream);
             }
         }
         // 默认：允许 pull，autoApplyPlay 已经异步处理，ZLM 等待推送即可
@@ -174,38 +175,16 @@ public class ZlmHookService {
 
     public HookResult onStreamNoneReader(Map<String, Object> body) {
         String stream = stringOf(body, "stream");
-        String mediaServerId = stringOf(body, "mediaServerId");
         String originTypeStr = stringOf(body, "originTypeStr");
-        // close=false：前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟，立刻关流会导致前端拉不到。
-        // 流的回收完全靠业务侧（stop API / on_rtp_server_timeout）
+        // close=false：前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟；刷新 / 切码流 / 网络抖动也会造成
+        // 短暂无人观看的空窗，若此时立刻关流，用户重连要重新走一遍 INVITE。故这里不立即关，
+        // 流的回收统一靠业务侧：stop API（用户主动关闭）+ on_rtp_server_timeout（RTP 端口长时间无数据兜底）。
+        // 注：ZLM 的 on_stream_none_reader 回调不带 originTypeStr（实测为 null），故不以它做判据，仅记录。
         boolean close = false;
+        boolean known = inviteSessionService.getByStreamId(stream) != null;
 
-        // 只对"平台自己拉起来"的流（国标 INVITE 的 rtp_push、拉流代理的 pull）应用按需回收；
-        // 推流类型（rtmp_push / rtsp_push / rtc_push）由客户端主动推，无人看 ≠ 该关，否则 ffmpeg 侧会 WSAECONNABORTED。
-        boolean isPullOrInvite = "rtp_push".equals(originTypeStr)
-                || "pull".equals(originTypeStr)
-                || "ffmpeg_pull".equals(originTypeStr);
-
-        // streamOnDemand 开启时，如果没有人看，告诉 ZLM 关闭流，释放资源（仅限拉起来的流）
-        if (mediaProperties.isStreamOnDemand() && isPullOrInvite) {
-            close = true;
-            // 异步清理 GB28181 会话资源
-            if ("rtsp".equalsIgnoreCase(stringOf(body, "schema"))) {
-                GbInviteSession session = inviteSessionService.getByStreamId(stream);
-                if (session != null) {
-                    log.info("[按需拉流] on_stream_none_reader 关闭空闲流 stream={}", stream);
-                    if (session.getSessionType().equals(GbInviteSession.TYPE_PLAYBACK)
-                            || session.getSessionType().equals(GbInviteSession.TYPE_DOWNLOAD)) {
-                        playbackService.onRtpServerTimeout(stream);
-                    } else {
-                        playService.onRtpServerTimeout(stream);
-                    }
-                }
-            }
-        }
-
-        log.info("[ZLM 回调] on_stream_none_reader stream={} originType={} -> close={}",
-                stream, originTypeStr, close);
+        log.info("[ZLM 回调] on_stream_none_reader stream={} originType={} 会话在册={} -> close={}",
+                stream, originTypeStr, known, close);
         return HookResult.ok().put("close", close);
     }
 

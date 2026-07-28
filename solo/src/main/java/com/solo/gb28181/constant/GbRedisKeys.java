@@ -28,7 +28,7 @@ public interface GbRedisKeys {
     /** SSRC 索引：y:{ssrc} */
     String INVITE_BY_SSRC = INVITE_PREFIX + "y:";
 
-    /** 设备通道索引：d:{deviceId}:{channelId} */
+    /** 设备通道索引：d:{deviceId}:{channelId} = Set&lt;streamId&gt;（同通道可并存多路码流） */
     String INVITE_BY_DEVICE_CHANNEL = INVITE_PREFIX + "d:";
 
     /** 所有活跃会话全集 Set */

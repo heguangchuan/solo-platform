@@ -19,7 +19,7 @@
  * <h3>事件</h3>
  * <ul>
  *   <li>{@code playing/pause/error/timeout} — 内部状态</li>
- *   <li>{@code switch-stream} — 子码流切换（主/辅）— 业务层处理</li>
+ *   <li>{@code switch-stream} — 码流切换（主/子码流，抛档位 value）— 业务层处理</li>
  *   <li>{@code switch-transport} — UDP/TCP 切换 — 业务层处理</li>
  *   <li>{@code refresh} — 用户点了"刷新"，业务层重新 start API</li>
  * </ul>
@@ -51,12 +51,14 @@ const props = withDefaults(
     hasAudio?: boolean
     /** 容器高度（默认 360px） */
     height?: string
-    /** 当前子码流（业务层维护，传给 toolbar 显示） */
-    streamType?: 'main' | 'sub'
+    /** 可选码流档位（业务层传入）；不传或不足 2 档则不显示码流切换按钮。value 为发给后端的码流 token（空串=主码流） */
+    streams?: Array<{ label: string; value: string }>
+    /** 当前码流档位 value（业务层维护，传给 toolbar 显示） */
+    currentStream?: string
     /** 当前收流模式（业务层维护，传给 toolbar 显示） */
     transport?: 'UDP' | 'TCP-passive'
   }>(),
-  { hasAudio: true, height: '420px', streamType: 'main', transport: 'UDP' },
+  { hasAudio: true, height: '420px', streams: () => [], currentStream: '', transport: 'UDP' },
 )
 
 const emit = defineEmits<{
@@ -65,7 +67,7 @@ const emit = defineEmits<{
   error: [msg: string]
   timeout: []
   streamEnd: []
-  'switch-stream': [type: 'main' | 'sub']
+  'switch-stream': [value: string]
   'switch-transport': [t: 'UDP' | 'TCP-passive']
   refresh: []
 }>()
@@ -101,6 +103,11 @@ const resolutionText = computed(() =>
 )
 const bandwidthText = computed(() => (kBps.value > 0 ? `${kBps.value} KB/s` : '—'))
 const fpsText = computed(() => (playFps.value > 0 ? `${playFps.value} fps` : '—'))
+
+// ============ 码流切换 ============
+// 业务层传入 streams（>=2 档）才显示切换按钮；点击按钮弹出码流选项浮层，点选即切换。
+const showStreamSwitch = computed(() => props.streams.length >= 2)
+const streamMenuVisible = ref(false)
 
 // ============ 播放器生命周期 ============
 
@@ -402,8 +409,10 @@ function handleRefresh() {
   emit('refresh')
 }
 
-function handleSwitchStream() {
-  emit('switch-stream', props.streamType === 'main' ? 'sub' : 'main')
+function handleSwitchStream(value: string) {
+  streamMenuVisible.value = false
+  if (value === props.currentStream) return
+  emit('switch-stream', value)
 }
 
 function handleSwitchTransport() {
@@ -446,9 +455,6 @@ function handleSwitchTransport() {
         <el-tooltip content="全屏">
           <el-button text size="small" :icon="FullScreen" @click="toggleFullscreen" />
         </el-tooltip>
-        <el-tooltip :content="props.streamType === 'main' ? '主码流 · 点击切到辅码流' : '辅码流 · 点击切到主码流'">
-          <el-button text size="small" :icon="Switch" @click="handleSwitchStream" />
-        </el-tooltip>
         <el-tooltip :content="props.transport === 'UDP' ? 'UDP 收流 · 点击切 TCP' : 'TCP 收流 · 点击切 UDP'">
           <el-button text size="small" :icon="Connection" @click="handleSwitchTransport" />
         </el-tooltip>
@@ -466,6 +472,29 @@ function handleSwitchTransport() {
         </el-tooltip>
         <el-tooltip :content="isMuted ? '取消静音' : '静音'">
           <el-button text size="small" :icon="isMuted ? Mute : Microphone" @click="toggleMute" />
+        </el-tooltip>
+        <el-tooltip
+          v-if="showStreamSwitch"
+          v-model:visible="streamMenuVisible"
+          trigger="click"
+          placement="top"
+          effect="dark"
+          popper-class="stream-menu"
+        >
+          <template #content>
+            <div class="stream-menu-list">
+              <div
+                v-for="s in streams"
+                :key="s.value"
+                class="stream-menu-item"
+                :class="{ 'is-active': s.value === currentStream }"
+                @click="handleSwitchStream(s.value)"
+              >
+                {{ s.label }}
+              </div>
+            </div>
+          </template>
+          <el-button text size="small" :icon="Switch" title="码流切换" />
         </el-tooltip>
         <el-tooltip content="截图">
           <el-button text size="small" :icon="Camera" @click="takeScreenshot" />
@@ -589,5 +618,40 @@ function handleSwitchTransport() {
   border-radius: 12px;
   z-index: 10;
   pointer-events: none;
+}
+</style>
+
+<!-- 码流选项浮层 teleport 到 body，scoped 够不到，用 popper-class 定制（非 scoped） -->
+<style>
+/* 用 el-tooltip 的 dark effect 打底，这里贴合工具栏色调并去掉默认内边距 */
+.stream-menu.el-popper.is-dark {
+  background: rgba(20, 20, 20, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px;
+}
+.stream-menu .el-popper__arrow::before {
+  background: rgba(20, 20, 20, 0.95) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+.stream-menu-list {
+  display: flex;
+  flex-direction: column;
+  min-width: 120px;
+}
+.stream-menu-item {
+  padding: 6px 12px;
+  font-size: 12px;
+  color: #d6d8db;
+  border-radius: 3px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stream-menu-item:hover {
+  background: rgba(64, 158, 255, 0.15);
+  color: #409eff;
+}
+.stream-menu-item.is-active {
+  color: #409eff;
+  font-weight: 600;
 }
 </style>

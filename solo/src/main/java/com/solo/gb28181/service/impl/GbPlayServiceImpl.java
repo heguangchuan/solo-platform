@@ -128,26 +128,35 @@ public class GbPlayServiceImpl implements GbPlayService {
             throw new ServiceException("通道离线，无法点播");
         }
 
-        // 幂等：同一个通道同一时间只允许一个活跃点播
-        List<GbInviteSession> exist = inviteSessionService.listActiveByDeviceAndChannel(
-                req.getDeviceId(), req.getChannelId());
-        for (GbInviteSession s : exist) {
-            if (GbInviteSession.STATUS_READY.equals(s.getStatus())) {
-                // 已经就绪，直接复用，避免重复邀请浪费资源
-                log.info("[实时点播] 复用已就绪会话 stream={}", s.getStreamId());
-                return toResult(s);
+        // 码流 token 两种形态：
+        //   rawToken   —— 原始带冒号 token（如 streamnumber:1），写进 SDP 的 a= 行，设备据此选主/子码流
+        //   streamNumber —— 冒号转下划线后的归一值（如 streamnumber_1），用于 streamId 后缀 / 会话持久化 / 日志
+        String rawToken = rawStreamNumber(req.getStreamNumber());
+        String streamNumber = normalizeStreamNumber(req.getStreamNumber());
+        log.info("[实时点播] 收到点播请求 device={} channel={} 码流={}",
+                req.getDeviceId(), req.getChannelId(), streamLabel(streamNumber));
+
+        // streamId 携带码流后缀：主码流用裸 dev_chan（向后兼容 / 兼容按需拉流 streamId），
+        // 子码流附加归一后的 token 后缀，使主/子成为 ZLM 里两路独立的流，支持不同人同时看不同码流。
+        String streamId = buildStreamId(req.getDeviceId(), req.getChannelId(), streamNumber);
+
+        // 幂等：以 streamId（= 通道 + 码流）为粒度判定，不同码流互不影响
+        GbInviteSession existing = inviteSessionService.getByStreamId(streamId);
+        if (existing != null) {
+            if (GbInviteSession.STATUS_READY.equals(existing.getStatus())) {
+                // 同通道同码流已就绪：直接复用（多观看者共享同一路 ZLM 流）
+                log.info("[实时点播] 复用已就绪会话 stream={} 码流={}", streamId, streamLabel(streamNumber));
+                return toResult(existing);
             }
-            if (GbInviteSession.STATUS_INVITING.equals(s.getStatus())) {
-                // 正在邀请中，告诉前端稍候，不要重复发起 INVITE 导致重复流
-                log.warn("[实时点播] 该通道正在点播邀请中，请稍后重试 device={} channel={}",
-                        req.getDeviceId(), req.getChannelId());
+            if (GbInviteSession.STATUS_INVITING.equals(existing.getStatus())) {
+                // 同通道同码流正在邀请中，告诉前端稍候，不要重复发起 INVITE 导致重复流
+                log.warn("[实时点播] 该通道该码流正在点播邀请中，请稍后重试 stream={}", streamId);
                 throw new ServiceException("该通道正在请求点播，请稍后重试");
             }
         }
 
         MediaServer server = support.pickMediaServer();
         String transport = support.normalizeTransport(req.getTransport());
-        String streamId = req.getDeviceId() + "_" + req.getChannelId();
 
         String ssrc = ssrcFactory.acquire(server.getServerId(), false);
         int rtpPort;
@@ -176,6 +185,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setSsrc(ssrc);
         session.setRtpPort(rtpPort);
         session.setTransport(transport);
+        session.setStreamNumber(streamNumber);
         session.setCallId(callId);
         session.setFromTag(fromTag);
         session.setSessionType(GbInviteSession.TYPE_PLAY);
@@ -191,7 +201,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             // 跟 solo 自己的 SIP 监听 IP 无关。否则设备照 SDP 推到 solo 上，ZLM 永远收不到包。
             String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                     ? server.getStreamIp() : server.getHostIp();
-            String sdpBody = SdpBuilder.buildPlay(sipProperties.getId(), sdpIp, rtpPort, ssrc, transport);
+            String sdpBody = SdpBuilder.buildPlay(sipProperties.getId(), sdpIp, rtpPort, ssrc, transport, rawToken);
             long inviteTimeoutMs = Math.max(5_000L, mediaProperties.getInviteTimeoutSeconds() * 1000L);
 
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, callIdHeader, fromTag,
@@ -344,7 +354,8 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setRtcUrl(urlBuilder.buildRtc(server, APP, stream));
         inviteSessionService.update(session);
 
-        log.info("[实时点播] 流就绪 stream={} wsFlv={}", stream, session.getWsFlvUrl());
+        log.info("[实时点播] 流就绪 stream={} 码流={} wsFlv={}",
+                stream, streamLabel(session.getStreamNumber()), session.getWsFlvUrl());
 
         // 唤醒等待中的 future
         CompletableFuture<PlayResultResponse> f = pending.remove(stream);
@@ -452,11 +463,48 @@ public class GbPlayServiceImpl implements GbPlayService {
         vo.setSsrc(session.getSsrc());
         vo.setRtpPort(session.getRtpPort());
         vo.setTransport(session.getTransport());
+        vo.setStreamNumber(session.getStreamNumber());
         vo.setFlvUrl(session.getFlvUrl());
         vo.setWsFlvUrl(session.getWsFlvUrl());
         vo.setHlsUrl(session.getHlsUrl());
         vo.setRtcUrl(session.getRtcUrl());
         return vo;
+    }
+
+    /**
+     * 原始码流 token：空白 → null（主码流）；否则仅 trim，**保留冒号原样**。
+     * <p>用于写进 SDP 的 {@code a=<token>} 行（如 {@code a=streamnumber:1}）——设备据此选主/子码流。
+     * SDP a= 行允许冒号，故这里不做替换。</p>
+     */
+    private static String rawStreamNumber(String streamNumber) {
+        return streamNumber == null || streamNumber.isBlank() ? null : streamNumber.trim();
+    }
+
+    /**
+     * 归一码流 token：空白 → null（主码流）；否则 trim 并**把所有冒号替换为下划线**。
+     * <p>用于 streamId 后缀 / 会话持久化 / 日志——冒号在 ZLM 流名、播放 URL 里非法，故换成下划线
+     * （{@code streamnumber:1} → {@code streamnumber_1}）。SDP a= 行则用 {@link #rawStreamNumber} 的带冒号原值。</p>
+     */
+    private static String normalizeStreamNumber(String streamNumber) {
+        if (streamNumber == null || streamNumber.isBlank()) {
+            return null;
+        }
+        return streamNumber.trim().replace(":", "_");
+    }
+
+    /**
+     * 组装 streamId（= ZLM 流名）。主码流用裸 {@code dev_chan}（向后兼容按需拉流等既有 streamId 约定）；
+     * 子码流附加 token 后缀，使主/子在 ZLM 里成为两路独立的流，支持不同人同时看不同码流。
+     * <p>token 已由 {@link #normalizeStreamNumber} 归一（冒号换下划线），直接拼接即为合法 ZLM 流名。</p>
+     */
+    private static String buildStreamId(String deviceId, String channelId, String streamNumber) {
+        String base = deviceId + "_" + channelId;
+        return streamNumber == null || streamNumber.isBlank() ? base : base + "_" + streamNumber;
+    }
+
+    /** 码流类型日志标签 */
+    private static String streamLabel(String streamNumber) {
+        return streamNumber == null || streamNumber.isBlank() ? "主码流" : "子码流(token=" + streamNumber.trim() + ")";
     }
 
     @Override

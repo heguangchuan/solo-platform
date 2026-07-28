@@ -112,7 +112,7 @@ public class SipCommander {
      *
      * @param device     目标设备
      * @param channelId  通道国标 ID
-     * @param sdpBody    SDP 报文（由 {@link SdpBuilder} 生成）
+     * @param sdpBody    SDP 报文（由 {@link SdpBuilder} 生成，码流标识已写入其 a= 行）
      * @param ssrc       10 位 SSRC
      * @param callId     调用方持有的 Call-Id（保存到 invite session）
      * @param fromTag    调用方持有的 from-tag（保存到 invite session）
