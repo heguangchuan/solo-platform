@@ -123,8 +123,8 @@ public class PlatformCommander {
 
     private void doSendCatalogResponse(GbParentPlatform platform, String sn,
                                        List<GbGroup> groups, List<GbDeviceChannel> channels) {
-        // group.id (主键) -> group.groupId (20 位国标码)：只包含"在共享列表内"的分组，供子节点 ParentID 反查
-        Map<String, String> groupIdCode = new HashMap<>(groups.size() * 2);
+        // group.id (雪花主键) -> group.groupId (20 位国标码)：只包含"在共享列表内"的分组，供子节点 ParentID 反查
+        Map<Long, String> groupIdCode = new HashMap<>(groups.size() * 2);
         for (GbGroup g : groups) {
             groupIdCode.put(g.getId(), g.getGroupId());
         }
@@ -172,7 +172,7 @@ public class PlatformCommander {
 
     private void sendOnePage(GbParentPlatform platform, String sn, int sumNum,
                              List<GbGroup> pageGroups, List<GbDeviceChannel> pageChannels,
-                             Map<String, String> groupIdCode, int pageIdx, int totalPages) {
+                             Map<Long, String> groupIdCode, int pageIdx, int totalPages) {
         String localIp = headerProvider.localIp(platform);
         String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
         try {

@@ -107,9 +107,9 @@ public class Gb28181Properties {
     public static class DefaultGroup {
 
         /**
-         * 默认分组固定主键（gb_group.id = 通道 group_id 兜底值；仅默认分组用 0000）
+         * 默认分组固定主键（
          */
-        private String id = "0000";
+        private Long id ;
 
         /**
          * 默认分组国标 ID（20 位，215 业务分组码），拼 Catalog 上报上级用

@@ -79,7 +79,7 @@ public class GbGroupController {
     /** 删除分组（默认分组不可删；通道回落默认分组） */
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:group:delete"})
-    public Result<Void> delete(@PathVariable String id) {
+    public Result<Void> delete(@PathVariable Long id) {
         groupService.deleteById(id);
         return Result.success();
     }

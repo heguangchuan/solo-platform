@@ -25,11 +25,11 @@ public class GbGroupBootstrap {
     @PostConstruct
     void init() {
         Gb28181Properties.DefaultGroup cfg = properties.getDefaultGroup();
-        if (cfg == null || cfg.getId() == null || cfg.getId().isBlank()) {
+        if (cfg == null || cfg.getId() == null) {
             log.error("[资源目录] gb28181.default-group.id 未配置，通道无默认分组可挂。请在 application.yaml 补齐。");
             return;
         }
-        String id = cfg.getId().trim();
+        Long id = cfg.getId();
         String groupId = cfg.getGroupId() == null ? null : cfg.getGroupId().trim();
         if (groupId == null || groupId.isBlank()) {
             log.error("[资源目录] gb28181.default-group.group-id 未配置，级联 Catalog 无法上报默认目录。请在 application.yaml 补齐。");
@@ -64,7 +64,7 @@ public class GbGroupBootstrap {
         group.setId(id);
         group.setGroupId(groupId);
         group.setName(name);
-        group.setParentId("0");
+        group.setParentId(0L);
         group.setPlatformId("0000");
         group.setSort(1);
         groupService.save(group);
