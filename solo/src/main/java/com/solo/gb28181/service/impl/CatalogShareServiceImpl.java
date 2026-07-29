@@ -165,7 +165,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     .filter(existing::contains)
                     .filter(cid -> !exposedByChannel.containsKey(cid))
                     .distinct()
-                    .collect(Collectors.toList());
+                    .toList();
             List<String> newCodes = gbCodeGenerator.nextExposedChannelCodes(needCode.size());
             for (int i = 0; i < needCode.size(); i++) {
                 exposedByChannel.put(needCode.get(i), newCodes.get(i));
