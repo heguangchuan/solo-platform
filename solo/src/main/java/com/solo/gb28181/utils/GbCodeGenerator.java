@@ -14,6 +14,9 @@ import com.solo.gb28181.mapper.GbGroupMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * GB/T 28181-2016 附录 D 编码生成器。
  *
@@ -127,6 +130,19 @@ public class GbCodeGenerator {
      * 且是合法 20 位纯数字（满足海康等上级校验）。</p>
      */
     public String nextExposedChannelCode() {
+        return nextExposedChannelCodes(1).get(0);
+    }
+
+    /**
+     * 批量生成 {@code count} 个连续的「对上级暴露」通道国标码。
+     *
+     * <p>只扫描一次全表已用 exposed_code 取同前缀最大序号，之后在内存里连续 +1 分配，
+     * 避免调用方逐个通道触发全表扫描（N 通道 → N 次扫描的 O(n²)）。语义同 {@link #nextExposedChannelCode()}。</p>
+     *
+     * @param count 需要的码数量；&le;0 返回空列表
+     */
+    public List<String> nextExposedChannelCodes(int count) {
+        if (count <= 0) return List.of();
         String prefix13 = domainPrefix10() + DEFAULT_CHANNEL_TYPE;
         LambdaQueryWrapper<GbPlatformShare> wrapper = new LambdaQueryWrapper<GbPlatformShare>()
                 .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
@@ -137,7 +153,11 @@ public class GbCodeGenerator {
             int seq = parseTailSeq(share.getExposedCode(), prefix13);
             if (seq > max) max = seq;
         }
-        return prefix13 + pad7(max + 1);
+        List<String> codes = new ArrayList<>(count);
+        for (int i = 1; i <= count; i++) {
+            codes.add(prefix13 + pad7(max + i));
+        }
+        return codes;
     }
 
     /** 返回本平台域前 10 位；未配置或非 10 位数字直接报错 */

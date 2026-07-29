@@ -1,6 +1,7 @@
 package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.entity.GbPlatformShare;
@@ -119,23 +120,24 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     @Transactional
     public void saveShared(Long platformId, GbPlatformShareSaveRequest request) {
         // 通道 exposed_code 须在删除前解析：全量覆盖会先删本平台旧行，若本平台是该通道唯一分享方，
-        // 删后 findExposedCodeByResourceId 取不到，会重新生成不同码 → 破坏上级已缓存的旧码。
-        // 故先按 resource_id 捞已分配的 exposed_code（任一平台行），保证同一通道 exposed_code 恒定。
+        // 删后就取不到，会重新生成不同码 → 破坏上级已缓存的旧码。
+        // 故先按 resource_id 一次性捞已分配的 exposed_code（任一平台行），保证同一通道 exposed_code 恒定。
         List<Long> channelIds = parseIds(request.getChannelIds(), CHANNEL_PREFIX);
         Map<Long, String> exposedByChannel = new HashMap<>();
-        for (Long cid : channelIds) {
-            GbPlatformShare share = shareMapper.selectOne(new LambdaQueryWrapper<GbPlatformShare>()
-                    .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
-                    .eq(GbPlatformShare::getResourceId, cid)
-                    .isNotNull(GbPlatformShare::getExposedCode)
-                    .select(GbPlatformShare::getExposedCode)
-                    .last("LIMIT 1"));
-            if (share != null) exposedByChannel.put(cid, share.getExposedCode());
+        if (!channelIds.isEmpty()) {
+            shareMapper.selectList(new LambdaQueryWrapper<GbPlatformShare>()
+                            .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
+                            .in(GbPlatformShare::getResourceId, channelIds)
+                            .isNotNull(GbPlatformShare::getExposedCode)
+                            .select(GbPlatformShare::getResourceId, GbPlatformShare::getExposedCode))
+                    .forEach(s -> exposedByChannel.putIfAbsent(s.getResourceId(), s.getExposedCode()));
         }
 
         // 全量覆盖：先删该平台旧的共享关系
         shareMapper.delete(new LambdaQueryWrapper<GbPlatformShare>()
                 .eq(GbPlatformShare::getPlatformId, platformId));
+
+        List<GbPlatformShare> toInsert = new ArrayList<>();
 
         // 分组：解析 g_ 前缀主键，过滤已不存在的分组后入库
         List<Long> groupIds = parseIds(request.getGroupIds(), GROUP_PREFIX);
@@ -147,7 +149,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     .collect(Collectors.toSet());
             for (Long gid : groupIds) {
                 if (!existing.contains(gid)) continue; // 分组已不存在，跳过
-                shareMapper.insert(newShare(platformId, gid, GbPlatformShare.TYPE_GROUP, null));
+                toInsert.add(newShare(platformId, gid, GbPlatformShare.TYPE_GROUP, null));
             }
         }
 
@@ -158,15 +160,24 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     .stream()
                     .map(GbDeviceChannel::getId)
                     .collect(Collectors.toSet());
+            // 现存且尚无 exposed_code 的通道，一次性批量取码（避免逐个通道全表扫描的 O(n²)）
+            List<Long> needCode = channelIds.stream()
+                    .filter(existing::contains)
+                    .filter(cid -> !exposedByChannel.containsKey(cid))
+                    .distinct()
+                    .collect(Collectors.toList());
+            List<String> newCodes = gbCodeGenerator.nextExposedChannelCodes(needCode.size());
+            for (int i = 0; i < needCode.size(); i++) {
+                exposedByChannel.put(needCode.get(i), newCodes.get(i));
+            }
             for (Long cid : channelIds) {
                 if (!existing.contains(cid)) continue; // 通道已不存在，跳过
-                String exposed = exposedByChannel.get(cid);
-                if (exposed == null) {
-                    exposed = gbCodeGenerator.nextExposedChannelCode();
-                    exposedByChannel.put(cid, exposed); // 同批多上级共享同一通道时复用，避免重复生成
-                }
-                shareMapper.insert(newShare(platformId, cid, GbPlatformShare.TYPE_CHANNEL, exposed));
+                toInsert.add(newShare(platformId, cid, GbPlatformShare.TYPE_CHANNEL, exposedByChannel.get(cid)));
             }
+        }
+
+        if (!toInsert.isEmpty()) {
+            Db.saveBatch(toInsert);
         }
 
         log.info("[通道推送] 保存共享: platformId={} 分组数={} 通道数={}",
