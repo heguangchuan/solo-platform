@@ -51,6 +51,9 @@ minio:
 logging:
   level:
     com.solo: info
+    # JAIN-SIP 协议栈内部日志（含收发报文摘要）默认压到 warn，避免刷屏影响排查；
+    # 调试设备方言 / SIP 交互时临时调成 info 或 debug。另见 gb28181.sip.sipLog（控制是否打完整报文体）。
+    gov.nist: warn
 
 # GB/T 28181 国标平台配置
 gb28181: # 是否启用国标服务

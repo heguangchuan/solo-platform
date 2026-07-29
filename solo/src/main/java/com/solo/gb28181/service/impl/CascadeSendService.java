@@ -79,7 +79,7 @@ public class CascadeSendService {
         // 1) 校验通道确已共享给该上级（loadSharedChannels 走 JOIN，天然做授权 + 定位真实设备）
         GbDeviceChannel channel = findSharedChannel(platform.getId(), channelId);
         if (channel == null) {
-            log.warn("[{}] 上级 {} 点播未共享/不存在的通道 {}，回 404",
+            log.warn("[{}] 上级 {} 点播未共享/不存在的通道 上级通道编码(exposedCode)={}，回 404",
                     LOG_TAG, platform.getServerGbId(), channelId);
             sendError(request, Response.NOT_FOUND, "channel not shared");
             return;
@@ -96,8 +96,8 @@ public class CascadeSendService {
             sendError(request, Response.BAD_REQUEST, "invalid sdp");
             return;
         }
-        log.info("[{}] 收到上级点播 platform={} channel={} 目标={}:{} ssrc={} 传输={}",
-                LOG_TAG, platform.getServerGbId(), channelId, dstIp, dstPort, ssrc, transport);
+        log.info("[{}] 收到上级点播 上级平台={} 上级通道编码(exposedCode)={} 本平台通道编码={} 收流目标={}:{} ssrc={} 传输方式={}",
+                LOG_TAG, platform.getServerGbId(), channelId, channel.getChannelId(), dstIp, dstPort, ssrc, transport);
 
         // 3) 向真实下级设备取流（阻塞等流就绪；复用设备点播全链路）
         //    注意：上级来的 channelId 可能是 exposed_code，取流必须用真实通道原始 channelId + deviceId，
@@ -111,8 +111,8 @@ public class CascadeSendService {
             req.setStreamNumber(null);     // 级联点播固定主码流
             play = playService.start(req);
         } catch (Exception e) {
-            log.warn("[{}] 取流失败 platform={} channel={}: {}",
-                    LOG_TAG, platform.getServerGbId(), channelId, e.getMessage());
+            log.warn("[{}] 取流失败 上级平台={} 上级通道编码(exposedCode)={} 本平台通道编码={}: {}",
+                    LOG_TAG, platform.getServerGbId(), channelId, channel.getChannelId(), e.getMessage());
             sendError(request, Response.BUSY_HERE, "fetch stream failed");
             return;
         }
@@ -133,6 +133,7 @@ public class CascadeSendService {
         session.setPlatformServerGbId(platform.getServerGbId());
         session.setLocalGbId(platform.getDeviceGbId());
         session.setChannelId(channelId);
+        session.setLocalChannelId(channel.getChannelId());
         session.setDeviceId(channel.getDeviceId());
         session.setSrcApp(APP);
         session.setSrcStream(play.getStreamId());
@@ -172,8 +173,8 @@ public class CascadeSendService {
         try {
             SIPResponse ok = headerProvider.buildInviteOk(platform, request, answer, localToTag);
             sipSender.send(request.getLocalAddress().getHostAddress(), ok);
-            log.info("[{}] 回 200 OK platform={} channel={} srcStream={} 传输={} 待ACK={}",
-                    LOG_TAG, platform.getServerGbId(), channelId, play.getStreamId(),
+            log.info("[{}] 回 200 OK 上级平台={} 本平台通道编码={} srcStream={} 传输方式={} 待ACK={}",
+                    LOG_TAG, platform.getServerGbId(), channel.getChannelId(), play.getStreamId(),
                     transport, !upstreamActive);
         } catch (Exception e) {
             log.error("[{}] 回 200 OK 失败 callId={}: {}", LOG_TAG, callId, e.getMessage());
@@ -209,8 +210,8 @@ public class CascadeSendService {
             session.setStatus(CascadeSendSession.STATUS_SENDING);
             session.setSendTime(LocalDateTime.now());
             sendSessionService.update(session);
-            log.info("[{}] startSendRtp 已推流 platform={} channel={} dst={}:{} udp={}",
-                    LOG_TAG, session.getPlatformServerGbId(), session.getChannelId(),
+            log.info("[{}] startSendRtp 已推流 上级平台={} 本平台通道编码={} dst={}:{} udp={}",
+                    LOG_TAG, session.getPlatformServerGbId(), session.getLocalChannelId(),
                     session.getDstIp(), session.getDstPort(), udp);
         } catch (Exception e) {
             log.error("[{}] startSendRtp 失败 callId={}: {}", LOG_TAG, callId, e.getMessage());
@@ -224,8 +225,8 @@ public class CascadeSendService {
     public void onUpstreamBye(CascadeSendSession session) {
         if (session == null) return;
         cleanup(session, false);
-        log.info("[{}] 上级停播清理完成 platform={} channel={} srcStream={}",
-                LOG_TAG, session.getPlatformServerGbId(), session.getChannelId(), session.getSrcStream());
+        log.info("[{}] 上级停播清理完成 上级平台={} 本平台通道编码={} srcStream={}",
+                LOG_TAG, session.getPlatformServerGbId(), session.getLocalChannelId(), session.getSrcStream());
     }
 
     /**
@@ -250,8 +251,8 @@ public class CascadeSendService {
         for (CascadeSendSession s : sendSessionService.listAllActive()) {
             if (CascadeSendSession.STATUS_WAIT_ACK.equals(s.getStatus())
                     && s.getCreateTime() != null && s.getCreateTime().isBefore(deadline)) {
-                log.warn("[{}] 等待上级 ACK 超时，释放并 BYE 上级 platform={} channel={}",
-                        LOG_TAG, s.getPlatformServerGbId(), s.getChannelId());
+                log.warn("[{}] 等待上级 ACK 超时，释放并 BYE 上级 上级平台={} 本平台通道编码={}",
+                        LOG_TAG, s.getPlatformServerGbId(), s.getLocalChannelId());
                 cleanup(s, true);
             }
         }
@@ -309,7 +310,7 @@ public class CascadeSendService {
             Request request = headerProvider.createByeToUpstream(
                     p, session.getCallId(), session.getFromTag(), session.getToTag());
             sipSender.send(headerProvider.localIp(p), request);
-            log.info("[{}] 已向上级发 BYE platform={} channel={}", LOG_TAG, p.getServerGbId(), session.getChannelId());
+            log.info("[{}] 已向上级发 BYE 上级平台={} 本平台通道编码={}", LOG_TAG, p.getServerGbId(), session.getLocalChannelId());
         } catch (Exception e) {
             log.warn("[{}] 向上级发 BYE 失败 platform={}: {}", LOG_TAG, p.getServerGbId(), e.getMessage());
         }
@@ -336,7 +337,7 @@ public class CascadeSendService {
                 .toList();
         if (byRaw.isEmpty()) return null;
         if (byRaw.size() > 1) {
-            log.warn("[{}] 上级点播 channel={} 按原始码命中 {} 条（撞码且未分配 exposed_code），取第一条，可能推错流；"
+            log.warn("[{}] 上级点播 上级通道编码(exposedCode)={} 按原始码命中 {} 条（撞码且未分配 exposed_code），取第一条，可能推错流；"
                             + "建议重新保存该平台通道推送以分配 exposed_code",
                     LOG_TAG, channelId, byRaw.size());
         }

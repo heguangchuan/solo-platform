@@ -78,8 +78,8 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
             // 设备/回放会话未命中：可能是上级停播（级联推流会话），转查
             CascadeSendSession sendSession = cascadeSendSessionService.getByCallId(callId);
             if (sendSession != null) {
-                log.info("[级联点播] 上级停播 BYE platform={} channel={} callId={}",
-                        sendSession.getPlatformServerGbId(), sendSession.getChannelId(), callId);
+                log.info("[级联点播] 上级停播 BYE 上级平台={} 本平台通道编码={} callId={}",
+                        sendSession.getPlatformServerGbId(), sendSession.getLocalChannelId(), callId);
                 cascadeSendService.onUpstreamBye(sendSession);
                 return;
             }
