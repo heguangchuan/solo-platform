@@ -124,8 +124,13 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         List<Long> channelIds = parseIds(request.getChannelIds(), CHANNEL_PREFIX);
         Map<Long, String> exposedByChannel = new HashMap<>();
         for (Long cid : channelIds) {
-            String code = shareMapper.findExposedCodeByResourceId(cid);
-            if (code != null) exposedByChannel.put(cid, code);
+            GbPlatformShare share = shareMapper.selectOne(new LambdaQueryWrapper<GbPlatformShare>()
+                    .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
+                    .eq(GbPlatformShare::getResourceId, cid)
+                    .isNotNull(GbPlatformShare::getExposedCode)
+                    .select(GbPlatformShare::getExposedCode)
+                    .last("LIMIT 1"));
+            if (share != null) exposedByChannel.put(cid, share.getExposedCode());
         }
 
         // 全量覆盖：先删该平台旧的共享关系

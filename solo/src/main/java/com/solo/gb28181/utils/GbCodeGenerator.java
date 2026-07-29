@@ -6,6 +6,7 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
+import com.solo.gb28181.entity.GbPlatformShare;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPlatformShareMapper;
@@ -127,9 +128,13 @@ public class GbCodeGenerator {
      */
     public String nextExposedChannelCode() {
         String prefix13 = domainPrefix10() + DEFAULT_CHANNEL_TYPE;
+        LambdaQueryWrapper<GbPlatformShare> wrapper = new LambdaQueryWrapper<GbPlatformShare>()
+                .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
+                .likeRight(GbPlatformShare::getExposedCode, prefix13)
+                .select(GbPlatformShare::getExposedCode);
         int max = 0;
-        for (String code : platformShareMapper.listExposedCodes()) {
-            int seq = parseTailSeq(code, prefix13);
+        for (GbPlatformShare share : platformShareMapper.selectList(wrapper)) {
+            int seq = parseTailSeq(share.getExposedCode(), prefix13);
             if (seq > max) max = seq;
         }
         return prefix13 + pad7(max + 1);
