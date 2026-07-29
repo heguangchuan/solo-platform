@@ -37,20 +37,4 @@ public interface GbPlatformShareMapper extends BaseMapper<GbPlatformShare> {
             "WHERE s.platform_id = #{platformId} " +
             "ORDER BY ch.channel_id ASC")
     List<GbDeviceChannel> selectSharedChannels(@Param("platformId") Long platformId);
-
-    /**
-     * 取某通道（resource_id, type=channel）已分配的 exposed_code（任一平台行，全局复用同一码）。
-     * <p>同一通道共享给多个上级时 exposed_code 恒定，故取任意一行即可；无则返回 null。</p>
-     */
-    @Select("SELECT exposed_code FROM gb_platform_share " +
-            "WHERE type = 'channel' AND resource_id = #{resourceId} AND exposed_code IS NOT NULL " +
-            "LIMIT 1")
-    String findExposedCodeByResourceId(@Param("resourceId") Long resourceId);
-
-    /**
-     * 列出全表已用的 channel exposed_code，供生成器扫描最大序号避免撞码。
-     */
-    @Select("SELECT DISTINCT exposed_code FROM gb_platform_share " +
-            "WHERE type = 'channel' AND exposed_code IS NOT NULL")
-    List<String> listExposedCodes();
 }
