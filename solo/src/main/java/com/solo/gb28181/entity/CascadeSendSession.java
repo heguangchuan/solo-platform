@@ -43,8 +43,11 @@ public class CascadeSendSession {
     /** 本平台对该上级使用的国标编号（device_gb_id，写回复 SDP o= 行 / To-user） */
     private String localGbId;
 
-    /** 被点播的通道国标编号（20 位） */
+    /** 被点播的通道国标编号（20 位，= 上级点播用的 exposed_code，写回复 SDP / 上级信令交互用） */
     private String channelId;
+
+    /** 本平台真实通道国标编号（排查日志用；取流走 deviceId + 此码，不是 exposed_code） */
+    private String localChannelId;
 
     /** 该通道所属真实设备国标 ID（取流用） */
     private String deviceId;
