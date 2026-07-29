@@ -24,7 +24,7 @@ public class GbDeviceChannelPageRequest {
     private String status;
 
     /** 所属资源目录分组ID（按分组筛选通道） */
-    private String groupId;
+    private Long groupId;
 
     /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
     private Integer source;

@@ -48,7 +48,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
      */
     private void markDefault(List<GbGroupResponse> groups) {
         if (groups == null || groups.isEmpty()) return;
-        String defaultId = properties.getDefaultGroup().getId();
+        Long defaultId = properties.getDefaultGroup().getId();
         groups.forEach(g -> g.setDefaultGroup(defaultId.equals(g.getId())));
     }
 
@@ -61,7 +61,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         if (request.getName() != null && !request.getName().isBlank()) {
             wrapper.like(GbGroup::getName, request.getName());
         }
-        if (request.getParentId() != null && !request.getParentId().isBlank()) {
+        if (request.getParentId() != null) {
             wrapper.eq(GbGroup::getParentId, request.getParentId());
         }
         if (request.getPlatformId() != null && !request.getPlatformId().isBlank()) {
@@ -104,9 +104,9 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
             throw new ServiceException("分组国标ID已存在：" + group.getGroupId());
         }
         // 父节点校验：未指定则挂根；指定则父节点必须存在
-        if (group.getParentId() == null || group.getParentId().isBlank()) {
-            group.setParentId("0");
-        } else if (!"0".equals(group.getParentId()) && getById(group.getParentId()) == null) {
+        if (group.getParentId() == null) {
+            group.setParentId(0L);
+        } else if (!Long.valueOf(0L).equals(group.getParentId()) && getById(group.getParentId()) == null) {
             throw new ServiceException("父级分组不存在：" + group.getParentId());
         }
         // id 由 MyBatis-Plus 雪花算法生成（默认分组的 0000 由 Bootstrap 显式写入）
@@ -121,7 +121,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
 
     @Override
     public void updateGroup(GbGroup group) {
-        if (group.getId() == null || group.getId().isBlank()) {
+        if (group.getId() == null) {
             throw new ServiceException("分组ID不能为空");
         }
         GbGroup exist = getById(group.getId());
@@ -161,12 +161,12 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
 
     @Override
     @Transactional
-    public void deleteById(String id) {
+    public void deleteById(Long id) {
         GbGroup group = getById(id);
         if (group == null) {
             return;
         }
-        String defaultId = properties.getDefaultGroup().getId();
+        Long defaultId = properties.getDefaultGroup().getId();
         if (defaultId.equals(group.getId())) {
             throw new ServiceException("默认分组不可删除");
         }
@@ -178,7 +178,7 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         // 该分组下的子节点 parentId 回落到根节点
         lambdaUpdate()
                 .eq(GbGroup::getParentId, group.getId())
-                .set(GbGroup::getParentId, "0")
+                .set(GbGroup::getParentId, 0L)
                 .update();
         removeById(id);
         log.info("[资源目录] 删除分组 id={}，通道已回落默认分组 defaultGroup={}，子节点已回落根节点",

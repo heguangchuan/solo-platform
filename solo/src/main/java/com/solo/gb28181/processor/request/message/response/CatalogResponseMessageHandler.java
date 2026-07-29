@@ -83,8 +83,10 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         // 遍历 Item，按类型码分流
         List<GbDeviceChannel> chunkChannels = new ArrayList<>();
         List<GbGroup> chunkGroups = new ArrayList<>();
-        // 记录通道 Item 的 <ParentID>，供批量入库时映射到目录节点
+        // 记录通道 Item 的 <ParentID>（GB码），供批量入库时映射到目录节点雪花 id
         Map<String, String> channelParentIdMap = new HashMap<>();
+        // 记录目录节点 Item 的 <ParentID>（GB码），供批量入库时解析父分组雪花 id（key = 本节点 groupId GB码）
+        Map<String, String> groupParentIdMap = new HashMap<>();
         Iterator<Element> it = deviceList.elementIterator("Item");
         while (it.hasNext()) {
             Element item = it.next();
@@ -97,7 +99,14 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             if (isDirectoryType) {
                 if (isPlatform) {
                     GbGroup group = parseGroup(item, device);
-                    if (group != null) chunkGroups.add(group);
+                    if (group != null) {
+                        chunkGroups.add(group);
+                        // 暂存目录节点 <ParentID>（GB码），等所有分组入库后再解析成父分组雪花 id
+                        String parentId = XmlUtils.childText(item, "ParentID");
+                        if (parentId != null && !parentId.isBlank()) {
+                            groupParentIdMap.put(group.getGroupId(), parentId);
+                        }
+                    }
                 } else {
                     log.debug("[通道目录] 未命中白名单，忽略目录节点 deviceId={} itemId={}", device.getDeviceId(), itemId);
                 }
@@ -105,7 +114,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
                 GbDeviceChannel channel = parseChannel(item, device);
                 if (channel != null) {
                     chunkChannels.add(channel);
-                    // 暂存 <ParentID>，等批量入库时对照目录节点映射
+                    // 暂存 <ParentID>（GB码），等批量入库时对照目录节点映射
                     String parentId = XmlUtils.childText(item, "ParentID");
                     if (parentId != null && !parentId.isBlank()) {
                         channelParentIdMap.put(channel.getChannelId(), parentId);
@@ -114,9 +123,10 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             }
         }
 
-        // 累加分片（channelParentIdMap 也累加进 batch，避免跨片丢失）
+        // 累加分片（两个 ParentID 映射也累加进 batch，避免跨片丢失）
         CatalogDataCache.Batch batch = cache.accumulate(
-                device.getDeviceId(), sn, sumNum, chunkChannels, chunkGroups, channelParentIdMap);
+                device.getDeviceId(), sn, sumNum, chunkChannels, chunkGroups,
+                channelParentIdMap, groupParentIdMap);
         if (batch != null && batch.done) {
             // 收齐 → 先处理目录节点，再处理通道
             processBatch(batch, device, isPlatform);
@@ -129,64 +139,82 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         List<GbGroup> groups = batch.groups;
         List<GbDeviceChannel> channels = batch.channels;
         Map<String, String> channelParentIdMap = batch.channelParentIdMap;
+        Map<String, String> groupParentIdMap = batch.groupParentIdMap;
 
         // 白名单平台：始终保证有一个以平台自身为根的目录，用于兜底挂载没有 ParentID 或 ParentID 不在
-        // 本次同步范围内的目录节点/通道。groupId 取平台国标 ID 转换后的 215 业务分组码（符合规范、
-        // 通过 validateGroupId 校验），id 同步取该值作为主键。
-        String platformRootId = null;
+        // 本次同步范围内的目录节点/通道。根目录 groupId 取平台国标 ID 转换后的 215 业务分组码。
+        String platformRootCode = null;
         if (isPlatform) {
-            platformRootId = SipUtils.toBusinessGroupId(device.getDeviceId());
+            platformRootCode = SipUtils.toBusinessGroupId(device.getDeviceId());
             GbPlatform platform = gbPlatformService.lambdaQuery()
                     .eq(GbPlatform::getPlatformId, device.getDeviceId())
                     .one();
             String rootName = (platform != null && platform.getName() != null && !platform.getName().isBlank())
                     ? platform.getName() : device.getDeviceId();
             GbGroup root = new GbGroup();
-            root.setId(platformRootId);
-            root.setGroupId(platformRootId);
+            root.setGroupId(platformRootCode);
             root.setName(rootName);
-            root.setParentId("0");
             root.setPlatformId(device.getPlatformId());
             root.setSort(1);
             groups.addFirst(root);
-            log.info("[通道目录] 平台根目录已就位 deviceId={} groupId={} name={}",
-                    device.getDeviceId(), platformRootId, rootName);
+            log.info("[通道目录] 平台根目录已就位 deviceId={} groupCode={} name={}",
+                    device.getDeviceId(), platformRootCode, rootName);
         }
 
-        // 先 upsert 目录节点，建立 国标码 → db id 映射
-        Map<String, String> groupIdMap = new HashMap<>();
+        // 分组入库：id 主键改雪花后，按 groupId(20位国标码) 唯一键去重——已存在则复用其雪花 id，
+        // 不存在则用 IdWorker 预分配。建立 GB码 → 雪花 id 映射，供父分组 / 通道归属反查。
+        Map<String, Long> codeToId = new HashMap<>();
         if (!groups.isEmpty()) {
-            // 级联平台的目录节点：ParentID 不在本次同步范围（含 null/"0"）→ 挂到平台根目录；
-            // 平台根目录自身保持 parentId="0"
-            if (isPlatform) {
-                java.util.Set<String> knownGroupIds = new java.util.HashSet<>();
-                for (GbGroup g : groups) knownGroupIds.add(g.getGroupId());
-                for (GbGroup g : groups) {
-                    if (g.getGroupId().equals(platformRootId)) continue;
-                    String p = g.getParentId();
-                    if (p == null || p.isBlank() || "0".equals(p) || !knownGroupIds.contains(p)) {
-                        g.setParentId(platformRootId);
-                    }
+            // 查库中已存在的同 groupId 分组，复用其雪花 id（避免级联重复同步插重复行）
+            java.util.Set<String> codes = new java.util.HashSet<>();
+            for (GbGroup g : groups) codes.add(g.getGroupId());
+            Map<String, Long> existingIdByCode = new HashMap<>();
+            gbGroupService.lambdaQuery().in(GbGroup::getGroupId, codes).list()
+                    .forEach(e -> existingIdByCode.put(e.getGroupId(), e.getId()));
+
+            for (GbGroup g : groups) {
+                Long id = existingIdByCode.get(g.getGroupId());
+                if (id == null) {
+                    id = com.baomidou.mybatisplus.core.toolkit.IdWorker.getId();
+                }
+                g.setId(id);
+                codeToId.put(g.getGroupId(), id);
+            }
+
+            // 解析父分组：目录节点 <ParentID>（GB码）命中本次范围 → 指向父分组雪花 id；
+            // 级联平台下 ParentID 不在范围（含 null/根）→ 挂平台根目录；根目录自身 parentId=0
+            Long platformRootId = platformRootCode == null ? null : codeToId.get(platformRootCode);
+            for (GbGroup g : groups) {
+                if (platformRootCode != null && platformRootCode.equals(g.getGroupId())) {
+                    g.setParentId(0L);
+                    continue;
+                }
+                String parentCode = groupParentIdMap.get(g.getGroupId());
+                Long parentDbId = parentCode == null ? null : codeToId.get(parentCode);
+                if (parentDbId != null) {
+                    g.setParentId(parentDbId);
+                } else if (isPlatform && platformRootId != null) {
+                    g.setParentId(platformRootId);
+                } else {
+                    g.setParentId(0L);
                 }
             }
             gbGroupService.saveOrUpdateBatch(groups);
-            // 建立映射：国标码(20位) → 数据库主键 id
-            for (GbGroup g : groups) {
-                groupIdMap.put(g.getGroupId(), g.getId());
-            }
         }
 
-        // 再处理通道：按 ParentID 映射到对应目录
+        // 再处理通道：按 ParentID(GB码) 映射到对应目录雪花 id
         if (!channels.isEmpty()) {
+            Long platformRootId = platformRootCode == null ? null : codeToId.get(platformRootCode);
             for (GbDeviceChannel ch : channels) {
                 // 归属决策优先级：
-                //   1) 通道 <ParentID> 命中本次同步的目录节点 → 归该目录
+                //   1) 通道 <ParentID>(GB码) 命中本次同步的目录节点 → 归该目录
                 //   2) 级联平台的通道且 (1) 未命中 → 归平台根目录
                 //   3) 其余（普通相机/NVR）→ 留空让 saveOrUpdateBatch → resolveGroupId 回落默认分组
-                String parentId = channelParentIdMap.get(ch.getChannelId());
-                if (parentId != null && groupIdMap.containsKey(parentId)) {
-                    ch.setGroupId(groupIdMap.get(parentId));
-                } else if (isPlatform) {
+                String parentCode = channelParentIdMap.get(ch.getChannelId());
+                Long parentDbId = parentCode == null ? null : codeToId.get(parentCode);
+                if (parentDbId != null) {
+                    ch.setGroupId(parentDbId);
+                } else if (isPlatform && platformRootId != null) {
                     ch.setGroupId(platformRootId);
                 }
                 // 设置 platformId 继承自设备
@@ -205,20 +233,18 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     // ---------------- Item 解析 ----------------
 
     /**
-     * 解析目录节点 Item（215 业务分组 / 216 虚拟组织），构造 GbGroup
+     * 解析目录节点 Item（215 业务分组 / 216 虚拟组织），构造 GbGroup。
+     * <p>id（雪花）与 parentId（父分组雪花 id）由 {@link #processBatch} 统一分配 / 解析，此处只填
+     * groupId(20位国标码) 与 name；ParentID(GB码) 在调用处收进 groupParentIdMap。</p>
      */
     private GbGroup parseGroup(Element item, GbDevice device) {
         String groupId = XmlUtils.childText(item, "DeviceID");
         if (groupId == null || groupId.isBlank()) return null;
 
         GbGroup group = new GbGroup();
-        // 用 20 位国标 ID 作为数据库主键（唯一，天然去重）
-        group.setId(groupId);
+        // groupId = 20 位国标码；id / parentId 由 processBatch 回填（见方法注释）
         group.setGroupId(groupId);
         group.setName(emptyToNull(XmlUtils.childText(item, "Name")));
-        // ParentID 即为上级目录的国标码，入库后由 TreeUtils 组装树
-        String parentId = XmlUtils.childText(item, "ParentID");
-        group.setParentId(parentId != null && !parentId.isBlank() ? parentId : "0");
         group.setPlatformId(device.getPlatformId());
         group.setSort(1);
         return group;

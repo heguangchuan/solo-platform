@@ -104,11 +104,12 @@ public class GbDeviceChannel {
     private String platformId;
 
     /**
-     * 所属资源目录分组（逻辑关联 {@link GbGroup#getGroupId()}，20 位 215 业务分组码）。
+     * 所属资源目录分组（逻辑关联 {@link GbGroup#getId()} 雪花主键）。
      * <p>通道注册/导入/新增未指定时，由入库流程回填 {@code gb28181.default-group.id}；
      * 编辑不动此字段，仅由目录编排功能变更。</p>
      */
-    private String groupId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long groupId;
 
     /**
      * 数据来源：1 系统新增，2 表格导入，3 设备注册（Catalog 同步自动入库）
@@ -122,4 +123,12 @@ public class GbDeviceChannel {
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;
+
+    /**
+     * 对上级暴露的国标码（瞬态，不入本表）。仅当通过 {@code GbPlatformShareMapper.selectSharedChannels}
+     * 按某上级查共享通道时，由 join {@code gb_platform_share.exposed_code} 带出，用于级联上报 Catalog /
+     * 上级点播反查。普通通道查询此字段为 null。
+     */
+    @TableField(exist = false)
+    private String exposedCode;
 }

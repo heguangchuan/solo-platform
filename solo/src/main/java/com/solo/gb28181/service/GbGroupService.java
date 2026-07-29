@@ -37,5 +37,5 @@ public interface GbGroupService extends IService<GbGroup> {
      * 删除分组。默认分组不可删；删除时把挂在该分组下的通道回落到默认分组，
      * 子节点 parentId 回落到根节点。
      */
-    void deleteById(String id);
+    void deleteById(Long id);
 }

@@ -33,13 +33,15 @@ public class CatalogDataCache {
      *
      * @param chunkChannels 本片中的通道 Item（可空列表）
      * @param chunkGroups   本片中的目录节点 Item（可空列表）
-     * @param channelParentIdMap 本片通道的 <ParentID> 映射（channelId → parentId），用于后续目录归属
+     * @param channelParentIdMap 本片通道的 <ParentID> 映射（channelId → parentId GB码），用于后续目录归属
+     * @param groupParentIdMap   本片目录节点的 <ParentID> 映射（groupId → parentId GB码），用于后续父子归属
      * @return 达到 SumNum 时返回完整 batch；否则返回 null
      */
     public Batch accumulate(String deviceId, int sn, int sumNum,
                             List<GbDeviceChannel> chunkChannels,
                             List<GbGroup> chunkGroups,
-                            Map<String, String> channelParentIdMap) {
+                            Map<String, String> channelParentIdMap,
+                            Map<String, String> groupParentIdMap) {
         String key = key(deviceId, sn);
         Batch batch = cache.computeIfAbsent(key, k -> new Batch(deviceId, sn, sumNum));
         synchronized (batch) {
@@ -47,6 +49,9 @@ public class CatalogDataCache {
             if (chunkGroups != null && !chunkGroups.isEmpty()) batch.groups.addAll(chunkGroups);
             if (channelParentIdMap != null && !channelParentIdMap.isEmpty()) {
                 batch.channelParentIdMap.putAll(channelParentIdMap);
+            }
+            if (groupParentIdMap != null && !groupParentIdMap.isEmpty()) {
+                batch.groupParentIdMap.putAll(groupParentIdMap);
             }
             batch.lastUpdateMs = System.currentTimeMillis();
             int total = batch.channels.size() + batch.groups.size();
@@ -84,8 +89,10 @@ public class CatalogDataCache {
         public final int sumNum;
         public final List<GbDeviceChannel> channels = new ArrayList<>();
         public final List<GbGroup> groups = new ArrayList<>();
-        /** 通道 Item 的 <ParentID> 映射（channelId → parentId），用于批量入库时按目录节点归属 */
+        /** 通道 Item 的 <ParentID> 映射（channelId → parentId GB码），用于批量入库时按目录节点归属 */
         public final Map<String, String> channelParentIdMap = new HashMap<>();
+        /** 目录节点 Item 的 <ParentID> 映射（groupId GB码 → parentId GB码），用于批量入库时父子归属 */
+        public final Map<String, String> groupParentIdMap = new HashMap<>();
         public volatile long lastUpdateMs = System.currentTimeMillis();
         public volatile boolean done = false;
 

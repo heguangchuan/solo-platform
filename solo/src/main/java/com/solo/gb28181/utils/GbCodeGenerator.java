@@ -8,6 +8,7 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
+import com.solo.gb28181.mapper.GbPlatformShareMapper;
 import com.solo.gb28181.mapper.GbGroupMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -48,6 +49,7 @@ public class GbCodeGenerator {
     private final GbDeviceMapper deviceMapper;
     private final GbDeviceChannelMapper channelMapper;
     private final GbGroupMapper groupMapper;
+    private final GbPlatformShareMapper platformShareMapper;
 
     /**
      * 生成下一个可用的设备 20 位国标 ID。
@@ -110,6 +112,24 @@ public class GbCodeGenerator {
         int max = 0;
         for (GbDeviceChannel c : channelMapper.selectList(wrapper)) {
             int seq = parseTailSeq(c.getChannelId(), prefix13);
+            if (seq > max) max = seq;
+        }
+        return prefix13 + pad7(max + 1);
+    }
+
+    /**
+     * 生成下一个可用的「对上级暴露」通道国标码（写入 {@code gb_platform_share.exposed_code}）。
+     *
+     * <p>通道原始 {@code channel_id} 只在设备内唯一，跨设备/级联透传可能撞码，会让上级点播认错通道。
+     * 故对上级暴露时统一改用本平台命名空间内唯一的 20 位码：前 10 位本平台 domain + 3 位通道类型码
+     * （131 摄像机）+ 7 位序号。序号在全表已用 exposed_code 上取同前缀最大值 +1，保证平台级唯一，
+     * 且是合法 20 位纯数字（满足海康等上级校验）。</p>
+     */
+    public String nextExposedChannelCode() {
+        String prefix13 = domainPrefix10() + DEFAULT_CHANNEL_TYPE;
+        int max = 0;
+        for (String code : platformShareMapper.listExposedCodes()) {
+            int seq = parseTailSeq(code, prefix13);
             if (seq > max) max = seq;
         }
         return prefix13 + pad7(max + 1);

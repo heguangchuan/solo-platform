@@ -25,7 +25,7 @@ import java.util.List;
  * {@code <Query><CmdType>Catalog</CmdType>...</Query>} 索要资源目录，本 handler：</p>
  * <ol>
  *   <li>立刻回 200 OK（SIP 事务层）</li>
- *   <li>把 {@code gb_platform_catalog} / {@code gb_platform_gb_channel} 里勾选给该上级的
+ *   <li>把 {@code gb_platform_share}（type=group/channel）里勾选给该上级的
  *       分组 + 通道分片，异步经 {@link PlatformCommander#sendCatalogResponse} 发送</li>
  * </ol>
  * <p>Query/Catalog 只走上级平台侧（{@link #handleForPlatform}）；来自下级设备的

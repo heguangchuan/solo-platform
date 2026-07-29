@@ -110,7 +110,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
                 ch.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
                 ch.setSource(GbSource.SYSTEM);
                 ch.setPlatformId(device.getPlatformId() != null ? device.getPlatformId() : "0000");
-                ch.setGroupId(ch.getGroupId() != null && !ch.getGroupId().isBlank()
+                ch.setGroupId(ch.getGroupId() != null
                         ? ch.getGroupId() : properties.getDefaultGroup().getId());
                 boolean saved = deviceChannelService.save(ch);
                 log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);

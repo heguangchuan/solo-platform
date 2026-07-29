@@ -32,6 +32,7 @@ import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.util.ArrayList;
@@ -223,12 +224,33 @@ public class PlatformSipHeaderProvider {
                 requestUri, Request.MESSAGE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
         ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSCDP+xml");
-        request.setContent(xmlBody, ct);
+        // 按平台声明字符集编码消息体：xmlBody 的 XML 声明写的是 platform.characterSet（默认 GB2312），
+        // 若交给 JAIN-SIP 以 String 落字节会默认按 UTF-8 编码，与声明不符 → 上级按 GB2312 解出乱码。
+        // 显式转成对应字符集的 byte[]，setContent(byte[]) 原样落字节，保证声明与字节一致（见 ADR-009 编码链路）。
+        Charset charset = resolveCharset(p.getCharacterSet());
+        request.setContent(xmlBody.getBytes(charset), ct);
         return request;
     }
 
     private static String md5(String s) {
         return DigestUtils.md5DigestAsHex(s.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 解析平台配置的字符集声明，与 XML 声明保持一致；默认 GB2312。
+     * GB2312 编码不识别时回退到 GBK（GB2312 的超集，兼容更多中文），再不行回退 UTF-8。
+     */
+    private static Charset resolveCharset(String name) {
+        String cs = (name == null || name.isBlank()) ? "GB2312" : name.trim();
+        try {
+            return Charset.forName(cs);
+        } catch (Exception e) {
+            try {
+                return Charset.forName("GBK");
+            } catch (Exception ex) {
+                return StandardCharsets.UTF_8;
+            }
+        }
     }
 
     /**

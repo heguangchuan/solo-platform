@@ -33,11 +33,11 @@ public final class PlatformCatalogXml {
      * @param sumNum      全量总条数（每片都填相同值）
      * @param groups      本片中的分组 Item（放在 pageChannels 之前）
      * @param channels    本片中的通道 Item
-     * @param groupIdCode 通道所属 group 主键 -> group 20 位国标码 的映射（只包含"在共享列表内"的分组）
+     * @param groupIdCode 通道所属 group 主键(雪花 id) -> group 20 位国标码 的映射（只包含"在共享列表内"的分组）
      */
     public static String buildResponse(GbParentPlatform platform, String sn, int sumNum,
                                        List<GbGroup> groups, List<GbDeviceChannel> channels,
-                                       java.util.Map<String, String> groupIdCode) {
+                                       java.util.Map<Long, String> groupIdCode) {
         String charset = platform.getCharacterSet() == null ? "GB2312" : platform.getCharacterSet();
         int itemNum = groups.size() + channels.size();
 
@@ -67,7 +67,7 @@ public final class PlatformCatalogXml {
      * 父分组未在共享列表内 / 根节点 → 兜底到 platform.deviceGbId。
      */
     private static void appendGroupItem(StringBuilder sb, GbGroup g, GbParentPlatform platform,
-                                        java.util.Map<String, String> groupIdCode) {
+                                        java.util.Map<Long, String> groupIdCode) {
         String parentCode = groupIdCode.getOrDefault(g.getParentId(), platform.getDeviceGbId());
         int type = typeCode(g.getGroupId());
 
@@ -97,13 +97,16 @@ public final class PlatformCatalogXml {
      * platform.deviceGbId（挂到平台自身节点下）。
      */
     private static void appendChannelItem(StringBuilder sb, GbDeviceChannel ch, GbParentPlatform platform,
-                                          java.util.Map<String, String> groupIdCode) {
+                                          java.util.Map<Long, String> groupIdCode) {
         String parentCode = groupIdCode.getOrDefault(ch.getGroupId(), platform.getDeviceGbId());
         String name = (ch.getName() != null && !ch.getName().isBlank()) ? ch.getName() : ch.getReportName();
         boolean online = "ON".equalsIgnoreCase(ch.getStatus());
+        // 对上级暴露用 exposed_code（平台唯一，解决跨设备/级联撞码）；存量未分配则回退原始 channelId
+        String reportId = (ch.getExposedCode() != null && !ch.getExposedCode().isBlank())
+                ? ch.getExposedCode() : ch.getChannelId();
 
         sb.append("<Item>\r\n");
-        sb.append("<DeviceID>").append(nullSafe(ch.getChannelId())).append("</DeviceID>\r\n");
+        sb.append("<DeviceID>").append(nullSafe(reportId)).append("</DeviceID>\r\n");
         sb.append("<Name>").append(escapeXml(name)).append("</Name>\r\n");
         appendTag(sb, "Manufacturer", ch.getManufacturer());
         appendTag(sb, "Model", ch.getModel());

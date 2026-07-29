@@ -42,8 +42,8 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
      * 解析通道所属分组：入参已指定则用入参，否则回落到配置的默认分组。
      * 通道注册 / 导入 / 新增三条入库路径统一走此兜底。
      */
-    private String resolveGroupId(String input) {
-        if (input != null && !input.isBlank()) {
+    private Long resolveGroupId(Long input) {
+        if (input != null) {
             return input;
         }
         return properties.getDefaultGroup().getId();
@@ -64,7 +64,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             wrapper.eq(GbDeviceChannel::getStatus, request.getStatus());
         }
-        if (request.getGroupId() != null && !request.getGroupId().isBlank()) {
+        if (request.getGroupId() != null) {
             wrapper.eq(GbDeviceChannel::getGroupId, request.getGroupId());
         }
         if (request.getSource() != null) {
@@ -115,12 +115,12 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
      */
     private void fillGroupName(List<GbDeviceChannelResponse> rows) {
         if (rows.isEmpty()) return;
-        Set<String> groupIds = rows.stream()
+        Set<Long> groupIds = rows.stream()
                 .map(GbDeviceChannelResponse::getGroupId)
-                .filter(id -> id != null && !id.isBlank())
+                .filter(id -> id != null)
                 .collect(Collectors.toCollection(HashSet::new));
         if (groupIds.isEmpty()) return;
-        Map<String, String> nameMap = groupMapper.selectList(
+        Map<Long, String> nameMap = groupMapper.selectList(
                         new LambdaQueryWrapper<GbGroup>().in(GbGroup::getId, groupIds))
                 .stream()
                 .collect(Collectors.toMap(GbGroup::getId,

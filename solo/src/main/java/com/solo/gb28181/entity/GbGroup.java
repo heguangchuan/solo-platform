@@ -7,6 +7,8 @@ import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
@@ -22,7 +24,8 @@ public class GbGroup {
 
     /** 数据主键：默认分组固定 0000，其余雪花ID；通道 group_id 引用此列 */
     @TableId(type = IdType.ASSIGN_ID)
-    private String id;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long id;
 
     /** 分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用） */
     private String groupId;
@@ -31,7 +34,8 @@ public class GbGroup {
     private String name;
 
     /** 父节点主键：0=根节点 */
-    private String parentId;
+    @JsonSerialize(using = ToStringSerializer.class)
+    private Long parentId;
 
     /** 数据来源：0000=自有平台；其他=级联来源平台ID */
     private String platformId;

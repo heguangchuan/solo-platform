@@ -100,11 +100,13 @@ public class CascadeSendService {
                 LOG_TAG, platform.getServerGbId(), channelId, dstIp, dstPort, ssrc, transport);
 
         // 3) 向真实下级设备取流（阻塞等流就绪；复用设备点播全链路）
+        //    注意：上级来的 channelId 可能是 exposed_code，取流必须用真实通道原始 channelId + deviceId，
+        //    否则下级设备不认识 exposed_code。二者已由 findSharedChannel 解析到 channel 实体。
         PlayResultResponse play;
         try {
             PlayStartRequest req = new PlayStartRequest();
             req.setDeviceId(channel.getDeviceId());
-            req.setChannelId(channelId);
+            req.setChannelId(channel.getChannelId());
             req.setTransport(null);        // 取流侧传输由默认策略决定，与上级收流传输无关
             req.setStreamNumber(null);     // 级联点播固定主码流
             play = playService.start(req);
@@ -313,14 +315,32 @@ public class CascadeSendService {
         }
     }
 
-    /** 从 loadSharedChannels 结果里按国标 channelId 精确匹配（含共享授权校验） */
+    /**
+     * 从 loadSharedChannels 结果里定位上级点播的真实通道（含共享授权校验）。
+     * <p>上级 INVITE 带的 channelId 是本平台对它暴露的码：优先按 exposed_code 精确匹配（平台唯一，
+     * 跨设备/级联撞码也能唯一定位）；未命中再回退按原始 channelId 匹配（兼容未分配 exposed_code 的存量，
+     * 但存量撞码时只能取第一条并告警）。</p>
+     */
     private GbDeviceChannel findSharedChannel(Long platformDbId, String channelId) {
         List<GbDeviceChannel> shared = catalogShareService.loadSharedChannels(platformDbId);
         if (shared == null) return null;
-        return shared.stream()
-                .filter(c -> channelId.equals(c.getChannelId()))
+        // 1) 优先 exposed_code 精确匹配
+        GbDeviceChannel byExposed = shared.stream()
+                .filter(c -> channelId.equals(c.getExposedCode()))
                 .findFirst()
                 .orElse(null);
+        if (byExposed != null) return byExposed;
+        // 2) 回退原始 channelId（存量兼容）
+        List<GbDeviceChannel> byRaw = shared.stream()
+                .filter(c -> channelId.equals(c.getChannelId()))
+                .toList();
+        if (byRaw.isEmpty()) return null;
+        if (byRaw.size() > 1) {
+            log.warn("[{}] 上级点播 channel={} 按原始码命中 {} 条（撞码且未分配 exposed_code），取第一条，可能推错流；"
+                            + "建议重新保存该平台通道推送以分配 exposed_code",
+                    LOG_TAG, channelId, byRaw.size());
+        }
+        return byRaw.get(0);
     }
 
     private MediaServer mediaServer(String serverId) {
