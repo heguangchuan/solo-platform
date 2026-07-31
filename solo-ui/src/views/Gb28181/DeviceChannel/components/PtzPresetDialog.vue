@@ -18,7 +18,7 @@ import {
 import { ptzControlApi } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Aim, Edit, Delete } from '@element-plus/icons-vue'
 
 const deviceId = ref('')
 const channelDbId = ref('')
@@ -253,15 +253,15 @@ defineExpose({ open })
                 />
               </template>
               <template #default="{ row }">
-                <el-button type="primary" link size="small" @click="handleCall(row)">
-                  调用
-                </el-button>
-                <el-button type="primary" link size="small" @click="handleEdit(row)">
-                  编辑
-                </el-button>
-                <el-button type="danger" link size="small" @click="handleDelete(row)">
-                  删除
-                </el-button>
+                <el-tooltip content="调用">
+                  <el-button v-permission="'gb28181:ptz:preset:call'" type="primary" link :icon="Aim" @click="handleCall(row)" />
+                </el-tooltip>
+                <el-tooltip content="编辑">
+                  <el-button v-permission="'gb28181:ptz:preset:edit'" type="primary" link :icon="Edit" @click="handleEdit(row)" />
+                </el-tooltip>
+                <el-tooltip content="删除">
+                  <el-button v-permission="'gb28181:ptz:preset:delete'" type="danger" link :icon="Delete" @click="handleDelete(row)" />
+                </el-tooltip>
               </template>
             </el-table-column>
           </el-table>
