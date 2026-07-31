@@ -57,7 +57,7 @@ function defaultRange(): [string, string] {
   return [`${day} 00:00:00`, `${day} 23:59:59`]
 }
 
-async function open(deviceId: string, channelId: string, name?: string) {
+async function open(deviceId: string, channelId: string, channelDbId?: string, name?: string) {
   deviceIdRef.value = deviceId
   channelIdRef.value = channelId
   channelNameRef.value = name ?? ''
