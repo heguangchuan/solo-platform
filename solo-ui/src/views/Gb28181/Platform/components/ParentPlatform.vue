@@ -382,7 +382,7 @@ onMounted(async () => {
             <el-input v-model.number="form.serverPort" placeholder="上级 SIP 服务器端口" :disabled="isView" />
           </el-form-item>
           <el-form-item label="收流地址" prop="recvIp">
-            <el-input v-model="form.recvIp" placeholder="留空使用SDP解析IP；双栈填上级流媒体(ZLM)内网IP" :disabled="isView" />
+            <el-input v-model="form.recvIp" :disabled="isView" />
           </el-form-item>
           <el-form-item label="本地编号" prop="deviceGbId">
             <el-input v-model="form.deviceGbId" placeholder="本平台20位国标编号" disabled />

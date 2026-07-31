@@ -491,7 +491,7 @@ onMounted(() => {
             <el-input v-model="form.firmware" placeholder="固件版本" />
           </el-form-item>
           <el-form-item label="收流地址">
-            <el-input v-model="form.recvIp" placeholder="留空使用注册源IP；双栈填设备内网IP" />
+            <el-input v-model="form.recvIp" />
           </el-form-item>
           <el-form-item label="传输协议">
             <el-select v-model="form.transport" style="width: 100%">
