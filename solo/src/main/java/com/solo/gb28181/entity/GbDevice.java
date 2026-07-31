@@ -62,6 +62,11 @@ public class GbDevice {
     private String ip;
 
     /**
+     * 收流IP覆盖；留空使用注册源IP，双栈内网互通时填设备内网IP
+     */
+    private String recvIp;
+
+    /**
      * 设备最后注册来源端口
      */
     private Integer port;

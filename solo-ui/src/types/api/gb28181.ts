@@ -23,6 +23,8 @@ export interface GbDevice {
   firmware?: string
   sipDomain?: string
   ip?: string
+  /** 收流IP覆盖；留空使用注册源IP，双栈内网互通时填设备内网IP */
+  recvIp?: string
   port?: number
   localIp?: string
   hostAddress?: string

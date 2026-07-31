@@ -317,9 +317,6 @@ onMounted(async () => {
         <el-table-column label="上级地址" min-width="160">
           <template #default="{ row }">{{ row.serverIp }}:{{ row.serverPort }}</template>
         </el-table-column>
-        <el-table-column label="收流地址" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.recvIp || '—' }}</template>
-        </el-table-column>
         <el-table-column prop="deviceGbId" label="本地编号" min-width="180" show-overflow-tooltip />
         <el-table-column prop="transport" label="传输" align="center" width="70" />
         <el-table-column label="启用" align="center" width="70">
