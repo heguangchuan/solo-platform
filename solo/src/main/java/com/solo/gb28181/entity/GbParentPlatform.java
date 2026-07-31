@@ -54,6 +54,11 @@ public class GbParentPlatform {
     private Integer serverPort;
 
     /**
+     * 收流IP覆盖；留空使用SDP解析地址，双栈内网互通时填上级内网IP
+     */
+    private String recvIp;
+
+    /**
      * 本平台作为下级的国标编号（向上注册用）
      */
     private String deviceGbId;

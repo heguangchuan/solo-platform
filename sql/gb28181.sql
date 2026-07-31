@@ -263,6 +263,7 @@ CREATE TABLE gb_parent_platform
     server_gb_domain varchar(20)  NOT NULL COMMENT '上级平台国标域',
     server_ip        varchar(64)  NOT NULL COMMENT '上级平台 SIP IP',
     server_port      int          NOT NULL DEFAULT 5060 COMMENT '上级平台 SIP 端口',
+    recv_ip          varchar(64)  NOT NULL DEFAULT '' COMMENT '收流IP覆盖；留空使用SDP解析地址，双栈内网互通时填上级内网IP',
     device_gb_id     varchar(20)  NOT NULL COMMENT '本平台作为下级的国标编号（向上注册用）',
     device_ip        varchar(64)  NOT NULL DEFAULT '' COMMENT '本平台 SIP IP（留空取 gb28181.ip）',
     device_port      int          NOT NULL DEFAULT 5060 COMMENT '本平台 SIP 端口（留空取 gb28181.port）',
