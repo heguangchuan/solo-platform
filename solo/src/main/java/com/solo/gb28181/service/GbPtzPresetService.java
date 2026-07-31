@@ -16,6 +16,21 @@ public interface GbPtzPresetService extends IService<GbPtzPreset> {
     List<GbPtzPreset> listByChannel(Long channelDbId);
 
     /**
+     * 新增预置位（自动计算编号，同时通知设备保存当前位置）
+     */
+    void savePreset(GbPtzPreset preset);
+
+    /**
+     * 修改预置位名称（仅改数据库，无需通知设备）
+     */
+    void updatePreset(GbPtzPreset preset);
+
+    /**
+     * 删除预置位（同时通知设备删除）
+     */
+    void deletePreset(Long id);
+
+    /**
      * 调用预置位
      */
     void call(Long id);
