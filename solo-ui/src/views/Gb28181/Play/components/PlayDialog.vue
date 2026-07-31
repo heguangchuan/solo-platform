@@ -1,14 +1,16 @@
 <script setup lang="ts">
 /**
  * 实时点播弹窗
- * <p>调用方持有 ref，调 {@code open(deviceId, channelId, name)} 打开。
+ * <p>调用方持有 ref，调 {@code open(deviceId, channelId, channelDbId, name)} 打开。
  * 内部：start API → 拿到 wsFlvUrl → Jessibuca.play；关闭弹窗时调 stop API + 播放器 destroy。</p>
- * <p>播放器（{@link JessibucaPlayer}）自带工具栏，弹窗本身保持极简。</p>
+ * <p>播放器（{@link JessibucaPlayer}）自带工具栏，包含云台控制浮层，弹窗本身保持极简。</p>
  */
 import { nextTick, ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import type { PlayResultVO } from '@/types/api'
 import { startPlayApi, stopPlayApi, ptzControlApi } from '@/api/gb28181'
+import { getPtzPresetListApi, callPtzPresetApi, deletePtzPresetApi } from '@/api/gb28181'
+import type { GbPtzPreset } from '@/types/api'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
 
 const visible = ref(false)
@@ -22,7 +24,7 @@ const channelNameRef = ref('')
 const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
 
 /**
- * 码流档位：value 即发给后端的码流 token，后端原样写进 INVITE 的 SDP `a=<token>` 行（如 a=streamnumber:1），
+ * 码流档位：value 即发给后端的码流 token，后端原样写进 INVite 的 SDP `a=<token>` 行（如 a=streamnumber:1），
  * 设备据此选主/子码流；streamId 后缀则用冒号转下划线的归一值。主码流传空串（不写 a= 行、兼容回放）。
  * 各厂商 / 国标平台写法不一（对齐 WVP GbSteamIdentification），这里把主流写法列出，按真机点选。
  * 当前无通道码流元数据，故前端写死。
@@ -50,7 +52,25 @@ const currentStream = ref('')
 const streamInfo = ref<PlayResultVO | null>(null)
 const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 
-async function open(deviceId: string, channelId: string, name?: string) {
+// 预置位列表
+const presetList = ref<GbPtzPreset[]>([])
+const presetLoading = ref(false)
+
+/**
+ * 处理播放器工具栏抛出的云台控制事件
+ */
+function handlePtz(direction: string, pressing: boolean) {
+  if (!deviceIdRef.value || !channelIdRef.value) return
+  // 播放器方向命名是 up-left，需要转为 upleft 匹配后端
+  const command = direction.replace(/-/g, '')
+  if (pressing) {
+    ptzControlApi(deviceIdRef.value, channelIdRef.value, command, 100, 5)
+  } else {
+    ptzControlApi(deviceIdRef.value, channelIdRef.value, 'stop', 0, 0)
+  }
+}
+
+async function open(deviceId: string, channelId: string, channelDbId: string, name?: string) {
   deviceIdRef.value = deviceId
   channelIdRef.value = channelId
   channelNameRef.value = name ?? ''
@@ -60,7 +80,18 @@ async function open(deviceId: string, channelId: string, name?: string) {
   streamInfo.value = null
   currentStream.value = ''
   transport.value = 'TCP-passive'
+  presetList.value = []
   await nextTick()
+  // 加载预置位
+  try {
+    presetLoading.value = true
+    const res = await getPtzPresetListApi(channelDbId)
+    presetList.value = res.data || []
+  } catch {
+    presetList.value = []
+  } finally {
+    presetLoading.value = false
+  }
   await startPlay()
 }
 
@@ -111,9 +142,9 @@ async function handleRefresh() {
 }
 
 /**
- * 码流切换（独立流模型）：主/子各是一路独立流、可能有别人正在看，
+ * 码流切换（独立流模型）：主/子码流各是一路独立流，可能有别人正在看，
  * 因此切换时**不 stop 旧流**，只发起新码流的点播并让本播放器切到新 URL；
- * 被本人放弃的旧流若无人观看，由 ZLM 按需拉流（stream-on-demand）自动回收，避免误断他人观看。
+ * 被放弃的旧流若无人观看，由 ZLM 按需拉流（stream-on-demand）自动回收，不会误断他人观看。
  */
 async function handleSwitchStream(next: string) {
   if (next === currentStream.value) return
@@ -135,32 +166,31 @@ function onStreamEnd() {
   statusText.value = '视频流已结束'
 }
 
-/**
- * 云台控制（PTZ）— 前端方向映射到后端 command
- * pressing=true → 发起移动/缩放；pressing=false → 发 stop
- */
-const PTZ_CMD_MAP: Record<string, string> = {
-  'up': 'up',
-  'down': 'down',
-  'left': 'left',
-  'right': 'right',
-  'up-left': 'upleft',
-  'up-right': 'upright',
-  'down-left': 'downleft',
-  'down-right': 'downright',
-  'zoom-in': 'zoomin',
-  'zoom-out': 'zoomout',
+async function handleCallPreset(preset: GbPtzPreset) {
+  try {
+    await callPtzPresetApi(preset.id!)
+    ElMessage.success(`已调用预置位「${preset.name}」`)
+  } catch {
+    // 失败不打断操作
+  }
 }
 
-function handlePtz(direction: string, pressing: boolean) {
-  if (!deviceIdRef.value || !channelIdRef.value) return
-  const command = pressing ? (PTZ_CMD_MAP[direction] || 'stop') : 'stop'
-  ptzControlApi(deviceIdRef.value, channelIdRef.value, command).catch(() => {
-    // 云台指令静默失败，不打断用户操作
-  })
+async function handleDeletePreset(preset: GbPtzPreset) {
+  try {
+    await ElMessageBox.confirm(`确定要删除预置位「${preset.name}」吗？`, '删除确认', { type: 'warning' })
+    await deletePtzPresetApi(String(preset.id!))
+    const index = presetList.value.findIndex(p => p.id === preset.id)
+    if (index >= 0) {
+      presetList.value.splice(index, 1)
+    }
+    ElMessage.success('删除成功')
+  } catch {
+    // 用户取消
+  }
 }
 
-async function handleStopBackend(silent: boolean) {  if (!streamInfo.value?.streamId) return
+async function handleStopBackend(silent: boolean) {
+  if (!streamInfo.value?.streamId) return
   try {
     await stopPlayApi({ streamId: streamInfo.value.streamId })
   } catch (e) {
@@ -209,6 +239,24 @@ defineExpose({ open })
       @ptz="handlePtz"
     />
 
+    <!-- 预置位面板 -->
+    <div v-if="presetList.length > 0" class="preset-panel" style="margin-top: 12px">
+      <div class="preset-title">预置位</div>
+      <div class="preset-list">
+        <el-tag
+          v-for="p in presetList"
+          :key="p.id"
+          class="preset-tag"
+          size="small"
+          closable
+          @close="handleDeletePreset(p)"
+          @click="handleCallPreset(p)"
+        >
+          {{ p.name }}
+        </el-tag>
+      </div>
+    </div>
+
     <template #footer>
       <el-button @click="onDialogClose">关 闭</el-button>
     </template>
@@ -233,5 +281,24 @@ defineExpose({ open })
 .status-error {
   background: #fef0f0;
   color: #f56c6c;
+}
+.preset-panel {
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+.preset-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #606266;
+  margin-bottom: 8px;
+}
+.preset-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.preset-tag {
+  cursor: pointer;
 }
 </style>

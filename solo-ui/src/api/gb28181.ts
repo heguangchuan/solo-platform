@@ -340,6 +340,44 @@ export function ptzControlApi(deviceId: string, channelId: string, command: stri
 }
 
 /**
+ * 获取通道预置位列表
+ * @param channelDbId 通道数据库主键 ID
+ */
+export function getPtzPresetListApi(channelDbId: string) {
+  return get<GbPtzPreset[]>(`/api/gb28181/ptz/preset/list/${channelDbId}`)
+}
+
+/**
+ * 新增预置位
+ */
+export function savePtzPresetApi(data: Partial<GbPtzPreset>) {
+  return post<void>('/api/gb28181/ptz/preset/save', data)
+}
+
+/**
+ * 更新预置位
+ */
+export function updatePtzPresetApi(data: Partial<GbPtzPreset>) {
+  return post<void>('/api/gb28181/ptz/preset/update', data)
+}
+
+/**
+ * 调用预置位
+ * @param presetId 预置位数据库主键 ID
+ */
+export function callPtzPresetApi(presetId: string) {
+  return post<void>(`/api/gb28181/ptz/preset/call/${presetId}`)
+}
+
+/**
+ * 删除预置位
+ * @param presetId 预置位数据库主键 ID
+ */
+export function deletePtzPresetApi(presetId: string) {
+  return del<void>(`/api/gb28181/ptz/preset/delete/${presetId}`)
+}
+
+/**
  * 获取设备通道树（用于监控墙左侧树形选择）
  */
 export function getDeviceChannelTreeApi() {

@@ -1,0 +1,58 @@
+package com.solo.gb28181.service.impl;
+
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.entity.GbPtzPreset;
+import com.solo.gb28181.mapper.GbPtzPresetMapper;
+import com.solo.gb28181.service.GbDeviceChannelService;
+import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.service.GbPtzPresetService;
+import com.solo.gb28181.transmit.cmd.SipCommander;
+import com.solo.gb28181.utils.SipUtils;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+/**
+ * 云台预置位服务实现
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtzPreset> implements GbPtzPresetService {
+
+    private final GbDeviceService deviceService;
+    private final GbDeviceChannelService channelService;
+    private final SipCommander sipCommander;
+
+    @Override
+    public List<GbPtzPreset> listByChannel(Long channelDbId) {
+        return this.lambdaQuery()
+                .eq(GbPtzPreset::getChannelDbId, channelDbId)
+                .orderByAsc(GbPtzPreset::getPresetId)
+                .list();
+    }
+
+    @Override
+    public void call(Long id) {
+        GbPtzPreset preset = this.getById(id);
+        if (preset == null) {
+            throw new com.solo.common.ServiceException("预置位不存在");
+        }
+        GbDeviceChannel channel = channelService.getById(preset.getChannelDbId());
+        if (channel == null) {
+            throw new com.solo.common.ServiceException("通道不存在");
+        }
+        GbDevice device = deviceService.getById(channel.getDeviceDbId());
+        if (device == null) {
+            throw new com.solo.common.ServiceException("设备不存在");
+        }
+        String ptzCmd = SipUtils.buildPtzCallPreset(preset.getPresetId());
+        log.info("[云台预置位] 调用预置位 deviceId={} channelId={} presetId={} cmd={}",
+                device.getDeviceId(), channel.getChannelId(), preset.getPresetId(), ptzCmd);
+        sipCommander.sendPtzCmd(device, channel.getChannelId(), ptzCmd);
+    }
+}

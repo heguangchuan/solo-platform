@@ -96,6 +96,23 @@ CREATE TABLE gb_device_channel
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备通道表';
 
 -- =====================================================
+-- 云台预置位表
+-- 每个通道可以配置多个预置位，保存角度记忆，一键调用
+-- =====================================================
+DROP TABLE IF EXISTS gb_ptz_preset;
+CREATE TABLE gb_ptz_preset
+(
+    id               bigint       NOT NULL COMMENT '主键ID（雪花）',
+    channel_db_id    bigint       NOT NULL COMMENT '通道数据库主键（gb_device_channel.id）',
+    preset_id        int          NOT NULL COMMENT '预置位编号（设备侧编号，1~N）',
+    name             varchar(100) NOT NULL COMMENT '预置位名称（如"大门入口"）',
+    create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY             idx_channel (channel_db_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台预置位表';
+
+-- =====================================================
 -- 国标资源目录分组表（业务分组 215 / 虚拟组织 216）
 -- 平台侧自建目录树，用于级联时向上级共享通道时组织目录结构；
 -- 与下级设备上报的原始 Catalog 目录无关，是本平台人为编排的资源目录。

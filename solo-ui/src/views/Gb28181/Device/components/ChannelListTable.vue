@@ -4,7 +4,7 @@
  * <p>供弹窗和独立页面共同使用</p>
  */
 import { ref, onMounted, watch, nextTick } from 'vue'
-import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbGroupVO } from '@/types/api'
+import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbGroupVO, GbPtzPreset } from '@/types/api'
 import {
   getGbDeviceChannelPageApi,
   getGbDeviceApi,
@@ -14,13 +14,15 @@ import {
   batchDeleteGbDeviceChannelApi,
   getGbGroupTreeApi,
   getNextGbChannelCodeApi,
+  getPtzPresetListApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, View, Edit, VideoCamera, VideoPause, Delete } from '@element-plus/icons-vue'
+import { Plus, View, Edit, VideoCamera, VideoPause, Delete, Location } from '@element-plus/icons-vue'
 import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE } from '@/utils/gbCode'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
+import PtzPresetDialog from '@/views/Gb28181/DeviceChannel/components/PtzPresetDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 interface Props {
@@ -258,13 +260,19 @@ async function handleBatchDelete() {
 const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
 function handlePlay(row: GbDeviceChannelVO) {
-  playDialogRef.value?.open(row.deviceId, row.channelId, row.name)
+  playDialogRef.value?.open(row.deviceId, row.channelId, row.id, row.name)
 }
 
 const playbackDialogRef = ref<InstanceType<typeof PlaybackDialog> | null>(null)
 
 function handlePlayback(row: GbDeviceChannelVO) {
-  playbackDialogRef.value?.open(row.deviceId, row.channelId, row.name)
+  playbackDialogRef.value?.open(row.deviceId, row.channelId, row.id, row.name)
+}
+
+const ptzPresetDialogRef = ref<InstanceType<typeof PtzPresetDialog> | null>(null)
+
+function handlePtzPreset(row: GbDeviceChannelVO) {
+  ptzPresetDialogRef.value?.open()
 }
 
 const detailDialogRef = ref<InstanceType<typeof ChannelDetailDialog> | null>(null)
@@ -367,7 +375,7 @@ defineExpose({ fetchData })
         <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <div>
               <el-tooltip content="详情">
@@ -405,6 +413,15 @@ defineExpose({ fetchData })
                   link
                   :icon="VideoPause"
                   @click="handlePlayback(row)"
+                />
+              </el-tooltip>
+              <el-tooltip content="预置位" v-if="(row.ptzType ?? 0) !== 3">
+                <el-button
+                  v-permission="'gb28181:ptz:preset'"
+                  type="primary"
+                  link
+                  :icon="Location"
+                  @click="handlePtzPreset(row)"
                 />
               </el-tooltip>
               <el-tooltip content="删除">
@@ -498,6 +515,7 @@ defineExpose({ fetchData })
     <PlayDialog ref="playDialogRef" />
     <PlaybackDialog ref="playbackDialogRef" />
     <ChannelDetailDialog ref="detailDialogRef" />
+    <PtzPresetDialog ref="ptzPresetDialogRef" />
   </div>
 </template>
 

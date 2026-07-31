@@ -280,6 +280,19 @@ export interface GbMediaServer {
   updateTime: string
 }
 
+/** 云台预置位 */
+export interface GbPtzPreset {
+  id: string
+  /** 通道数据库主键 */
+  channelDbId: number
+  /** 预置位编号（设备侧编号，从 1 开始） */
+  presetId: number
+  /** 预置位名称（如"大门入口"） */
+  name: string
+  createTime: string
+  updateTime: string
+}
+
 /** 开始点播请求 */
 export interface PlayStartRequest {
   deviceId: string
