@@ -37,6 +37,18 @@ public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtz
     }
 
     @Override
+    public boolean save(GbPtzPreset preset) {
+        // 自动计算 presetId：当前通道最大 presetId + 1，从 1 开始
+        GbPtzPreset maxPreset = this.lambdaQuery()
+                .eq(GbPtzPreset::getChannelDbId, preset.getChannelDbId())
+                .orderByDesc(GbPtzPreset::getPresetId)
+                .last("LIMIT 1")
+                .one();
+        preset.setPresetId(maxPreset == null ? 1 : maxPreset.getPresetId() + 1);
+        return super.save(preset);
+    }
+
+    @Override
     public void call(Long id) {
         GbPtzPreset preset = this.getById(id);
         if (preset == null) {
