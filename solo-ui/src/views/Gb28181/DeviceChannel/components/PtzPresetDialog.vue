@@ -40,9 +40,6 @@ const rules = {
   name: [
     { required: true, message: '请输入预置位名称', trigger: 'blur' },
   ],
-  presetId: [
-    { required: true, message: '请输入预置位编号', trigger: 'blur' },
-  ],
 }
 
 // 当前播放状态
@@ -110,9 +107,8 @@ function handleAdd() {
   isEdit.value = false
   dialogTitle.value = '新增预置位'
   form.value = {
-    channelDbId: Number(channelDbId.value),
+    channelDbId: channelDbId.value,
     name: '',
-    presetId: 1,
   }
   dialogVisible.value = true
   nextTick(() => formRef.value?.clearValidate())
@@ -136,7 +132,7 @@ async function handleConfirm() {
     ElMessage.success('新增成功')
   }
   dialogVisible.value = false
-  fetchData()
+  await fetchData()
 }
 
 async function handleDelete(row: GbPtzPreset) {
@@ -144,7 +140,7 @@ async function handleDelete(row: GbPtzPreset) {
     await ElMessageBox.confirm(`确定要删除预置位「${row.name}」吗？`, '删除确认', { type: 'warning' })
     await deletePtzPresetApi(String(row.id!))
     ElMessage.success('删除成功')
-    fetchData()
+    await fetchData()
   } catch (_) {
     // 用户取消
   }
@@ -297,15 +293,6 @@ defineExpose({ open })
         <el-form-item label="预置位名称" prop="name">
           <el-input v-model="form.name" placeholder="例如：大门入口" />
         </el-form-item>
-        <el-form-item label="预置位编号" prop="presetId">
-          <el-input-number
-            v-model="form.presetId"
-            :min="1"
-            :max="255"
-            placeholder="设备侧预置位编号，从 1 开始"
-          />
-          <div class="form-tip">设备侧预置位编号，请对照设备说明书填写</div>
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -427,11 +414,6 @@ defineExpose({ open })
   padding: 8px;
   display: flex;
   flex-direction: column;
-}
-.form-tip {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 4px;
 }
 
 /* 右侧播放器 */

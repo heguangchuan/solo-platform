@@ -30,6 +30,7 @@ public class GbPtzPreset {
     /**
      * 通道数据库主键（gb_device_channel.id）
      */
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long channelDbId;
 
     /**

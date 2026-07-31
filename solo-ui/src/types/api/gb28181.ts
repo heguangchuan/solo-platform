@@ -284,7 +284,7 @@ export interface GbMediaServer {
 export interface GbPtzPreset {
   id: string
   /** 通道数据库主键 */
-  channelDbId: number
+  channelDbId: string
   /** 预置位编号（设备侧编号，从 1 开始） */
   presetId: number
   /** 预置位名称（如"大门入口"） */
