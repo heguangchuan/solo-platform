@@ -1,5 +1,6 @@
 package com.solo.gb28181.controller;
 
+import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
@@ -35,6 +36,7 @@ public class GbPtzController {
      * @param zoomSpeed 缩放速度 0-15（非缩放指令时忽略）
      */
     @PostMapping("/control/{deviceId}/{channelId}")
+    @RequirePermission({"gb28181:ptz:control"})
     public Result<Void> control(@PathVariable String deviceId,
                                 @PathVariable String channelId,
                                 @RequestParam String command,

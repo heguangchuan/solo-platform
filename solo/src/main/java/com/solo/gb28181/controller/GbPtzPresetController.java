@@ -19,34 +19,34 @@ public class GbPtzPresetController {
     private final GbPtzPresetService presetService;
 
     @GetMapping("/list/{channelDbId}")
-    @RequirePermission({"gb28181:device:edit"})
+    @RequirePermission({"gb28181:ptz:preset"})
     public Result<List<GbPtzPreset>> list(@PathVariable Long channelDbId) {
         return Result.success(presetService.listByChannel(channelDbId));
     }
 
     @PostMapping("/save")
-    @RequirePermission({"gb28181:device:edit"})
+    @RequirePermission({"gb28181:ptz:preset:add"})
     public Result<Void> save(@RequestBody GbPtzPreset preset) {
         presetService.savePreset(preset);
         return Result.success();
     }
 
     @PostMapping("/update")
-    @RequirePermission({"gb28181:device:edit"})
+    @RequirePermission({"gb28181:ptz:preset:edit"})
     public Result<Void> update(@RequestBody GbPtzPreset preset) {
         presetService.updatePreset(preset);
         return Result.success();
     }
 
     @DeleteMapping("/delete/{id}")
-    @RequirePermission({"gb28181:device:delete"})
+    @RequirePermission({"gb28181:ptz:preset:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         presetService.deletePreset(id);
         return Result.success();
     }
 
     @PostMapping("/call/{id}")
-    @RequirePermission({"gb28181:ptz:control"})
+    @RequirePermission({"gb28181:ptz:preset:call"})
     public Result<Void> call(@PathVariable Long id) {
         presetService.call(id);
         return Result.success();
