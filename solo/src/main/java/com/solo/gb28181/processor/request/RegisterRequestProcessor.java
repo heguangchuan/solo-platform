@@ -146,9 +146,22 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         boolean firstTime = (exist == null);
         GbDevice device = exist != null ? exist : new GbDevice();
         device.setDeviceId(deviceId);
-        device.setIp(remote.ip());
+
+        // 如果设备已经预先配置了收流IP覆盖（双栈内网场景），强制使用配置的 IP 而不是注册源 IP
+        String targetIp = device.getRecvIp() != null && !device.getRecvIp().isBlank()
+                ? device.getRecvIp()
+                : remote.ip();
+        if (device.getRecvIp() != null && !device.getRecvIp().isBlank()) {
+            log.info("[设备注册] 设备 {} 配置了收流IP覆盖：原地址(注册源) = {}，新地址(覆盖) = {}",
+                    deviceId, remote.ip(), device.getRecvIp());
+        }
+        device.setIp(targetIp);
         device.setPort(remote.port());
-        device.setHostAddress(remote.hostAddress());
+
+        // 重建 hostAddress：ip:port 格式
+        String hostAddress = targetIp + ":" + remote.port();
+        device.setHostAddress(hostAddress);
+
         device.setLocalIp(request.getLocalAddress().getHostAddress());
         device.setExpires(expires);
 

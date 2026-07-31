@@ -24,6 +24,7 @@ CREATE TABLE gb_device
     model                  varchar(100)         DEFAULT NULL COMMENT '型号',
     firmware               varchar(50)          DEFAULT NULL COMMENT '固件版本',
     ip                     varchar(64)          DEFAULT NULL COMMENT '最后注册来源IP',
+    recv_ip                varchar(64)          DEFAULT NULL COMMENT '收流IP覆盖；留空使用注册源IP，双栈内网互通时填设备内网IP',
     port                   int                  DEFAULT NULL COMMENT '最后注册来源端口',
     local_ip               varchar(64)          DEFAULT NULL COMMENT '本平台和该设备通信的本机IP',
     host_address           varchar(80)          DEFAULT NULL COMMENT '设备主机地址 ip:port',
@@ -44,7 +45,7 @@ CREATE TABLE gb_device
     KEY                    idx_status (status),
     KEY                    idx_platform_id (platform_id),
     KEY                    idx_source (source)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备';
 
 -- =====================================================
 -- 国标设备通道表（逻辑关联 gb_device.id，不建物理外键）

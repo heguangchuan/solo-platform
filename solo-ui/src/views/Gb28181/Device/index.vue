@@ -127,6 +127,7 @@ function makeEmpty(): Partial<GbDevice> {
     manufacturer: '',
     model: '',
     firmware: '',
+    recvIp: '',
     transport: 'UDP',
     charset: 'GB2312',
     expires: 3600,
@@ -488,6 +489,9 @@ onMounted(() => {
           </el-form-item>
           <el-form-item label="固件版本">
             <el-input v-model="form.firmware" placeholder="固件版本" />
+          </el-form-item>
+          <el-form-item label="收流地址">
+            <el-input v-model="form.recvIp" placeholder="留空使用注册源IP；双栈填设备内网IP" />
           </el-form-item>
           <el-form-item label="传输协议">
             <el-select v-model="form.transport" style="width: 100%">

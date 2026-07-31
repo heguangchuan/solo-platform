@@ -54,6 +54,7 @@ defineExpose({ open })
         </el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="网络地址">{{ detail.hostAddress || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="收流地址">{{ detail.recvIp || '—' }}</el-descriptions-item>
       <el-descriptions-item label="传输协议">{{ detail.transport || '—' }}</el-descriptions-item>
       <el-descriptions-item label="本机地址">{{ detail.localIp || '—' }}</el-descriptions-item>
       <el-descriptions-item label="信令域名">{{ detail.sipDomain || '—' }}</el-descriptions-item>
