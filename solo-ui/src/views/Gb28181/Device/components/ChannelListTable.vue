@@ -272,7 +272,12 @@ function handlePlayback(row: GbDeviceChannelVO) {
 const ptzPresetDialogRef = ref<InstanceType<typeof PtzPresetDialog> | null>(null)
 
 function handlePtzPreset(row: GbDeviceChannelVO) {
-  ptzPresetDialogRef.value?.open()
+  ptzPresetDialogRef.value?.open({
+    deviceId: row.deviceId!,
+    channelDbId: String(row.id!),
+    channelId: row.channelId!,
+    channelName: row.name!,
+  })
 }
 
 const detailDialogRef = ref<InstanceType<typeof ChannelDetailDialog> | null>(null)
