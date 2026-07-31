@@ -27,21 +27,21 @@ public class GbPtzPresetController {
     @PostMapping("/save")
     @RequirePermission({"gb28181:device:edit"})
     public Result<Void> save(@RequestBody GbPtzPreset preset) {
-        presetService.save(preset);
+        presetService.savePreset(preset);
         return Result.success();
     }
 
     @PostMapping("/update")
     @RequirePermission({"gb28181:device:edit"})
     public Result<Void> update(@RequestBody GbPtzPreset preset) {
-        presetService.updateById(preset);
+        presetService.updatePreset(preset);
         return Result.success();
     }
 
     @DeleteMapping("/delete/{id}")
     @RequirePermission({"gb28181:device:delete"})
     public Result<Void> delete(@PathVariable Long id) {
-        presetService.removeById(id);
+        presetService.deletePreset(id);
         return Result.success();
     }
 
