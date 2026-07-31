@@ -40,7 +40,7 @@ public class GbPlatform {
     private String name;
 
     /**
-     * 注册鉴权专属密钥（后端自动生成 32 位 UUID，不可编辑）
+     * 注册鉴权专属密钥（后端自动生成 32 位 UUID），不可编辑
      */
     private String authKey;
 

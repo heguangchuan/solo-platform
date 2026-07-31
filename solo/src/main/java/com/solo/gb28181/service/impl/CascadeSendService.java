@@ -90,6 +90,12 @@ public class CascadeSendService {
         int dstPort = SdpBuilder.extractMediaPort(upstreamSdp);
         String ssrc = SdpBuilder.extractSsrc(upstreamSdp);
         String transport = SdpBuilder.extractTransport(upstreamSdp);
+        // 如果上级平台配置了收流IP覆盖（双栈内网互通场景），强制覆盖SDP解析出的地址
+        if (platform.getRecvIp() != null && !platform.getRecvIp().isBlank()) {
+            log.info("[{}] 上级平台 {} 配置了收流IP覆盖：原地址(SDP) = {}，新地址(覆盖) = {}",
+                    LOG_TAG, platform.getServerGbId(), dstIp, platform.getRecvIp());
+            dstIp = platform.getRecvIp();
+        }
         if (dstIp == null || dstPort <= 0 || ssrc == null || ssrc.isBlank()) {
             log.warn("[{}] 上级 SDP 缺 c=/m=/y= 关键字段 dstIp={} dstPort={} ssrc={}，回 400",
                     LOG_TAG, dstIp, dstPort, ssrc);
