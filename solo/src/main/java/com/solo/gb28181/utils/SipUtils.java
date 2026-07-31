@@ -232,7 +232,7 @@ public class SipUtils {
     private static String buildPtzPresetCmd(int cmdCode, int presetId) {
         int preset = presetId & 0xFF;
         int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + 0x00 + 0x00 + preset) & 0xFF;
-        return String.format("A50F01%02X00%02X%02X", cmdCode, preset, checkCode);
+        return String.format("A50F01%02X0000%02X%02X", cmdCode, preset, checkCode);
     }
 
     // ---------------- 内嵌类 ----------------
