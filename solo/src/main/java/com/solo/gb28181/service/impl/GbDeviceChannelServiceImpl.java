@@ -216,8 +216,8 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Override
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
-        // 业务预处理：原始名/默认名 + 预填雪花 id（让 MP 自带的 saveOrUpdateBatch 走
-        // SELECT PK → 批量 INSERT/UPDATE 的标准路径，避免 N+1）。
+        // 业务预处理：原始名/默认名 + 预填雪花 id（让 mapper 的 ON DUPLICATE KEY UPDATE 走通，
+        // 同时 id 也用于后续引用）。
         for (GbDeviceChannel ch : channels) {
             String reportedName = ch.getName();
             if (reportedName != null && !reportedName.isBlank()) {
@@ -233,16 +233,19 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                 ch.setGroupId(resolveGroupId(null));
             }
         }
-        // 直接调 MP 自带的 saveOrUpdateBatch：内部 1 次 SELECT all + 按 batchSize 批量 INSERT/UPDATE。
-        // 语义说明：本路径会 UPDATE 全字段（包括 group_id / source），与原"已存在不覆盖"有差异——
-        // 但 Catalog 同步场景下 group_id 由 ParentID 重新解析（值不变），source 一定变为 REGISTER/CASCADE
-        // （系统新增/导入的 channel 不会被设备 sync 触达，触达即视为已设备注册）。
+        // 走 mapper 的 INSERT ... ON DUPLICATE KEY UPDATE：单 SQL 多行 upsert，按业务唯一键
+        // (device_db_id, channel_id) 判存在性，比 MP 的 saveOrUpdateBatch 更适合本表
+        // （MP 按主键 id 判定会走 INSERT 然后撞业务唯一键）。
         int batchSize = Math.max(1, properties.getCatalog().getBatchSize());
+        int total = channels.size();
         long start = System.currentTimeMillis();
-        super.saveOrUpdateBatch(channels, batchSize);
+        for (int i = 0; i < total; i += batchSize) {
+            int end = Math.min(i + batchSize, total);
+            baseMapper.batchUpsert(channels.subList(i, end));
+        }
         long cost = System.currentTimeMillis() - start;
-        log.info("[通道目录] 批量 upsert 完成 device={} rows={} batchSize={} costMs={}",
-                channels.get(0).getDeviceId(), channels.size(), batchSize, cost);
+        log.info("[通道目录] 批量 upsert 完成 device={} rows={} batches={} costMs={}",
+                channels.getFirst().getDeviceId(), total, (total + batchSize - 1) / batchSize, cost);
     }
 
     @Override
