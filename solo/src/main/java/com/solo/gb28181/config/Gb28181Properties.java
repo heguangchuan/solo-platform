@@ -206,6 +206,14 @@ public class Gb28181Properties {
         private int flushThreshold = 1000;
 
         /**
+         * 时间触发 flush 间隔（毫秒）。距上次 flush 超过此间隔且缓冲非空，强制 flush 一次。
+         * <p>解决"设备发包慢（每分片 0-1 个 item）+ flushThreshold 较大 → 进度条长期不动"
+         * 问题：每 N 毫秒即便缓冲未达阈值也触发 flush，让前端进度能持续滚动。
+         * 太小 → 频繁空 flush 浪费 DB；太大 → 进度条更新卡顿。默认 2000。</p>
+         */
+        private long flushIntervalMs = 5000L;
+
+        /**
          * 单批入库 SQL 的行数上限。MySQL 单条 INSERT 行数受 max_allowed_packet 限制，
          * 500-1000 行是安全区间。flush 缓冲 ≥ 该值时分片入库，每片独立执行 upsert SQL。</p>
          */

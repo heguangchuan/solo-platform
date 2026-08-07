@@ -137,7 +137,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
      * 这里直接走一个轻量 ctx（不进 contexts Map），publish 一次事件即可。
      */
     private CatalogSyncContext buildIdleContextForEmpty(String deviceId, int sn, int sumNum) {
-        CatalogSyncContext stub = new CatalogSyncContext(deviceId, sn, sumNum, 1);
+        CatalogSyncContext stub = new CatalogSyncContext(deviceId, sn, sumNum, 1, 0L);
         stub.done = true;
         stub.completenessRatio = 1.0;
         return stub;
