@@ -83,11 +83,13 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request, properties.isUseSourceIpAsRemoteAddress());
         String requestAddress = remote.hostAddress();
 
-        // 取设备已存在记录 + 鉴权密码
-        // 先查是否命中白名单（下级平台用专属密码鉴权，禁用平台直接拒绝）
+        // 取设备已存在记录
+        // gb_platform 只做"是否登记为下级平台"的标记（决定 isPlatform / 来源标记 / 根目录创建），
+        // 不再参与鉴权：注册鉴权统一走 gb28181.password（可为空，空则不挑战、不校验）。
         GbPlatform platform = gbPlatformService.lambdaQuery()
                 .eq(GbPlatform::getPlatformId, deviceId).one();
         if (platform != null && platform.getEnabled() != null && platform.getEnabled() == 0) {
+            // 平台被禁用是操作员的主动配置，仍以 403 拒绝（与"无鉴权"语义不冲突）
             SIPResponse forbidden = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.FORBIDDEN, request);
             forbidden.setReasonPhrase("platform disabled");
             sipSender.send(request.getLocalAddress().getHostAddress(), forbidden);
@@ -95,15 +97,15 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             return;
         }
         final boolean isPlatform = (platform != null);
-        String password = isPlatform ? platform.getAuthKey() : properties.getPassword();
+        // 鉴权密码统一取 gb28181.password，gb_platform.authKey 不再使用（见 ADR-022）
+        String password = properties.getPassword();
         String title = isUnregister ? (isPlatform ? "[级联注销]" : "[设备注销]")
                 : (isPlatform ? "[级联注册]" : "[设备注册]");
         log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
         GbDevice exist = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
 
-        // 校验 Digest
+        // 401 挑战：仅当设备没带 Authorization 且全局密码非空时发出。空密码 = 开放模式，零挑战。
         if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) == null && password != null && !password.isBlank()) {
-            // 分支 1：发起 401 挑战
             SIPResponse challenge = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.UNAUTHORIZED, request);
             new DigestServerAuthenticationHelper().appendChallenge(HEADER_FACTORY, challenge, properties.getDomain());
             sipSender.send(request.getLocalAddress().getHostAddress(), challenge);
@@ -111,15 +113,10 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             return;
         }
 
-        boolean pwdOk = password == null || password.isBlank()
-                || new DigestServerAuthenticationHelper().authenticate(request, password);
-        if (!pwdOk) {
-            // 分支 2：鉴权失败
-            SIPResponse forbidden = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.FORBIDDEN, request);
-            forbidden.setReasonPhrase("wrong password");
-            sipSender.send(request.getLocalAddress().getHostAddress(), forbidden);
-            log.warn("{} deviceId={} 鉴权失败", title, deviceId);
-            return;
+        // 不再校验 Digest 摘要 — "不管下级或者设备传什么 我方都应当放行"（见 ADR-022）。
+        // 设备带 Authorization 过来即视为鉴权通过；空密码场景下连 401 都不会发。
+        if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) != null) {
+            log.debug("{} deviceId={} 接受 Authorization 头，跳过 Digest 校验", title, deviceId);
         }
 
         // 鉴权通过 → 构造 200 OK

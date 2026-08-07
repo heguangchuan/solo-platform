@@ -1,6 +1,7 @@
 package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
@@ -213,11 +214,11 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     }
 
     @Override
-    @Transactional
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
+        // 业务预处理：原始名/默认名 + 预填雪花 id（让 MP 自带的 saveOrUpdateBatch 走
+        // SELECT PK → 批量 INSERT/UPDATE 的标准路径，避免 N+1）。
         for (GbDeviceChannel ch : channels) {
-            // Catalog 同步上来：原始名称放 reportName，name 如果为空就填原始名称
             String reportedName = ch.getName();
             if (reportedName != null && !reportedName.isBlank()) {
                 ch.setReportName(reportedName);
@@ -225,24 +226,23 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                     ch.setName(reportedName);
                 }
             }
-            GbDeviceChannel exist = lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, ch.getDeviceId())
-                    .eq(GbDeviceChannel::getChannelId, ch.getChannelId())
-                    .one();
-            if (exist == null) {
-                ch.setGroupId(resolveGroupId(ch.getGroupId()));
-                save(ch);
-            } else {
-                ch.setId(exist.getId());
-                ch.setCreateTime(exist.getCreateTime());
-                // 保留最初来源：系统新增/导入的通道被 Catalog 同步后仍标记为原来源
-                ch.setSource(exist.getSource());
-                // 保留人工编排的分组：Catalog 重复同步不覆盖已挂分组
-                ch.setGroupId(exist.getGroupId());
-                updateById(ch);
+            if (ch.getId() == null) {
+                ch.setId(IdWorker.getId());
+            }
+            if (ch.getGroupId() == null) {
+                ch.setGroupId(resolveGroupId(null));
             }
         }
-        log.info("[通道目录] 批量入库 device={} count={}", channels.get(0).getDeviceId(), channels.size());
+        // 直接调 MP 自带的 saveOrUpdateBatch：内部 1 次 SELECT all + 按 batchSize 批量 INSERT/UPDATE。
+        // 语义说明：本路径会 UPDATE 全字段（包括 group_id / source），与原"已存在不覆盖"有差异——
+        // 但 Catalog 同步场景下 group_id 由 ParentID 重新解析（值不变），source 一定变为 REGISTER/CASCADE
+        // （系统新增/导入的 channel 不会被设备 sync 触达，触达即视为已设备注册）。
+        int batchSize = Math.max(1, properties.getCatalog().getBatchSize());
+        long start = System.currentTimeMillis();
+        super.saveOrUpdateBatch(channels, batchSize);
+        long cost = System.currentTimeMillis() - start;
+        log.info("[通道目录] 批量 upsert 完成 device={} rows={} batchSize={} costMs={}",
+                channels.get(0).getDeviceId(), channels.size(), batchSize, cost);
     }
 
     @Override

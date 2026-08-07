@@ -66,7 +66,10 @@ gb28181: # 是否启用国标服务
   id: 60000000042000000028
   # 本平台 SIP 域（一般是行政区划编码 + 4 位 0000）
   domain: 6000000004
-  # 设备注册鉴权密码
+  # 设备注册鉴权密码。留空 = 开放模式（不挑战、不校验）。
+  # 留空时本平台对所有 REGISTER 直接回 200 OK；不推荐公网/多租户环境使用。
+  # 设置后：设备首次 REGISTER → 平台发 401 + Digest challenge（带 realm）；设备二次 REGISTER 带 Authorization → 平台**不校验**摘要，直接 200 OK。
+  # 详见 gb28181.md ADR-022
   password: 123456
   # 设备注册有效期（秒）
   register-expires: 3600
@@ -90,6 +93,24 @@ gb28181: # 是否启用国标服务
     send-rtp-port-end: 60000
     # 上级点播回 200 OK 后等待 ACK 的超时（毫秒），超时释放并 BYE 上级
     send-ack-timeout-ms: 60000
+
+  # 目录分片累积调优（10w+ 通道重写后参数）
+  catalog:
+    # 静默超时：连续多少毫秒无新 item → 视为设备发完，partial finalize
+    # idle-finalize-ms: 120000
+    # 强制收尾：完全多少毫秒无任何响应 → sweep 强收
+    # expire-ms: 600000
+    # 滚动缓冲阈值：缓冲达到该条数立即触发批量入库
+    # flush-threshold: 1000
+    # 单批入库 SQL 行数（MySQL max_allowed_packet 限制）
+    # batch-size: 500
+    # 丢包容忍：累计收到 >= sumNum * 该比例才清"已不存在通道"
+    # completeness-threshold: 0.95
+  # 目录同步落库专用线程池（独立于业务池，避免阻塞 SIP 分发）
+  catalog-sync-pool:
+    # core-pool-size: 20
+    # max-pool-size: 50
+    # queue-capacity: 5000
 
 # 流媒体（ZLMediaKit）相关配置
 media:

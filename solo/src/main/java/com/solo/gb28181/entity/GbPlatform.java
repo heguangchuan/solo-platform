@@ -40,7 +40,8 @@ public class GbPlatform {
     private String name;
 
     /**
-     * 注册鉴权专属密钥（后端自动生成 32 位 UUID），不可编辑
+     * 注册鉴权专属密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），
+     * 字段保留供后续可能的其他业务（如跨域同步、API 接入凭据等）使用。
      */
     private String authKey;
 

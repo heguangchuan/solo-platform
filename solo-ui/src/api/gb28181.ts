@@ -35,6 +35,8 @@ import type {
   StreamPushPlayUrl,
   StreamPushClient,
   StreamPushClientPageRequest,
+  GbSyncStatus,
+  GbSyncTriggerResponse,
 } from '@/types/api'
 import { get, post, del } from '@/utils/request'
 
@@ -53,10 +55,30 @@ export function getGbDeviceApi(deviceId: string) {
 }
 
 /**
- * 触发设备信息 + 通道目录同步
+ * 触发设备信息 + 通道目录同步（去重：已在跑时返回 ALREADY_RUNNING + 当前 status）
  */
 export function syncGbDeviceApi(deviceId: string) {
-  return post<void>(`/api/gb28181/device/${deviceId}/sync`)
+  return post<GbSyncTriggerResponse>(`/api/gb28181/device/${deviceId}/sync`)
+}
+
+/**
+ * 拉取设备同步进度
+ * <p>无状态 → IDLE；运行中 / 已完成 / 已失败 → 对应 status JSON 字符串</p>
+ */
+export function getDeviceSyncStatusApi(deviceId: string) {
+  return get<string>(`/api/gb28181/device/${deviceId}/sync-status`)
+}
+
+/** 把后端返回的 status JSON 字符串解析成对象（容错：解析失败返回 IDLE） */
+export function parseSyncStatus(raw: string | null | undefined, deviceId: string): GbSyncStatus {
+  if (!raw) {
+    return { deviceId, status: 'IDLE', received: 0, total: 0, percent: 0, startedAtMs: 0, lastUpdateAtMs: 0, duplicateCount: 0 }
+  }
+  try {
+    return JSON.parse(raw) as GbSyncStatus
+  } catch {
+    return { deviceId, status: 'IDLE', received: 0, total: 0, percent: 0, startedAtMs: 0, lastUpdateAtMs: 0, duplicateCount: 0 }
+  }
 }
 
 /**

@@ -12,7 +12,8 @@ import java.util.List;
  * 下级级联平台服务（白名单管理）
  *
  * <p>下级平台 SIP 接入时视为设备，走现有设备注册流程；本服务只负责白名单的
- * 增删改查，以及注册鉴权时按 platformId 提供专属密码。</p>
+ * 增删改查，鉴权完全由 {@code gb28181.password} 决定（见 ADR-022）。
+ * 白名单命中后只影响业务路由：来源标记 / 根目录创建 / 孤儿兜底挂载。</p>
  */
 public interface GbPlatformService extends IService<GbPlatform> {
 
@@ -37,7 +38,8 @@ public interface GbPlatformService extends IService<GbPlatform> {
     void deleteBatch(List<Long> ids);
 
     /**
-     * 按 platformId 查启用中的白名单；供 REGISTER 分流鉴权用。未命中或已禁用返回 null。
+     * 按 platformId 查启用中的白名单；供 REGISTER 流程判断"是否登记为下级平台"用。
+     * 未命中或已禁用返回 null。不参与鉴权。
      */
     GbPlatform findEnabledByPlatformId(String platformId);
 }
