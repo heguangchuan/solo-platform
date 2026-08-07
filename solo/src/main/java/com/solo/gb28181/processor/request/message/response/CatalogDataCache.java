@@ -124,11 +124,22 @@ public class CatalogDataCache {
             }
             ctx.lastUpdateMs.set(now);
 
-            log.info("[通道目录] 分片累积 deviceId={} sn={} +{} ({}通道/{}目录) → total={}/{} buffered={}",
-                    ctx.deviceId, ctx.sn, addedChannels + addedGroups,
-                    addedChannels, addedGroups,
-                    ctx.totalReceived.get(), ctx.sumNum,
-                    ctx.channelBuffer.size() + ctx.groupBuffer.size());
+            // INFO 节流：每累计 flushThreshold 条 或 距上次 INFO 满 flushIntervalMs 才打一次。
+            // 第一次必打（让日志能看到"同步已开跑"）。复用 flush 阈值/间隔，不引入新配置。
+            long total = ctx.totalReceived.get();
+            long lastTotal = ctx.lastLogTotalReceived.get();
+            long lastMs = ctx.lastLogMs.get();
+            boolean firstLog = (lastTotal == 0 && total > 0);
+            boolean countHit = (total - lastTotal) >= ctx.flushThreshold;
+            boolean timeHit = ctx.flushIntervalMs > 0 && (now - lastMs) >= ctx.flushIntervalMs;
+            if (firstLog || countHit || timeHit) {
+                log.info("[通道目录] 分片累积 deviceId={} sn={} +{} → total={}/{} buffered={}",
+                        ctx.deviceId, ctx.sn, total - lastTotal,
+                        total, ctx.sumNum,
+                        ctx.channelBuffer.size() + ctx.groupBuffer.size());
+                ctx.lastLogTotalReceived.set(total);
+                ctx.lastLogMs.set(now);
+            }
 
             // 阈值触发 → flush
             int buffered = ctx.channelBuffer.size() + ctx.groupBuffer.size();

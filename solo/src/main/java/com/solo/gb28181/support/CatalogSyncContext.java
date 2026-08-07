@@ -62,6 +62,10 @@ public class CatalogSyncContext {
     public final AtomicLong lastNonEmptyUpdateMs = new AtomicLong(System.currentTimeMillis());
     /** 最近一次 flush 的时刻（毫秒）——时间触发 flush 间隔判断用 */
     public final AtomicLong lastFlushMs = new AtomicLong(System.currentTimeMillis());
+    /** 上次打 INFO 时的累计值——INFO 节流"每 N 条打一次"判定用，复用 {@link #flushThreshold} */
+    public final AtomicLong lastLogTotalReceived = new AtomicLong(0);
+    /** 上次打 INFO 时的毫秒时间戳——INFO 节流"每 N 毫秒打一次"判定用，复用 {@link #flushIntervalMs} */
+    public final AtomicLong lastLogMs = new AtomicLong(System.currentTimeMillis());
 
     public final ReentrantLock lock = new ReentrantLock();
 
