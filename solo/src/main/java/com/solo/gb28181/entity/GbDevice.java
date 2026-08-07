@@ -9,6 +9,7 @@ import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
 import tools.jackson.databind.ser.std.ToStringSerializer;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -17,7 +18,9 @@ import java.time.LocalDateTime;
  */
 @Data
 @TableName("gb_device")
-public class GbDevice {
+public class GbDevice implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /**
      * 主键 ID

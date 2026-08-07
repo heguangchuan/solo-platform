@@ -142,6 +142,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         exist.setTransport(device.getTransport());
         exist.setExpires(device.getExpires());
         updateById(exist);
+        evictProfileCache(exist.getDeviceId());
         log.info("[设备编辑] 更新设备资料: {}", exist.getDeviceId());
     }
 
@@ -165,6 +166,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             log.info("[设备上线] 重新注册: {} {}", device.getDeviceId(), device.getHostAddress());
         }
         refreshOnlineKey(device.getDeviceId());
+        evictProfileCache(device.getDeviceId());
     }
 
     @Override
@@ -175,6 +177,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             updateById(device);
         }
         redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId);
+        evictProfileCache(deviceId);
 
         // 设备离线，清扫该设备所有活跃点播/回放会话，释放 SSRC / RTP 端口 / Redis 资源
         List<GbInviteSession> allSessions = inviteSessionService.listAllActive();
@@ -307,8 +310,20 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
                 removeById(id);
                 // 删除 Redis 在线状态键
                 redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + device.getDeviceId());
+                evictProfileCache(device.getDeviceId());
                 log.info("[批量删除] 删除设备: deviceId={}, name={}", device.getDeviceId(), device.getName());
             }
+        }
+    }
+
+    @Override
+    public void evictProfileCache(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return;
+        try {
+            redisTemplate.delete(GbRedisKeys.DEVICE_PROFILE_PREFIX + deviceId);
+        } catch (Exception e) {
+            // 缓存失效失败不阻塞业务，等 TTL 兜底
+            log.warn("[设备档案] 缓存失效失败 deviceId={} err={}", deviceId, e.getMessage());
         }
     }
 }

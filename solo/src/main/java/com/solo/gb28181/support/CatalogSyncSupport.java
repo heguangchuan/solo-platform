@@ -223,6 +223,8 @@ public class CatalogSyncSupport {
             device.setChannelCount(countAfter);
             device.setLastCatalogSyncTime(LocalDateTime.now());
             deviceService.updateById(device);
+            // 失效档案缓存：channelCount / lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
+            deviceService.evictProfileCache(device.getDeviceId());
         }
     }
 }

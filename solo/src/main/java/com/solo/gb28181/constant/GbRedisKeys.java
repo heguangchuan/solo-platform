@@ -14,6 +14,16 @@ public interface GbRedisKeys {
     /** 设备在线 Key 前缀：gb28181:device:online:{deviceId} */
     String DEVICE_ONLINE_PREFIX = "gb28181:device:online:";
 
+    /**
+     * 设备档案缓存前缀：gb28181:device:profile:{deviceId}
+     * <p>缓存整个 {@code GbDevice} POJO，TTL 10 分钟。用于 {@code MessageRequestProcessor} 等
+     * SIP 入口按 {@code deviceId} 查设备时减少 SQL：catalog 同步期间 4w+ 条 MESSAGE 只在首条 miss。</p>
+     * <p>写入路径在 {@code GbDeviceServiceImpl}（online / offline / updateByManual / deleteBatch）
+     * 和 {@code CatalogSyncSupport}（final flush 回写 channelCount / lastCatalogSyncTime）触发
+     * {@code delete} 主动失效，TTL 是兜底。</p>
+     */
+    String DEVICE_PROFILE_PREFIX = "gb28181:device:profile:";
+
     // ========== 点播/回放会话 ==========
 
     /** 邀请会话前缀 */
