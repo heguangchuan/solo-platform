@@ -1,5 +1,6 @@
 package com.solo.gb28181.processor.request;
 
+import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.processor.SipRequestProcessor;
@@ -14,6 +15,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
@@ -22,6 +24,7 @@ import javax.sip.message.Response;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * MESSAGE 请求总入口
@@ -55,6 +58,17 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
 
     @Autowired
     private GbParentPlatformService gbParentPlatformService;
+
+    /**
+     * 设备档案缓存。catalog 同步期间 4w+ 条 MESSAGE 都按 {@code deviceId} 查设备，
+     * 走缓存避免每条都打 SQL。TTL 10 min，写路径（online/offline/updateByManual/deleteBatch/
+     * CatalogSyncSupport final flush）已主动失效。
+     */
+    @Autowired
+    private RedisTemplate<String, Object> deviceProfileRedisTemplate;
+
+    /** 设备档案缓存 TTL：10 分钟。catalog 同步期间只需首条 miss 走 DB。 */
+    private static final long DEVICE_PROFILE_TTL_MINUTES = 10L;
 
     /** rootType -> cmdType -> handler */
     private final Map<String, Map<String, MessageHandler>> handlerMap = new HashMap<>();
@@ -100,9 +114,7 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         }
 
         // 先按 fromUser 查设备
-        GbDevice device = gbDeviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, fromUser)
-                .one();
+        GbDevice device = lookupDeviceCached(fromUser);
         if (device != null) {
             try {
                 handler.handleForDevice(event, device, root);
@@ -144,5 +156,37 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         // 其他子命令：回 200 避免设备重传，打 INFO 留痕
         log.info("[消息分发] 未注册来源发送 MESSAGE: from={} cmd={}", fromUser, cmdType);
         responseAck(request, Response.OK);
+    }
+
+    /**
+     * 按 {@code deviceId} 查设备，优先走 {@link GbRedisKeys#DEVICE_PROFILE_PREFIX} 缓存。
+     * <p>catalog 同步期间 4w+ 条 MESSAGE 都按 {@code fromUser} 查设备，缓存命中后零 SQL。
+     * 缓存 miss 才走 DB，写回缓存。Redis 不可用时静默回退到 DB（不影响 SIP 接收）。</p>
+     */
+    private GbDevice lookupDeviceCached(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return null;
+        String key = GbRedisKeys.DEVICE_PROFILE_PREFIX + deviceId;
+        // 1) 查缓存
+        try {
+            Object cached = deviceProfileRedisTemplate.opsForValue().get(key);
+            if (cached instanceof GbDevice hit) {
+                return hit;
+            }
+        } catch (Exception e) {
+            log.warn("[消息分发] 设备档案缓存读取失败，回退到 DB deviceId={} err={}", deviceId, e.getMessage());
+        }
+        // 2) miss / 异常 → 查 DB
+        GbDevice device = gbDeviceService.lambdaQuery()
+                .eq(GbDevice::getDeviceId, deviceId)
+                .one();
+        // 3) 回写缓存（仅命中时写；查不到不写负缓存，避免对端未注册时反复打 SQL）
+        if (device != null) {
+            try {
+                deviceProfileRedisTemplate.opsForValue().set(key, device, DEVICE_PROFILE_TTL_MINUTES, TimeUnit.MINUTES);
+            } catch (Exception e) {
+                log.warn("[消息分发] 设备档案缓存写入失败 deviceId={} err={}", deviceId, e.getMessage());
+            }
+        }
+        return device;
     }
 }

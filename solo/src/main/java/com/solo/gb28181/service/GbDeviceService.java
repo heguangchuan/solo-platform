@@ -54,6 +54,14 @@ public interface GbDeviceService extends IService<GbDevice> {
     void deleteBatch(java.util.List<Long> ids);
 
     /**
+     * 失效设备档案缓存（{@link com.solo.gb28181.constant.GbRedisKeys#DEVICE_PROFILE_PREFIX}）。
+     * <p>凡是改了 {@code gb_device} 行的写路径（online / offline / updateByManual / deleteBatch
+     * 以及 {@code CatalogSyncSupport} final flush 改 {@code channelCount}/{@code lastCatalogSyncTime}）
+     * 都必须调一次，否则下次 SIP 入站按 {@code deviceId} 查缓存会拿到旧值。TTL 是兜底。</p>
+     */
+    void evictProfileCache(String deviceId);
+
+    /**
      * 批量探测设备存活
      * <p>向每台设备发送 DeviceInfo 查询（SIP MESSAGE），等待应答。
      * 有应答 → online（写回 status=1 + 刷新 Redis TTL）；
