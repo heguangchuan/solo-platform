@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.solo.gb28181.mapper.GbDeviceChannelMapper">
+
+    <!--
+      批量 upsert（Catalog 同步落库用）
+      ─────────────────────────────────
+      入参：List<GbDeviceChannel>，由调用方预填 id（雪花）
+      走业务唯一键 uk_device_channel (device_db_id, channel_id)，不依赖预 SELECT。
+      行数受调用方 batchSize 限制（默认 500），单条 SQL 一次往返。
+
+      保留语义（不在 ON DUPLICATE KEY UPDATE 中更新）：
+        - group_id    人工编排，Catalog 重报不覆盖
+        - source      数据来源（系统/导入/注册/级联），保留已存在的值
+        - create_time 由 MyBatis-Plus FieldFill.INSERT 自动维护，只在 INSERT 时填
+
+      注意：VALUES() 是 MySQL 8.0.20 前语法，兼容 5.7/8.0；
+      若升级至 8.0.20+ 可改为别名语法。
+    -->
+    <insert id="batchUpsert" parameterType="java.util.List" useGeneratedKeys="false">
+        INSERT INTO gb_device_channel (
+            id, device_db_id, device_id, channel_id,
+            report_name, name, manufacturer, model, owner, civil_code, block, address,
+            parental, safety_way, register_way,
+            cert_num, certifiable, secrecy,
+            ip_address, port, password, status,
+            longitude, latitude, ptz_type,
+            platform_id, group_id, source
+        )
+        VALUES
+        <foreach collection="list" item="ch" separator=",">
+            (
+                #{ch.id}, #{ch.deviceDbId}, #{ch.deviceId}, #{ch.channelId},
+                #{ch.reportName}, #{ch.name}, #{ch.manufacturer}, #{ch.model},
+                #{ch.owner}, #{ch.civilCode}, #{ch.block}, #{ch.address},
+                #{ch.parental}, #{ch.safetyWay}, #{ch.registerWay},
+                #{ch.certNum}, #{ch.certifiable}, #{ch.secrecy},
+                #{ch.ipAddress}, #{ch.port}, #{ch.password}, #{ch.status},
+                #{ch.longitude}, #{ch.latitude}, #{ch.ptzType},
+                #{ch.platformId}, #{ch.groupId}, #{ch.source}
+            )
+        </foreach>
+        ON DUPLICATE KEY UPDATE
+            report_name  = VALUES(report_name),
+            name         = VALUES(name),
+            manufacturer = VALUES(manufacturer),
+            model        = VALUES(model),
+            owner        = VALUES(owner),
+            civil_code   = VALUES(civil_code),
+            block        = VALUES(block),
+            address      = VALUES(address),
+            parental     = VALUES(parental),
+            safety_way   = VALUES(safety_way),
+            register_way = VALUES(register_way),
+            cert_num     = VALUES(cert_num),
+            certifiable  = VALUES(certifiable),
+            secrecy      = VALUES(secrecy),
+            ip_address   = VALUES(ip_address),
+            port         = VALUES(port),
+            password     = VALUES(password),
+            status       = VALUES(status),
+            longitude    = VALUES(longitude),
+            latitude     = VALUES(latitude),
+            ptz_type     = VALUES(ptz_type),
+            platform_id  = VALUES(platform_id)
+    </insert>
+
+</mapper>
