@@ -29,6 +29,19 @@ import java.util.Map;
  * <p>所有 {@link MessageHandler} 实现会被 Spring 自动注入，{@code @PostConstruct} 中注册到映射表。</p>
  * <p>发送方身份识别：先按 fromUser 查 {@link GbDevice}（下级设备/下级级联平台）；未命中再查
  * {@link GbParentPlatform#getServerGbId()}（本平台作为下级挂上级场景，上级发来的 Query/Notify）。</p>
+ *
+ * <h3>未注册来源处理策略</h3>
+ * <ul>
+ *   <li>有设备：调 {@link MessageHandler#handleForDevice}，handler 内部按需打日志。</li>
+ *   <li>有平台：调 {@link MessageHandler#handleForPlatform}，handler 内部按需打日志。</li>
+ *   <li>设备/平台都不在库，按 cmdType 分支：</li>
+ *   <li>　<b>Catalog</b>：完全静默——不打日志、不发 SIP 响应。NVR 每 3-4s 一个分片，
+ *       持续发会刷屏；GB 协议未规定"未注册"目录订阅的应答，设备按自身重传机制处理。</li>
+ *   <li>　<b>Keepalive</b>：回 403 逼设备重新 REGISTER，实现删除后快速自愈，打 WARN 留痕。</li>
+ *   <li>　<b>其他</b>：回 200 OK 避免设备重传，打 INFO 留痕。</li>
+ *   <li>报文解析失败：记 WARN + 回 400（语法层错误要告诉对方）。</li>
+ *   <li>未注册的根元素/CmdType（无 handler）：回 200 OK 让设备别重传。</li>
+ * </ul>
  */
 @Slf4j
 @Component
@@ -77,46 +90,59 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         String rootName = root.getName();
         String cmdType = XmlUtils.childText(root, "CmdType");
 
-        GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, fromUser).one();
-
         Map<String, MessageHandler> byCmd = handlerMap.get(rootName);
         MessageHandler handler = byCmd == null ? null : byCmd.get(cmdType);
 
         if (handler == null) {
-            log.info("[消息分发] 未注册的 MESSAGE 子命令: rootType={} cmdType={} from={}", rootName, cmdType, fromUser);
-            // 即使不处理也要回 200，避免设备无穷重传
+            // 未注册的子命令：回 200 避免设备重传，不打日志
             responseAck(request, Response.OK);
             return;
         }
 
-        try {
-            if (device != null) {
+        // 先按 fromUser 查设备
+        GbDevice device = gbDeviceService.lambdaQuery()
+                .eq(GbDevice::getDeviceId, fromUser)
+                .one();
+        if (device != null) {
+            try {
                 handler.handleForDevice(event, device, root);
-                return;
+            } catch (Exception e) {
+                log.error("[消息分发] MESSAGE handler 异常: rootType={} cmdType={} from={}",
+                        rootName, cmdType, fromUser, e);
             }
-
-            // 设备未命中：按 fromUser 反查上级平台（本平台作为下级挂上级时，上级发来的 Query/Notify 走这条分支）
-            GbParentPlatform platform = gbParentPlatformService.lambdaQuery()
-                    .eq(GbParentPlatform::getServerGbId, fromUser)
-                    .eq(GbParentPlatform::getEnabled, 1)
-                    .one();
-            if (platform != null) {
-                handler.handleForPlatform(event, platform, root);
-                return;
-            }
-
-            if ("Keepalive".equals(cmdType)) {
-                // 平台不认识该设备（如已被删除）→ 对心跳回 403，逼设备重新 REGISTER，实现删除后快速自愈
-                responseAck(request, Response.FORBIDDEN, "device not registered");
-                log.warn("[消息分发] 未知设备心跳，回 403 触发重注册: from={}", fromUser);
-            } else {
-                // 其他子命令：设备/平台未注册，先回 200 再丢弃，避免对端无穷重传
-                log.warn("[消息分发] 未注册来源发送 MESSAGE: from={} cmd={}", fromUser, cmdType);
-                responseAck(request, Response.OK);
-            }
-        } catch (Exception e) {
-            log.error("[消息分发] MESSAGE handler 异常: rootType={} cmdType={} from={}",
-                    rootName, cmdType, fromUser, e);
+            return;
         }
+
+        // 设备未命中：按 fromUser 反查上级平台（本平台作为下级挂上级时，上级发来的 Query/Notify 走这条分支）
+        GbParentPlatform platform = gbParentPlatformService.lambdaQuery()
+                .eq(GbParentPlatform::getServerGbId, fromUser)
+                .eq(GbParentPlatform::getEnabled, 1)
+                .one();
+        if (platform != null) {
+            try {
+                handler.handleForPlatform(event, platform, root);
+            } catch (Exception e) {
+                log.error("[消息分发] MESSAGE handler 异常: rootType={} cmdType={} from={}",
+                        rootName, cmdType, fromUser, e);
+            }
+            return;
+        }
+
+        // 设备和平台都不在库：按 cmdType 分支处理
+        if ("Catalog".equals(cmdType)) {
+            // 目录订阅未注册：完全静默——不打日志、不发响应。
+            // NVR 每 3-4s 一个分片，未注册时持续刷屏；GB/T 28181 未规定"未注册"目录订阅的应答，
+            // 平台不响应是合法选择，设备按 SIP 自身重传机制处理。
+            return;
+        }
+        if ("Keepalive".equals(cmdType)) {
+            // 心跳未注册：回 403 逼设备重新 REGISTER，实现删除后快速自愈
+            responseAck(request, Response.FORBIDDEN, "device not registered");
+            log.warn("[消息分发] 未知设备心跳，回 403 触发重注册: from={}", fromUser);
+            return;
+        }
+        // 其他子命令：回 200 避免设备重传，打 INFO 留痕
+        log.info("[消息分发] 未注册来源发送 MESSAGE: from={} cmd={}", fromUser, cmdType);
+        responseAck(request, Response.OK);
     }
 }
