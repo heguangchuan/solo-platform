@@ -102,6 +102,8 @@ gb28181: # 是否启用国标服务
     # expire-ms: 600000
     # 滚动缓冲阈值：缓冲达到该条数立即触发批量入库
     # flush-threshold: 1000
+    # 时间触发 flush 间隔（毫秒）：距上次 flush 超过此值且缓冲非空强制 flush
+    # flush-interval-ms: 2000
     # 单批入库 SQL 行数（MySQL max_allowed_packet 限制）
     # batch-size: 500
     # 丢包容忍：累计收到 >= sumNum * 该比例才清"已不存在通道"

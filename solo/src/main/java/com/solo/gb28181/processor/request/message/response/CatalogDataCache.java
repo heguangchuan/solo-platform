@@ -58,7 +58,8 @@ public class CatalogDataCache {
     public CatalogSyncContext startSync(String deviceId, int sn, int sumNum) {
         CatalogSyncContext ctx = contexts.computeIfAbsent(deviceId,
                 k -> new CatalogSyncContext(deviceId, sn, sumNum,
-                        properties.getCatalog().getFlushThreshold()));
+                        properties.getCatalog().getFlushThreshold(),
+                        properties.getCatalog().getFlushIntervalMs()));
         if (ctx.sn != sn) {
             log.warn("[通道目录] SN 不一致，放弃本次分片 deviceId={} inProgress={} incoming={}",
                     deviceId, ctx.sn, sn);
@@ -133,6 +134,11 @@ public class CatalogDataCache {
             int buffered = ctx.channelBuffer.size() + ctx.groupBuffer.size();
             if (buffered >= ctx.flushThreshold) {
                 submitFlush(ctx, false);
+            } else if (ctx.flushIntervalMs > 0
+                    && now - ctx.lastFlushMs.get() >= ctx.flushIntervalMs
+                    && buffered > 0) {
+                // 时间触发 → flush（解决设备发包慢时进度条长期不动）
+                submitFlush(ctx, false);
             }
         } finally {
             ctx.lock.unlock();
@@ -201,6 +207,8 @@ public class CatalogDataCache {
         Map<String, String> gParentSnap = isFinalFlush
                 ? new java.util.HashMap<>(ctx.groupParentIdMap) : null;
         syncSupport.executeFlush(ctx, chSnap, gSnap, chParentSnap, gParentSnap, isFinalFlush);
+        // 刷新 lastFlushMs：让时间触发从本次 flush 重新计时
+        ctx.lastFlushMs.set(System.currentTimeMillis());
     }
 
     private void scheduleContextEviction(String deviceId, CatalogSyncContext ctx, long delayMs) {

@@ -33,6 +33,8 @@ public class CatalogSyncContext {
     public final int sn;
     public final int sumNum;
     public final int flushThreshold;
+    /** 时间触发 flush 间隔（毫秒）：距上次 flush 超过此值且缓冲非空，强制 flush */
+    public final long flushIntervalMs;
 
     /** 滚动缓冲——本次同步累积的 channel，下次 flush 时清空 */
     public final List<GbDeviceChannel> channelBuffer = new ArrayList<>();
@@ -58,6 +60,8 @@ public class CatalogSyncContext {
     public final AtomicLong lastUpdateMs = new AtomicLong(System.currentTimeMillis());
     /** 仅在有 item 进入时刷——保留旧语义，兼容可能的"分片停顿"判定 */
     public final AtomicLong lastNonEmptyUpdateMs = new AtomicLong(System.currentTimeMillis());
+    /** 最近一次 flush 的时刻（毫秒）——时间触发 flush 间隔判断用 */
+    public final AtomicLong lastFlushMs = new AtomicLong(System.currentTimeMillis());
 
     public final ReentrantLock lock = new ReentrantLock();
 
@@ -70,11 +74,12 @@ public class CatalogSyncContext {
     /** 同步开始时刻（毫秒），由 startSync 时设置 */
     public final long startedAtMs = System.currentTimeMillis();
 
-    public CatalogSyncContext(String deviceId, int sn, int sumNum, int flushThreshold) {
+    public CatalogSyncContext(String deviceId, int sn, int sumNum, int flushThreshold, long flushIntervalMs) {
         this.deviceId = deviceId;
         this.sn = sn;
         this.sumNum = sumNum;
         this.flushThreshold = Math.max(1, flushThreshold);
+        this.flushIntervalMs = Math.max(0L, flushIntervalMs);
     }
 
     public CatalogSyncProgress toProgress() {
