@@ -1,6 +1,36 @@
 /** GB/T 28181 国标模块相关类型 */
 import type { PageRequest } from './common'
 
+/** Catalog 同步进度（来自 GET /sync-status 或 WebSocket GB_SYNC_PROGRESS 推送） */
+export interface GbSyncStatus {
+  deviceId: string
+  /** IDLE / RUNNING / SUCCESS / FAILED */
+  status: 'IDLE' | 'RUNNING' | 'SUCCESS' | 'FAILED'
+  /** 已收到通道 / 目录项累计 */
+  received: number
+  /** 设备通告的 SumNum，0=设备空目录 */
+  total: number
+  /** 0-100 */
+  percent: number
+  /** 毫秒时间戳 */
+  startedAtMs: number
+  lastUpdateAtMs: number
+  /** yyyy-MM-dd HH:mm:ss，status != RUNNING 时存在 */
+  finishedAt?: string
+  /** partial / 失败原因 */
+  errorMsg?: string
+  duplicateCount: number
+}
+
+/** /sync 接口返回（同步触发响应） */
+export interface GbSyncTriggerResponse {
+  /** TRIGGERED：本次抢到锁；ALREADY_RUNNING：锁失败，已有同步在进行 */
+  result: 'TRIGGERED' | 'ALREADY_RUNNING'
+  deviceId: string
+  /** 当前 status JSON 字符串（结构同 GET /sync-status），前端可解析 */
+  status: string
+}
+
 /** 设备列表分页查询参数 */
 export interface GbDevicePageRequest extends PageRequest {
   deviceId?: string
@@ -61,7 +91,7 @@ export interface GbPlatform {
   platformId: string
   /** 平台名称 */
   name: string
-  /** 注册鉴权密钥（后端自动生成 32 位 UUID，不可编辑） */
+  /** 注册鉴权密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），字段保留供后续其他业务使用 */
   authKey?: string
   /** 启用状态：0 禁用 1 启用 */
   enabled: number

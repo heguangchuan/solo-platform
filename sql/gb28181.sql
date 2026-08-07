@@ -148,7 +148,7 @@ CREATE TABLE gb_platform
     id          bigint       NOT NULL COMMENT '主键ID（雪花）',
     platform_id varchar(20)  NOT NULL COMMENT '下级平台国标ID（20位），唯一且等于 gb_device.device_id',
     name        varchar(255) NOT NULL COMMENT '平台名称',
-    auth_key    varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密钥（后端自动生成 32 位 UUID）',
+    auth_key    varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），字段保留供后续其他业务使用',
     enabled     tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用（拒绝注册）1启用',
     create_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

@@ -1,105 +1,271 @@
 package com.solo.gb28181.processor.request.message.response;
 
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
+import com.solo.gb28181.support.CatalogSyncContext;
+import com.solo.gb28181.support.CatalogSyncProgress;
+import com.solo.gb28181.support.CatalogSyncSupport;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Catalog 分片缓存
- * <p>设备的 Catalog 回复会按 SumNum 分多个 MESSAGE 报文分批送回，必须先在内存缓存累计，
- * 收齐 SumNum 条后一次性 upsert，避免半状态目录入库。</p>
- * <p>Item 类型分两类：通道（普通前端设备 130-199）与 目录节点（215 业务分组 / 216 虚拟组织）；
- * 两者共同计入 SumNum，分别累计到 {@link Batch#channels} 与 {@link Batch#groups}。</p>
- * <p>按 (deviceId, sn) 作为 batch key，超时 30 秒未收齐自动丢弃（防止设备发了一半掉线导致内存泄漏）。</p>
+ * Catalog 分片缓冲（10w+ 通道场景专用）。
+ * <p>重写于"接收即落库"模型：原实现把所有 Item 堆在 {@code List<GbDeviceChannel>}
+ * 里等 {@code sumNum} 收齐才一次性入库，4w 通道即 OOM。改为：</p>
+ * <ul>
+ *   <li>每个设备维护一个 {@link CatalogSyncContext}，包含滚动缓冲 + 累计计数 + 重传去重 Set</li>
+ *   <li>每收到一个分片就 {@code accumulate}；缓冲达到 {@code flushThreshold}（默认 1000）即
+ *       提交一次 flush 到 {@code catalogSyncExecutor} 异步落库，落完清空缓冲</li>
+ *   <li>累计数（{@code totalReceived}）独立于缓冲，不随 flush 清零，用于判定收齐与暴露进度</li>
+ *   <li>完成判定：{@code totalReceived >= sumNum} → 自动 {@code finalFlush} 收尾；
+ *       收不到 SumNum 的兜底：{@link #sweep()} 每 30s 扫一次，超 {@code expireMs} 强收</li>
+ *   <li>收尾时若达到 {@code completenessThreshold}（默认 0.95）才删"已不存在通道"，否则保留</li>
+ * </ul>
+ *
+ * <h3>本类只负责"在内存里攒"+"触发 flush"；具体落库由 {@link CatalogSyncSupport} 在 catalogSyncExecutor
+ * 上执行，逻辑跟"分片并发落库"解耦。</h3>
  */
 @Slf4j
 @Component
 public class CatalogDataCache {
 
-    /** 60 秒以上未更新的 batch 视为僵死，定期清理 */
-    private static final long EXPIRE_MS = 60_000L;
+    private final Gb28181Properties properties;
+    private final CatalogSyncSupport syncSupport;
+    private final ApplicationEventPublisher eventPublisher;
 
-    private final Map<String, Batch> cache = new ConcurrentHashMap<>();
+    /** 当前进行中的同步上下文，deviceId → context。 */
+    private final Map<String, CatalogSyncContext> contexts = new ConcurrentHashMap<>();
+
+    public CatalogDataCache(Gb28181Properties properties,
+                            CatalogSyncSupport syncSupport,
+                            ApplicationEventPublisher eventPublisher) {
+        this.properties = properties;
+        this.syncSupport = syncSupport;
+        this.eventPublisher = eventPublisher;
+    }
 
     /**
-     * 累加一片 Catalog Item。通道与目录节点两个列表分别追加，都计入总数与 sumNum 比较。
+     * 启动一次同步：若该设备已有进行中同步且 SN 一致，复用上下文；否则新建。
      *
-     * @param chunkChannels 本片中的通道 Item（可空列表）
-     * @param chunkGroups   本片中的目录节点 Item（可空列表）
-     * @param channelParentIdMap 本片通道的 <ParentID> 映射（channelId → parentId GB码），用于后续目录归属
-     * @param groupParentIdMap   本片目录节点的 <ParentID> 映射（groupId → parentId GB码），用于后续父子归属
-     * @return 达到 SumNum 时返回完整 batch；否则返回 null
+     * @return 启动（或复用）后的上下文；如果 SN 不一致且已有同步，返回 null（让调用方放弃）
      */
-    public Batch accumulate(String deviceId, int sn, int sumNum,
-                            List<GbDeviceChannel> chunkChannels,
-                            List<GbGroup> chunkGroups,
-                            Map<String, String> channelParentIdMap,
-                            Map<String, String> groupParentIdMap) {
-        String key = key(deviceId, sn);
-        Batch batch = cache.computeIfAbsent(key, k -> new Batch(deviceId, sn, sumNum));
-        synchronized (batch) {
-            if (chunkChannels != null && !chunkChannels.isEmpty()) batch.channels.addAll(chunkChannels);
-            if (chunkGroups != null && !chunkGroups.isEmpty()) batch.groups.addAll(chunkGroups);
-            if (channelParentIdMap != null && !channelParentIdMap.isEmpty()) {
-                batch.channelParentIdMap.putAll(channelParentIdMap);
-            }
-            if (groupParentIdMap != null && !groupParentIdMap.isEmpty()) {
-                batch.groupParentIdMap.putAll(groupParentIdMap);
-            }
-            batch.lastUpdateMs = System.currentTimeMillis();
-            int total = batch.channels.size() + batch.groups.size();
-            log.info("[通道目录] 分片累积 deviceId={} sn={} {}/{}（通道 {}，目录 {}）",
-                    deviceId, sn, total, sumNum, batch.channels.size(), batch.groups.size());
-            if (total >= batch.sumNum) {
-                batch.done = true;
-                cache.remove(key);
-            }
+    public CatalogSyncContext startSync(String deviceId, int sn, int sumNum) {
+        CatalogSyncContext ctx = contexts.computeIfAbsent(deviceId,
+                k -> new CatalogSyncContext(deviceId, sn, sumNum,
+                        properties.getCatalog().getFlushThreshold()));
+        if (ctx.sn != sn) {
+            log.warn("[通道目录] SN 不一致，放弃本次分片 deviceId={} inProgress={} incoming={}",
+                    deviceId, ctx.sn, sn);
+            return null;
         }
-        return batch.done ? batch : null;
+        if (ctx.done) {
+            log.info("[通道目录] 同步已完成 deviceId={} sn={} totalReceived={}/{}",
+                    deviceId, sn, ctx.totalReceived.get(), ctx.sumNum);
+            return null;
+        }
+        return ctx;
     }
 
-    /** 定时清理过期 batch（DeviceOfflineDetector 之类的定时任务里调一下即可） */
+    /**
+     * 累加一片 Catalog Item。通道与目录节点两个列表分别追加，都计入累计数；缓冲达到阈值时自动 flush。
+     * <p>调用方拿到返回值如果是 true，说明本次 accumulate 触发了"收齐或超时收尾"——handler 应走
+     * finalize 路径决定是否删"已不存在通道"。</p>
+     */
+    public boolean accumulate(CatalogSyncContext ctx,
+                              List<GbDeviceChannel> chunkChannels,
+                              List<GbGroup> chunkGroups,
+                              Map<String, String> channelParentIdMap,
+                              Map<String, String> groupParentIdMap) {
+        if (ctx == null) return false;
+        int addedChannels = 0;
+        int addedGroups = 0;
+        ctx.lock.lock();
+        try {
+            long now = System.currentTimeMillis();
+            // 通道去重（重传丢）
+            if (chunkChannels != null && !chunkChannels.isEmpty()) {
+                for (GbDeviceChannel ch : chunkChannels) {
+                    if (ch == null || ch.getChannelId() == null) continue;
+                    if (ctx.syncedChannelIds.add(ch.getChannelId())) {
+                        ctx.channelBuffer.add(ch);
+                        addedChannels++;
+                    } else {
+                        ctx.duplicateCount.incrementAndGet();
+                    }
+                }
+            }
+            if (chunkGroups != null && !chunkGroups.isEmpty()) {
+                for (GbGroup g : chunkGroups) {
+                    if (g == null || g.getGroupId() == null) continue;
+                    if (ctx.syncedGroupIds.add(g.getGroupId())) {
+                        ctx.groupBuffer.add(g);
+                        addedGroups++;
+                    } else {
+                        ctx.duplicateCount.incrementAndGet();
+                    }
+                }
+            }
+            if (channelParentIdMap != null) {
+                ctx.channelParentIdMap.putAll(channelParentIdMap);
+            }
+            if (groupParentIdMap != null) {
+                ctx.groupParentIdMap.putAll(groupParentIdMap);
+            }
+            if (addedChannels + addedGroups > 0) {
+                ctx.totalReceived.addAndGet(addedChannels + addedGroups);
+                ctx.lastNonEmptyUpdateMs.set(now);
+            }
+            ctx.lastUpdateMs.set(now);
+
+            log.info("[通道目录] 分片累积 deviceId={} sn={} +{} ({}通道/{}目录) → total={}/{} buffered={}",
+                    ctx.deviceId, ctx.sn, addedChannels + addedGroups,
+                    addedChannels, addedGroups,
+                    ctx.totalReceived.get(), ctx.sumNum,
+                    ctx.channelBuffer.size() + ctx.groupBuffer.size());
+
+            // 阈值触发 → flush
+            int buffered = ctx.channelBuffer.size() + ctx.groupBuffer.size();
+            if (buffered >= ctx.flushThreshold) {
+                submitFlush(ctx, false);
+            }
+        } finally {
+            ctx.lock.unlock();
+        }
+        // 收齐判定：累计 ≥ sumNum → 提交 final flush（不阻塞调用线程）
+        if (ctx.sumNum > 0 && ctx.totalReceived.get() >= ctx.sumNum) {
+            finalize(ctx, true, "sumNum-收齐");
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 收尾：先 flush 残片，然后根据 completenessThreshold 决定是否清空设备目录。
+     * 收尾路径：
+     * <ul>
+     *   <li>{@code normal=true}：累计达 sumNum，正常收尾</li>
+     *   <li>{@code normal=false}：超时/被新同步覆盖等，partial 收尾</li>
+     * </ul>
+     */
+    public void finalize(CatalogSyncContext ctx, boolean normal, String reason) {
+        if (ctx == null || ctx.done) return;
+        // 1) 锁内改 done / 算 ratio / 提交 final flush
+        ctx.lock.lock();
+        try {
+            if (ctx.done) return;
+            ctx.done = true;
+            ctx.partial = !normal;
+            ctx.finalizeReason = reason;
+            submitFlush(ctx, true);
+            double ratio = ctx.sumNum > 0 ? (double) ctx.totalReceived.get() / ctx.sumNum : 0.0;
+            ctx.completenessRatio = ratio;
+        } finally {
+            ctx.lock.unlock();
+        }
+        // 2) 锁外发事件 + 调度清理（避免长锁 + 外部 IO 阻塞）
+        try {
+            eventPublisher.publishEvent(ctx.buildProgressEvent());
+        } catch (Exception e) {
+            log.warn("[通道目录] 发布收尾事件失败 deviceId={} err={}", ctx.deviceId, e.getMessage());
+        }
+        scheduleContextEviction(ctx.deviceId, ctx, 30_000L);
+        log.info("[通道目录] 同步收尾 deviceId={} sn={} total={}/{} ratio={} partial={} reason={}",
+                ctx.deviceId, ctx.sn, ctx.totalReceived.get(), ctx.sumNum,
+                String.format("%.2f", ctx.completenessRatio), ctx.partial, reason);
+    }
+
+    /** 提交一次 flush 任务到 catalogSyncExecutor。 */
+    private void submitFlush(CatalogSyncContext ctx, boolean isFinalFlush) {
+        // 在锁内把当前缓冲快照拷出并清空，避免反复加锁传给 support
+        List<GbDeviceChannel> chSnap;
+        List<GbGroup> gSnap;
+        if (ctx.channelBuffer.isEmpty() && ctx.groupBuffer.isEmpty()) {
+            chSnap = List.of();
+            gSnap = List.of();
+        } else {
+            chSnap = new java.util.ArrayList<>(ctx.channelBuffer);
+            gSnap = new java.util.ArrayList<>(ctx.groupBuffer);
+            ctx.channelBuffer.clear();
+            ctx.groupBuffer.clear();
+        }
+        // ParentID 映射只在 final flush 阶段使用（用于目录归属解析）——全程累积，
+        // 不在中间 flush 清空，否则 final flush 拿不到。
+        Map<String, String> chParentSnap = isFinalFlush
+                ? new java.util.HashMap<>(ctx.channelParentIdMap) : null;
+        Map<String, String> gParentSnap = isFinalFlush
+                ? new java.util.HashMap<>(ctx.groupParentIdMap) : null;
+        syncSupport.executeFlush(ctx, chSnap, gSnap, chParentSnap, gParentSnap, isFinalFlush);
+    }
+
+    private void scheduleContextEviction(String deviceId, CatalogSyncContext ctx, long delayMs) {
+        // 简易延迟清理：catalogSyncExecutor 自带定时能力有限，这里直接用 catalogSyncExecutor
+        // 的 schedule 走 ScheduledExecutorService 派生。这里复用 BizExecutor 不太合适，
+        // 简化做法：起一个单线程 ScheduledExecutor。
+        EvictionScheduler.schedule(() -> {
+            contexts.compute(deviceId, (k, v) -> v == ctx ? null : v);
+            log.debug("[通道目录] 上下文已清理 deviceId={}", deviceId);
+        }, delayMs);
+    }
+
+    /**
+     * 30s 周期调：清理完全没响应的僵死上下文（兜底防止内存泄漏）。
+     * 直接调 finalize，让其走 final flush + 释放锁 + 发事件。
+     */
     public void sweep() {
         long now = System.currentTimeMillis();
-        cache.entrySet().removeIf(e -> {
-            if (now - e.getValue().lastUpdateMs > EXPIRE_MS) {
-                int total = e.getValue().channels.size() + e.getValue().groups.size();
-                log.warn("[通道目录] 分片超时丢弃 key={} 累计={}", e.getKey(), total);
-                return true;
+        long expireMs = properties.getCatalog().getExpireMs();
+        for (CatalogSyncContext ctx : contexts.values()) {
+            if (ctx.done) continue;
+            if (now - ctx.lastUpdateMs.get() > expireMs) {
+                log.warn("[通道目录] batch expire 强收 deviceId={} sn={} total={}/{}",
+                        ctx.deviceId, ctx.sn, ctx.totalReceived.get(), ctx.sumNum);
+                // 直接 finalize：trigger final flush + 释放锁 + 发事件；handler 那边
+                // drainForcedFinalize() 现在是空路径，保留是为了向后兼容。
+                finalize(ctx, false, "expire-sweep");
             }
-            return false;
-        });
+        }
     }
 
-    private static String key(String deviceId, int sn) {
-        return deviceId + ":" + sn;
+    /**
+     * 取走 sweep 强制收尾的上下文（已废：sweep 路径直接调 finalize；保留接口避免破坏编译期契约）。
+     * @deprecated 改由 sweep 自己 finalize
+     */
+    @Deprecated
+    public List<CatalogSyncContext> drainForcedFinalize() {
+        return List.of();
     }
 
-    /** 一次目录同步的累积状态 */
-    public static class Batch {
-        public final String deviceId;
-        public final int sn;
-        public final int sumNum;
-        public final List<GbDeviceChannel> channels = new ArrayList<>();
-        public final List<GbGroup> groups = new ArrayList<>();
-        /** 通道 Item 的 <ParentID> 映射（channelId → parentId GB码），用于批量入库时按目录节点归属 */
-        public final Map<String, String> channelParentIdMap = new HashMap<>();
-        /** 目录节点 Item 的 <ParentID> 映射（groupId GB码 → parentId GB码），用于批量入库时父子归属 */
-        public final Map<String, String> groupParentIdMap = new HashMap<>();
-        public volatile long lastUpdateMs = System.currentTimeMillis();
-        public volatile boolean done = false;
+    public CatalogSyncProgress getProgress(String deviceId) {
+        CatalogSyncContext ctx = contexts.get(deviceId);
+        if (ctx == null) {
+            return CatalogSyncProgress.idle(deviceId);
+        }
+        return ctx.toProgress();
+    }
 
-        public Batch(String deviceId, int sn, int sumNum) {
-            this.deviceId = deviceId;
-            this.sn = sn;
-            this.sumNum = sumNum;
+    /**
+     * 内部单线程定时器，单纯用于 30s 延迟清理，无外部注入。
+     */
+    private static final class EvictionScheduler {
+        private static final java.util.concurrent.ScheduledExecutorService EXECUTOR =
+                java.util.concurrent.Executors.newSingleThreadScheduledExecutor(r -> {
+                    Thread t = new Thread(r, "gb-catalog-evict");
+                    t.setDaemon(true);
+                    return t;
+                });
+
+        static void schedule(Runnable r, long delayMs) {
+            try {
+                EXECUTOR.schedule(r, delayMs, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                log.warn("[通道目录] 延迟清理调度失败", e);
+            }
         }
     }
 }

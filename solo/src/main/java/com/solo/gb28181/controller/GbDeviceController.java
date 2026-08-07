@@ -13,7 +13,7 @@ import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
-import com.solo.gb28181.transmit.cmd.SipCommander;
+import com.solo.gb28181.support.CatalogSyncStatusService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +29,7 @@ public class GbDeviceController {
 
     private final GbDeviceService gbDeviceService;
     private final GbDeviceChannelService gbDeviceChannelService;
-    private final SipCommander sipCommander;
+    private final CatalogSyncStatusService catalogSyncStatusService;
 
     /**
      * 分页查询设备
@@ -78,11 +78,16 @@ public class GbDeviceController {
     }
 
     /**
-     * 手动触发设备信息 + 通道目录同步
+     * 手动触发设备信息 + 通道目录同步。
+     * <p>去重逻辑由 {@link CatalogSyncStatusService#tryAcquire} 守护：
+     * 5 分钟内重复触发直接返回当前状态（不抛错，让前端可以无缝看进度）。</p>
+     * <p>成功 → 返回 "TRIGGERED"；已在跑 → 返回 "ALREADY_RUNNING" + 当前 status；
+     * 设备不存在 / 离线 → 抛 ServiceException。</p>
      */
     @PostMapping("/{deviceId}/sync")
     @RequirePermission({"gb28181:device:sync"})
-    public Result<Void> sync(@PathVariable String deviceId) {
+    public Result<SyncTriggerResponse> sync(@PathVariable String deviceId) {
+        // 先检查设备状态，给出精确错误
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
             throw new ServiceException("设备不存在: " + deviceId);
@@ -90,9 +95,32 @@ public class GbDeviceController {
         if (device.getStatus() == null || device.getStatus() != 1) {
             throw new ServiceException("设备离线，无法同步");
         }
-        sipCommander.queryDeviceInfo(device);
-        sipCommander.queryCatalog(device);
-        return Result.success();
+        try {
+            catalogSyncStatusService.trigger(deviceId);
+            return Result.success(new SyncTriggerResponse("TRIGGERED", deviceId,
+                    catalogSyncStatusService.getRawStatus(deviceId)));
+        } catch (IllegalStateException e) {
+            if ("ALREADY_RUNNING".equals(e.getMessage())) {
+                return Result.success(new SyncTriggerResponse("ALREADY_RUNNING", deviceId,
+                        catalogSyncStatusService.getRawStatus(deviceId)));
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * 拉取当前设备同步进度（Redis 读）。
+     * <p>无状态 → 返回 IDLE；运行中 / 已完成 / 已失败 → 返回对应 status JSON。</p>
+     */
+    @GetMapping("/{deviceId}/sync-status")
+    @RequirePermission({"gb28181:device:sync"})
+    public Result<String> syncStatus(@PathVariable String deviceId) {
+        String raw = catalogSyncStatusService.getRawStatus(deviceId);
+        if (raw == null) {
+            return Result.success("{\"deviceId\":\"" + deviceId
+                    + "\",\"status\":\"IDLE\",\"received\":0,\"total\":0,\"percent\":0.0}");
+        }
+        return Result.success(raw);
     }
 
     /**
@@ -131,4 +159,14 @@ public class GbDeviceController {
         gbDeviceService.deleteBatch(request.getIds());
         return Result.success();
     }
+
+    /**
+     * 同步触发响应（含 result + deviceId + 当前 status JSON）。
+     * <p>result 取值：</p>
+     * <ul>
+     *   <li>TRIGGERED：本次调用抢到锁，已发 SIP Query</li>
+     *   <li>ALREADY_RUNNING：锁失败，已有同步在进行（status 字段为当前进度）</li>
+     * </ul>
+     */
+    public record SyncTriggerResponse(String result, String deviceId, String status) {}
 }

@@ -19,9 +19,11 @@ import {
   detectGbDeviceApi,
   getNextGbDeviceCodeApi,
   getGbPlatformInfoApi,
+  parseSyncStatus,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
 import ChannelListDialog from './components/ChannelListDialog.vue'
+import SyncProgressDialog from './components/SyncProgressDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 import {
   DEVICE_TYPE_OPTIONS,
@@ -257,8 +259,16 @@ async function handleConfirm() {
 
 async function handleSync(row: GbDevice) {
   try {
-    await syncGbDeviceApi(row.deviceId!)
-    ElMessage.success('已触发设备信息和通道目录同步，请稍后刷新查看')
+    const res = await syncGbDeviceApi(row.deviceId!)
+    // 打开进度弹窗：TRIGGERED（本次触发）或 ALREADY_RUNNING（已在跑）都展示，让用户看进度
+    syncProgressDialogRef.value?.open(row.deviceId!, row.name || row.deviceId!)
+    if (res.data?.result === 'ALREADY_RUNNING') {
+      ElMessage.info('设备已有同步在进行中，已为你打开进度窗口')
+    } else if (res.data?.result === 'TRIGGERED') {
+      // 弹窗内会显示 RUNNING 状态，无需额外提示
+    }
+    // 同步完成后弹窗自动关闭并刷新列表（在 dialog 内部 ElMessage 提示）
+    // 这里不主动刷新列表，由弹窗关闭后用户操作；或监听 success 后再 refresh
   } catch {
     // handled
   }
@@ -282,6 +292,7 @@ function handleViewChannels(row: GbDevice) {
 
 const detailDialogRef = ref<InstanceType<typeof DeviceDetailDialog> | null>(null)
 const channelListDialogRef = ref<InstanceType<typeof ChannelListDialog> | null>(null)
+const syncProgressDialogRef = ref<InstanceType<typeof SyncProgressDialog> | null>(null)
 
 function handleDetail(row: GbDevice) {
   detailDialogRef.value?.open(row)
@@ -575,6 +586,7 @@ onMounted(() => {
 
     <DeviceDetailDialog ref="detailDialogRef" />
     <ChannelListDialog ref="channelListDialogRef" />
+    <SyncProgressDialog ref="syncProgressDialogRef" />
   </div>
 </template>
 

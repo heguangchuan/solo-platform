@@ -98,6 +98,20 @@ public class Gb28181Properties {
     private Cascade cascade = new Cascade();
 
     /**
+     * Catalog 分片累积调优（下级/平台设备的 Catalog 响应处理用）。
+     * <p>设备通告的 SumNum 在协议层无"完成"信号，平台只能靠启发式判断何时收尾：
+     * 静默超时（无新 item）→ partial finalize，保留已收数据；完全无响应（expire）→ 强制收尾，
+     * 防止内存堆积。这两个阈值在大目录（4w+ 条）场景下需要放宽。</p>
+     */
+    private Catalog catalog = new Catalog();
+
+    /**
+     * 通道目录同步专用线程池调优（落库任务，IO 密集）。
+     * <p>独立于业务线程池：Catalog 同步是 10w+ 通道下的重活，不能与 SIP 消息分发挤同一个池。</p>
+     */
+    private CatalogSyncPool catalogSyncPool = new CatalogSyncPool();
+
+    /**
      * 默认资源目录分组配置。
      * <p>{@link #id} 是默认分组的固定主键 {@code 0000}（其余分组主键走雪花ID），作为 {@code gb_device_channel.group_id} 的兜底值；
      * {@link #groupId} 是 20 位国标业务分组码（第 11-13 位应为 215），拼 Catalog 上报上级时作目录节点 ID，
@@ -156,5 +170,71 @@ public class Gb28181Properties {
          * 上级点播回 200 OK 后等待上级 ACK 的超时（毫秒）。超时未收到 ACK 即释放会话并向上级发 BYE。
          */
         private long sendAckTimeoutMs = 60_000;
+    }
+
+    /**
+     * Catalog 分片累积调优。
+     * <p>设备响应 Catalog 时按 SumNum 分多个 MESSAGE 报文分批送回，平台无法从协议层判定"已发完"，
+     * 这两个阈值用来兜底：</p>
+     * <ul>
+     *   <li>{@link #idleFinalizeMs}：连续多少毫秒无新 item 进入累加 → 视为设备发完，已有数据 partial 落库</li>
+     *   <li>{@link #expireMs}：完全多少毫秒无任何响应（含空响应）→ 强制收尾，防止 4w+ 大目录慢流时内存堆积</li>
+     * </ul>
+     * <p>默认值按 4w+ 大目录场景调宽：120s / 600s。普通小目录通常 10s 内收齐，根本走不到这些路径。</p>
+     */
+    @Data
+    public static class Catalog {
+
+        /**
+         * 静默超时：连续多少毫秒无新 item → 视为设备发完，partial finalize。
+         * <p>设备发完不发结束信号（GB28181 协议没这个字段），本参数用"长时间没新 item"做兜底。</p>
+         */
+        private long idleFinalizeMs = 120_000L;
+
+        /**
+         * 强制收尾：完全多少毫秒无任何响应 → sweep 路径 partial finalize，释放内存。
+         * <p>兜底 idleFinalizeMs 失败的情况（如设备发了 item 后彻底失联但 lastNonEmptyUpdateMs 没刷）。</p>
+         */
+        private long expireMs = 600_000L;
+
+        /**
+         * 滚动缓冲阈值：分片累积达到该条数后立即触发批量入库，未必等齐 SumNum。
+         * <p>GB28181 协议没有"发完"信号；靠 SumNum 全量收齐可能慢达数分钟，
+         * 改为边收边落：每凑够此数就 flush 一次，最后一片连同残片一起收尾。
+         * 调大 → 入库更少但内存占用更高；调小 → 入库更频繁但 DB 压力更大。默认 1000。</p>
+         */
+        private int flushThreshold = 1000;
+
+        /**
+         * 单批入库 SQL 的行数上限。MySQL 单条 INSERT 行数受 max_allowed_packet 限制，
+         * 500-1000 行是安全区间。flush 缓冲 ≥ 该值时分片入库，每片独立执行 upsert SQL。</p>
+         */
+        private int batchSize = 500;
+
+        /**
+         * 丢包容忍：只有累计收到 ≥ sumNum * 阈值比例时，才删"已不存在的通道"（清空设备目录）；
+         * 低于此比例说明 UDP 丢包或中途超时，保留已入库数据等下次 sync 补齐。
+         * <p>默认 0.95：5% 缺失容忍。</p>
+         */
+        private double completenessThreshold = 0.95;
+    }
+
+    /**
+     * Catalog 同步落库线程池配置。
+     * <p>调优思路：DB 写并发受 MySQL 连接池（默认 10）和单行锁竞争约束，
+     * 线程数过多只会增加上下文切换。core 20 / max 50 / queue 5000 适合单库 10w+ 通道批写；
+     * 撑满后 CallerRunsPolicy 让上游（CatalogDataCache flush 线程）回压，自然限流。</p>
+     */
+    @Data
+    public static class CatalogSyncPool {
+
+        /** 核心线程数 */
+        private int corePoolSize = 20;
+
+        /** 最大线程数 */
+        private int maxPoolSize = 50;
+
+        /** 队列容量（每个任务是一次 flush 批次，500-1000 条） */
+        private int queueCapacity = 5000;
     }
 }
