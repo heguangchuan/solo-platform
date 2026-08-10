@@ -98,12 +98,6 @@ public class GbDeviceChannel {
     private Integer ptzType;
 
     /**
-     * 所属平台 ID：{@code 0000} = 自有平台（默认）；其他值代表上级级联平台 ID。
-     * 应与所属 {@link GbDevice#platformId} 保持一致，由 Catalog 同步流程写入。
-     */
-    private String platformId;
-
-    /**
      * 所属资源目录分组（逻辑关联 {@link GbGroup#getId()} 雪花主键）。
      * <p>通道注册/导入/新增未指定时，由入库流程回填 {@code gb28181.default-group.id}；
      * 编辑不动此字段，仅由目录编排功能变更。</p>

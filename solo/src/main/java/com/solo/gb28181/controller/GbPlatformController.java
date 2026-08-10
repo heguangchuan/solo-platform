@@ -15,8 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 下级级联平台管理
- * 下级平台白名单 CRUD + 注册鉴权密码配置
+ * 国标接入禁用名单管理（黑名单）
+ * <p>设备与下级平台默认自由注册，只有在此登记且 {@code enabled=0} 的国标 ID 会被
+ * SIP 入口（REGISTER + MESSAGE）静默拒绝。鉴权与本表无关，走 {@code gb28181.password}（ADR-022）。</p>
  */
 @RestController
 @RequestMapping("/api/gb28181/platform")
@@ -26,7 +27,7 @@ public class GbPlatformController {
     private final GbPlatformService gbPlatformService;
 
     /**
-     * 分页查询白名单，关联 gb_device 回填在线状态
+     * 分页查询禁用名单，关联 gb_device 回填在线状态（便于确认"拉黑后是否真的断了"）
      */
     @PostMapping("/page")
     @RequirePermission({"gb28181:platform:list"})
@@ -36,7 +37,7 @@ public class GbPlatformController {
     }
 
     /**
-     * 手动新增白名单
+     * 新增禁用项
      */
     @PostMapping("/save")
     @RequirePermission({"gb28181:platform:add"})
@@ -46,33 +47,32 @@ public class GbPlatformController {
     }
 
     /**
-     * 手动编辑白名单
+     * 编辑禁用项（备注名 / 原因 / 拦截开关；platformId 不可改）
      */
     @PostMapping("/update")
     @RequirePermission({"gb28181:platform:edit"})
     public Result<Void> update(@RequestBody GbPlatform platform) {
         if (platform.getId() == null) {
-            throw new ServiceException("平台ID不能为空");
+            throw new ServiceException("记录ID不能为空");
         }
         gbPlatformService.updateByManual(platform);
         return Result.success();
     }
 
     /**
-     * 删除白名单记录（不影响已注册的 gb_device 行）
+     * 移出禁用名单（不影响已注册的 gb_device 行；解禁后设备重新 REGISTER 即可接入）
+     * <p>走 {@code deleteBatch} 而非 {@code removeById}——后者不会失效 Redis 名单缓存，
+     * 会导致"已移出但 5 分钟内仍被拦截"。</p>
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:platform:delete"})
     public Result<Void> delete(@PathVariable Long id) {
-        GbPlatform platform = gbPlatformService.getById(id);
-        if (platform != null) {
-            gbPlatformService.removeById(id);
-        }
+        gbPlatformService.deleteBatch(java.util.List.of(id));
         return Result.success();
     }
 
     /**
-     * 批量删除白名单记录
+     * 批量移出禁用名单
      */
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:platform:delete"})

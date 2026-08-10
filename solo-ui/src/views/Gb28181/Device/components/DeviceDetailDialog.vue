@@ -10,7 +10,7 @@ const visible = ref(false)
 const detail = ref<GbDevice | null>(null)
 
 /** 数据来源文案 */
-const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册', 4: '级联平台' }
+const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入', 3: '设备注册', 4: '级联平台(历史)' }
 function sourceText(source?: number) {
   return source == null ? '—' : sourceMap[source] ?? '—'
 }
@@ -47,11 +47,6 @@ defineExpose({ open })
       </el-descriptions-item>
       <el-descriptions-item label="数据来源">
         <el-tag size="small">{{ sourceText(detail.source) }}</el-tag>
-      </el-descriptions-item>
-      <el-descriptions-item label="所属平台">
-        <el-tag :type="detail.platformId === '0000' || !detail.platformId ? 'primary' : 'warning'" size="small">
-          {{ detail.platformId === '0000' || !detail.platformId ? '自有平台' : '级联 ' + detail.platformId }}
-        </el-tag>
       </el-descriptions-item>
       <el-descriptions-item label="网络地址">{{ detail.hostAddress || '—' }}</el-descriptions-item>
       <el-descriptions-item label="收流地址">{{ detail.recvIp || '—' }}</el-descriptions-item>

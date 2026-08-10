@@ -24,6 +24,16 @@ public interface GbRedisKeys {
      */
     String DEVICE_PROFILE_PREFIX = "gb28181:device:profile:";
 
+    /**
+     * 接入禁用名单缓存：gb28181:device:blocked（Redis Set，成员是被禁用的 deviceId）
+     * <p>SIP 入口（REGISTER / MESSAGE）每条报文都要判"是否被拉黑"，catalog 同步期间
+     * 单设备 4w+ 条 MESSAGE，逐条查 {@code gb_platform} 不可接受。整表加载成一个 Set，
+     * TTL 5 分钟；{@code GbPlatformServiceImpl} 的增删改主动 delete 失效。</p>
+     * <p>用 Set 而非逐 key：黑名单预期条目很少（几条到几十条），一次 SMEMBERS 加载后
+     * SISMEMBER 判定是 O(1)，比 N 个 key 更省内存也更好整体失效。</p>
+     */
+    String DEVICE_BLOCKED_SET = "gb28181:device:blocked";
+
     // ========== 点播/回放会话 ==========
 
     /** 邀请会话前缀 */

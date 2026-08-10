@@ -64,9 +64,6 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         if (request.getParentId() != null) {
             wrapper.eq(GbGroup::getParentId, request.getParentId());
         }
-        if (request.getPlatformId() != null && !request.getPlatformId().isBlank()) {
-            wrapper.eq(GbGroup::getPlatformId, request.getPlatformId());
-        }
         wrapper.orderByAsc(GbGroup::getSort).orderByDesc(GbGroup::getId).orderByDesc(GbGroup::getCreateTime);
         Page<GbGroup> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
 
@@ -89,8 +86,9 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         all.forEach(g -> rows.add(toResponse(g)));
         // 扁平列表先打标，节点引用同一份，组装成树后自然带上
         markDefault(rows);
-        // parentId 不指向列表中任一 id 的节点即为根（根节点 parentId=0）
-        return TreeUtils.buildTree(rows, GbGroupResponse::getParentId, GbGroupResponse::getId, GbGroupResponse::setChildren);
+        // parent_id 现在存的是父分组的 group_id（GB 码），匹配键也用 group_id（同为 String）
+        // 而不是 snowflake id。根节点 parent_id="0"，不在 id 集合里 → 自动归到根列表
+        return TreeUtils.buildTree(rows, GbGroupResponse::getParentId, GbGroupResponse::getGroupId, GbGroupResponse::setChildren);
     }
 
     @Override
@@ -103,16 +101,19 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
         if (dupGb) {
             throw new ServiceException("分组国标ID已存在：" + group.getGroupId());
         }
-        // 父节点校验：未指定则挂根；指定则父节点必须存在
+        // 父节点校验：未指定则挂根；指定则父分组必须存在（按 group_id 查，不再按 snowflake id）
         if (group.getParentId() == null) {
-            group.setParentId(0L);
-        } else if (!Long.valueOf(0L).equals(group.getParentId()) && getById(group.getParentId()) == null) {
-            throw new ServiceException("父级分组不存在：" + group.getParentId());
+            group.setParentId("0");
+        } else if (!"0".equals(group.getParentId())) {
+            GbGroup parent = lambdaQuery()
+                    .eq(GbGroup::getGroupId, group.getParentId())
+                    .one();
+            if (parent == null) {
+                throw new ServiceException("父级分组不存在：" + group.getParentId());
+            }
         }
         // id 由 MyBatis-Plus 雪花算法生成（默认分组的 0000 由 Bootstrap 显式写入）
         group.setId(null);
-        group.setPlatformId(group.getPlatformId() == null || group.getPlatformId().isBlank()
-                ? "0000" : group.getPlatformId());
         group.setSort(group.getSort() == null ? 0 : group.getSort());
         save(group);
         log.info("[资源目录] 新增分组 id={} groupId={} name={}",
@@ -175,10 +176,10 @@ public class GbGroupServiceImpl extends ServiceImpl<GbGroupMapper, GbGroup> impl
                 .eq(GbDeviceChannel::getGroupId, group.getId())
                 .set(GbDeviceChannel::getGroupId, defaultId)
                 .update();
-        // 该分组下的子节点 parentId 回落到根节点
+        // 该分组下的子节点 parentId 回落到根节点（parentId 现在是 group_id 字符串）
         lambdaUpdate()
                 .eq(GbGroup::getParentId, group.getId())
-                .set(GbGroup::getParentId, 0L)
+                .set(GbGroup::getParentId, "0")
                 .update();
         removeById(id);
         log.info("[资源目录] 删除分组 id={}，通道已回落默认分组 defaultGroup={}，子节点已回落根节点",

@@ -13,10 +13,14 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 
 /**
- * 下级级联平台白名单
- * <p>SIP 接入时视为设备（gb_device），平台与设备通过 platform_id 自动关联
- * （{@code gb_platform.platform_id == gb_device.device_id}）。
- * 运行态（在线/心跳/通道数）查关联的 gb_device 行，不在本表冗余。</p>
+ * 国标接入禁用名单（黑名单）。
+ *
+ * <p><b>语义已从白名单翻转为黑名单</b>：设备与下级平台的注册时机不可控（谁什么时候来、报什么 ID
+ * 都是对端决定），要求运维先登记才放行不现实。改为默认自由注册，只有在本表登记的国标 ID 会被
+ * {@code RegisterRequestProcessor} 以 403 拒绝。</p>
+ *
+ * <p>接入后设备与下级平台不再区分——统一是一行 {@code gb_device}，运行态（在线/心跳/通道数）
+ * 查那里。本表只承担"拒绝某个 ID"这一件事。</p>
  */
 @Data
 @TableName("gb_platform")
@@ -30,23 +34,23 @@ public class GbPlatform {
     private Long id;
 
     /**
-     * 下级平台国标 ID（20 位），唯一且等于 gb_device.device_id
+     * 被禁用的国标 ID（20 位，设备或下级平台通用）
      */
     private String platformId;
 
     /**
-     * 平台名称
+     * 备注名（可空；仅便于运维辨识，不参与业务判定）
      */
     private String name;
 
     /**
-     * 注册鉴权专属密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），
-     * 字段保留供后续可能的其他业务（如跨域同步、API 接入凭据等）使用。
+     * 禁用原因（运维填写，便于回溯"为什么把它拉黑"）
      */
-    private String authKey;
+    private String reason;
 
     /**
-     * 启用状态：0 禁用（拒绝注册）1 启用
+     * 禁用开关：0 禁用（拒绝注册，默认）1 临时放行（保留记录但不拦截）。
+     * <p>留这个开关是为了"先放行观察、再决定是否彻底删掉这条记录"，不必删了又加。</p>
      */
     private Integer enabled;
 

@@ -1,5 +1,5 @@
 project:
-  ip: 192.168.1.30
+  ip: 192.168.1.39
 
 server:
   port: 10003
@@ -70,7 +70,7 @@ gb28181: # 是否启用国标服务
   # 留空时本平台对所有 REGISTER 直接回 200 OK；不推荐公网/多租户环境使用。
   # 设置后：设备首次 REGISTER → 平台发 401 + Digest challenge（带 realm）；设备二次 REGISTER 带 Authorization → 平台**不校验**摘要，直接 200 OK。
   # 详见 gb28181.md ADR-022
-  password: 123456
+  password:
   # 设备注册有效期（秒）
   register-expires: 3600
   # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线

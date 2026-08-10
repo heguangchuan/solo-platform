@@ -25,7 +25,7 @@
             cert_num, certifiable, secrecy,
             ip_address, port, password, status,
             longitude, latitude, ptz_type,
-            platform_id, group_id, source
+            group_id, source
         )
         VALUES
         <foreach collection="list" item="ch" separator=",">
@@ -37,7 +37,7 @@
                 #{ch.certNum}, #{ch.certifiable}, #{ch.secrecy},
                 #{ch.ipAddress}, #{ch.port}, #{ch.password}, #{ch.status},
                 #{ch.longitude}, #{ch.latitude}, #{ch.ptzType},
-                #{ch.platformId}, #{ch.groupId}, #{ch.source}
+                #{ch.groupId}, #{ch.source}
             )
         </foreach>
         ON DUPLICATE KEY UPDATE
@@ -61,8 +61,7 @@
             status       = VALUES(status),
             longitude    = VALUES(longitude),
             latitude     = VALUES(latitude),
-            ptz_type     = VALUES(ptz_type),
-            platform_id  = VALUES(platform_id)
+            ptz_type     = VALUES(ptz_type)
     </insert>
 
 </mapper>

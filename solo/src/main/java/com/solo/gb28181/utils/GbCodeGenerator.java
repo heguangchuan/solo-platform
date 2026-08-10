@@ -30,7 +30,8 @@ import java.util.List;
  *
  * <p>作用域约定：</p>
  * <ul>
- *   <li>设备/分组序号：{@code platform_id='0000'}（本平台自有数据）下同前缀取最大 +1。</li>
+ *   <li>设备/分组序号：同 {@code domain} 前缀下取最大 +1。级联来源设备的 ID 前 10 位是对方平台的
+ *       行政区划码，天然落在不同前缀段，不会与本平台自建编码撞号。</li>
  *   <li>通道序号：同一 {@code device_db_id} 下同前缀取最大 +1（GB/T 28181 语义上通道号由物理
  *       设备自身分配，跨设备重码是正常情况，因此按设备分段）。</li>
  * </ul>
@@ -38,9 +39,6 @@ import java.util.List;
 @Component
 @RequiredArgsConstructor
 public class GbCodeGenerator {
-
-    /** 本平台自有数据的 platform_id 标识（与 sql/gb28181.sql 中默认值一致） */
-    private static final String OWN_PLATFORM_ID = "0000";
 
     /** 设备类型码默认值：132 网络摄像机（IPC） */
     public static final String DEFAULT_DEVICE_TYPE = "132";
@@ -63,7 +61,6 @@ public class GbCodeGenerator {
     public String nextDeviceCode(String typeCode) {
         String prefix13 = domainPrefix10() + typeOrDefault(typeCode, DEFAULT_DEVICE_TYPE);
         LambdaQueryWrapper<GbDevice> wrapper = new LambdaQueryWrapper<GbDevice>()
-                .eq(GbDevice::getPlatformId, OWN_PLATFORM_ID)
                 .likeRight(GbDevice::getDeviceId, prefix13);
         int max = 0;
         for (GbDevice d : deviceMapper.selectList(wrapper)) {
@@ -81,7 +78,6 @@ public class GbCodeGenerator {
     public String nextGroupCode(String typeCode) {
         String prefix13 = domainPrefix10() + typeOrDefault(typeCode, DEFAULT_GROUP_TYPE);
         LambdaQueryWrapper<GbGroup> wrapper = new LambdaQueryWrapper<GbGroup>()
-                .eq(GbGroup::getPlatformId, OWN_PLATFORM_ID)
                 .likeRight(GbGroup::getGroupId, prefix13);
         int max = 0;
         for (GbGroup g : groupMapper.selectList(wrapper)) {

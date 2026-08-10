@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbPlatform;
 import com.solo.gb28181.mapper.GbPlatformMapper;
@@ -13,21 +14,29 @@ import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbPlatformService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * 下级级联平台服务实现
+ * 国标接入禁用名单服务实现（黑名单）
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatform> implements GbPlatformService {
 
+    /** 禁用名单缓存 TTL：5 分钟。增删改会主动 delete，TTL 只是兜底。 */
+    private static final Duration BLOCKED_CACHE_TTL = Duration.ofMinutes(5);
+    /** 空名单占位成员：Redis 不存空 Set，用哨兵区分"缓存过但是空"和"没缓存过" */
+    private static final String EMPTY_MARKER = "__none__";
+
     private final GbDeviceService gbDeviceService;
+    private final StringRedisTemplate redis;
 
     @Override
     public Page<GbPlatformVO> pageQuery(GbPlatformPageRequest request) {
@@ -54,13 +63,14 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         vo.setId(platform.getId());
         vo.setPlatformId(platform.getPlatformId());
         vo.setName(platform.getName());
-        vo.setAuthKey(platform.getAuthKey());
+        vo.setReason(platform.getReason());
         vo.setEnabled(platform.getEnabled());
 
         vo.setCreateTime(platform.getCreateTime());
         vo.setUpdateTime(platform.getUpdateTime());
 
-        // 关联 gb_device 回填运行态
+        // 关联 gb_device 回填运行态：被拉黑的 ID 可能之前注册过，
+        // 展示在线状态便于运维确认"拉黑后是否真的断了"
         GbDevice device = gbDeviceService.lambdaQuery()
                 .eq(GbDevice::getDeviceId, platform.getPlatformId())
                 .one();
@@ -75,58 +85,114 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
     @Override
     public void createByManual(GbPlatform platform) {
         if (platform.getPlatformId() == null || platform.getPlatformId().isBlank()) {
-            throw new ServiceException("平台国标ID不能为空");
+            throw new ServiceException("国标ID不能为空");
         }
         if (platform.getPlatformId().length() != 20) {
-            throw new ServiceException("平台国标ID必须为20位");
+            throw new ServiceException("国标ID必须为20位");
         }
         boolean dup = lambdaQuery().eq(GbPlatform::getPlatformId, platform.getPlatformId()).exists();
         if (dup) {
-            throw new ServiceException("平台国标ID已存在：" + platform.getPlatformId());
+            throw new ServiceException("该国标ID已在禁用名单中：" + platform.getPlatformId());
         }
         platform.setId(null);
+        // 黑名单默认就是"禁用"：enabled=0 拦截，=1 表示保留记录但临时放行
         if (platform.getEnabled() == null) {
-            platform.setEnabled(1);
+            platform.setEnabled(0);
         }
-        // 鉴权密钥后端自动生成 32 位 UUID，忽略前端入参。当前已不再用于注册鉴权（见 ADR-022），
-        // 字段保留供后续其他业务使用。
-        platform.setAuthKey(UUID.randomUUID().toString().replace("-", ""));
         save(platform);
-        log.info("[级联平台] 新增白名单: platformId={} name={}", platform.getPlatformId(), platform.getName());
+        evictBlockedCache();
+        log.info("[接入禁用] 新增禁用名单: deviceId={} enabled={} reason={}",
+                platform.getPlatformId(), platform.getEnabled(), platform.getReason());
     }
 
     @Override
     public void updateByManual(GbPlatform platform) {
         GbPlatform exist = getById(platform.getId());
         if (exist == null) {
-            throw new ServiceException("平台不存在");
+            throw new ServiceException("禁用名单记录不存在");
         }
-        // platformId 不可改；authKey 是后端生成的固定值，编辑时也保持不变。
-        // gb_platform 只做登记，不做鉴权（见 ADR-022）。
+        // platformId 不可改（要换 ID 就删了重加，避免"改一下就绕过拦截"的误操作）
         exist.setName(platform.getName());
+        exist.setReason(platform.getReason());
         exist.setEnabled(platform.getEnabled());
 
         updateById(exist);
-        log.info("[级联平台] 编辑白名单: platformId={}", exist.getPlatformId());
+        evictBlockedCache();
+        log.info("[接入禁用] 编辑禁用名单: deviceId={} enabled={}",
+                exist.getPlatformId(), exist.getEnabled());
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
-        // 本期只删白名单记录，不动已注册的 gb_device 行
+        // 只删名单记录，不动已注册的 gb_device 行（解禁后设备重新 REGISTER 即可恢复）
         for (Long id : ids) {
             GbPlatform platform = getById(id);
             if (platform != null) {
                 removeById(id);
-                log.info("[级联平台] 删除白名单: platformId={} name={}", platform.getPlatformId(), platform.getName());
+                log.info("[接入禁用] 移出禁用名单: deviceId={}", platform.getPlatformId());
             }
+        }
+        evictBlockedCache();
+    }
+
+    @Override
+    public boolean isBlocked(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return false;
+        try {
+            Boolean hit = redis.opsForSet().isMember(GbRedisKeys.DEVICE_BLOCKED_SET, deviceId);
+            if (Boolean.TRUE.equals(hit)) {
+                return true;
+            }
+            // Set 存在（含空名单哨兵）→ 缓存有效，未命中即未被拉黑
+            if (Boolean.TRUE.equals(redis.hasKey(GbRedisKeys.DEVICE_BLOCKED_SET))) {
+                return false;
+            }
+            // 缓存缺失 → 重建后再判
+            return loadBlockedCache().contains(deviceId);
+        } catch (Exception e) {
+            // Redis 不可用：回退查库（宁可多打 SQL，不能漏拦截）
+            log.warn("[接入禁用] 名单缓存读取失败，回退查库 deviceId={} err={}", deviceId, e.getMessage());
+            return lambdaQuery()
+                    .eq(GbPlatform::getPlatformId, deviceId)
+                    .and(w -> w.eq(GbPlatform::getEnabled, 0).or().isNull(GbPlatform::getEnabled))
+                    .exists();
         }
     }
 
     @Override
-    public GbPlatform findEnabledByPlatformId(String platformId) {
-        return lambdaQuery()
-                .eq(GbPlatform::getPlatformId, platformId)
-                .eq(GbPlatform::getEnabled, 1)
-                .one();
+    public void evictBlockedCache() {
+        try {
+            redis.delete(GbRedisKeys.DEVICE_BLOCKED_SET);
+        } catch (Exception e) {
+            log.warn("[接入禁用] 名单缓存失效失败 err={}", e.getMessage());
+        }
+    }
+
+    /**
+     * 整表加载 enabled=0（或 NULL）的 deviceId 到 Redis Set。
+     * <p>黑名单预期只有几条到几十条，整表扫描成本可忽略；一次加载后 SISMEMBER 判定 O(1)。</p>
+     */
+    private Set<String> loadBlockedCache() {
+        Set<String> blocked = lambdaQuery()
+                .select(GbPlatform::getPlatformId)
+                .and(w -> w.eq(GbPlatform::getEnabled, 0).or().isNull(GbPlatform::getEnabled))
+                .list()
+                .stream()
+                .map(GbPlatform::getPlatformId)
+                .filter(id -> id != null && !id.isBlank())
+                .collect(Collectors.toSet());
+        try {
+            if (blocked.isEmpty()) {
+                // Redis 不存空 Set：写哨兵成员，让"缓存过但名单为空"和"没缓存过"可区分，
+                // 避免空名单时每条 SIP 报文都重新扫库
+                redis.opsForSet().add(GbRedisKeys.DEVICE_BLOCKED_SET, EMPTY_MARKER);
+            } else {
+                redis.opsForSet().add(GbRedisKeys.DEVICE_BLOCKED_SET, blocked.toArray(new String[0]));
+            }
+            redis.expire(GbRedisKeys.DEVICE_BLOCKED_SET, BLOCKED_CACHE_TTL);
+        } catch (Exception e) {
+            log.warn("[接入禁用] 名单缓存写入失败 err={}", e.getMessage());
+        }
+        return blocked;
     }
 }

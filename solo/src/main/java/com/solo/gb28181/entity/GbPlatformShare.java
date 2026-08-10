@@ -16,7 +16,8 @@ import java.time.LocalDateTime;
  * 上级平台共享资源（目录 + 通道合一）
  * <p>本平台作为下级向上级共享资源时，选中的分组/通道记录。
  * 一行 = 一个上级平台 × 一个资源节点，{@link #type} 区分 group / channel，无物理外键（ADR-011）。</p>
- * <p>由 {@code gb_platform_catalog} + {@code gb_platform_gb_channel} 合并而来。</p>
+ * <p>资源数据源：{@link GbGroup#getId()}（业务短码，雪花主键）+ {@link GbDeviceChannel#getId()}。
+ * 不另设合并表，读模型走 {@code CatalogItemMapper} UNION。</p>
  */
 @Data
 @TableName("gb_platform_share")

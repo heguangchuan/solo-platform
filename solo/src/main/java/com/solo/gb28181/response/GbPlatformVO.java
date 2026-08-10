@@ -7,9 +7,10 @@ import lombok.EqualsAndHashCode;
 import java.time.LocalDateTime;
 
 /**
- * 下级级联平台列表响应：在 {@link GbPlatform} 白名单字段之上，回填其关联设备
- * （{@code gb_device.device_id == platform_id}）的运行态字段，供列表展示在线状态。
- * <p>这些字段不在 gb_platform 表冗余，由 service 关联查询回填。</p>
+ * 接入禁用名单列表响应：在 {@link GbPlatform} 黑名单字段之上，回填其关联设备
+ * （{@code gb_device.device_id == platform_id}）的运行态字段。
+ * <p>被拉黑的 ID 可能之前注册过，展示在线状态/心跳便于运维确认"拉黑后是否真的断了"。
+ * 这些字段不在 gb_platform 表冗余，由 service 关联查询回填。</p>
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

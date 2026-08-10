@@ -63,12 +63,12 @@ public final class PlatformCatalogXml {
     }
 
     /**
-     * 分组 Item：DeviceID = group.group_id（20 位国标码）；ParentID 沿链查父分组的 group_id，
-     * 父分组未在共享列表内 / 根节点 → 兜底到 platform.deviceGbId。
+     * 分组 Item：DeviceID = group.group_id（20 位国标码）；ParentID 直接取 g.getParentId()（也是国标码），
+     * 父分组未指定（根节点 parentId="0"）→ 兜底到 platform.deviceGbId。
      */
     private static void appendGroupItem(StringBuilder sb, GbGroup g, GbParentPlatform platform,
                                         java.util.Map<Long, String> groupIdCode) {
-        String parentCode = groupIdCode.getOrDefault(g.getParentId(), platform.getDeviceGbId());
+        String parentCode = "0".equals(g.getParentId()) ? platform.getDeviceGbId() : g.getParentId();
         int type = typeCode(g.getGroupId());
 
         sb.append("<Item>\r\n");

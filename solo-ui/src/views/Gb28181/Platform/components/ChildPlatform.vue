@@ -1,6 +1,9 @@
 <script setup lang="ts">
 /**
- * 下级级联平台管理组件（原 Platform/index.vue 内容提取为组件）
+ * 国标接入禁用名单（黑名单）管理组件
+ *
+ * 设备与下级平台默认自由注册（注册时机由对端决定，白名单模式不现实），
+ * 只有在此登记且「拦截中」的国标 ID 会被 SIP 入口静默丢弃（REGISTER + MESSAGE 双入口）。
  */
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -35,16 +38,17 @@ function makeEmpty(): Partial<GbPlatform> {
   return {
     platformId: '',
     name: '',
-    enabled: 1,
+    reason: '',
+    // 黑名单默认就是拦截：enabled=0 拦截，=1 保留记录但临时放行
+    enabled: 0,
   }
 }
 
 const rules = {
   platformId: [
-    { required: true, message: '请输入平台国标ID（20位）', trigger: 'blur' },
-    { pattern: /^\d{20}$/, message: '平台国标ID为20位数字', trigger: 'blur' },
+    { required: true, message: '请输入要禁用的国标ID（20位）', trigger: 'blur' },
+    { pattern: /^\d{20}$/, message: '国标ID为20位数字', trigger: 'blur' },
   ],
-  name: [{ required: true, message: '请输入平台名称', trigger: 'blur' }],
 }
 
 // ---------------- 列表 ----------------
@@ -88,14 +92,14 @@ function handleSelectionChange(rows: GbPlatform[]) {
 // ---------------- 新增/编辑 ----------------
 function handleAdd() {
   isEdit.value = false
-  dialogTitle.value = '新增级联平台'
+  dialogTitle.value = '新增禁用项'
   form.value = makeEmpty()
   dialogVisible.value = true
 }
 
 function handleEdit(row: GbPlatform) {
   isEdit.value = true
-  dialogTitle.value = '编辑级联平台'
+  dialogTitle.value = '编辑禁用项'
   form.value = { ...row }
   dialogVisible.value = true
 }
@@ -116,9 +120,13 @@ async function handleConfirm() {
 
 async function handleDelete(row: GbPlatform) {
   try {
-    await ElMessageBox.confirm(`确定要删除平台 "${row.name}" 的白名单记录吗？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(
+      `确定要将 ${row.platformId} 移出禁用名单吗？移出后该设备可重新注册接入。`,
+      '提示',
+      { type: 'warning' }
+    )
     await deleteGbPlatformApi(row.id)
-    ElMessage.success('删除成功')
+    ElMessage.success('已移出禁用名单')
     fetchData()
   } catch {
     // cancelled
@@ -127,18 +135,18 @@ async function handleDelete(row: GbPlatform) {
 
 async function handleBatchDelete() {
   if (selectedRows.value.length === 0) {
-    ElMessage.warning('请先选择要删除的平台')
+    ElMessage.warning('请先选择要移出的记录')
     return
   }
   try {
     await ElMessageBox.confirm(
-      `确定要删除选中的 ${selectedRows.value.length} 个平台的白名单记录吗？`,
+      `确定要将选中的 ${selectedRows.value.length} 条记录移出禁用名单吗？移出后这些设备可重新注册接入。`,
       '提示',
       { type: 'warning' }
     )
     const ids = selectedRows.value.map(r => r.id)
     await batchDeleteGbPlatformApi(ids)
-    ElMessage.success('删除成功')
+    ElMessage.success('已移出禁用名单')
     fetchData()
     selectedRows.value = []
   } catch {
@@ -152,18 +160,26 @@ onMounted(() => {
 </script>
 <template>
   <div>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      style="margin-bottom: 12px"
+      title="设备与下级平台默认自由注册；此处登记的国标 ID 会被静默拒绝（REGISTER 与目录/心跳消息双入口拦截）。"
+    />
+
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="平台编码">
+        <el-form-item label="国标编码">
           <el-input v-model="searchForm.platformId" placeholder="国标编码模糊匹配" clearable />
         </el-form-item>
-        <el-form-item label="平台名称">
-          <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable />
+        <el-form-item label="备注名">
+          <el-input v-model="searchForm.name" placeholder="备注名模糊匹配" clearable />
         </el-form-item>
-        <el-form-item label="启用状态">
-          <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 120px">
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
+        <el-form-item label="拦截状态">
+          <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 130px">
+            <el-option label="拦截中" :value="0" />
+            <el-option label="临时放行" :value="1" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -175,14 +191,26 @@ onMounted(() => {
 
     <el-card shadow="hover" style="margin-top: 16px">
       <div class="table-toolbar">
-        <el-button type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
-        <el-button type="danger" :icon="Delete" @click="handleBatchDelete" :disabled="selectedRows.length === 0">删除</el-button>
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增禁用</el-button>
+        <el-button type="danger" :icon="Delete" @click="handleBatchDelete" :disabled="selectedRows.length === 0">移出名单</el-button>
       </div>
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 420px)" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="platformId" label="平台编码" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="name" label="平台名称" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="platformId" label="国标编码" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="name" label="备注名" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.name || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="拦截状态" align="center" width="95">
+          <template #default="{ row }">
+            <el-tag :type="row.enabled === 1 ? 'warning' : 'danger'" size="small">
+              {{ row.enabled === 1 ? '临时放行' : '拦截中' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="reason" label="禁用原因" min-width="200" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.reason || '—' }}</template>
+        </el-table-column>
         <el-table-column label="在线状态" align="center" width="85">
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== undefined && row.status !== 2" :active="row.status === 1" />
@@ -190,14 +218,6 @@ onMounted(() => {
             <span v-else class="no-data">—</span>
           </template>
         </el-table-column>
-        <el-table-column label="启用状态" align="center" width="85">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled === 1 ? 'success' : 'danger'" size="small">
-              {{ row.enabled === 1 ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="authKey" label="鉴权密钥" min-width="200" show-overflow-tooltip />
         <el-table-column prop="channelCount" label="通道数" align="center" width="80">
           <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
@@ -207,7 +227,7 @@ onMounted(() => {
             <el-tooltip content="编辑">
               <el-button type="primary" link :icon="Edit" @click="handleEdit(row)" />
             </el-tooltip>
-            <el-tooltip content="删除">
+            <el-tooltip content="移出名单">
               <el-button type="danger" link :icon="Delete" @click="handleDelete(row)" />
             </el-tooltip>
           </template>
@@ -228,14 +248,28 @@ onMounted(() => {
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="520px" :close-on-click-modal="false">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="平台编码" prop="platformId">
+        <el-form-item label="国标编码" prop="platformId">
           <el-input v-model="form.platformId" placeholder="20位数字" :disabled="isEdit" />
         </el-form-item>
-        <el-form-item label="平台名称" prop="name">
-          <el-input v-model="form.name" placeholder="显示名称" />
+        <el-form-item label="备注名">
+          <el-input v-model="form.name" placeholder="可空，便于运维辨识" />
         </el-form-item>
-        <el-form-item label="启用状态">
-          <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
+        <el-form-item label="禁用原因">
+          <el-input
+            v-model="form.reason"
+            type="textarea"
+            :rows="2"
+            placeholder="可空，便于回溯为什么拉黑"
+          />
+        </el-form-item>
+        <el-form-item label="拦截状态">
+          <el-switch
+            v-model="form.enabled"
+            :active-value="0"
+            :inactive-value="1"
+            active-text="拦截中"
+            inactive-text="临时放行"
+          />
         </el-form-item>
       </el-form>
       <template #footer>

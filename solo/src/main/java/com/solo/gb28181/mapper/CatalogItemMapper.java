@@ -25,7 +25,6 @@ public interface CatalogItemMapper {
                    g.name                                  AS name,
                    g.group_id                              AS code,
                    p.group_id                              AS parentCode,
-                   g.platform_id                           AS platformId,
                    'group'                                 AS type
               FROM gb_group g
               LEFT JOIN gb_group p ON p.id = g.parent_id AND g.parent_id <> 0
@@ -34,7 +33,6 @@ public interface CatalogItemMapper {
                    COALESCE(NULLIF(c.name, ''), c.report_name) AS name,
                    c.channel_id                            AS code,
                    grp.group_id                            AS parentCode,
-                   c.platform_id                           AS platformId,
                    'channel'                               AS type
               FROM gb_device_channel c
               LEFT JOIN gb_group grp ON grp.id = c.group_id

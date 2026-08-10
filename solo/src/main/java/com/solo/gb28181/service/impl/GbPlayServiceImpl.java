@@ -2,7 +2,6 @@ package com.solo.gb28181.service.impl;
 
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.constant.GbSource;
 import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
@@ -291,10 +290,9 @@ public class GbPlayServiceImpl implements GbPlayService {
             log.warn("[实时点播] onInviteOk 无对应会话 callId={}", callId);
             return;
         }
-        // 区分向下级点播（级联接入设备 source=CASCADE）与自由设备点播，日志前缀随之切换
-        GbDevice device = support.device(session.getDeviceId());
-        boolean cascade = device != null && Integer.valueOf(GbSource.CASCADE).equals(device.getSource());
-        String tag = cascade ? LOG_TAG + "->下级" : LOG_TAG;
+        // 设备与下级平台不再区分（gb_platform 已翻转为黑名单，source 统一 REGISTER），
+        // 日志前缀不再按级联切换
+        String tag = LOG_TAG;
         if (remoteSsrc == null || remoteSsrc.isBlank() || remoteSsrc.equals(session.getSsrc())) {
             // 设备没回 y= 或 SSRC 一致：不需要任何动作
             return;

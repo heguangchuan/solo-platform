@@ -8,6 +8,7 @@ import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbParentPlatformService;
+import com.solo.gb28181.service.GbPlatformService;
 import com.solo.gb28181.utils.SipUtils;
 import com.solo.gb28181.utils.XmlUtils;
 import gov.nist.javax.sip.message.SIPRequest;
@@ -59,6 +60,10 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
     @Autowired
     private GbParentPlatformService gbParentPlatformService;
 
+    /** 接入禁用名单：SIP 入口拦截"先注册后拉黑"的设备，走 Redis Set 缓存不打 SQL */
+    @Autowired
+    private GbPlatformService gbPlatformService;
+
     /**
      * 设备档案缓存。catalog 同步期间 4w+ 条 MESSAGE 都按 {@code deviceId} 查设备，
      * 走缓存避免每条都打 SQL。TTL 10 min，写路径（online/offline/updateByManual/deleteBatch/
@@ -93,6 +98,14 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
     public void process(RequestEvent event) throws Exception {
         SIPRequest request = (SIPRequest) event.getRequest();
         String fromUser = SipUtils.getUserIdFromFromHeader(request);
+
+        // 黑名单拦截（在解析报文体之前，省掉被拉黑设备的 XML 解析开销）：
+        // 挡住"先注册过、后被拉黑"的设备——gb_device 里还留着行，不拦就会继续被当合法设备
+        // 处理 Catalog / Keepalive。静默丢弃，不回 SIP、不落库，与 REGISTER 入口一致。
+        if (gbPlatformService.isBlocked(fromUser)) {
+            log.warn("[消息分发] 命中禁用名单，静默丢弃 MESSAGE: from={}", fromUser);
+            return;
+        }
 
         Element root = XmlUtils.parseRoot(request.getRawContent());
         if (root == null) {

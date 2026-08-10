@@ -37,13 +37,11 @@ CREATE TABLE gb_device
     register_time          datetime             DEFAULT NULL COMMENT '最后注册时间',
     keepalive_time         datetime             DEFAULT NULL COMMENT '最后心跳时间',
     last_catalog_sync_time datetime             DEFAULT NULL COMMENT '最后 Catalog 同步完成时间',
-    platform_id            varchar(20) NOT NULL DEFAULT '0000' COMMENT '所属平台ID：0000=自有平台；其他=上级级联平台ID（用于区分设备来源）',
     create_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_device_id (device_id),
     KEY                    idx_status (status),
-    KEY                    idx_platform_id (platform_id),
     KEY                    idx_source (source)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备';
 
@@ -80,7 +78,6 @@ CREATE TABLE gb_device_channel
     longitude double DEFAULT NULL COMMENT '经度',
     latitude double DEFAULT NULL COMMENT '纬度',
     ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机',
-    platform_id  varchar(20) NOT NULL DEFAULT '0000' COMMENT '所属平台ID：0000=自有平台；其他=上级级联平台ID（与所属设备保持一致）',
     group_id     bigint      NOT NULL DEFAULT 0 COMMENT '所属资源目录分组（逻辑关联 gb_group.id 雪花主键）；默认值 0 须与 application.yaml gb28181.default-group.id 保持一致',
     source       tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
@@ -89,7 +86,6 @@ CREATE TABLE gb_device_channel
     UNIQUE KEY uk_device_channel (device_db_id, channel_id),
     KEY          idx_device_id (device_id),
     KEY          idx_channel_id (channel_id),
-    KEY          idx_platform_id (platform_id),
     KEY          idx_group_id (group_id),
     KEY          idx_status (status),
     KEY          idx_source (source)
@@ -125,36 +121,34 @@ CREATE TABLE gb_group
     id          bigint       NOT NULL COMMENT 'id（雪花主键；默认分组固定 0）',
     group_id    varchar(20)  NOT NULL COMMENT '分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用）',
     name        varchar(255) NOT NULL COMMENT '分组名称（作为 Catalog <Item><Name> 上报上级）',
-    parent_id   bigint       NOT NULL DEFAULT 0 COMMENT '父节点主键（逻辑关联 gb_group.id）：0=根节点',
-    platform_id varchar(20)  NOT NULL DEFAULT '0000' COMMENT '数据来源：0000=自有平台；其他=级联来源平台ID',
+    parent_id   varchar(20)  NOT NULL DEFAULT '0' COMMENT '父分组国标ID（逻辑关联 gb_group.group_id）：0=根节点',
     sort        int          NOT NULL DEFAULT 0 COMMENT '排序值（同层从小到大）',
     create_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_group_id (group_id),
-    KEY         idx_parent_id (parent_id),
-    KEY         idx_platform_id (platform_id)
+    KEY         idx_parent_id (parent_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标资源目录分组表';
 
 -- =====================================================
--- 下级级联平台白名单表
--- 本平台作为上级时，下级平台在此登记后可通过 REGISTER 接入。
--- SIP 接入时视为设备（gb_device），平台与设备通过 platform_id 自动关联。
--- 运行态（在线/心跳/通道数）查关联的 gb_device 行，不在本表冗余。
+-- 国标接入禁用名单（黑名单）
+-- 设备与下级平台一律自由注册（注册时机不可控，白名单模式不现实），
+-- 只有在本表登记的国标 ID 会被 REGISTER 流程以 403 拒绝。
+-- 平台与设备不再区分：接入后统一是 gb_device 行，运行态查那里。
 -- =====================================================
 DROP TABLE IF EXISTS gb_platform;
 CREATE TABLE gb_platform
 (
     id          bigint       NOT NULL COMMENT '主键ID（雪花）',
-    platform_id varchar(20)  NOT NULL COMMENT '下级平台国标ID（20位），唯一且等于 gb_device.device_id',
-    name        varchar(255) NOT NULL COMMENT '平台名称',
-    auth_key    varchar(64)  NOT NULL DEFAULT '' COMMENT '注册鉴权专属密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），字段保留供后续其他业务使用',
-    enabled     tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用（拒绝注册）1启用',
+    platform_id varchar(20)  NOT NULL COMMENT '被禁用的国标ID（20位，设备或下级平台通用）',
+    name        varchar(255)          DEFAULT NULL COMMENT '备注名（可空；仅便于运维辨识，不参与业务）',
+    reason      varchar(255)          DEFAULT NULL COMMENT '禁用原因（运维填写，便于回溯）',
+    enabled     tinyint      NOT NULL DEFAULT 0 COMMENT '禁用开关：0禁用（拒绝注册，默认）1临时放行（保留记录但不拦截）',
     create_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_platform_id (platform_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='下级级联平台白名单表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标接入禁用名单（黑名单）：设备/下级平台默认自由注册，仅本表登记的 ID 被拒绝';
 
 -- =====================================================
 -- 流媒体节点表（ZLMediaKit 实例登记）
@@ -306,7 +300,7 @@ CREATE TABLE gb_parent_platform
 -- 一行 = 一个上级平台 × 一个资源节点（type 区分 group / channel），无物理外键（ADR-011）。
 -- =====================================================
 DROP TABLE IF EXISTS gb_platform_share;
-DROP TABLE IF EXISTS gb_platform_catalog;
+
 DROP TABLE IF EXISTS gb_platform_gb_channel;
 CREATE TABLE gb_platform_share
 (
