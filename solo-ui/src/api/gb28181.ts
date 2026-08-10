@@ -89,35 +89,35 @@ export function detectGbDeviceApi(ids: (number | string)[]) {
 }
 
 /**
- * 下级级联平台分页
+ * 接入禁用名单分页（黑名单：设备/下级平台默认自由注册，仅本表登记的 ID 被拒）
  */
 export function getGbPlatformPageApi(data: GbPlatformPageRequest) {
   return post<PageResult<GbPlatform>>('/api/gb28181/platform/page', data)
 }
 
 /**
- * 新增下级级联平台白名单
+ * 新增接入禁用项
  */
 export function saveGbPlatformApi(data: Partial<GbPlatform>) {
   return post<void>('/api/gb28181/platform/save', data)
 }
 
 /**
- * 编辑下级级联平台白名单
+ * 编辑接入禁用项（备注名 / 原因 / 拦截开关）
  */
 export function updateGbPlatformApi(data: Partial<GbPlatform>) {
   return post<void>('/api/gb28181/platform/update', data)
 }
 
 /**
- * 删除下级级联平台白名单
+ * 移出接入禁用名单（解禁后设备可重新注册）
  */
 export function deleteGbPlatformApi(id: string) {
   return del<void>(`/api/gb28181/platform/${id}`)
 }
 
 /**
- * 批量删除下级级联平台白名单
+ * 批量移出接入禁用名单
  */
 export function batchDeleteGbPlatformApi(ids: (number | string)[]) {
   return post<void>('/api/gb28181/platform/batch/delete', { ids })

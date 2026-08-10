@@ -154,7 +154,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // 回填冗余字段，状态与来源由系统决定
         channel.setId(null);
         channel.setDeviceId(device.getDeviceId());
-        channel.setPlatformId(device.getPlatformId());
         channel.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
         channel.setSource(GbSource.SYSTEM);
         channel.setGroupId(resolveGroupId(channel.getGroupId()));

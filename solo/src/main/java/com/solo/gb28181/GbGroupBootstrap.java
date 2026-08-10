@@ -64,8 +64,7 @@ public class GbGroupBootstrap {
         group.setId(id);
         group.setGroupId(groupId);
         group.setName(name);
-        group.setParentId(0L);
-        group.setPlatformId("0000");
+        group.setParentId("0");
         group.setSort(1);
         groupService.save(group);
         log.info("[资源目录] 默认分组已写入 id={} groupId={} name={}", id, groupId, name);

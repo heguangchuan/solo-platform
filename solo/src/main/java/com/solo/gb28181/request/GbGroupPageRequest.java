@@ -17,9 +17,6 @@ public class GbGroupPageRequest {
     /** 分组名称（模糊） */
     private String name;
 
-    /** 父节点主键（按目录层级查询） */
-    private Long parentId;
-
-    /** 所属平台ID：0000=自有；其他=级联来源 */
-    private String platformId;
+    /** 父分组国标ID（按目录层级查询） */
+    private String parentId;
 }

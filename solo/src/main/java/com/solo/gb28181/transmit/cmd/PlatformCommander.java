@@ -123,7 +123,9 @@ public class PlatformCommander {
 
     private void doSendCatalogResponse(GbParentPlatform platform, String sn,
                                        List<GbGroup> groups, List<GbDeviceChannel> channels) {
-        // group.id (雪花主键) -> group.groupId (20 位国标码)：只包含"在共享列表内"的分组，供子节点 ParentID 反查
+        // group.id (雪花主键) -> group.groupId (20 位国标码)：只包含"在共享列表内"的分组，
+        // 仅供通道 Item 的 ParentID 反查（ch.group_id 仍是雪花 id）。分组的 ParentID 现在直接
+        // 存 g.getParentId()（国标码），不再走这个 map。
         Map<Long, String> groupIdCode = new HashMap<>(groups.size() * 2);
         for (GbGroup g : groups) {
             groupIdCode.put(g.getId(), g.getGroupId());

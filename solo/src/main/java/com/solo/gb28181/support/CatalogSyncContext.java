@@ -43,8 +43,7 @@ public class CatalogSyncContext {
 
     /** 通道 Item 的 <ParentID> 映射（channelId → parentId GB码），仅在 final flush 阶段用 */
     public final Map<String, String> channelParentIdMap = new HashMap<>();
-    /** 目录节点 Item 的 <ParentID> 映射（groupId → parentId GB码），仅在 final flush 阶段用 */
-    public final Map<String, String> groupParentIdMap = new HashMap<>();
+    // group 的 <ParentID> 已直接在 parseGroup 阶段写入 group.parentId 字段，不再单独维护 map
 
     /** 本次同步所有见过的 channelId（去重 Set，重传丢） */
     public final Set<String> syncedChannelIds = new HashSet<>();

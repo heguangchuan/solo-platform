@@ -6,12 +6,9 @@ import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbGroup;
-import com.solo.gb28181.entity.GbPlatform;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbGroupService;
-import com.solo.gb28181.service.GbPlatformService;
-import com.solo.gb28181.utils.SipUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -35,9 +32,14 @@ import java.util.concurrent.atomic.AtomicLong;
  * <ol>
  *   <li>中间 flush：直接调 {@code channelService.saveOrUpdateBatch(channels)} +
  *       {@code gbGroupService.saveOrUpdateBatch(groups)}。两者都已走批量 upsert。</li>
- *   <li>final flush：额外解析 ParentID(GB码) → 父 group 雪花 id，
- *       落库后若 {@code completenessRatio >= threshold} 清扫"已不存在通道"，
- *       否则保留以备下次 sync 补齐。</li>
+ *   <li>final flush：额外做三件事——
+ *     <ul>
+ *       <li><b>孤儿分组回落</b>：{@code parent_id} 指向的 group code 在库里/本批里都找不到 →
+ *           改挂 {@code device_id}，让分组树有唯一收口（中间 flush 不做，避免"先报子后报父"误伤）</li>
+ *       <li>解析 ParentID(GB码) → 父 group 雪花 id，回填通道的 {@code group_id}</li>
+ *       <li>若 {@code completenessRatio >= threshold} 清扫"已不存在通道"，否则保留以备下次 sync 补齐</li>
+ *     </ul>
+ *   </li>
  * </ol>
  */
 @Slf4j
@@ -48,7 +50,6 @@ public class CatalogSyncSupport {
     private final GbDeviceService deviceService;
     private final GbDeviceChannelService channelService;
     private final GbGroupService gbGroupService;
-    private final GbPlatformService gbPlatformService;
     private final ThreadPoolTaskExecutor executor;
 
     private final AtomicLong totalFlushCount = new AtomicLong(0);
@@ -63,13 +64,11 @@ public class CatalogSyncSupport {
                               GbDeviceService deviceService,
                               GbDeviceChannelService channelService,
                               GbGroupService gbGroupService,
-                              GbPlatformService gbPlatformService,
                               @Qualifier("catalogSyncExecutor") ThreadPoolTaskExecutor executor) {
         this.properties = properties;
         this.deviceService = deviceService;
         this.channelService = channelService;
         this.gbGroupService = gbGroupService;
-        this.gbPlatformService = gbPlatformService;
         this.executor = executor;
     }
 
@@ -80,13 +79,27 @@ public class CatalogSyncSupport {
                              List<GbDeviceChannel> channels,
                              List<GbGroup> groups,
                              Map<String, String> channelParent,
-                             Map<String, String> groupParent,
                              boolean isFinalFlush) {
         if (ctx == null) return;
+        // 队列前再 check 一次：cancel 已发生（done=true）→ 不入队
+        // ⚠️ 但 final flush 必须入队——finalize 已设 done=true，这里再 check 会自误，
+        //   导致 sumNum 收齐时 final flush 被自己的 done=true 拦截、Item 永远不落库。
+        //   intermediate flush（accumulate 触发的）依然走 done check 尊重 cancel。
+        if (!isFinalFlush && ctx.done) {
+            log.info("[通道目录] flush 被取消（入队前） deviceId={} sn={} channels={} groups={}",
+                    ctx.deviceId, ctx.sn, channels.size(), groups.size());
+            return;
+        }
         executor.execute(() -> {
+            // 队列中、运行前的窗口：cancel 可能在这一刻发生，再 check 一次
+            // 同上：final flush 不受 done 拦截
+            if (!isFinalFlush && ctx.done) {
+                log.info("[通道目录] flush 被取消（运行前） deviceId={} sn={}", ctx.deviceId, ctx.sn);
+                return;
+            }
             long start = System.currentTimeMillis();
             try {
-                doFlush(ctx, channels, groups, channelParent, groupParent, isFinalFlush);
+                doFlush(ctx, channels, groups, channelParent, isFinalFlush);
                 long cost = System.currentTimeMillis() - start;
                 totalFlushCount.incrementAndGet();
                 totalFlushedChannels.addAndGet(channels.size());
@@ -105,7 +118,6 @@ public class CatalogSyncSupport {
                          List<GbDeviceChannel> channels,
                          List<GbGroup> groups,
                          Map<String, String> channelParent,
-                         Map<String, String> groupParent,
                          boolean isFinalFlush) {
         GbDevice device = deviceService.lambdaQuery()
                 .eq(GbDevice::getDeviceId, ctx.deviceId)
@@ -114,28 +126,9 @@ public class CatalogSyncSupport {
             log.warn("[通道目录] flush 跳过：设备不存在 deviceId={}", ctx.deviceId);
             return;
         }
-        boolean isPlatform = gbPlatformService.lambdaQuery()
-                .eq(GbPlatform::getPlatformId, device.getDeviceId())
-                .eq(GbPlatform::getEnabled, 1)
-                .exists();
-
-        // 平台根目录（仅 final flush 阶段创建，作为兜底挂载点）
-        String platformRootCode = null;
-        Long platformRootId = null;
-        if (isPlatform && isFinalFlush) {
-            GbPlatform platform = gbPlatformService.lambdaQuery()
-                    .eq(GbPlatform::getPlatformId, device.getDeviceId())
-                    .one();
-            platformRootCode = SipUtils.toBusinessGroupId(device.getDeviceId());
-            String rootName = (platform != null && platform.getName() != null && !platform.getPlatformId().isBlank())
-                    ? platform.getName() : device.getDeviceId();
-            GbGroup root = new GbGroup();
-            root.setGroupId(platformRootCode);
-            root.setName(rootName);
-            root.setPlatformId(device.getPlatformId());
-            root.setSort(1);
-            groups.addFirst(root);
-        }
+        // 设备与下级平台不再区分（gb_platform 已翻转为黑名单，没有"哪些是平台"的登记）：
+        // 不再自动建平台根目录 —— 孤儿分组统一回落到 device_id（见下方 isFinalFlush 分支），
+        // source 统一 REGISTER，platform_id 三列已从表里删除。
 
         // 目录节点入库
         Map<String, Long> codeToId = new HashMap<>();
@@ -154,48 +147,51 @@ public class CatalogSyncSupport {
                 g.setId(id);
                 codeToId.put(g.getGroupId(), id);
             }
-            if (isFinalFlush && groupParent != null) {
-                if (platformRootCode != null) {
-                    platformRootId = codeToId.get(platformRootCode);
-                }
+
+            // final flush 阶段做"孤儿回落"：parent_id 指向的 group code 在库里/本批里都找不到
+            // （设备漏报父节点、报了非法 parent、或 <ParentID> 空被 handler 兜底成 device_id），
+            // 一律改挂到 device_id 下——让分组树有唯一收口，不出现游离顶层节点。
+            // 中间 flush 不做：设备可能先报子、后报父，那时判定会误伤。
+            if (isFinalFlush) {
+                Set<String> knownCodes = new HashSet<>(codeToId.keySet());
+                // 库里已存在的分组 code 也算"父可达"（本次没重报但历史已入库）
+                gbGroupService.lambdaQuery()
+                        .select(GbGroup::getGroupId)
+                        .list()
+                        .forEach(e -> knownCodes.add(e.getGroupId()));
+                int reparented = 0;
                 for (GbGroup g : groups) {
-                    if (platformRootCode != null && platformRootCode.equals(g.getGroupId())) {
-                        g.setParentId(0L);
+                    String pid = g.getParentId();
+                    // "0" 是平台根自己的哨兵值，不动；父可达的不动
+                    if ("0".equals(pid) || (pid != null && knownCodes.contains(pid))) {
                         continue;
                     }
-                    String parentCode = groupParent.get(g.getGroupId());
-                    Long parentDbId = parentCode == null ? null : codeToId.get(parentCode);
-                    if (parentDbId != null) {
-                        g.setParentId(parentDbId);
-                    } else if (isPlatform && platformRootId != null) {
-                        g.setParentId(platformRootId);
-                    } else {
-                        g.setParentId(0L);
-                    }
+                    g.setParentId(device.getDeviceId());
+                    reparented++;
+                }
+                if (reparented > 0) {
+                    log.info("[通道目录] 孤儿分组回落到设备节点 deviceId={} count={}/{}",
+                            device.getDeviceId(), reparented, groups.size());
                 }
             }
+
             gbGroupService.saveOrUpdateBatch(groups);
         }
 
-        // 通道入库：所有 flush 阶段都设 platformId + source（不依赖 ParentID 解析），
-        // final flush 额外按 channelParent 解析 groupId。
+        // 通道入库：source 统一 REGISTER（不再区分级联）；
+        // final flush 额外按 channelParent 解析 groupId，解析不到就保持默认分组。
         if (!channels.isEmpty()) {
             for (GbDeviceChannel ch : channels) {
-                ch.setPlatformId(device.getPlatformId());
-                ch.setSource(isPlatform ? GbSource.CASCADE : GbSource.REGISTER);
+                ch.setSource(GbSource.REGISTER);
             }
             if (isFinalFlush && channelParent != null) {
-                if (platformRootId == null && platformRootCode != null) {
-                    platformRootId = codeToId.get(platformRootCode);
-                }
                 for (GbDeviceChannel ch : channels) {
                     String parentCode = channelParent.get(ch.getChannelId());
                     Long parentDbId = parentCode == null ? null : codeToId.get(parentCode);
                     if (parentDbId != null) {
                         ch.setGroupId(parentDbId);
-                    } else if (isPlatform && platformRootId != null) {
-                        ch.setGroupId(platformRootId);
                     }
+                    // 解析不到父分组：不动 group_id，由 DB 默认值（默认分组 id=0）兜底
                 }
             }
             channelService.saveOrUpdateBatch(channels);

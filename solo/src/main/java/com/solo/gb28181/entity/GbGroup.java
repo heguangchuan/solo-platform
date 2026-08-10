@@ -1,10 +1,6 @@
 package com.solo.gb28181.entity;
 
-import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.IdType;
-import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
-import com.baomidou.mybatisplus.annotation.TableName;
+import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
@@ -33,12 +29,8 @@ public class GbGroup {
     /** 分组名称（作为 Catalog Item Name 上报上级） */
     private String name;
 
-    /** 父节点主键：0=根节点 */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long parentId;
-
-    /** 数据来源：0000=自有平台；其他=级联来源平台ID */
-    private String platformId;
+    /** 父分组国标ID（逻辑关联 {@link #groupId}）：0=根节点；存的是父分组的 20 位国标码而非雪花 id */
+    private String parentId;
 
     /** 排序值（同层从小到大） */
     private Integer sort;

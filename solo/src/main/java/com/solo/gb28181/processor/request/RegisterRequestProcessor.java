@@ -2,7 +2,6 @@ package com.solo.gb28181.processor.request;
 
 import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbPlatform;
 import com.solo.gb28181.event.DeviceOfflineEvent;
@@ -83,24 +82,18 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request, properties.isUseSourceIpAsRemoteAddress());
         String requestAddress = remote.hostAddress();
 
-        // 取设备已存在记录
-        // gb_platform 只做"是否登记为下级平台"的标记（决定 isPlatform / 来源标记 / 根目录创建），
-        // 不再参与鉴权：注册鉴权统一走 gb28181.password（可为空，空则不挑战、不校验）。
-        GbPlatform platform = gbPlatformService.lambdaQuery()
-                .eq(GbPlatform::getPlatformId, deviceId).one();
-        if (platform != null && platform.getEnabled() != null && platform.getEnabled() == 0) {
-            // 平台被禁用是操作员的主动配置，仍以 403 拒绝（与"无鉴权"语义不冲突）
-            SIPResponse forbidden = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.FORBIDDEN, request);
-            forbidden.setReasonPhrase("platform disabled");
-            sipSender.send(request.getLocalAddress().getHostAddress(), forbidden);
-            log.warn("[级联注册] 平台已禁用: deviceId={}", deviceId);
+        // 黑名单拦截：gb_platform 现在是"禁用名单"——设备与下级平台默认自由注册，
+        // 只有在本表登记且 enabled=0 的国标 ID 才被拦。鉴权与本表无关（走 gb28181.password）。
+        // 命中直接静默丢弃：不回任何 SIP 响应（403 反而确认了"这个 ID 被我们识别"），
+        // 不入库、不发事件。对端按自身 SIP 重传机制处理，本平台零状态。
+        // MESSAGE 入口有同样的拦截，挡住"先注册后拉黑"的设备继续推目录/心跳。
+        if (gbPlatformService.isBlocked(deviceId)) {
+            log.warn("[设备注册] 命中禁用名单，静默丢弃 REGISTER: deviceId={}", deviceId);
             return;
         }
-        final boolean isPlatform = (platform != null);
-        // 鉴权密码统一取 gb28181.password，gb_platform.authKey 不再使用（见 ADR-022）
+        // 鉴权密码统一取 gb28181.password（见 ADR-022）
         String password = properties.getPassword();
-        String title = isUnregister ? (isPlatform ? "[级联注销]" : "[设备注销]")
-                : (isPlatform ? "[级联注册]" : "[设备注册]");
+        String title = isUnregister ? "[设备注销]" : "[设备注册]";
         log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
         GbDevice exist = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
 
@@ -168,27 +161,10 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         if (device.getCharset() == null || device.getCharset().isBlank()) {
             device.setCharset("GB2312");
         }
-        if (device.getPlatformId() == null || device.getPlatformId().isBlank()) {
-            // 设备直接注册到本平台 → 自有平台；级联平台同步过来的设备会在级联接入处显式赋值
-            device.setPlatformId("0000");
-        }
-        // 级联平台：platformId 设为自身国标ID，使其推上来的通道/目录带来源标记
-        if (isPlatform) {
-            device.setPlatformId(deviceId);
-        }
-        // 级联平台：首次接入时用白名单名称播种显示名，便于设备列表区分
-        if (isPlatform && firstTime && (device.getName() == null || device.getName().isBlank())) {
-            device.setName(platform.getName());
-        }
-        // 普通设备不在此处兜底 name：REGISTER 报文不带设备名，
-        // 由 DeviceOnlineListener 异步查 DeviceInfo 后用 reportName 回填（见 DeviceInfoResponseMessageHandler）。
+        // 设备与下级平台不再区分：platform_id 已从 gb_device 移除，source 统一 REGISTER。
+        // name 不在此处兜底——REGISTER 报文不带设备名，由 DeviceOnlineListener 异步查
+        // DeviceInfo 后用 reportName 回填（见 DeviceInfoResponseMessageHandler）。
         gbDeviceService.online(device);
-
-        // 级联平台接入：标记来源为级联（online 对新设备会强制写 source=REGISTER，这里纠正）
-        if (isPlatform && device.getSource() != null && device.getSource() != GbSource.CASCADE) {
-            device.setSource(GbSource.CASCADE);
-            gbDeviceService.updateById(device);
-        }
 
         // 发布上线事件 → DeviceOnlineListener 异步拉取 DeviceInfo + Catalog
         eventPublisher.publishEvent(new DeviceOnlineEvent(this, deviceId, firstTime));

@@ -29,9 +29,6 @@ public class CatalogItem {
     /** 父级 20 位国标码：group→父分组 group_id / channel→所属分组 group_id；根节点为 null */
     private String parentCode;
 
-    /** 所属平台ID：0000=自有平台；其他=上级级联来源平台ID */
-    private String platformId;
-
     /** 资源类型：group（资源目录分组）/ channel（通道） */
     private String type;
 }

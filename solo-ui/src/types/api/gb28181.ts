@@ -66,8 +66,6 @@ export interface GbDevice {
   registerTime?: string
   keepaliveTime?: string
   lastCatalogSyncTime?: string
-  /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID */
-  platformId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
   createTime: string
@@ -84,28 +82,28 @@ export interface GbDeviceDetectResult {
   items: Array<{ id: string; deviceId: string; result: 'detecting' | 'skipped' }>
 }
 
-/** 下级级联平台白名单 */
+/** 国标接入禁用名单（黑名单）：设备与下级平台默认自由注册，仅本表登记的 ID 被拒 */
 export interface GbPlatform {
   id: string
-  /** 平台国标 ID（20 位） */
+  /** 被禁用的国标 ID（20 位，设备或下级平台通用） */
   platformId: string
-  /** 平台名称 */
-  name: string
-  /** 注册鉴权密钥（后端自动生成 32 位 UUID）。当前已不再用于下级平台注册鉴权（见 ADR-022），字段保留供后续其他业务使用 */
-  authKey?: string
-  /** 启用状态：0 禁用 1 启用 */
+  /** 备注名（可空；仅便于运维辨识，不参与业务判定） */
+  name?: string
+  /** 禁用原因（运维填写，便于回溯"为什么把它拉黑"） */
+  reason?: string
+  /** 禁用开关：0 禁用（拒绝接入，默认）1 临时放行（保留记录但不拦截） */
   enabled: number
   /** 关联设备状态：0 离线 1 在线 2 未注册（由 service 关联回填） */
   status?: number
   /** 关联设备最后心跳时间 */
   keepaliveTime?: string
-  /** 该平台同步来的通道总数 */
+  /** 该设备已同步的通道总数 */
   channelCount?: number
   createTime: string
   updateTime: string
 }
 
-/** 下级级联平台分页查询参数 */
+/** 接入禁用名单分页查询参数 */
 export interface GbPlatformPageRequest {
   page: number
   pageSize: number
@@ -216,8 +214,6 @@ export interface GbDeviceChannel {
   longitude?: number
   latitude?: number
   ptzType?: number
-  /** 所属平台 ID：0000=自有平台；其他=上级级联平台 ID（与所属设备一致） */
-  platformId?: string
   /** 所属资源目录主键（引用 gb_group.id；默认分组 0000） */
   groupId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
@@ -242,8 +238,6 @@ export interface GbGroupPageRequest extends PageRequest {
   name?: string
   /** 父节点主键 */
   parentId?: string
-  /** 所属平台ID：0000=自有；其他=级联来源 */
-  platformId?: string
 }
 
 /** 国标资源目录分组（业务分组 215 / 虚拟组织 216） */
@@ -256,8 +250,6 @@ export interface GbGroup {
   name: string
   /** 父节点主键：0=根节点 */
   parentId?: string
-  /** 数据来源：0000=自有平台；其他=级联来源平台ID */
-  platformId?: string
   /** 排序值（同层从小到大） */
   sort?: number
   createTime?: string

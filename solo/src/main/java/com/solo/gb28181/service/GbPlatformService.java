@@ -9,37 +9,51 @@ import com.solo.gb28181.response.GbPlatformVO;
 import java.util.List;
 
 /**
- * 下级级联平台服务（白名单管理）
+ * 国标接入禁用名单服务（黑名单管理）
  *
- * <p>下级平台 SIP 接入时视为设备，走现有设备注册流程；本服务只负责白名单的
- * 增删改查，鉴权完全由 {@code gb28181.password} 决定（见 ADR-022）。
- * 白名单命中后只影响业务路由：来源标记 / 根目录创建 / 孤儿兜底挂载。</p>
+ * <p><b>语义已从白名单翻转为黑名单</b>：设备与下级平台默认自由注册（注册时机由对端决定，
+ * 白名单模式不现实），只有在 {@code gb_platform} 登记且 {@code enabled=0} 的国标 ID 会被
+ * SIP 入口拦截。鉴权与本表无关，统一由 {@code gb28181.password} 决定（见 ADR-022）。</p>
+ *
+ * <p>拦截点两处，都走 {@link #isBlocked} 的 Redis Set 缓存：</p>
+ * <ul>
+ *   <li>{@code RegisterRequestProcessor}：REGISTER 静默丢弃（不回 SIP、不入库、不发事件）</li>
+ *   <li>{@code MessageRequestProcessor}：MESSAGE 静默丢弃（挡住"先注册后拉黑"的设备继续推目录/心跳）</li>
+ * </ul>
  */
 public interface GbPlatformService extends IService<GbPlatform> {
 
     /**
-     * 分页查询白名单，并关联 gb_device（device_id == platform_id）回填在线状态等运行态字段
+     * 分页查询禁用名单，并关联 gb_device（device_id == platform_id）回填在线状态等运行态字段
+     * （被拉黑的设备可能之前注册过，运行态用于运维判断"拉黑是否生效"）
      */
     Page<GbPlatformVO> pageQuery(GbPlatformPageRequest request);
 
     /**
-     * 后台录入白名单。platformId 20 位校验 + 唯一校验。
+     * 后台录入禁用名单。platformId 20 位校验 + 唯一校验；写入后失效缓存。
      */
     void createByManual(GbPlatform platform);
 
     /**
-     * 后台编辑白名单。platformId 不可改。
+     * 后台编辑禁用名单（改备注 / 原因 / 临时放行开关）。platformId 不可改；改完失效缓存。
      */
     void updateByManual(GbPlatform platform);
 
     /**
-     * 批量删除白名单（仅删白名单记录，不动已注册的 gb_device 行）
+     * 批量删除禁用名单（仅删名单记录，不动已注册的 gb_device 行）；删完失效缓存。
      */
     void deleteBatch(List<Long> ids);
 
     /**
-     * 按 platformId 查启用中的白名单；供 REGISTER 流程判断"是否登记为下级平台"用。
-     * 未命中或已禁用返回 null。不参与鉴权。
+     * 判断某国标 ID 是否被禁用接入。SIP 入口高频调用，走 {@code gb28181:device:blocked}
+     * Redis Set 缓存（TTL 5 分钟，增删改主动失效）；Redis 不可用时回退查库。
+     *
+     * @return true 表示已被拉黑，调用方应静默丢弃该报文
      */
-    GbPlatform findEnabledByPlatformId(String platformId);
+    boolean isBlocked(String deviceId);
+
+    /**
+     * 主动失效禁用名单缓存（增删改后调用）。
+     */
+    void evictBlockedCache();
 }

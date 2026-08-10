@@ -132,12 +132,6 @@ public class GbDevice implements Serializable {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastCatalogSyncTime;
 
-    /**
-     * 所属平台 ID：{@code 0000} = 自有平台（默认）；其他值代表上级级联平台 ID，
-     * 后续 S6 级联实装后由级联接入流程写入，用以区分设备来源。
-     */
-    private String platformId;
-
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

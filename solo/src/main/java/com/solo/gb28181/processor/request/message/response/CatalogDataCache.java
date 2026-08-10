@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Catalog 分片缓冲（10w+ 通道场景专用）。
- * <p>重写于"接收即落库"模型：原实现把所有 Item 堆在 {@code List<GbDeviceChannel>}
+ * <p>原"接收即落库"模型：所有 Item 堆在 {@code List<GbDeviceChannel>}
  * 里等 {@code sumNum} 收齐才一次性入库，4w 通道即 OOM。改为：</p>
  * <ul>
  *   <li>每个设备维护一个 {@link CatalogSyncContext}，包含滚动缓冲 + 累计计数 + 重传去重 Set</li>
@@ -28,8 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li>收尾时若达到 {@code completenessThreshold}（默认 0.95）才删"已不存在通道"，否则保留</li>
  * </ul>
  *
- * <h3>本类只负责"在内存里攒"+"触发 flush"；具体落库由 {@link CatalogSyncSupport} 在 catalogSyncExecutor
- * 上执行，逻辑跟"分片并发落库"解耦。</h3>
+ * <p>本类只负责"在内存里攒"+"触发 flush"；具体落库由 {@link CatalogSyncSupport} 在 catalogSyncExecutor
+ * 上执行，逻辑跟"分片并发落库"解耦。</p>
  */
 @Slf4j
 @Component
@@ -48,6 +48,30 @@ public class CatalogDataCache {
         this.properties = properties;
         this.syncSupport = syncSupport;
         this.eventPublisher = eventPublisher;
+    }
+
+    /**
+     * 取消某设备的进行中同步（设备下线 / 重新上线前调）。
+     * <p>行为：持锁将 context 标记为 done（挡住任何 in-flight 的 accumulate 继续写缓冲），
+     * 并从 {@link #contexts} 移除。已入队到 {@code catalogSyncExecutor} 的 flush 任务由
+     * {@link com.solo.gb28181.support.CatalogSyncSupport#executeFlush} 的 done 检查拦截，
+     * 避免 cancel 后仍有部分数据落库。</p>
+     * <p><b>不</b>调 finalize flush 部分数据——下线的设备回的数据本就不全，flush 反而把脏数据落地；
+     * 留待设备重新注册后由新的 sync 重新拉完整目录覆盖。</p>
+     */
+    public void cancel(String deviceId) {
+        if (deviceId == null) return;
+        CatalogSyncContext removed = contexts.remove(deviceId);
+        if (removed == null) return;
+        // 持锁改 done：与 accumulate 的 lock block 互斥，保证 in-flight 写入要么跑完要么不跑
+        removed.lock.lock();
+        try {
+            removed.done = true;
+        } finally {
+            removed.lock.unlock();
+        }
+        log.info("[通道目录] 取消 in-flight 同步 deviceId={} sn={} total={}/{}",
+                deviceId, removed.sn, removed.totalReceived.get(), removed.sumNum);
     }
 
     /**
@@ -81,13 +105,16 @@ public class CatalogDataCache {
     public boolean accumulate(CatalogSyncContext ctx,
                               List<GbDeviceChannel> chunkChannels,
                               List<GbGroup> chunkGroups,
-                              Map<String, String> channelParentIdMap,
-                              Map<String, String> groupParentIdMap) {
+                              Map<String, String> channelParentIdMap) {
         if (ctx == null) return false;
         int addedChannels = 0;
         int addedGroups = 0;
         ctx.lock.lock();
         try {
+            // 已被 cancel 标记 done：直接放行（不写缓冲、不触发 flush、不再 sumNum 收齐判定）
+            if (ctx.done) {
+                return false;
+            }
             long now = System.currentTimeMillis();
             // 通道去重（重传丢）
             if (chunkChannels != null && !chunkChannels.isEmpty()) {
@@ -115,9 +142,7 @@ public class CatalogDataCache {
             if (channelParentIdMap != null) {
                 ctx.channelParentIdMap.putAll(channelParentIdMap);
             }
-            if (groupParentIdMap != null) {
-                ctx.groupParentIdMap.putAll(groupParentIdMap);
-            }
+            // group 的 parent_id 已在 parseGroup 阶段写入 group 对象本身，map 维护已无必要
             if (addedChannels + addedGroups > 0) {
                 ctx.totalReceived.addAndGet(addedChannels + addedGroups);
                 ctx.lastNonEmptyUpdateMs.set(now);
@@ -211,13 +236,12 @@ public class CatalogDataCache {
             ctx.channelBuffer.clear();
             ctx.groupBuffer.clear();
         }
-        // ParentID 映射只在 final flush 阶段使用（用于目录归属解析）——全程累积，
-        // 不在中间 flush 清空，否则 final flush 拿不到。
+        // channel 的 ParentID 映射只在 final flush 阶段使用（用于通道的 group_id 解析）——
+        // 全程累积，不在中间 flush 清空，否则 final flush 拿不到。
+        // group 的 parent_id 已在 parseGroup 写入 group 对象本身，不再走独立 map。
         Map<String, String> chParentSnap = isFinalFlush
                 ? new java.util.HashMap<>(ctx.channelParentIdMap) : null;
-        Map<String, String> gParentSnap = isFinalFlush
-                ? new java.util.HashMap<>(ctx.groupParentIdMap) : null;
-        syncSupport.executeFlush(ctx, chSnap, gSnap, chParentSnap, gParentSnap, isFinalFlush);
+        syncSupport.executeFlush(ctx, chSnap, gSnap, chParentSnap, isFinalFlush);
         // 刷新 lastFlushMs：让时间触发从本次 flush 重新计时
         ctx.lastFlushMs.set(System.currentTimeMillis());
     }
