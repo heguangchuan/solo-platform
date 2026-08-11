@@ -46,16 +46,20 @@ CREATE TABLE gb_device
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备';
 
 -- =====================================================
--- 国标资源目录项表（通道 + 分组合一，按 parental 区分；见 ADR-023）
--- 通道（parental=0）：device_id（GB 码）必填，业务唯一键 (device_id, channel_id)
--- 分组（parental=1）：device_id 为 NULL；channel_id 全局唯一由应用层检查兜底
--- 逻辑关联 gb_device.device_id（仅通道），不建物理外键
+-- 国标资源目录项表（设备通道 + 下级平台通道/目录 + 业务分组；见 ADR-023）
+-- 通道（parental=0）：device_id 必填，业务唯一键 (device_id, channel_id)
+-- 分组（parental=1）：device_id 也必填，标识"该分组由哪台设备/下级平台推送"
+-- 数据来源三类：
+--   1) NVR / IPC / 单点设备 走 SIP REGISTER 推 Catalog
+--   2) 下级平台 视为设备接入本平台（ADR-016），推 Catalog 入这里
+--   3) 运营手建 / 表格导入
+-- 逻辑关联 gb_device.device_id，不建物理外键
 -- =====================================================
 DROP TABLE IF EXISTS gb_device_channel;
 CREATE TABLE gb_device_channel
 (
     id           bigint      NOT NULL COMMENT '主键ID（雪花）',
-    device_id    varchar(50)          DEFAULT NULL COMMENT '所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 NULL',
+    device_id    varchar(50) NOT NULL COMMENT '所属设备国标ID（逻辑关联 gb_device.device_id）；通道与分组均必填——分组标识推送源设备',
     channel_id   varchar(50) NOT NULL COMMENT 'catalog item 20 位国标码：分组=215业务分组/216虚拟组织；通道=131摄像机/132IPC 等',
     report_name  varchar(255)         DEFAULT NULL COMMENT 'catalog item 上报原始名称（仅对通道有意义，分组时为 NULL）',
     name         varchar(255)         DEFAULT NULL COMMENT '用户自定义显示名称（展示优先级高于 report_name）',
@@ -80,7 +84,7 @@ CREATE TABLE gb_device_channel
     longitude double DEFAULT NULL COMMENT '经度（仅通道）',
     latitude double DEFAULT NULL COMMENT '纬度（仅通道）',
     ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机（仅通道）',
-    parent_id    varchar(20)  NOT NULL DEFAULT '0' COMMENT '父 catalog item 的 20 位国标码（指向同表 channel_id）；''0''=根（无父）。ADR-023',
+    parent_id    varchar(20)  NOT NULL COMMENT '父 catalog item 的 20 位国标码：通道→所属设备 device_id / 父分组 channel_id；分组→父分组 channel_id 或所属设备 device_id。仅供级联 XML ParentID 与共享树建层级使用，不回前端展示',
     source       tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

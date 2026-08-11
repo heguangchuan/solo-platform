@@ -109,8 +109,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
                 ch.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
                 ch.setSource(GbSource.SYSTEM);
                 ch.setParental(0);  // 手动新增一定是通道
-                ch.setParentId(ch.getParentId() != null && !ch.getParentId().isBlank()
-                        ? ch.getParentId() : "0");  // ADR-023: 未指定父项时回根哨兵 "0"，无默认分组
+                ch.setParentId(device.getDeviceId());  // parentId = 所属设备 GB 码（与 GB 协议语义一致）
                 boolean saved = deviceChannelService.save(ch);
                 log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);
             }

@@ -2,9 +2,11 @@ package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
+import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPlatformShare;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPlatformShareMapper;
 import com.solo.gb28181.request.GbPlatformShareSaveRequest;
 import com.solo.gb28181.response.GbPlatformSharedResponse;
@@ -30,6 +32,9 @@ import java.util.stream.Collectors;
  * resource_id 指向的 {@code gb_device_channel} 行的 {@code parental} 字段派生。</p>
  * <p>前端契约保留 g_/c_ 前缀：g_ → 分组（parental=1），c_ → 通道（parental=0）。
  * 后端按前缀解析入库，零改动前端。</p>
+ * <p>{@link #shareTree} 三级树：<b>设备节点</b>（gb_device，不可勾选）→ <b>分组</b>（parental=1）
+ * → <b>通道</b>（parental=0）。因 catalog item 的 {@code parent_id} 大多是所属设备 GB 码
+ * （通道直挂设备时），以设备作枝干才能把所有 item 都挂进树，不会漏。</p>
  */
 @Slf4j
 @Service
@@ -39,68 +44,62 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     /** 前端 el-tree node-key 前缀：分组（parental=1）/ 通道（parental=0），避免主键碰撞 */
     private static final String GROUP_PREFIX = "g_";
     private static final String CHANNEL_PREFIX = "c_";
+    /** 设备节点前缀（仅作枝干展示，不可勾选共享） */
+    private static final String DEVICE_PREFIX = "d_";
 
     private final GbDeviceChannelMapper channelMapper;
+    private final GbDeviceMapper deviceMapper;
     private final GbPlatformShareMapper shareMapper;
     private final GbCodeGenerator gbCodeGenerator;
 
     @Override
     public List<GbShareTreeNodeResponse> shareTree() {
-        // 1) 拉所有 catalog item：分组（parental=1）和通道（parental=0）合并查询
-        // 分组在 gb_device_channel 中 device_id 为 NULL，单独查更直接
-        List<GbDeviceChannel> groups = channelMapper.selectList(
+        // 1) 拉所有 catalog item（分组 parental=1 + 通道 parental=0），按 device_id 聚合
+        List<GbDeviceChannel> allItems = channelMapper.selectList(
                 new LambdaQueryWrapper<GbDeviceChannel>()
-                        .eq(GbDeviceChannel::getParental, 1)
+                        .orderByDesc(GbDeviceChannel::getParental)   // 分组在前
                         .orderByAsc(GbDeviceChannel::getChannelId));
-        // 通道按所属设备全量查（量级可控）
-        List<GbDeviceChannel> channels = channelMapper.selectList(
-                new LambdaQueryWrapper<GbDeviceChannel>()
-                        .eq(GbDeviceChannel::getParental, 0)
-                        .orderByAsc(GbDeviceChannel::getChannelId));
-
-        // 2) 分组按自身 channelId（GB 码）建索引（保持出现顺序），children 用可变 list
-        Map<String, GbShareTreeNodeResponse> groupByCode = new LinkedHashMap<>();
-        for (GbDeviceChannel g : groups) {
-            if (g.getChannelId() == null) continue;
-            GbShareTreeNodeResponse node = new GbShareTreeNodeResponse();
-            node.setId(GROUP_PREFIX + g.getId());
-            node.setLabel(g.getName());
-            node.setType("GROUP");
-            node.setChildren(new ArrayList<>());
-            groupByCode.put(g.getChannelId(), node);
+        if (allItems.isEmpty()) {
+            return new ArrayList<>();
         }
 
-        // 3) 通道作为叶子挂到所属分组（parentId = 所属分组 GB 码）；parentId 不可达则跳过
-        for (GbDeviceChannel ch : channels) {
-            String parentCode = ch.getParentId();
-            if (parentCode == null || parentCode.isBlank() || "0".equals(parentCode)) {
-                continue;  // 根哨兵或未指定父项，不展示
-            }
-            GbShareTreeNodeResponse parent = groupByCode.get(parentCode);
-            if (parent == null) {
-                continue;  // parentCode 悬挂（分组被删且未回落）——跳过，不污染树
-            }
-            GbShareTreeNodeResponse node = new GbShareTreeNodeResponse();
-            node.setId(CHANNEL_PREFIX + ch.getId());
-            // 通道展示用 channelId（20 位国标码），原 CatalogItem.code 等价字段
-            node.setLabel(ch.getName() + " (" + ch.getChannelId() + ")");
-            node.setType("CHANNEL");
-            parent.getChildren().add(node);
+        // 2) 拉设备表（作枝干标签），按 GB 码索引
+        Map<String, GbDevice> deviceByGbId = deviceMapper.selectList(
+                        new LambdaQueryWrapper<GbDevice>().orderByAsc(GbDevice::getName)).stream()
+                .collect(Collectors.toMap(GbDevice::getDeviceId, d -> d, (a, b) -> a, LinkedHashMap::new));
+
+        // 3) 按 device_id 分桶（保持 allItems 内已排好的 parental/channelId 顺序）
+        Map<String, List<GbDeviceChannel>> itemsByDevice = new LinkedHashMap<>();
+        for (GbDeviceChannel it : allItems) {
+            if (it.getDeviceId() == null) continue;
+            itemsByDevice.computeIfAbsent(it.getDeviceId(), k -> new ArrayList<>()).add(it);
         }
 
-        // 4) 组装分组层级：parentId 命中某分组 → 挂其下；为 "0"/null/不在集合 → 根节点
+        // 4) 组装：设备节点 → 该设备下的分组 + 通道（同级平铺，分组排前）
+        //    以设备作枝干而非按 parent_id 递归：catalog item 的 parent_id 大多是所属设备 GB 码
+        //    （通道直挂设备），按 parent_id 建树会因"设备不在 gb_device_channel 表里"而漏掉通道。
         List<GbShareTreeNodeResponse> roots = new ArrayList<>();
-        for (GbDeviceChannel g : groups) {
-            if (g.getChannelId() == null) continue;
-            GbShareTreeNodeResponse self = groupByCode.get(g.getChannelId());
-            String parentCode = g.getParentId();
-            GbShareTreeNodeResponse parent = (parentCode == null || parentCode.isBlank() || "0".equals(parentCode))
-                    ? null : groupByCode.get(parentCode);
-            if (parent != null) {
-                parent.getChildren().add(self);
-            } else {
-                roots.add(self);
+        for (Map.Entry<String, List<GbDeviceChannel>> entry : itemsByDevice.entrySet()) {
+            String deviceGbId = entry.getKey();
+            GbDevice device = deviceByGbId.get(deviceGbId);
+            GbShareTreeNodeResponse deviceNode = new GbShareTreeNodeResponse();
+            deviceNode.setId(DEVICE_PREFIX + deviceGbId);
+            deviceNode.setLabel(device != null && device.getName() != null
+                    ? device.getName() + " (" + deviceGbId + ")"
+                    : deviceGbId);
+            deviceNode.setType("DEVICE");
+            deviceNode.setChildren(new ArrayList<>());
+
+            for (GbDeviceChannel it : entry.getValue()) {
+                boolean isGroup = it.getParental() != null && it.getParental() == 1;
+                GbShareTreeNodeResponse child = new GbShareTreeNodeResponse();
+                child.setId((isGroup ? GROUP_PREFIX : CHANNEL_PREFIX) + it.getId());
+                String name = (it.getName() == null || it.getName().isBlank()) ? "-" : it.getName();
+                child.setLabel(name + " (" + it.getChannelId() + ")");
+                child.setType(isGroup ? "GROUP" : "CHANNEL");
+                deviceNode.getChildren().add(child);
             }
+            roots.add(deviceNode);
         }
         return roots;
     }
@@ -113,13 +112,10 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
         GbPlatformSharedResponse resp = new GbPlatformSharedResponse();
         // 一份 channelIds 列表混合 g_/c_ 前缀的节点 id，前端按前缀渲染。
-        // 当前端仅做勾选态回填时这个列表够用；后端在 save 时按前缀分类入库。
+        // 通过 JOIN catalog item 派生 parental 来派生前缀。
         List<String> nodeIds = shares.stream()
-                .map(s -> {
-                    // 需要 JOIN 派生 parental 才能派生前缀；这里简化为不加前缀直接给资源 id。
-                    // 但前端 el-tree 期望带前缀的 node-key——改为 JOIN 派生：
-                    return prefixResourceId(s);
-                })
+                .map(s -> prefixResourceId(s))
+                .filter(id -> id != null)
                 .collect(Collectors.toList());
         resp.setChannelIds(nodeIds);
         return resp;

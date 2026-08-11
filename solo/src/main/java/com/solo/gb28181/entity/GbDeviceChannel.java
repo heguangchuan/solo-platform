@@ -13,17 +13,27 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 
 /**
- * 国标资源目录项（通道 + 分组合一，ADR-023）。
+ * 国标资源目录项（设备通道 + 下级平台通道 + 业务分组；ADR-023）。
  *
  * <p>对应 GB/T 28181-2016 Catalog 报文中的每一个 {@code <Item>}。靠 {@link #parental} 区分：</p>
  * <ul>
  *   <li>{@code parental=0}：通道（叶子），有 manufacturer/model/ptzType/status 等业务字段</li>
- *   <li>{@code parental=1}：分组（容器），仅 id/channel_id/name/parent_id/sort 有语义，其他字段为 NULL</li>
+ *   <li>{@code parental=1}：分组（容器），仅 id/channel_id/name/parent_id 有语义，其他业务字段为 NULL</li>
  * </ul>
  *
+ * <p><b>数据来源（{@link #deviceId} 标识）</b>：本表不只存"设备通道"，还存：
+ * <ul>
+ *   <li>NVR / IPC / 单点设备 通过 SIP REGISTER 推上来的通道</li>
+ *   <li>下级平台 作为 GB 设备接入本平台时推上来的全部通道和分组（ADR-016：下级平台视为设备）</li>
+ *   <li>运营手建 / 表格导入的通道和分组</li>
+ * </ul>
+ * 因此 {@link #deviceId}（GB 码字符串，<b>NOT NULL</b>）对所有行都是必填的：它告诉你"这一行是哪台
+ * 设备或下级平台贡献的"。孤儿清理、来源审计、按接入方清空目录都可在 DB 层用
+ * {@code WHERE device_id = ?} 一把兜底，不依赖应用层遍历。</p>
+ *
  * <p>{@link #parentId} 存的是父 catalog item 的 <b>20 位国标码</b>（与父行 {@code channel_id} 对齐），
- * 字符串类型，{@code "0"} 表根（无父）。GB 协议 {@code <ParentID>} 直接 round-trip，无须做 GB 码 ↔
- * 雪花 id 的转换。{@link #deviceId} 仅通道有值（GB 码字符串），分组为 NULL。</p>
+ * 字符串类型，{@code "0"} 表根（无父）。供级联回上级 XML 的 {@code <ParentID>} 字段与共享树按
+ * parentId 建层级使用；<b>不暴露给前端</b>。</p>
  *
  * <p>逻辑关联 {@link GbDevice}：通过 {@code device_id}（国标ID 字符串）双向定位，
  * 不在 DB 层建外键；去掉 {@code device_db_id} 雪花主键引用，关系表只有一份 GB 码字段。</p>
@@ -36,7 +46,7 @@ public class GbDeviceChannel {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
-    /** 所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 NULL */
+    /** 所属设备国标ID（逻辑关联 gb_device.device_id）；通道与分组均必填——分组标识推送源设备 */
     private String deviceId;
 
     /**
@@ -97,9 +107,9 @@ public class GbDeviceChannel {
     private Integer ptzType;
 
     /**
-     * 父 catalog item 的 20 位国标码（指向同表 channel_id）；"0"=根（无父）。
-     * <p>入库流程（Catalog 同步 / 手动新增）未指定父项时统一回填 "0"；编辑可改，级联回上级
-     * 时按 channel_id 反查父行生成 XML ParentID。详见 ADR-023。</p>
+     * 父 catalog item 的 20 位国标码。通道→所属设备 device_id 或父分组 channel_id；
+     * 分组→父分组 channel_id 或所属设备 device_id。手动新增通道时 = 所属设备 GB 码
+     * （与 GB/T 28181 语义一致）。仅供级联 XML {@code <ParentID>} 与共享树建层级使用，不回前端展示。
      */
     private String parentId;
 
