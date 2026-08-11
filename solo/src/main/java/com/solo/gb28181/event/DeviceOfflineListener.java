@@ -37,7 +37,7 @@ public class DeviceOfflineListener {
         if (device == null) return;
 
         boolean updated = channelService.lambdaUpdate()
-                .eq(GbDeviceChannel::getDeviceDbId, device.getId())
+                .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
                 .set(GbDeviceChannel::getStatus, "OFF")
                 .update();
         if (updated) {

@@ -6,8 +6,8 @@
 import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Search, VideoCamera } from '@element-plus/icons-vue'
-import type { GbDevice, GbDeviceChannel, GbGroupVO } from '@/types/api'
-import { getGbDevicePageApi, saveGbDeviceChannelApi, getGbGroupTreeApi, getNextGbChannelCodeApi } from '@/api/gb28181'
+import type { GbDevice, GbDeviceChannel } from '@/types/api'
+import { getGbDevicePageApi, saveGbDeviceChannelApi, getNextGbChannelCodeApi } from '@/api/gb28181'
 import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE, buildGbCode, nextSeqFromCodes } from '@/utils/gbCode'
 
 interface Emits {
@@ -29,18 +29,6 @@ const formRef = ref()
 const typeCode = ref(DEFAULT_CHANNEL_TYPE)
 /** 选中设备后从后端取到的下一个可用编码（作为本次本地递增的基准，已计入已入库通道） */
 const baseCode = ref('')
-
-/** 资源目录树（供每行选择所属分组，非必填；不选后端 resolveGroupId 回落默认分组） */
-const groupTree = ref<GbGroupVO[]>([])
-
-async function fetchGroupTree() {
-  try {
-    const res = await getGbGroupTreeApi()
-    groupTree.value = res.data || []
-  } catch {
-    groupTree.value = []
-  }
-}
 
 const rules = {
   'channels.*.channelId': [
@@ -81,7 +69,6 @@ function open() {
   typeCode.value = DEFAULT_CHANNEL_TYPE
   baseCode.value = ''
   loadDevices()
-  fetchGroupTree()
   nextTick(() => formRef.value?.clearValidate())
 }
 
@@ -96,9 +83,9 @@ async function handleSelectDevice(device: GbDevice) {
 async function refreshBaseCode() {
   baseCode.value = ''
   const device = selectedDevice.value
-  if (!device?.id) return
+  if (!device?.deviceId) return
   try {
-    const res = await getNextGbChannelCodeApi(device.id, typeCode.value)
+    const res = await getNextGbChannelCodeApi(device.deviceId, typeCode.value)
     baseCode.value = res.data || ''
   } catch {
     baseCode.value = ''
@@ -134,7 +121,7 @@ function regenerateAll() {
 }
 
 function addEmptyChannel() {
-  channels.value.push({ channelId: computeNextCode(), name: '', groupId: '' })
+  channels.value.push({ channelId: computeNextCode(), name: '', parentId: '' })
 }
 
 function removeChannel(index: number) {
@@ -159,7 +146,6 @@ async function handleConfirm() {
     for (const ch of channels.value) {
       await saveGbDeviceChannelApi({
         ...ch,
-        deviceDbId: device.id,
         deviceId: device.deviceId,
       })
     }
@@ -261,17 +247,9 @@ defineExpose({ open })
                   </el-form-item>
                 </template>
               </el-table-column>
-              <el-table-column label="资源目录" min-width="150">
+              <el-table-column label="父项编码" min-width="150">
                 <template #default="{ row }">
-                  <el-tree-select
-                    v-model="row.groupId"
-                    :data="groupTree"
-                    :props="{ value: 'id', label: 'name', children: 'children' }"
-                    placeholder="不选则默认分组"
-                    clearable
-                    filterable
-                    style="width: 100%"
-                  />
+                  <el-input v-model="row.parentId" placeholder="父 catalog item 20 位码（留空=根）" />
                 </template>
               </el-table-column>
               <el-table-column width="90" align="center">

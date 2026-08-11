@@ -5,12 +5,10 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.entity.GbPlatformShare;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPlatformShareMapper;
-import com.solo.gb28181.mapper.GbGroupMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -18,11 +16,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * GB/T 28181-2016 附录 D 编码生成器。
+ * GB/T 28181-2016 附录 D 编码生成器（ADR-023 合并版）。
  *
  * <p>20 位国标编码结构：{@code [8位行政区划][2位行业码][3位类型码][7位序号]}。前 10 位统一取本平台
  * {@link Gb28181Properties#getDomain()}（即本平台的行政区划中心编码），后 3 位类型码由业务实体决定，
- * 末 7 位序号在各自的作用域内递增（设备/分组：全平台；通道：同一设备）。</p>
+ * 末 7 位序号在各自的作用域内递增（设备/通道：同一设备；分组：全平台）。</p>
  *
  * <p>本平台自建设备的 {@code deviceId} 前 10 位与 domain 一致，因此手动新增设备/通道/分组时都从
  * domain 取前缀，而不是从"某个已有设备的 deviceId 上再截一遍"。级联来源的设备/通道由 Catalog 同步
@@ -30,10 +28,12 @@ import java.util.List;
  *
  * <p>作用域约定：</p>
  * <ul>
- *   <li>设备/分组序号：同 {@code domain} 前缀下取最大 +1。级联来源设备的 ID 前 10 位是对方平台的
+ *   <li>设备序号：同 {@code domain} 前缀下取最大 +1。级联来源设备的 ID 前 10 位是对方平台的
  *       行政区划码，天然落在不同前缀段，不会与本平台自建编码撞号。</li>
- *   <li>通道序号：同一 {@code device_db_id} 下同前缀取最大 +1（GB/T 28181 语义上通道号由物理
+ *   <li>通道序号：同一 {@code device_id}（GB 码）下同前缀取最大 +1（GB/T 28181 语义上通道号由物理
  *       设备自身分配，跨设备重码是正常情况，因此按设备分段）。</li>
+ *   <li>分组（ADR-023 已合并到 {@code gb_device_channel}，parental=1）：同 {@code domain} 前缀下
+ *       取最大 +1。分组全局唯一由 saveOrUpdateBatch 应用层 id 复用兜底（无 DB 唯一键）。</li>
  * </ul>
  */
 @Component
@@ -50,7 +50,6 @@ public class GbCodeGenerator {
     private final Gb28181Properties properties;
     private final GbDeviceMapper deviceMapper;
     private final GbDeviceChannelMapper channelMapper;
-    private final GbGroupMapper groupMapper;
     private final GbPlatformShareMapper platformShareMapper;
 
     /**
@@ -71,17 +70,19 @@ public class GbCodeGenerator {
     }
 
     /**
-     * 生成下一个可用的资源目录分组 20 位国标 ID。
+     * 生成下一个可用的资源目录分组 20 位国标 ID（parental=1 走同一 prefix13 + 末 7 位序号，全局唯一）。
      *
      * @param typeCode 3 位类型码（215 业务分组 / 216 虚拟组织）；空则默认 {@link #DEFAULT_GROUP_TYPE}
      */
     public String nextGroupCode(String typeCode) {
         String prefix13 = domainPrefix10() + typeOrDefault(typeCode, DEFAULT_GROUP_TYPE);
-        LambdaQueryWrapper<GbGroup> wrapper = new LambdaQueryWrapper<GbGroup>()
-                .likeRight(GbGroup::getGroupId, prefix13);
+        // 查全表已用 channel_id 找同前缀最大序号；parental=1 行的 channel_id 已是 GB 码。
+        LambdaQueryWrapper<GbDeviceChannel> wrapper = new LambdaQueryWrapper<GbDeviceChannel>()
+                .eq(GbDeviceChannel::getParental, 1)
+                .likeRight(GbDeviceChannel::getChannelId, prefix13);
         int max = 0;
-        for (GbGroup g : groupMapper.selectList(wrapper)) {
-            int seq = parseTailSeq(g.getGroupId(), prefix13);
+        for (GbDeviceChannel g : channelMapper.selectList(wrapper)) {
+            int seq = parseTailSeq(g.getChannelId(), prefix13);
             if (seq > max) max = seq;
         }
         return prefix13 + pad7(max + 1);
@@ -90,24 +91,27 @@ public class GbCodeGenerator {
     /**
      * 生成指定设备下一个可用的通道 20 位国标 ID。
      *
-     * <p>通道编码在所属设备内唯一（DB 层 {@code uk_device_channel(device_db_id, channel_id)} 兜底）。
-     * GB/T 28181 语义上通道号由物理设备自身分配，跨设备重码是正常情况，因此序号扫描按 {@code deviceDbId}
-     * 分段，只取同一设备下同类型码前缀的最大序号 +1；前 10 位仍取本平台 domain（自建设备的 deviceId
+     * <p>通道编码在所属设备内唯一（DB 层 {@code uk_device_channel(device_id, channel_id)} 兜底）。
+     * GB/T 28181 语义上通道号由物理设备自身分配，跨设备重码是正常情况，因此序号扫描按 {@code deviceId}
+     * （GB 码）分段，只取同一设备下同类型码前缀的最大序号 +1；前 10 位仍取本平台 domain（自建设备的 deviceId
      * 前 10 位与 domain 天然一致）。级联来源设备的通道由 Catalog 同步入库，不走此路径。</p>
      *
-     * @param deviceDbId 所属设备数据库主键（{@link GbDevice#getId()}）
-     * @param typeCode   3 位类型码（131 摄像机 / 132 IPC …）；空则默认 {@link #DEFAULT_CHANNEL_TYPE}
+     * @param deviceId 所属设备国标ID（GB 码字符串，对应 {@code gb_device.device_id}）
+     * @param typeCode 3 位类型码（131 摄像机 / 132 IPC …）；空则默认 {@link #DEFAULT_CHANNEL_TYPE}
      */
-    public String nextChannelCode(Long deviceDbId, String typeCode) {
-        if (deviceDbId == null) {
+    public String nextChannelCode(String deviceId, String typeCode) {
+        if (deviceId == null || deviceId.isBlank()) {
             throw new ServiceException("所属设备不能为空");
         }
-        if (deviceMapper.selectById(deviceDbId) == null) {
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
+        if (device == null) {
             throw new ServiceException("所属设备不存在");
         }
         String prefix13 = domainPrefix10() + typeOrDefault(typeCode, DEFAULT_CHANNEL_TYPE);
         LambdaQueryWrapper<GbDeviceChannel> wrapper = new LambdaQueryWrapper<GbDeviceChannel>()
-                .eq(GbDeviceChannel::getDeviceDbId, deviceDbId)
+                .eq(GbDeviceChannel::getDeviceId, deviceId)
+                .eq(GbDeviceChannel::getParental, 0)
                 .likeRight(GbDeviceChannel::getChannelId, prefix13);
         int max = 0;
         for (GbDeviceChannel c : channelMapper.selectList(wrapper)) {
@@ -141,7 +145,7 @@ public class GbCodeGenerator {
         if (count <= 0) return List.of();
         String prefix13 = domainPrefix10() + DEFAULT_CHANNEL_TYPE;
         LambdaQueryWrapper<GbPlatformShare> wrapper = new LambdaQueryWrapper<GbPlatformShare>()
-                .eq(GbPlatformShare::getType, GbPlatformShare.TYPE_CHANNEL)
+                .isNotNull(GbPlatformShare::getExposedCode)
                 .likeRight(GbPlatformShare::getExposedCode, prefix13)
                 .select(GbPlatformShare::getExposedCode);
         int max = 0;

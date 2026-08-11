@@ -42,12 +42,13 @@ public class GbDeviceChannelController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /** 按设备主键列出全部通道（设备详情页用） */
-    @GetMapping("/by-device/{deviceDbId}")
+    /** 按设备国标ID列出全部通道（设备详情页用） */
+    @GetMapping("/by-device/{deviceId}")
     @RequirePermission({"gb28181:device-channel:list"})
-    public Result<List<GbDeviceChannel>> listByDevice(@PathVariable Long deviceDbId) {
+    public Result<List<GbDeviceChannel>> listByDevice(@PathVariable String deviceId) {
         List<GbDeviceChannel> list = channelService.lambdaQuery()
-                .eq(GbDeviceChannel::getDeviceDbId, deviceDbId)
+                .eq(GbDeviceChannel::getDeviceId, deviceId)
+                .eq(GbDeviceChannel::getParental, 0)
                 .orderByAsc(GbDeviceChannel::getChannelId)
                 .list();
         return Result.success(list);

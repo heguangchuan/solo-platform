@@ -87,12 +87,6 @@ public class Gb28181Properties {
     private Integer queueCapacity;
 
     /**
-     * 默认资源目录分组。启动期 {@code GbGroupBootstrap} 按此 upsert 一个业务分组(215)，
-     * 通道注册/导入/新增未指定分组时统一挂到该分组下。
-     */
-    private DefaultGroup defaultGroup = new DefaultGroup();
-
-    /**
      * 级联下级侧配置（本平台作为下级向上级平台推送数据时使用）。
      */
     private Cascade cascade = new Cascade();
@@ -110,31 +104,6 @@ public class Gb28181Properties {
      * <p>独立于业务线程池：Catalog 同步是 10w+ 通道下的重活，不能与 SIP 消息分发挤同一个池。</p>
      */
     private CatalogSyncPool catalogSyncPool = new CatalogSyncPool();
-
-    /**
-     * 默认资源目录分组配置。
-     * <p>{@link #id} 是默认分组的固定主键 {@code 0000}（其余分组主键走雪花ID），作为 {@code gb_device_channel.group_id} 的兜底值；
-     * {@link #groupId} 是 20 位国标业务分组码（第 11-13 位应为 215），拼 Catalog 上报上级时作目录节点 ID，
-     * 因此必须是合法 20 位 ID；{@link #name} 为目录显示名称。</p>
-     */
-    @Data
-    public static class DefaultGroup {
-
-        /**
-         * 默认分组固定主键（
-         */
-        private Long id ;
-
-        /**
-         * 默认分组国标 ID（20 位，215 业务分组码），拼 Catalog 上报上级用
-         */
-        private String groupId = "60000000042150000001";
-
-        /**
-         * 默认分组名称
-         */
-        private String name = "默认目录";
-    }
 
     /**
      * 级联下级侧配置。

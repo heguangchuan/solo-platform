@@ -23,8 +23,8 @@ public class GbDeviceChannelPageRequest {
     /** 在线状态 ON / OFF */
     private String status;
 
-    /** 所属资源目录分组ID（按分组筛选通道） */
-    private Long groupId;
+    /** 父 catalog item 20 位国标码（精确筛选）；"0" 视同根 */
+    private String parentId;
 
     /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
     private Integer source;

@@ -76,7 +76,7 @@ public class CascadeSendService {
         String callId = callIdHeader.getCallId();
         String upstreamFromTag = request.getFromHeader().getTag();
 
-        // 1) 校验通道确已共享给该上级（loadSharedChannels 走 JOIN，天然做授权 + 定位真实设备）
+        // 1) 校验通道确已共享给该上级（loadSharedChannels 走 JOIN 且只筛 parental=0 通道，天然做授权 + 定位真实设备）
         GbDeviceChannel channel = findSharedChannel(platform.getId(), channelId);
         if (channel == null) {
             log.warn("[{}] 上级 {} 点播未共享/不存在的通道 上级通道编码(exposedCode)={}，回 404",
@@ -323,7 +323,7 @@ public class CascadeSendService {
     }
 
     /**
-     * 从 loadSharedChannels 结果里定位上级点播的真实通道（含共享授权校验）。
+     * 从 loadSharedChannels（仅 parental=0 通道）结果里定位上级点播的真实通道（含共享授权校验）。
      * <p>上级 INVITE 带的 channelId 是本平台对它暴露的码：优先按 exposed_code 精确匹配（平台唯一，
      * 跨设备/级联撞码也能唯一定位）；未命中再回退按原始 channelId 匹配（兼容未分配 exposed_code 的存量，
      * 但存量撞码时只能取第一条并告警）。</p>

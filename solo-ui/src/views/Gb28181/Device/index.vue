@@ -7,7 +7,7 @@ import { ref, onMounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
-import type { GbDevice, GbDevicePageRequest, GbDeviceChannel, GbGroupVO } from '@/types/api'
+import type { GbDevice, GbDevicePageRequest, GbDeviceChannel } from '@/types/api'
 import {
   getGbDevicePageApi,
   syncGbDeviceApi,
@@ -15,7 +15,6 @@ import {
   batchDeleteGbDeviceApi,
   saveGbDeviceApi,
   updateGbDeviceApi,
-  getGbGroupTreeApi,
   detectGbDeviceApi,
   getNextGbDeviceCodeApi,
   getGbPlatformInfoApi,
@@ -71,24 +70,12 @@ const form = reactive<FormData>({
   ...makeEmpty()
 })
 
-/** 资源目录树（第二步给每条通道选所属分组用；不选后端 resolveGroupId 回落默认分组） */
-const groupTree = ref<GbGroupVO[]>([])
-
+/** 本平台 domain 前 10 位，进入新增弹窗时拉取，供第 2 步通道编码本地递增 */
+const platformDomain = ref('')
 /** 新增向导第 1 步：设备编码类型码，默认 132 IPC。切换后重新调后端取下一个可用设备 ID */
 const deviceTypeCode = ref(DEFAULT_DEVICE_TYPE)
 /** 新增向导第 2 步：通道编码类型码，默认 131 摄像机 */
 const channelTypeCode = ref(DEFAULT_CHANNEL_TYPE)
-/** 本平台 domain 前 10 位，进入新增弹窗时拉取，供第 2 步通道编码本地递增 */
-const platformDomain = ref('')
-
-async function fetchGroupTree() {
-  try {
-    const res = await getGbGroupTreeApi()
-    groupTree.value = res.data || []
-  } catch {
-    groupTree.value = []
-  }
-}
 
 async function nextStep() {
   if (!formRef.value) return
@@ -104,7 +91,7 @@ function addEmptyChannel() {
   form.newChannels.push({
     channelId: genChannelCode(),
     name: '',
-    groupId: '',
+    parentId: '',
   } as GbDeviceChannel)
 }
 
@@ -201,8 +188,7 @@ async function handleAdd() {
   deviceTypeCode.value = DEFAULT_DEVICE_TYPE
   channelTypeCode.value = DEFAULT_CHANNEL_TYPE
   dialogVisible.value = true
-  // 并发拉：分组树 / 平台 domain / 下一个可用设备编码
-  fetchGroupTree()
+  // 并发拉：平台 domain / 下一个可用设备编码
   await Promise.all([fetchPlatformDomain(), fillNextDeviceCode()])
   nextTick(() => formRef.value?.clearValidate())
 }
@@ -556,17 +542,9 @@ onMounted(() => {
               </el-form-item>
             </template>
             </el-table-column>
-            <el-table-column label="资源目录" min-width="200">
+            <el-table-column label="父项编码" min-width="200">
               <template #default="{ row }">
-                <el-tree-select
-                  v-model="row.groupId"
-                  :data="groupTree"
-                  :props="{ value: 'id', label: 'name', children: 'children' }"
-                  placeholder="不选则默认分组"
-                  clearable
-                  filterable
-                  style="width: 100%"
-                />
+                <el-input v-model="row.parentId" placeholder="父 catalog item 20 位码（留空=根）" />
               </template>
             </el-table-column>
             <el-table-column width="80" align="center">

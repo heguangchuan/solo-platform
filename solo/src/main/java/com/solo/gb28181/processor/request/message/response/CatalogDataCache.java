@@ -2,7 +2,6 @@ package com.solo.gb28181.processor.request.message.response;
 
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.support.CatalogSyncContext;
 import com.solo.gb28181.support.CatalogSyncProgress;
 import com.solo.gb28181.support.CatalogSyncSupport;
@@ -30,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>本类只负责"在内存里攒"+"触发 flush"；具体落库由 {@link CatalogSyncSupport} 在 catalogSyncExecutor
  * 上执行，逻辑跟"分片并发落库"解耦。</p>
+ *
+ * <p>ADR-023：分组（parental=1）与通道（parental=0）合并到同一张表，缓存也只用一份 item buffer。</p>
  */
 @Slf4j
 @Component
@@ -98,17 +99,15 @@ public class CatalogDataCache {
     }
 
     /**
-     * 累加一片 Catalog Item。通道与目录节点两个列表分别追加，都计入累计数；缓冲达到阈值时自动 flush。
+     * 累加一片 Catalog Item。所有 item 进同一缓冲，channel_id 去重；缓冲达到阈值时自动 flush。
      * <p>调用方拿到返回值如果是 true，说明本次 accumulate 触发了"收齐或超时收尾"——handler 应走
      * finalize 路径决定是否删"已不存在通道"。</p>
+     *
+     * @param items               本片解析出的 catalog item 列表（分组 + 通道合一）
      */
-    public boolean accumulate(CatalogSyncContext ctx,
-                              List<GbDeviceChannel> chunkChannels,
-                              List<GbGroup> chunkGroups,
-                              Map<String, String> channelParentIdMap) {
+    public boolean accumulate(CatalogSyncContext ctx, List<GbDeviceChannel> items) {
         if (ctx == null) return false;
-        int addedChannels = 0;
-        int addedGroups = 0;
+        int added = 0;
         ctx.lock.lock();
         try {
             // 已被 cancel 标记 done：直接放行（不写缓冲、不触发 flush、不再 sumNum 收齐判定）
@@ -116,35 +115,20 @@ public class CatalogDataCache {
                 return false;
             }
             long now = System.currentTimeMillis();
-            // 通道去重（重传丢）
-            if (chunkChannels != null && !chunkChannels.isEmpty()) {
-                for (GbDeviceChannel ch : chunkChannels) {
-                    if (ch == null || ch.getChannelId() == null) continue;
-                    if (ctx.syncedChannelIds.add(ch.getChannelId())) {
-                        ctx.channelBuffer.add(ch);
-                        addedChannels++;
+            // 通道 / 分组统一按 channel_id 去重
+            if (items != null && !items.isEmpty()) {
+                for (GbDeviceChannel it : items) {
+                    if (it == null || it.getChannelId() == null) continue;
+                    if (ctx.syncedItemIds.add(it.getChannelId())) {
+                        ctx.itemBuffer.add(it);
+                        added++;
                     } else {
                         ctx.duplicateCount.incrementAndGet();
                     }
                 }
             }
-            if (chunkGroups != null && !chunkGroups.isEmpty()) {
-                for (GbGroup g : chunkGroups) {
-                    if (g == null || g.getGroupId() == null) continue;
-                    if (ctx.syncedGroupIds.add(g.getGroupId())) {
-                        ctx.groupBuffer.add(g);
-                        addedGroups++;
-                    } else {
-                        ctx.duplicateCount.incrementAndGet();
-                    }
-                }
-            }
-            if (channelParentIdMap != null) {
-                ctx.channelParentIdMap.putAll(channelParentIdMap);
-            }
-            // group 的 parent_id 已在 parseGroup 阶段写入 group 对象本身，map 维护已无必要
-            if (addedChannels + addedGroups > 0) {
-                ctx.totalReceived.addAndGet(addedChannels + addedGroups);
+            if (added > 0) {
+                ctx.totalReceived.addAndGet(added);
                 ctx.lastNonEmptyUpdateMs.set(now);
             }
             ctx.lastUpdateMs.set(now);
@@ -161,13 +145,13 @@ public class CatalogDataCache {
                 log.info("[通道目录] 分片累积 deviceId={} sn={} +{} → total={}/{} buffered={}",
                         ctx.deviceId, ctx.sn, total - lastTotal,
                         total, ctx.sumNum,
-                        ctx.channelBuffer.size() + ctx.groupBuffer.size());
+                        ctx.itemBuffer.size());
                 ctx.lastLogTotalReceived.set(total);
                 ctx.lastLogMs.set(now);
             }
 
             // 阈值触发 → flush
-            int buffered = ctx.channelBuffer.size() + ctx.groupBuffer.size();
+            int buffered = ctx.itemBuffer.size();
             if (buffered >= ctx.flushThreshold) {
                 submitFlush(ctx, false);
             } else if (ctx.flushIntervalMs > 0
@@ -225,23 +209,14 @@ public class CatalogDataCache {
     /** 提交一次 flush 任务到 catalogSyncExecutor。 */
     private void submitFlush(CatalogSyncContext ctx, boolean isFinalFlush) {
         // 在锁内把当前缓冲快照拷出并清空，避免反复加锁传给 support
-        List<GbDeviceChannel> chSnap;
-        List<GbGroup> gSnap;
-        if (ctx.channelBuffer.isEmpty() && ctx.groupBuffer.isEmpty()) {
-            chSnap = List.of();
-            gSnap = List.of();
+        List<GbDeviceChannel> snap;
+        if (ctx.itemBuffer.isEmpty()) {
+            snap = List.of();
         } else {
-            chSnap = new java.util.ArrayList<>(ctx.channelBuffer);
-            gSnap = new java.util.ArrayList<>(ctx.groupBuffer);
-            ctx.channelBuffer.clear();
-            ctx.groupBuffer.clear();
+            snap = new java.util.ArrayList<>(ctx.itemBuffer);
+            ctx.itemBuffer.clear();
         }
-        // channel 的 ParentID 映射只在 final flush 阶段使用（用于通道的 group_id 解析）——
-        // 全程累积，不在中间 flush 清空，否则 final flush 拿不到。
-        // group 的 parent_id 已在 parseGroup 写入 group 对象本身，不再走独立 map。
-        Map<String, String> chParentSnap = isFinalFlush
-                ? new java.util.HashMap<>(ctx.channelParentIdMap) : null;
-        syncSupport.executeFlush(ctx, chSnap, gSnap, chParentSnap, isFinalFlush);
+        syncSupport.executeFlush(ctx, snap, isFinalFlush);
         // 刷新 lastFlushMs：让时间触发从本次 flush 重新计时
         ctx.lastFlushMs.set(System.currentTimeMillis());
     }

@@ -1,26 +1,32 @@
 package com.solo.gb28181.transmit.cmd;
 
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.entity.GbParentPlatform;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
- * 级联 Catalog Response 报文体（XML）构造
+ * 级联 Catalog Response 报文体（XML）构造（ADR-023 合并版）。
  *
  * <p>本平台作为下级向上级回复 Catalog 查询时使用。与 {@link DeviceCommandXml} 分离：
  * 后者构造发往下级设备的短命令，本类构造回给上级的目录分片。</p>
  *
- * <p>Item 类型（按 GB/T 28181-2016）：</p>
+ * <p>Item 类型（按 GB/T 28181-2016）：由 {@code GbDeviceChannel.parental} 区分：</p>
  * <ul>
- *   <li><b>分组 Item</b>（{@link GbGroup}）：类型码取 groupId 第 11-13 位；215 业务分组仅出
- *   DeviceID/Name/ParentID，216 虚拟组织额外补 BusinessGroupID，均带 Parental=1、无 Status。</li>
- *   <li><b>通道 Item</b>（{@link GbDeviceChannel}）：完整前端设备字段集，Parental=0，
- *   Status 由 gb_device_channel.status 映射（ON/OFF）。</li>
+ *   <li><b>分组 Item</b>（parental=1）：{@code <DeviceID>}/{@code <Name>}/{@code <ParentID>}，
+ *       固定 {@code <Parental>1</Parental>}，分组类型码 215 业务分组 / 216 虚拟组织
+ *       （216 时额外补 {@code <BusinessGroupID>}），无 {@code <Status>}。</li>
+ *   <li><b>通道 Item</b>（parental=0）：完整前端设备字段集，{@code <Parental>0</Parental>}，
+ *       {@code <Status>} 由 {@code status} 映射（ON/OFF）。</li>
  * </ul>
  */
 public final class PlatformCatalogXml {
+
+    /** 根哨兵——item.parent_id == "0" 表无父 */
+    private static final String ROOT_PARENT = "0";
 
     private PlatformCatalogXml() {}
 
@@ -31,15 +37,19 @@ public final class PlatformCatalogXml {
      *                    通道 ParentID 兜底
      * @param sn          原请求的 SN，透传回去
      * @param sumNum      全量总条数（每片都填相同值）
-     * @param groups      本片中的分组 Item（放在 pageChannels 之前）
-     * @param channels    本片中的通道 Item
-     * @param groupIdCode 通道所属 group 主键(雪花 id) -> group 20 位国标码 的映射（只包含"在共享列表内"的分组）
+     * @param items       本片中的 catalog item（分组 parental=1 + 通道 parental=0），调用方保证
+     *                    分组排在通道之前
      */
     public static String buildResponse(GbParentPlatform platform, String sn, int sumNum,
-                                       List<GbGroup> groups, List<GbDeviceChannel> channels,
-                                       java.util.Map<Long, String> groupIdCode) {
+                                       List<GbDeviceChannel> items) {
         String charset = platform.getCharacterSet() == null ? "GB2312" : platform.getCharacterSet();
-        int itemNum = groups.size() + channels.size();
+        int itemNum = items.size();
+
+        // 父 id（GB 码）→ 父 item 的 20 位码映射：item.parent_id 直查同批内
+        // 注：item.parent_id 已是 GB 码，等于父行的 channel_id；同批内 channel_id 即父码
+        Map<String, String> parentCodeByItem = items.stream()
+                .filter(i -> i.getChannelId() != null)
+                .collect(Collectors.toMap(GbDeviceChannel::getChannelId, GbDeviceChannel::getChannelId, (a, b) -> a));
 
         StringBuilder sb = new StringBuilder(600 + itemNum * 300);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -50,11 +60,8 @@ public final class PlatformCatalogXml {
         sb.append("<SumNum>").append(sumNum).append("</SumNum>\r\n");
         sb.append("<DeviceList Num=\"").append(itemNum).append("\">\r\n");
 
-        for (GbGroup g : groups) {
-            appendGroupItem(sb, g, platform, groupIdCode);
-        }
-        for (GbDeviceChannel ch : channels) {
-            appendChannelItem(sb, ch, platform, groupIdCode);
+        for (GbDeviceChannel it : items) {
+            appendItem(sb, it, platform, parentCodeByItem);
         }
 
         sb.append("</DeviceList>\r\n");
@@ -63,69 +70,90 @@ public final class PlatformCatalogXml {
     }
 
     /**
-     * 分组 Item：DeviceID = group.group_id（20 位国标码）；ParentID 直接取 g.getParentId()（也是国标码），
-     * 父分组未指定（根节点 parentId="0"）→ 兜底到 platform.deviceGbId。
+     * 合并版 Item 渲染：按 {@code parental} 选字段集。
+     * <p>分组（parental=1）：DeviceID = item.channelId（20 位国标码 215/216）；
+     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 platform.deviceGbId）。</p>
+     * <p>通道（parental=0）：DeviceID 优先 exposed_code（平台唯一），回退 channelId；
+     *   ParentID 同上规则。</p>
      */
-    private static void appendGroupItem(StringBuilder sb, GbGroup g, GbParentPlatform platform,
-                                        java.util.Map<Long, String> groupIdCode) {
-        String parentCode = "0".equals(g.getParentId()) ? platform.getDeviceGbId() : g.getParentId();
-        int type = typeCode(g.getGroupId());
+    private static void appendItem(StringBuilder sb, GbDeviceChannel it, GbParentPlatform platform,
+                                   Map<String, String> parentCodeByItem) {
+        boolean isGroup = it.getParental() != null && it.getParental() == 1;
+        String reportId;
+        if (isGroup) {
+            // 分组：直接用自身 GB 码
+            reportId = it.getChannelId();
+        } else {
+            // 通道：优先 exposed_code（平台唯一），回退 channelId
+            reportId = (it.getExposedCode() != null && !it.getExposedCode().isBlank())
+                    ? it.getExposedCode() : it.getChannelId();
+        }
+
+        String parentCode = resolveParentCode(it.getParentId(), parentCodeByItem, platform);
 
         sb.append("<Item>\r\n");
-        sb.append("<DeviceID>").append(nullSafe(g.getGroupId())).append("</DeviceID>\r\n");
-        sb.append("<Name>").append(escapeXml(g.getName())).append("</Name>\r\n");
-        sb.append("<Manufacturer>Solo</Manufacturer>\r\n");
-        sb.append("<Model>Group</Model>\r\n");
-        sb.append("<Owner>Solo</Owner>\r\n");
-        sb.append("<CivilCode></CivilCode>\r\n");
-        sb.append("<Address></Address>\r\n");
-        sb.append("<Parental>1</Parental>\r\n");
+        sb.append("<DeviceID>").append(nullSafe(reportId)).append("</DeviceID>\r\n");
+        sb.append("<Name>").append(escapeXml(it.getName())).append("</Name>\r\n");
+        if (isGroup) {
+            // 分组：固定 Manufacturer/Model/Owner
+            sb.append("<Manufacturer>Solo</Manufacturer>\r\n");
+            sb.append("<Model>Group</Model>\r\n");
+            sb.append("<Owner>Solo</Owner>\r\n");
+        } else {
+            // 通道：业务字段
+            appendTag(sb, "Manufacturer", it.getManufacturer());
+            appendTag(sb, "Model", it.getModel());
+            appendTag(sb, "Owner", it.getOwner());
+        }
+        if (isGroup) {
+            sb.append("<CivilCode></CivilCode>\r\n");
+            sb.append("<Address></Address>\r\n");
+        } else {
+            appendTag(sb, "CivilCode", it.getCivilCode());
+            appendTag(sb, "Address", it.getAddress());
+        }
+        sb.append("<Parental>").append(isGroup ? 1 : 0).append("</Parental>\r\n");
         sb.append("<ParentID>").append(parentCode).append("</ParentID>\r\n");
-        sb.append("<SafetyWay>0</SafetyWay>\r\n");
-        sb.append("<RegisterWay>1</RegisterWay>\r\n");
-        sb.append("<Secrecy>0</Secrecy>\r\n");
-        sb.append("<Status>ON</Status>\r\n");
-        if (type == 216) {
-            // 216 虚拟组织需要 BusinessGroupID；solo 无独立字段，用平台 deviceGbId 兜底
-            sb.append("<BusinessGroupID>").append(platform.getDeviceGbId()).append("</BusinessGroupID>\r\n");
+        if (isGroup) {
+            sb.append("<SafetyWay>0</SafetyWay>\r\n");
+            sb.append("<RegisterWay>1</RegisterWay>\r\n");
+            sb.append("<Secrecy>0</Secrecy>\r\n");
+            sb.append("<Status>ON</Status>\r\n");
+            int type = typeCode(it.getChannelId());
+            if (type == 216) {
+                // 216 虚拟组织需要 BusinessGroupID；solo 无独立字段，用平台 deviceGbId 兜底
+                sb.append("<BusinessGroupID>").append(platform.getDeviceGbId()).append("</BusinessGroupID>\r\n");
+            }
+        } else {
+            appendTag(sb, "SafetyWay", it.getSafetyWay());
+            appendTag(sb, "RegisterWay", it.getRegisterWay() == null ? 1 : it.getRegisterWay());
+            appendTag(sb, "Secrecy", it.getSecrecy() == null ? 0 : it.getSecrecy());
+            appendTag(sb, "IPAddress", it.getIpAddress());
+            appendTag(sb, "Port", it.getPort());
+            appendTag(sb, "Password", it.getPassword());
+            appendTag(sb, "PTZType", it.getPtzType() == null ? 0 : it.getPtzType());
+            boolean online = "ON".equalsIgnoreCase(it.getStatus());
+            sb.append("<Status>").append(online ? "ON" : "OFF").append("</Status>\r\n");
+            appendTag(sb, "Longitude", it.getLongitude() == null ? 0 : it.getLongitude());
+            appendTag(sb, "Latitude", it.getLatitude() == null ? 0 : it.getLatitude());
         }
         sb.append("</Item>\r\n");
     }
 
     /**
-     * 通道 Item：ParentID 优先取通道所属分组的 group_id 20 位码；分组未共享 / 找不到 → 兜底
-     * platform.deviceGbId（挂到平台自身节点下）。
+     * 解析 item.parentId → XML 中实际写入的 &lt;ParentID&gt;：
+     * <ul>
+     *   <li>"0"（根哨兵）→ 兜底 platform.deviceGbId（挂到平台自身节点下）</li>
+     *   <li>其他值 → 直接用 item.parentId 自身（已是父 item 的 20 位 GB 码，
+     *       与父行 channel_id 对齐；同批内 map 仅作查存在性，这里直接透传即可）</li>
+     * </ul>
      */
-    private static void appendChannelItem(StringBuilder sb, GbDeviceChannel ch, GbParentPlatform platform,
-                                          java.util.Map<Long, String> groupIdCode) {
-        String parentCode = groupIdCode.getOrDefault(ch.getGroupId(), platform.getDeviceGbId());
-        String name = (ch.getName() != null && !ch.getName().isBlank()) ? ch.getName() : ch.getReportName();
-        boolean online = "ON".equalsIgnoreCase(ch.getStatus());
-        // 对上级暴露用 exposed_code（平台唯一，解决跨设备/级联撞码）；存量未分配则回退原始 channelId
-        String reportId = (ch.getExposedCode() != null && !ch.getExposedCode().isBlank())
-                ? ch.getExposedCode() : ch.getChannelId();
-
-        sb.append("<Item>\r\n");
-        sb.append("<DeviceID>").append(nullSafe(reportId)).append("</DeviceID>\r\n");
-        sb.append("<Name>").append(escapeXml(name)).append("</Name>\r\n");
-        appendTag(sb, "Manufacturer", ch.getManufacturer());
-        appendTag(sb, "Model", ch.getModel());
-        appendTag(sb, "Owner", ch.getOwner());
-        appendTag(sb, "CivilCode", ch.getCivilCode());
-        appendTag(sb, "Address", ch.getAddress());
-        sb.append("<Parental>0</Parental>\r\n");
-        sb.append("<ParentID>").append(parentCode).append("</ParentID>\r\n");
-        appendTag(sb, "SafetyWay", ch.getSafetyWay());
-        appendTag(sb, "RegisterWay", ch.getRegisterWay() == null ? 1 : ch.getRegisterWay());
-        appendTag(sb, "Secrecy", ch.getSecrecy() == null ? 0 : ch.getSecrecy());
-        appendTag(sb, "IPAddress", ch.getIpAddress());
-        appendTag(sb, "Port", ch.getPort());
-        appendTag(sb, "Password", ch.getPassword());
-        appendTag(sb, "PTZType", ch.getPtzType() == null ? 0 : ch.getPtzType());
-        sb.append("<Status>").append(online ? "ON" : "OFF").append("</Status>\r\n");
-        appendTag(sb, "Longitude", ch.getLongitude() == null ? 0 : ch.getLongitude());
-        appendTag(sb, "Latitude", ch.getLatitude() == null ? 0 : ch.getLatitude());
-        sb.append("</Item>\r\n");
+    private static String resolveParentCode(String parentId, Map<String, String> parentCodeByItem,
+                                            GbParentPlatform platform) {
+        if (parentId == null || ROOT_PARENT.equals(parentId)) {
+            return platform.getDeviceGbId();
+        }
+        return parentId;
     }
 
     /** 取 20 位国标码的类型段（第 11-13 位）；非法编码返回 0 */

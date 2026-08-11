@@ -12,9 +12,6 @@ import type {
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
   GbDeviceChannelTreeNode,
-  GbGroup,
-  GbGroupVO,
-  GbGroupPageRequest,
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
@@ -203,10 +200,10 @@ export function getGbDeviceChannelPageApi(data: GbDeviceChannelPageRequest) {
 }
 
 /**
- * 按设备查通道
+ * 按设备国标ID查通道
  */
-export function listChannelsByDeviceApi(deviceDbId: string) {
-  return get<GbDeviceChannel[]>(`/api/gb28181/device-channel/by-device/${deviceDbId}`)
+export function listChannelsByDeviceApi(deviceId: string) {
+  return get<GbDeviceChannel[]>(`/api/gb28181/device-channel/by-device/${deviceId}`)
 }
 
 /**
@@ -238,46 +235,8 @@ export function batchDeleteGbDeviceChannelApi(ids: string[]) {
 }
 
 /**
- * 资源目录分组分页
+ * 设备/通道相关 API 在此之前/之后
  */
-export function getGbGroupPageApi(data: GbGroupPageRequest) {
-  return post<PageResult<GbGroupVO>>('/api/gb28181/group/page', data)
-}
-
-/**
- * 资源目录分组树（列表页展示用）
- */
-export function getGbGroupTreeApi() {
-  return get<GbGroupVO[]>('/api/gb28181/group/tree')
-}
-
-/**
- * 资源目录分组全量列表（下拉/选父级用）
- */
-export function listGbGroupApi() {
-  return get<GbGroup[]>('/api/gb28181/group/list')
-}
-
-/**
- * 新增资源目录分组
- */
-export function saveGbGroupApi(data: Partial<GbGroup>) {
-  return post<void>('/api/gb28181/group/save', data)
-}
-
-/**
- * 编辑资源目录分组
- */
-export function updateGbGroupApi(data: Partial<GbGroup>) {
-  return post<void>('/api/gb28181/group/update', data)
-}
-
-/**
- * 删除资源目录分组
- */
-export function deleteGbGroupApi(id: string) {
-  return del<void>(`/api/gb28181/group/${id}`)
-}
 
 /**
  * 流媒体节点分页
@@ -529,11 +488,6 @@ export function getNextGbDeviceCodeApi(type?: string) {
 }
 
 /** 生成指定设备下一个可用通道国标编码（20位）。通道编码在所属设备内唯一。type 为空后端默认 131（摄像机） */
-export function getNextGbChannelCodeApi(deviceDbId: string, type?: string) {
-  return get<string>('/api/gb28181/code/next-channel', { params: { deviceDbId, type } })
-}
-
-/** 生成下一个可用资源目录分组国标编码（20位）。type 为空后端默认 216（虚拟组织） */
-export function getNextGbGroupCodeApi(type?: string) {
-  return get<string>('/api/gb28181/code/next-group', { params: { type } })
+export function getNextGbChannelCodeApi(deviceId: string, type?: string) {
+  return get<string>('/api/gb28181/code/next-channel', { params: { deviceId, type } })
 }

@@ -2,7 +2,6 @@ package com.solo.gb28181.transmit.cmd;
 
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.utils.SipUtils;
@@ -15,9 +14,7 @@ import javax.sip.header.CallIdHeader;
 import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.Request;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
@@ -111,56 +108,35 @@ public class PlatformCommander {
      * <p>不复用请求 fromTag / dialog——每片走全新 fromTag/CallId，SIP 层合规且免去等 200 联动。
      * 分片间 sleep {@code catalogPageIntervalMs} 避免瞬时刷屏。整个过程跑在专属业务线程池，不阻塞调用者。</p>
      *
-     * @param platform  上级平台配置
-     * @param sn        请求 SN，透传回去
-     * @param groups    共享的分组明细（顺序=输出顺序）
-     * @param channels  共享的通道明细（顺序=输出顺序；分组会排在通道之前）
+     * @param platform 上级平台配置
+     * @param sn       请求 SN，透传回去
+     * @param items    共享的 catalog item 明细（顺序=输出顺序；分组 parental=1 排在通道 parental=0 之前）
      */
     public void sendCatalogResponse(GbParentPlatform platform, String sn,
-                                    List<GbGroup> groups, List<GbDeviceChannel> channels) {
-        gb28181BizExecutor.execute(() -> doSendCatalogResponse(platform, sn, groups, channels));
+                                    List<GbDeviceChannel> items) {
+        gb28181BizExecutor.execute(() -> doSendCatalogResponse(platform, sn, items));
     }
 
     private void doSendCatalogResponse(GbParentPlatform platform, String sn,
-                                       List<GbGroup> groups, List<GbDeviceChannel> channels) {
-        // group.id (雪花主键) -> group.groupId (20 位国标码)：只包含"在共享列表内"的分组，
-        // 仅供通道 Item 的 ParentID 反查（ch.group_id 仍是雪花 id）。分组的 ParentID 现在直接
-        // 存 g.getParentId()（国标码），不再走这个 map。
-        Map<Long, String> groupIdCode = new HashMap<>(groups.size() * 2);
-        for (GbGroup g : groups) {
-            groupIdCode.put(g.getId(), g.getGroupId());
-        }
-
+                                       List<GbDeviceChannel> items) {
         int pageSize = Math.max(1, properties.getCascade().getCatalogPageSize());
         long intervalMs = Math.max(0, properties.getCascade().getCatalogPageIntervalMs());
-        int total = groups.size() + channels.size();
+        int total = items.size();
         if (total == 0) {
             // 无共享数据仍要回一片空 Response，避免上级卡等
-            sendOnePage(platform, sn, 0, List.of(), List.of(), groupIdCode, 1, 1);
+            sendOnePage(platform, sn, 0, List.of(), 1, 1);
             return;
         }
 
         int totalPages = (total + pageSize - 1) / pageSize;
-        // 把 groups + channels 顺序切片：先分组、后通道
-        int cursor = 0;
-        int pageIdx = 0;
-        int gi = 0, ci = 0;
-        while (cursor < total) {
-            int end = Math.min(cursor + pageSize, total);
-            List<GbGroup> pageGroups = new ArrayList<>();
-            List<GbDeviceChannel> pageChannels = new ArrayList<>();
-            for (int k = cursor; k < end; k++) {
-                if (gi < groups.size()) {
-                    pageGroups.add(groups.get(gi++));
-                } else {
-                    pageChannels.add(channels.get(ci++));
-                }
-            }
-            pageIdx++;
-            sendOnePage(platform, sn, total, pageGroups, pageChannels, groupIdCode, pageIdx, totalPages);
-            cursor = end;
+        // 按 catalogPageSize 切分
+        for (int i = 0; i < total; i += pageSize) {
+            int end = Math.min(i + pageSize, total);
+            int pageIdx = (i / pageSize) + 1;
+            List<GbDeviceChannel> pageItems = new ArrayList<>(items.subList(i, end));
+            sendOnePage(platform, sn, total, pageItems, pageIdx, totalPages);
 
-            if (cursor < total && intervalMs > 0) {
+            if (end < total && intervalMs > 0) {
                 try {
                     Thread.sleep(intervalMs);
                 } catch (InterruptedException ie) {
@@ -173,19 +149,16 @@ public class PlatformCommander {
     }
 
     private void sendOnePage(GbParentPlatform platform, String sn, int sumNum,
-                             List<GbGroup> pageGroups, List<GbDeviceChannel> pageChannels,
-                             Map<Long, String> groupIdCode, int pageIdx, int totalPages) {
+                             List<GbDeviceChannel> pageItems, int pageIdx, int totalPages) {
         String localIp = headerProvider.localIp(platform);
         String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
         try {
-            String xml = PlatformCatalogXml.buildResponse(platform, sn, sumNum,
-                    pageGroups, pageChannels, groupIdCode);
+            String xml = PlatformCatalogXml.buildResponse(platform, sn, sumNum, pageItems);
             CallIdHeader callId = sipSender.newCallId(localIp, transport);
             Request request = headerProvider.createMessageRequest(platform, xml, callId);
             sipSender.send(localIp, request);
             log.info("[级联目录] 响应 Catalog 查询 platform={} SN={} sumNum={} page={}/{} items={}",
-                    platform.getServerGbId(), sn, sumNum, pageIdx, totalPages,
-                    pageGroups.size() + pageChannels.size());
+                    platform.getServerGbId(), sn, sumNum, pageIdx, totalPages, pageItems.size());
         } catch (Exception e) {
             log.warn("[级联目录] 分片发送失败 platform={} SN={} page={}/{}: {}",
                     platform.getServerGbId(), sn, pageIdx, totalPages, e.getMessage());
