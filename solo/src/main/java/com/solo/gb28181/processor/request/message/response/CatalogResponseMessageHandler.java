@@ -2,7 +2,6 @@ package com.solo.gb28181.processor.request.message.response;
 
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
@@ -16,10 +15,8 @@ import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Catalog 响应处理（&lt;Response&gt;&lt;CmdType&gt;Catalog&lt;/CmdType&gt;...）。
@@ -27,16 +24,19 @@ import java.util.Map;
  * 只负责 XML 解析 + Item 分流 + 调 {@link CatalogDataCache#accumulate}。
  * 落库在 {@code catalogSyncExecutor} 上异步跑，handler 立即返回，不阻塞 SIP 分发线程。</p>
  *
+ * <p>ADR-023：分组与通道合并到同一张 {@code gb_device_channel}，靠 {@code parental} 区分。
+ * 解析层只设 {@code parental} 标志，不再分两张表写。</p>
+ *
  * <h3>Item 分流（ID 长度 + 类型码 双信号）</h3>
  * <ul>
  *   <li><b>20 位标准 GB ID</b>：严格按类型码分流
  *     <ul>
- *       <li>类型码 200 / 215 / 216 → 目录节点（{@link GbGroup}）</li>
+ *       <li>类型码 200 / 215 / 216 → 目录节点（{@code parental=1}）</li>
  *       <li>类型码 200-214 且 {@code Parental=1} → 目录节点（兼容对端把中心设备当分组上报的写法）</li>
- *       <li>其他 → 通道（{@link GbDeviceChannel}）</li>
+ *       <li>其他 → 通道（{@code parental=0}）</li>
  *     </ul>
  *     <p><b>注意：故意不收 130-198 + Parental=1</b>。海康相机普遍把 {@code <Parental>} 错填成 65535，
- *     兜底为 1 后会被该规则误吞进 {@code gb_group}，导致海康相机的通道完全没入库。</p>
+ *     兜底为 1 后会被该规则误吞进 {@code parental=1}，导致海康相机的通道完全没入库。</p>
  *   </li>
  *   <li><b>≤8 位纯数字 ID</b>：按 GB/T 2260 行政区域码处理，强制当目录节点</li>
  *   <li><b>9-19 位</b>：长度非标（既不是合法行政码也不是标准 GB ID），丢弃并打 WARN</li>
@@ -51,7 +51,8 @@ import java.util.Map;
  * 真正的"父是否可达"判定在 {@code CatalogSyncSupport} 的 final flush 阶段做——任何指向
  * 不存在分组的 parent（设备漏报父节点、报了非法 parent）都会被改挂到 device_id 下，
  * 保证分组树有唯一收口、不出现游离顶层节点。
- * 通道 Item：父 ID 仅用于 final flush 阶段反查 group_id，反查失败时回退默认分组。</p>
+ * 通道 Item：父 ID（GB 码）直接写入 item.parentId，final flush 阶段做可达性检查；可达则保留，
+ * 不可达回落设备 deviceId。详见 ADR-023。</p>
  *
  * <h3>complete 路径</h3>
  * <p>累计收到 &gt;= sumNum 时由 {@code accumulate} 内部触发收尾，
@@ -84,7 +85,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         if (sumNum == 0) {
             log.info("[通道目录] 设备无通道 deviceId={}", device.getDeviceId());
             // 设备通告空目录：清理并记录 lastCatalogSyncTime
-            channelService.deleteByDeviceDbId(device.getId());
+            channelService.deleteByDeviceId(device.getDeviceId());
             device.setLastCatalogSyncTime(java.time.LocalDateTime.now());
             device.setChannelCount(0);
             deviceService.updateById(device);
@@ -106,10 +107,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             return;
         }
 
-        // 遍历 Item，按 ID 长度 + 类型码 双信号分流
-        List<GbDeviceChannel> chunkChannels = new ArrayList<>();
-        List<GbGroup> chunkGroups = new ArrayList<>();
-        Map<String, String> channelParentIdMap = new HashMap<>();
+        // 遍历 Item，按 ID 长度 + 类型码 双信号分流，所有 item 进同一缓冲
+        List<GbDeviceChannel> chunkItems = new ArrayList<>();
         Iterator<Element> it = deviceList.elementIterator("Item");
         while (it.hasNext()) {
             Element item = it.next();
@@ -135,7 +134,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
                 // 20 位标准 GB ID：200/215/216 是目录；200-214 范围内 Parental=1 也按目录
                 // （200+ 是中心设备类，海康相机不会用，冲突面小）。
                 // ⚠️ 故意不收 130-198 + Parental=1：海康相机普遍把 <Parental> 错填成 65535，
-                // 兜底成 1 后会被这条规则误吞进 gb_group，导致海康相机的通道完全没入库。
+                // 兜底成 1 后会被这条规则误吞进 parental=1，导致海康相机的通道完全没入库。
                 isDirectoryType = (typeCode == 200 || typeCode == 215 || typeCode == 216)
                         || (typeCode >= 200 && typeCode <= 214 && parental == 1);
             }
@@ -145,22 +144,14 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             String effectiveParentId = (parentId == null || parentId.isBlank())
                     ? device.getDeviceId() : parentId;
 
-            if (isDirectoryType) {
-                GbGroup group = parseGroup(item, device, effectiveParentId);
-                if (group != null) {
-                    chunkGroups.add(group);
-                }
-            } else {
-                GbDeviceChannel channel = parseChannel(item, device);
-                if (channel != null) {
-                    chunkChannels.add(channel);
-                    channelParentIdMap.put(channel.getChannelId(), effectiveParentId);
-                }
+            GbDeviceChannel itemEntity = parseItem(item, device, effectiveParentId, isDirectoryType);
+            if (itemEntity != null) {
+                chunkItems.add(itemEntity);
             }
         }
 
         // 累加分片（内部阈值 flush；sumNum 收齐时返回 true）
-        boolean complete = cache.accumulate(ctx, chunkChannels, chunkGroups, channelParentIdMap);
+        boolean complete = cache.accumulate(ctx, chunkItems);
 
         if (complete) {
             // 收齐分支已在 accumulate 内 finalize，这里仅记录日志
@@ -179,54 +170,53 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         return stub;
     }
 
-    // ---------------- Item 解析（与原实现一致） ----------------
+    // ---------------- Item 解析（ADR-023 合并版） ----------------
 
-    private GbGroup parseGroup(Element item, GbDevice device, String parentId) {
-        String groupId = XmlUtils.childText(item, "DeviceID");
-        if (groupId == null || groupId.isBlank()) return null;
-
-        GbGroup group = new GbGroup();
-        group.setGroupId(groupId);
-        group.setName(emptyToNull(XmlUtils.childText(item, "Name")));
-        // parent_id 在 parse 阶段直接写入（空串已在 handleForDevice 兜底成 device_id）
-        group.setParentId(parentId);
-        group.setSort(1);
-        return group;
-    }
-
-    private GbDeviceChannel parseChannel(Element item, GbDevice device) {
+    /**
+     * 解析单个 Item 为 GbDeviceChannel：parental=1 表分组，parental=0 表通道。
+     * 分组时 device_id 为 NULL（平台全局）；通道时 device_id 必填（GB 码字符串关联 gb_device）。
+     * 合并后无 device_db_id 字段（去掉冗余雪花主键引用），所有关系仅由 device_id（GB 码）维系。
+     */
+    private GbDeviceChannel parseItem(Element item, GbDevice device, String parentId, boolean isDirectory) {
         String channelId = XmlUtils.childText(item, "DeviceID");
         if (channelId == null || channelId.isBlank()) return null;
 
         GbDeviceChannel ch = new GbDeviceChannel();
-        ch.setDeviceDbId(device.getId());
-        ch.setDeviceId(device.getDeviceId());
         ch.setChannelId(channelId);
         ch.setName(emptyToNull(XmlUtils.childText(item, "Name")));
-        ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
-        ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));
-        ch.setOwner(emptyToNull(XmlUtils.childText(item, "Owner")));
-        ch.setCivilCode(emptyToNull(XmlUtils.childText(item, "CivilCode")));
-        ch.setBlock(emptyToNull(XmlUtils.childText(item, "Block")));
-        ch.setAddress(emptyToNull(XmlUtils.childText(item, "Address")));
-        ch.setParental(parseParental(item));
-        ch.setSafetyWay(parseInt(XmlUtils.childText(item, "SafetyWay"), 0));
-        ch.setRegisterWay(parseInt(XmlUtils.childText(item, "RegisterWay"), 1));
-        ch.setCertNum(emptyToNull(XmlUtils.childText(item, "CertNum")));
-        ch.setCertifiable(parseInt(XmlUtils.childText(item, "Certifiable"), 0));
-        ch.setErrCode(parseIntOrNull(XmlUtils.childText(item, "ErrCode")));
-        ch.setSecrecy(parseInt(XmlUtils.childText(item, "Secrecy"), 0));
-        ch.setIpAddress(emptyToNull(XmlUtils.childText(item, "IPAddress")));
-        ch.setPort(parseIntOrNull(XmlUtils.childText(item, "Port")));
-        ch.setPassword(emptyToNull(XmlUtils.childText(item, "Password")));
-        String status = XmlUtils.childText(item, "Status");
-        ch.setStatus(status == null || status.isBlank() ? "OFF" : status.toUpperCase());
-        ch.setLongitude(parseDouble(XmlUtils.childText(item, "Longitude")));
-        ch.setLatitude(parseDouble(XmlUtils.childText(item, "Latitude")));
+        ch.setParentId(parentId);
+        ch.setParental(isDirectory ? 1 : 0);
 
-        Element info = item.element("Info");
-        if (info != null) {
-            ch.setPtzType(parseInt(XmlUtils.childText(info, "PTZType"), 0));
+        if (!isDirectory) {
+            // 通道：完整业务字段；device_id 必填
+            ch.setDeviceId(device.getDeviceId());
+            ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
+            ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));
+            ch.setOwner(emptyToNull(XmlUtils.childText(item, "Owner")));
+            ch.setCivilCode(emptyToNull(XmlUtils.childText(item, "CivilCode")));
+            ch.setBlock(emptyToNull(XmlUtils.childText(item, "Block")));
+            ch.setAddress(emptyToNull(XmlUtils.childText(item, "Address")));
+            ch.setSafetyWay(parseInt(XmlUtils.childText(item, "SafetyWay"), 0));
+            ch.setRegisterWay(parseInt(XmlUtils.childText(item, "RegisterWay"), 1));
+            ch.setCertNum(emptyToNull(XmlUtils.childText(item, "CertNum")));
+            ch.setCertifiable(parseInt(XmlUtils.childText(item, "Certifiable"), 0));
+            ch.setErrCode(parseIntOrNull(XmlUtils.childText(item, "ErrCode")));
+            ch.setSecrecy(parseInt(XmlUtils.childText(item, "Secrecy"), 0));
+            ch.setIpAddress(emptyToNull(XmlUtils.childText(item, "IPAddress")));
+            ch.setPort(parseIntOrNull(XmlUtils.childText(item, "Port")));
+            ch.setPassword(emptyToNull(XmlUtils.childText(item, "Password")));
+            String status = XmlUtils.childText(item, "Status");
+            ch.setStatus(status == null || status.isBlank() ? "OFF" : status.toUpperCase());
+            ch.setLongitude(parseDouble(XmlUtils.childText(item, "Longitude")));
+            ch.setLatitude(parseDouble(XmlUtils.childText(item, "Latitude")));
+
+            Element info = item.element("Info");
+            if (info != null) {
+                ch.setPtzType(parseInt(XmlUtils.childText(info, "PTZType"), 0));
+            }
+        } else {
+            // 分组：只保留 name / parent_id，device_id 留 NULL（分组不属于任何设备）
+            ch.setStatus("ON");  // 分组通常"在线"，与原 GbGroup 行为对齐
         }
         return ch;
     }
@@ -236,7 +226,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     /**
      * 解析 {@code Parental} 字段，对异常值做兜底。
      * <p>部分 NVR 厂商会把 {@code Parental} 错填成 65535（应填 0/1），按"非 '0' 一律算 1"处理。
-     * 路由判定（{@link #handleForDevice} 的目录/通道分流）和字段存储（{@link #parseChannel}）
+     * 路由判定（{@link #handleForDevice} 的目录/通道分流）和字段存储（{@link #parseItem}）
      * 共用此方法，保证两者行为一致。</p>
      */
     private static int parseParental(Element item) {

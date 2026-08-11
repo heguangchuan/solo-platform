@@ -143,7 +143,7 @@ public class GbDeviceController {
     public Result<Void> delete(@PathVariable String deviceId) {
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device != null) {
-            gbDeviceChannelService.deleteByDeviceDbId(device.getId());
+            gbDeviceChannelService.deleteByDeviceId(device.getDeviceId());
             gbDeviceService.removeById(device.getId());
         }
         return Result.success();

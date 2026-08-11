@@ -162,22 +162,23 @@ export interface GbParentPlatformPageRequest {
   enabled?: number
 }
 
-/** 共享目录树节点（通道推送弹窗用）：分组作枝干，通道挂在分组下 */
+/** 共享目录树节点（通道推送弹窗用）：分组（parental=1）作枝干，通道（parental=0）挂在分组下 */
 export interface GbShareTreeNode {
-  /** 节点唯一键：分组 g_xxx / 通道 c_xxx */
+  /** 节点唯一键：分组 g_xxx / 通道 c_xxx（前端 el-tree node-key） */
   id: string
   /** 节点显示标签 */
   label: string
-  /** 节点类型：GROUP 分组 / CHANNEL 通道 */
+  /** 节点类型：GROUP 分组（parental=1）/ CHANNEL 通道（parental=0）——后端按 parental 派生 */
   type: 'GROUP' | 'CHANNEL'
   children?: GbShareTreeNode[]
 }
 
 /** 上级平台已共享的节点 id 集合 */
 export interface GbPlatformSharedIds {
-  /** 已共享的分组节点 id（g_ 前缀） */
-  groupIds: string[]
-  /** 已共享的通道节点 id（c_ 前缀） */
+  /**
+   * 已共享的 catalog item 节点 id（g_ 前缀=分组 parental=1 / c_ 前缀=通道 parental=0），
+   * 前端按前缀渲染勾选态
+   */
   channelIds: string[]
 }
 
@@ -187,19 +188,20 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
   channelId?: string
   name?: string
   status?: string
-  /** 所属资源目录分组ID（按分组筛选通道） */
-  groupId?: string
+  /** 父 catalog item 20 位国标码（按父项筛通道；"0"=根） */
+  parentId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
 }
 
-/** 国标设备通道 */
+/** 国标资源目录项（通道 + 分组合一，ADR-023） */
 export interface GbDeviceChannel {
   id: string
-  deviceDbId: string
-  deviceId: string
+  /** 所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 null */
+  deviceId?: string
+  /** catalog item 20 位国标码：分组=215业务分组/216虚拟组织；通道=131摄像机/132IPC */
   channelId: string
-  /** 通道上报原始名称（Catalog 目录同步） */
+  /** catalog item 上报原始名称（仅通道） */
   reportName?: string
   /** 用户自定义显示名称（展示优先级高于 reportName） */
   name?: string
@@ -209,62 +211,26 @@ export interface GbDeviceChannel {
   civilCode?: string
   block?: string
   address?: string
+  /** 0=通道（叶子）/ 1=分组（容器） */
   parental?: number
   status?: string
   longitude?: number
   latitude?: number
   ptzType?: number
-  /** 所属资源目录主键（引用 gb_group.id；默认分组 0000） */
-  groupId?: string
+  /** 父 catalog item 20 位国标码（指向同表 channel_id）；"0"=根 */
+  parentId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
-  createTime: string
-  updateTime: string
-}
-
-/** 通道列表分页响应：在 entity 之上补充设备名/目录名 */
-export interface GbDeviceChannelVO extends GbDeviceChannel {
-  /** 所属设备名称（后端按 deviceId 反查 gb_device.name 回填） */
-  deviceName?: string
-  /** 所属资源目录名称（后端按 groupId 反查 gb_group.name 回填） */
-  groupName?: string
-}
-
-/** 资源目录分组分页查询参数 */
-export interface GbGroupPageRequest extends PageRequest {
-  /** 分组国标ID（模糊） */
-  groupId?: string
-  /** 分组名称（模糊） */
-  name?: string
-  /** 父节点主键 */
-  parentId?: string
-}
-
-/** 国标资源目录分组（业务分组 215 / 虚拟组织 216） */
-export interface GbGroup {
-  /** 数据主键：默认分组固定 0000，其余雪花ID；通道 groupId 引用此列 */
-  id: string
-  /** 分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用） */
-  groupId: string
-  /** 分组名称（作为 Catalog Item Name 上报上级） */
-  name: string
-  /** 父节点主键：0=根节点 */
-  parentId?: string
-  /** 排序值（同层从小到大） */
-  sort?: number
   createTime?: string
   updateTime?: string
 }
 
-/**
- * 分组分页 / 树形响应 VO：在 entity 之上扩出 children / defaultGroup 视图字段
- * 分页接口无 children，树接口两者都有；用同一类型简化前端处理
- */
-export interface GbGroupVO extends GbGroup {
-  /** 子节点（树形接口返回） */
-  children?: GbGroupVO[]
-  /** 是否默认分组（后端按 gb28181.default-group.id 回填）：默认分组不可删除、只可改名称/排序 */
-  defaultGroup?: boolean
+/** 通道列表分页响应：在 entity 之上补充设备名/父项名 */
+export interface GbDeviceChannelVO extends GbDeviceChannel {
+  /** 所属设备名称（后端按 deviceId 反查 gb_device.name 回填） */
+  deviceName?: string
+  /** 父 catalog item 名称（后端按 parentId 反查 gb_device_channel.name 回填；parentId="0" 时为 null） */
+  parentName?: string
 }
 
 /** 流媒体节点（ZLMediaKit）分页查询参数 */

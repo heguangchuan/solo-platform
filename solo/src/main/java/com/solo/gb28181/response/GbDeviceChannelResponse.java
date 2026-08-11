@@ -16,6 +16,6 @@ public class GbDeviceChannelResponse extends GbDeviceChannel {
     /** 所属设备名称（按 deviceId 反查 gb_device.name 回填，不入库） */
     private String deviceName;
 
-    /** 所属资源目录名称（按 groupId 反查 gb_group.name 回填，不入库） */
-    private String groupName;
+    /** 父 catalog item 名称（按 parentId 反查 gb_device_channel.name 回填，不入库） */
+    private String parentName;
 }

@@ -85,7 +85,8 @@ public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtz
         if (channel == null) {
             throw new com.solo.common.ServiceException("通道不存在");
         }
-        GbDevice device = deviceService.getById(channel.getDeviceDbId());
+        GbDevice device = channel.getDeviceId() == null ? null : deviceService.lambdaQuery()
+                .eq(GbDevice::getDeviceId, channel.getDeviceId()).one();
         if (device == null) {
             throw new com.solo.common.ServiceException("设备不存在");
         }

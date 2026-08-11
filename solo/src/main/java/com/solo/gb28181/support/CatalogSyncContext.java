@@ -1,14 +1,11 @@
 package com.solo.gb28181.support;
 
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.event.CatalogSyncProgressEvent;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
@@ -20,12 +17,15 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * <h3>线程模型</h3>
  * <ul>
- *   <li>{@link #lock} 保护缓冲（{@code channelBuffer} / {@code groupBuffer}）的拷贝+清空
- *       复合操作，与 mediaserver 那种"Collections.synchronizedList + ArrayList copy" 的非原子
+ *   <li>{@link #lock} 保护缓冲（{@code itemBuffer}）的拷贝+清空复合操作，
+ *       与 mediaserver 那种"Collections.synchronizedList + ArrayList copy" 的非原子
  *       缺陷解耦——这里所有缓冲写都走 lock。</li>
  *   <li>累计计数 {@link #totalReceived} 用 {@link AtomicLong} 累加，独立于缓冲清空，进度上报不丢。</li>
  *   <li>收尾标志 {@link #done} 一旦置位，{@code accumulate} 后续直接放行（无操作），避免重入。</li>
  * </ul>
+ *
+ * <p>ADR-023：分组（parental=1）与通道（parental=0）合并到同一张 {@code gb_device_channel} 表，
+ * 本类只维护一个统一的 item buffer，不再分组/通道分开。</p>
  */
 public class CatalogSyncContext {
 
@@ -36,19 +36,15 @@ public class CatalogSyncContext {
     /** 时间触发 flush 间隔（毫秒）：距上次 flush 超过此值且缓冲非空，强制 flush */
     public final long flushIntervalMs;
 
-    /** 滚动缓冲——本次同步累积的 channel，下次 flush 时清空 */
-    public final List<GbDeviceChannel> channelBuffer = new ArrayList<>();
-    /** 滚动缓冲——本次同步累积的 group */
-    public final List<GbGroup> groupBuffer = new ArrayList<>();
+    /** 滚动缓冲——本次同步累积的所有 catalog item（分组 parental=1 / 通道 parental=0），下次 flush 时清空 */
+    public final List<GbDeviceChannel> itemBuffer = new ArrayList<>();
 
-    /** 通道 Item 的 <ParentID> 映射（channelId → parentId GB码），仅在 final flush 阶段用 */
-    public final Map<String, String> channelParentIdMap = new HashMap<>();
-    // group 的 <ParentID> 已直接在 parseGroup 阶段写入 group.parentId 字段，不再单独维护 map
-
-    /** 本次同步所有见过的 channelId（去重 Set，重传丢） */
-    public final Set<String> syncedChannelIds = new HashSet<>();
-    /** 本次同步所有见过的 groupId（去重 Set） */
-    public final Set<String> syncedGroupIds = new HashSet<>();
+    /**
+     * 本次同步所有见过的 {@code channel_id}（20 位国标码，去重 Set，重传丢）。
+     * <p>分组与通道都用 channel_id 去重：分组全局唯一由应用层在 saveOrUpdateBatch 内兜底（无 DB 唯一键），
+     * 通道在 uk_device_channel 设备内唯一，二者在 device 上下文中都不会重复出现。</p>
+     */
+    public final Set<String> syncedItemIds = new HashSet<>();
 
     /** 累计收到（不清零，与缓冲大小无关），用来判定 sumNum 收齐与暴露进度 */
     public final AtomicLong totalReceived = new AtomicLong(0);

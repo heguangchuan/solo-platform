@@ -3,8 +3,8 @@
  * 通道列表表格（可复用组件）
  * <p>供弹窗和独立页面共同使用</p>
  */
-import { ref, onMounted, watch, nextTick } from 'vue'
-import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbGroupVO, GbPtzPreset } from '@/types/api'
+import { ref, onMounted, watch } from 'vue'
+import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbPtzPreset } from '@/types/api'
 import {
   getGbDeviceChannelPageApi,
   getGbDeviceApi,
@@ -12,7 +12,6 @@ import {
   updateGbDeviceChannelApi,
   deleteGbDeviceChannelApi,
   batchDeleteGbDeviceChannelApi,
-  getGbGroupTreeApi,
   getNextGbChannelCodeApi,
   getPtzPresetListApi,
 } from '@/api/gb28181'
@@ -69,15 +68,20 @@ const ptzTypeMap: Record<number, string> = {
   4: '遥控枪机',
 }
 
-/** 资源目录树数据 */
-const groupTree = ref<GbGroupVO[]>([])
-
-async function fetchGroupTree() {
-  try {
-    const res = await getGbGroupTreeApi()
-    groupTree.value = res.data || []
-  } catch {
-    groupTree.value = []
+function makeEmpty(): Partial<GbDeviceChannel> {
+  return {
+    channelId: '',
+    reportName: '',
+    name: '',
+    manufacturer: '',
+    model: '',
+    owner: '',
+    civilCode: '',
+    address: '',
+    parentId: '',
+    ptzType: 0,
+    longitude: undefined,
+    latitude: undefined,
   }
 }
 
@@ -89,23 +93,6 @@ const isEdit = ref(false)
 const form = ref<Partial<GbDeviceChannel>>(makeEmpty())
 /** 新增时自动生成编码用的类型码，默认 131 摄像机 */
 const typeCode = ref(DEFAULT_CHANNEL_TYPE)
-
-function makeEmpty(): Partial<GbDeviceChannel> {
-  return {
-    channelId: '',
-    reportName: '',
-    name: '',
-    manufacturer: '',
-    model: '',
-    owner: '',
-    civilCode: '',
-    address: '',
-    groupId: '',
-    ptzType: 0,
-    longitude: undefined,
-    latitude: undefined,
-  }
-}
 
 const rules = {
   channelId: [
@@ -174,8 +161,7 @@ async function handleAdd() {
   isEdit.value = false
   dialogTitle.value = '新增通道'
   typeCode.value = DEFAULT_CHANNEL_TYPE
-  form.value = { ...makeEmpty(), deviceDbId: device.id, deviceId: device.deviceId }
-  fetchGroupTree()
+  form.value = { ...makeEmpty(), deviceId: device.deviceId }
   dialogVisible.value = true
   // 自动带出下一个可用国标编码，失败则留空让用户手输
   await fillNextCode()
@@ -184,9 +170,9 @@ async function handleAdd() {
 
 /** 按当前类型码从后端取下一个可用编码填入表单 */
 async function fillNextCode() {
-  if (!form.value.deviceDbId) return
+  if (!form.value.deviceId) return
   try {
-    const res = await getNextGbChannelCodeApi(String(form.value.deviceDbId), typeCode.value)
+    const res = await getNextGbChannelCodeApi(form.value.deviceId, typeCode.value)
     form.value.channelId = res.data || ''
   } catch {
     // 静默失败，保留空值让用户手输
@@ -202,7 +188,6 @@ function handleEdit(row: GbDeviceChannelVO) {
   isEdit.value = true
   dialogTitle.value = '编辑通道'
   form.value = { ...row }
-  fetchGroupTree()
   dialogVisible.value = true
   nextTick(() => formRef.value?.clearValidate())
 }
@@ -296,10 +281,6 @@ watch(
 
 onMounted(() => {
   fetchData()
-  // 独立通道管理页展示搜索区，需预载资源目录树供筛选
-  if (props.showDeviceColumn) {
-    fetchGroupTree()
-  }
 })
 
 defineExpose({ fetchData })
@@ -317,18 +298,6 @@ defineExpose({ fetchData })
         </el-form-item>
         <el-form-item label="通道名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable style="width: 180px" />
-        </el-form-item>
-        <el-form-item label="资源目录">
-          <el-tree-select
-            v-model="searchForm.groupId"
-            :data="groupTree"
-            :props="{ value: 'id', label: 'name', children: 'children' }"
-            placeholder="按资源目录筛选"
-            clearable
-            filterable
-            check-strictly
-            style="width: 180px"
-          />
         </el-form-item>
         <el-form-item label="通道状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
@@ -363,8 +332,8 @@ defineExpose({ fetchData })
         <el-table-column prop="name" label="通道名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="groupName" label="所属目录" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.groupName || '—' }}</template>
+        <el-table-column prop="parentName" label="父项" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.parentName || '—' }}</template>
         </el-table-column>
         <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />
         <el-table-column prop="deviceName" label="设备名称" v-if="showDeviceColumn" show-overflow-tooltip />
@@ -488,16 +457,8 @@ defineExpose({ fetchData })
         <el-form-item label="安装地址">
           <el-input v-model="form.address" placeholder="安装地址" />
         </el-form-item>
-        <el-form-item label="资源目录">
-          <el-tree-select
-            v-model="form.groupId"
-            :data="groupTree"
-            :props="{ value: 'id', label: 'name', children: 'children' }"
-            placeholder="选择资源目录（不选则使用默认分组）"
-            clearable
-            filterable
-            style="width: 100%"
-          />
+        <el-form-item label="父项编码">
+          <el-input v-model="form.parentId" placeholder="父 catalog item 的 20 位国标码（留空=根）" />
         </el-form-item>
         <el-form-item label="云台类型">
           <el-select v-model="form.ptzType" style="width: 100%">

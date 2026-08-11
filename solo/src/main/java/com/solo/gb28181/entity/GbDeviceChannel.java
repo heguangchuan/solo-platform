@@ -13,10 +13,20 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.time.LocalDateTime;
 
 /**
- * 国标设备通道
- * <p>对应 GB/T 28181-2016 Catalog 报文中的每一个 Item。</p>
- * <p>逻辑关联 {@link GbDevice}：通过 {@code device_db_id}（主键ID）和 {@code device_id}（国标ID冗余）双向定位，
- * 不在 DB 层建外键。</p>
+ * 国标资源目录项（通道 + 分组合一，ADR-023）。
+ *
+ * <p>对应 GB/T 28181-2016 Catalog 报文中的每一个 {@code <Item>}。靠 {@link #parental} 区分：</p>
+ * <ul>
+ *   <li>{@code parental=0}：通道（叶子），有 manufacturer/model/ptzType/status 等业务字段</li>
+ *   <li>{@code parental=1}：分组（容器），仅 id/channel_id/name/parent_id/sort 有语义，其他字段为 NULL</li>
+ * </ul>
+ *
+ * <p>{@link #parentId} 存的是父 catalog item 的 <b>20 位国标码</b>（与父行 {@code channel_id} 对齐），
+ * 字符串类型，{@code "0"} 表根（无父）。GB 协议 {@code <ParentID>} 直接 round-trip，无须做 GB 码 ↔
+ * 雪花 id 的转换。{@link #deviceId} 仅通道有值（GB 码字符串），分组为 NULL。</p>
+ *
+ * <p>逻辑关联 {@link GbDevice}：通过 {@code device_id}（国标ID 字符串）双向定位，
+ * 不在 DB 层建外键；去掉 {@code device_db_id} 雪花主键引用，关系表只有一份 GB 码字段。</p>
  */
 @Data
 @TableName("gb_device_channel")
@@ -26,88 +36,74 @@ public class GbDeviceChannel {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
-    /** 所属设备数据库主键（逻辑关联 gb_device.id） */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long deviceDbId;
-
-    /** 所属设备国标ID（冗余存储，便于跨表查询不 join） */
+    /** 所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 NULL */
     private String deviceId;
 
-    /** 通道国标ID（20位） */
+    /**
+     * catalog item 20 位国标码：
+     * <ul>
+     *   <li>分组：第 11-13 位 215 业务分组 / 216 虚拟组织；channel_id 全局唯一由应用层检查（无 DB 唯一键）</li>
+     *   <li>通道：第 11-13 位 130-198（默认 131 摄像机 / 132 IPC）；设备内唯一（uk_device_channel）</li>
+     * </ul>
+     */
     private String channelId;
 
-    /** 通道上报原始名称（Catalog 目录同步中获取） */
+    /** catalog item 上报原始名称（Catalog 目录同步；分组时为 NULL） */
     private String reportName;
 
-    /**
-     * 用户自定义显示名称（展示优先级高于 reportName）
-     */
+    /** 用户自定义显示名称（展示优先级高于 reportName） */
     private String name;
 
     private String manufacturer;
     private String model;
 
-    /** 设备归属 */
     private String owner;
 
-    /** 行政区划编码 */
     private String civilCode;
 
-    /** 警区 */
     private String block;
 
-    /** 安装地址 */
     private String address;
 
-    /** 是否有子设备：0 否 1 是 */
+    /** 0=通道（叶子）/ 1=分组（容器）。无 NULL 语义。 */
     private Integer parental;
 
-    /** 信令安全模式 */
     private Integer safetyWay;
 
-    /** 注册方式 */
     private Integer registerWay;
 
-    /** 证书序列号 */
     private String certNum;
 
-    /** 证书有效标识 */
     private Integer certifiable;
 
-    /** 证书无效原因码 */
     private Integer errCode;
 
-    /** 证书终止有效期 */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime endTime;
 
-    /** 保密属性 */
     private Integer secrecy;
 
     private String ipAddress;
     private Integer port;
     private String password;
 
-    /** 在线状态 ON / OFF / UNREGISTERED（系统新增/导入的记录默认态，仅由 SIP 交互改变） */
+    /** 在线状态 ON/OFF/UNREGISTERED（仅由 SIP 交互改变；仅通道） */
     private String status;
 
     private Double longitude;
     private Double latitude;
 
-    /** 云台类型：0 未知 1 球机 2 半球 3 固定枪机 4 遥控枪机 */
+    /** 云台类型：0 未知 1 球机 2 半球 3 固定枪机 4 遥控枪机（仅通道） */
     private Integer ptzType;
 
     /**
-     * 所属资源目录分组（逻辑关联 {@link GbGroup#getId()} 雪花主键）。
-     * <p>通道注册/导入/新增未指定时，由入库流程回填 {@code gb28181.default-group.id}；
-     * 编辑不动此字段，仅由目录编排功能变更。</p>
+     * 父 catalog item 的 20 位国标码（指向同表 channel_id）；"0"=根（无父）。
+     * <p>入库流程（Catalog 同步 / 手动新增）未指定父项时统一回填 "0"；编辑可改，级联回上级
+     * 时按 channel_id 反查父行生成 XML ParentID。详见 ADR-023。</p>
      */
-    @JsonSerialize(using = ToStringSerializer.class)
-    private Long groupId;
+    private String parentId;
 
-    /**
-     * 数据来源：1 系统新增，2 表格导入，3 设备注册（Catalog 同步自动入库）
-     */
+    /** 数据来源：1 系统新增，2 表格导入，3 设备注册（Catalog 同步自动入库） */
     private Integer source;
 
     @TableField(fill = FieldFill.INSERT)
@@ -119,9 +115,9 @@ public class GbDeviceChannel {
     private LocalDateTime updateTime;
 
     /**
-     * 对上级暴露的国标码（瞬态，不入本表）。仅当通过 {@code GbPlatformShareMapper.selectSharedChannels}
-     * 按某上级查共享通道时，由 join {@code gb_platform_share.exposed_code} 带出，用于级联上报 Catalog /
-     * 上级点播反查。普通通道查询此字段为 null。
+     * 对上级暴露的国标码（瞬态，不入本表）。仅当按某上级查共享通道时，由 JOIN
+     * {@code gb_platform_share.exposed_code} 带出，用于级联上报 Catalog / 上级点播反查。
+     * 普通通道查询此字段为 null。
      */
     @TableField(exist = false)
     private String exposedCode;

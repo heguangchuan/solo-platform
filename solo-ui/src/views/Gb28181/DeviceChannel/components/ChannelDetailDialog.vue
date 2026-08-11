@@ -67,7 +67,7 @@ defineExpose({ open })
       <el-descriptions-item label="设备归属">{{ detail.owner || '—' }}</el-descriptions-item>
       <el-descriptions-item label="行政区划">{{ detail.civilCode || '—' }}</el-descriptions-item>
       <el-descriptions-item label="所属警区">{{ detail.block || '—' }}</el-descriptions-item>
-      <el-descriptions-item label="所属目录">{{ detail.groupName || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="父项名称">{{ detail.parentName || '—' }}</el-descriptions-item>
       <el-descriptions-item label="地理经度">{{ detail.longitude ?? '—' }}</el-descriptions-item>
       <el-descriptions-item label="地理纬度">{{ detail.latitude ?? '—' }}</el-descriptions-item>
 

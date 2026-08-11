@@ -2,7 +2,6 @@ package com.solo.gb28181.processor.request.message.query;
 
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.processor.request.message.MessageHandler;
@@ -25,8 +24,8 @@ import java.util.List;
  * {@code <Query><CmdType>Catalog</CmdType>...</Query>} 索要资源目录，本 handler：</p>
  * <ol>
  *   <li>立刻回 200 OK（SIP 事务层）</li>
- *   <li>把 {@code gb_platform_share}（type=group/channel）里勾选给该上级的
- *       分组 + 通道分片，异步经 {@link PlatformCommander#sendCatalogResponse} 发送</li>
+ *   <li>把 {@code gb_platform_share} 里勾选给该上级的 catalog item（分组 + 通道合一，
+ *       按 {@code parental} 区分）分片，经 {@link PlatformCommander#sendCatalogResponse} 发送</li>
  * </ol>
  * <p>Query/Catalog 只走上级平台侧（{@link #handleForPlatform}）；来自下级设备的
  * Catalog 分片响应由 {@code CatalogResponseMessageHandler}（Response/Catalog）处理，二者井水不犯河水。</p>
@@ -69,12 +68,13 @@ public class CatalogQueryMessageHandler extends SipRequestProcessorBase implemen
             return;
         }
 
-        List<GbGroup> groups = catalogShareService.loadSharedGroups(platform.getId());
-        List<GbDeviceChannel> channels = catalogShareService.loadSharedChannels(platform.getId());
+        // ADR-023 合并后：单方法拉所有共享的 catalog item（分组 + 通道）
+        List<GbDeviceChannel> items = catalogShareService.loadSharedCatalogItems(platform.getId());
 
-        log.info("[级联目录] 收到查询 platform={} SN={} 待推送 分组={} 通道={}",
-                platform.getServerGbId(), sn, groups.size(), channels.size());
+        log.info("[级联目录] 收到查询 platform={} SN={} 待推送 catalog item={}",
+                platform.getServerGbId(), sn, items.size());
 
-        platformCommander.sendCatalogResponse(platform, sn, groups, channels);
+        platformCommander.sendCatalogResponse(platform, sn, items);
     }
 }
+

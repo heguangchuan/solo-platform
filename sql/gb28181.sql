@@ -2,7 +2,7 @@
 -- Solo · GB/T 28181 国标模块数据库初始化
 -- 依赖：先执行 sql/solo_db.sql 创建 solo_db 库
 -- 范围：所有 gb_ 前缀的表
--- 关联规则：表之间只使用逻辑关联（如 device_db_id 引用 gb_device.id），不建物理外键
+-- 关联规则：表之间只使用逻辑关联（如 device_id 引用 gb_device.device_id），不建物理外键
 -- =====================================================
 USE
 solo_db;
@@ -46,50 +46,52 @@ CREATE TABLE gb_device
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备';
 
 -- =====================================================
--- 国标设备通道表（逻辑关联 gb_device.id，不建物理外键）
+-- 国标资源目录项表（通道 + 分组合一，按 parental 区分；见 ADR-023）
+-- 通道（parental=0）：device_id（GB 码）必填，业务唯一键 (device_id, channel_id)
+-- 分组（parental=1）：device_id 为 NULL；channel_id 全局唯一由应用层检查兜底
+-- 逻辑关联 gb_device.device_id（仅通道），不建物理外键
 -- =====================================================
 DROP TABLE IF EXISTS gb_device_channel;
 CREATE TABLE gb_device_channel
 (
     id           bigint      NOT NULL COMMENT '主键ID（雪花）',
-    device_db_id bigint      NOT NULL COMMENT '所属设备数据库主键（逻辑关联 gb_device.id）',
-    device_id    varchar(50) NOT NULL COMMENT '所属设备国标ID（冗余存储便于查询）',
-    channel_id   varchar(50) NOT NULL COMMENT '通道国标ID（20位）',
-    report_name  varchar(255)         DEFAULT NULL COMMENT '通道上报原始名称（Catalog 目录同步）',
+    device_id    varchar(50)          DEFAULT NULL COMMENT '所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 NULL',
+    channel_id   varchar(50) NOT NULL COMMENT 'catalog item 20 位国标码：分组=215业务分组/216虚拟组织；通道=131摄像机/132IPC 等',
+    report_name  varchar(255)         DEFAULT NULL COMMENT 'catalog item 上报原始名称（仅对通道有意义，分组时为 NULL）',
     name         varchar(255)         DEFAULT NULL COMMENT '用户自定义显示名称（展示优先级高于 report_name）',
-    manufacturer varchar(100)         DEFAULT NULL COMMENT '厂商',
-    model        varchar(100)         DEFAULT NULL COMMENT '型号',
-    owner        varchar(50)          DEFAULT NULL COMMENT '设备归属',
-    civil_code   varchar(20)          DEFAULT NULL COMMENT '行政区划编码',
-    block        varchar(100)         DEFAULT NULL COMMENT '警区',
-    address      varchar(500)         DEFAULT NULL COMMENT '安装地址',
-    parental     tinyint              DEFAULT 0 COMMENT '是否有子设备 0否 1是',
-    safety_way   tinyint              DEFAULT 0 COMMENT '信令安全模式',
-    register_way tinyint              DEFAULT 1 COMMENT '注册方式',
-    cert_num     varchar(50)          DEFAULT NULL COMMENT '证书序列号',
-    certifiable  tinyint              DEFAULT 0 COMMENT '证书有效标识',
-    err_code     int                  DEFAULT NULL COMMENT '证书无效原因码',
-    end_time     datetime             DEFAULT NULL COMMENT '证书终止有效期',
-    secrecy      tinyint              DEFAULT 0 COMMENT '保密属性',
-    ip_address   varchar(64)          DEFAULT NULL COMMENT '通道IP',
-    port         int                  DEFAULT NULL COMMENT '通道端口',
-    password     varchar(100)         DEFAULT NULL COMMENT '通道密码',
-    status       varchar(20)          DEFAULT 'OFF' COMMENT '在线状态 ON/OFF/UNREGISTERED（仅由SIP交互改变）',
-    longitude double DEFAULT NULL COMMENT '经度',
-    latitude double DEFAULT NULL COMMENT '纬度',
-    ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机',
-    group_id     bigint      NOT NULL DEFAULT 0 COMMENT '所属资源目录分组（逻辑关联 gb_group.id 雪花主键）；默认值 0 须与 application.yaml gb28181.default-group.id 保持一致',
+    manufacturer varchar(100)         DEFAULT NULL COMMENT '厂商（仅通道）',
+    model        varchar(100)         DEFAULT NULL COMMENT '型号（仅通道）',
+    owner        varchar(50)          DEFAULT NULL COMMENT '设备归属（仅通道）',
+    civil_code   varchar(20)          DEFAULT NULL COMMENT '行政区划编码（仅通道）',
+    block        varchar(100)         DEFAULT NULL COMMENT '警区（仅通道）',
+    address      varchar(500)         DEFAULT NULL COMMENT '安装地址（仅通道）',
+    parental     tinyint     NOT NULL DEFAULT 0 COMMENT '0=通道（叶子）/ 1=分组（容器）。无 NULL 语义',
+    safety_way   tinyint              DEFAULT 0 COMMENT '信令安全模式（仅通道）',
+    register_way tinyint              DEFAULT 1 COMMENT '注册方式（仅通道）',
+    cert_num     varchar(50)          DEFAULT NULL COMMENT '证书序列号（仅通道）',
+    certifiable  tinyint              DEFAULT 0 COMMENT '证书有效标识（仅通道）',
+    err_code     int                  DEFAULT NULL COMMENT '证书无效原因码（仅通道）',
+    end_time     datetime             DEFAULT NULL COMMENT '证书终止有效期（仅通道）',
+    secrecy      tinyint              DEFAULT 0 COMMENT '保密属性（仅通道）',
+    ip_address   varchar(64)          DEFAULT NULL COMMENT '通道IP（仅通道）',
+    port         int                  DEFAULT NULL COMMENT '通道端口（仅通道）',
+    password     varchar(100)         DEFAULT NULL COMMENT '通道密码（仅通道）',
+    status       varchar(20)          DEFAULT 'OFF' COMMENT '在线状态 ON/OFF/UNREGISTERED（仅由SIP交互改变；仅通道）',
+    longitude double DEFAULT NULL COMMENT '经度（仅通道）',
+    latitude double DEFAULT NULL COMMENT '纬度（仅通道）',
+    ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机（仅通道）',
+    parent_id    varchar(20)  NOT NULL DEFAULT '0' COMMENT '父 catalog item 的 20 位国标码（指向同表 channel_id）；''0''=根（无父）。ADR-023',
     source       tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
-    UNIQUE KEY uk_device_channel (device_db_id, channel_id),
-    KEY          idx_device_id (device_id),
+    -- 通道（parental=0）：按所属设备内 channel_id 唯一（device_id 是 GB 码字符串）
+    UNIQUE KEY uk_device_channel (device_id, channel_id),
     KEY          idx_channel_id (channel_id),
-    KEY          idx_group_id (group_id),
+    KEY          idx_parent_id (parent_id),
     KEY          idx_status (status),
     KEY          idx_source (source)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标设备通道表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标资源目录项表（通道 + 分组合一，按 parental 区分；见 ADR-023）';
 
 -- =====================================================
 -- 云台预置位表
@@ -107,28 +109,6 @@ CREATE TABLE gb_ptz_preset
     PRIMARY KEY (id),
     KEY             idx_channel (channel_db_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台预置位表';
-
--- =====================================================
--- 国标资源目录分组表（业务分组 215 / 虚拟组织 216）
--- 平台侧自建目录树，用于级联时向上级共享通道时组织目录结构；
--- 与下级设备上报的原始 Catalog 目录无关，是本平台人为编排的资源目录。
--- 主键 id 为业务短码（默认分组固定 0000）；group_id 为拼 Catalog 上报上级用的 20 位国标码。
--- 逻辑关联：gb_device_channel.group_id 引用本表 id（业务短码），不建物理外键。
--- =====================================================
-DROP TABLE IF EXISTS gb_group;
-CREATE TABLE gb_group
-(
-    id          bigint       NOT NULL COMMENT 'id（雪花主键；默认分组固定 0）',
-    group_id    varchar(20)  NOT NULL COMMENT '分组国标ID（20位；第11-13位 215业务分组 / 216虚拟组织，拼 Catalog 上报上级用）',
-    name        varchar(255) NOT NULL COMMENT '分组名称（作为 Catalog <Item><Name> 上报上级）',
-    parent_id   varchar(20)  NOT NULL DEFAULT '0' COMMENT '父分组国标ID（逻辑关联 gb_group.group_id）：0=根节点',
-    sort        int          NOT NULL DEFAULT 0 COMMENT '排序值（同层从小到大）',
-    create_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_group_id (group_id),
-    KEY         idx_parent_id (parent_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标资源目录分组表';
 
 -- =====================================================
 -- 国标接入禁用名单（黑名单）
@@ -260,7 +240,6 @@ CREATE TABLE stream_push_client
     UNIQUE KEY uk_token (token)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流方鉴权表';
 
-
 -- =====================================================
 -- 上级平台配置表（gb_parent_platform）
 -- 本平台作为下级向上级平台注册时的配置。一行 = 一个上级平台。
@@ -293,31 +272,23 @@ CREATE TABLE gb_parent_platform
     UNIQUE KEY uk_server_gb_id (server_gb_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台配置表';
 
-
 -- =====================================================
--- 上级平台共享资源表（gb_platform_share）：目录(group)+通道(channel)合一
--- 本平台作为下级向上级共享资源时，选中的分组/通道记录。
--- 一行 = 一个上级平台 × 一个资源节点（type 区分 group / channel），无物理外键（ADR-011）。
+-- 上级平台共享资源表（gb_platform_share）：catalog item（分组+通道）共享关系
+-- 本平台作为下级向上级共享资源时，选中的 catalog item 记录。
+-- 一行 = 一个上级平台 × 一个 catalog item，靠 resource.parental 区分分组/通道，无物理外键（ADR-011）。
 -- =====================================================
 DROP TABLE IF EXISTS gb_platform_share;
-
-DROP TABLE IF EXISTS gb_platform_gb_channel;
 CREATE TABLE gb_platform_share
 (
     id           bigint      NOT NULL COMMENT '主键ID（雪花）',
     platform_id  bigint      NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
-    resource_id  bigint      NOT NULL COMMENT '资源主键：group→gb_group.id / channel→gb_device_channel.id',
-    type         varchar(16) NOT NULL COMMENT '资源类型：group / channel',
-    exposed_code varchar(20)          DEFAULT NULL COMMENT '对上级暴露的国标码（仅 channel；平台命名空间内唯一，解决跨设备/级联撞码导致上级点播认错）',
+    resource_id  bigint      NOT NULL COMMENT '资源主键（gb_device_channel.id，parental 区分分组/通道）',
+    exposed_code varchar(20)          DEFAULT NULL COMMENT '对上级暴露的国标码（parental=0 通道；平台命名空间内唯一，解决跨设备/级联撞码导致上级点播认错）',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_platform_resource (platform_id, type, resource_id),
+    UNIQUE KEY uk_platform_resource (platform_id, resource_id),
     KEY          idx_exposed_code (exposed_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享资源表（目录+通道合一）';
-
-
-
-
 
 SET
 FOREIGN_KEY_CHECKS = 1;

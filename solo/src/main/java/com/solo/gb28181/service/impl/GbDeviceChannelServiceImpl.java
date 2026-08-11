@@ -9,10 +9,8 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbGroup;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
-import com.solo.gb28181.mapper.GbGroupMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.GbDeviceChannelTreeNodeResponse;
@@ -27,7 +25,11 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 国标设备通道服务实现
+ * 国标资源目录项服务实现（ADR-023 合并版：通道 + 分组合一，靠 parental 区分）。
+ *
+ * <p>合并后去 {@code device_db_id} 雪花主键引用，关系仅由 GB 码 {@code device_id} 维系。
+ * 需要按设备查 channel 时用 {@code deviceId}（GB 码字符串）做关联；要操作设备行时
+ * 先 {@code deviceMapper.selectOne(... deviceId)} 取到 snowflake id。</p>
  */
 @Slf4j
 @Service
@@ -35,24 +37,29 @@ import java.util.stream.Collectors;
 public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMapper, GbDeviceChannel>
         implements GbDeviceChannelService {
 
+    /** 根哨兵：未指定父项时统一填 "0"（parentId GB 码 = "0" 表根） */
+    private static final String ROOT_PARENT = "0";
+
     private final GbDeviceMapper deviceMapper;
-    private final GbGroupMapper groupMapper;
     private final Gb28181Properties properties;
 
     /**
-     * 解析通道所属分组：入参已指定则用入参，否则回落到配置的默认分组。
-     * 通道注册 / 导入 / 新增三条入库路径统一走此兜底。
+     * 解析 catalog item 所属父项：入参已指定则用入参，否则回落根哨兵 "0"。
+     * <p>通道注册 / 导入 / 新增三条入库路径统一走此兜底。
+     * ADR-023：完全去掉"默认分组"概念，不再有 id=0 的特殊行；parentId="0" 即根。</p>
      */
-    private Long resolveGroupId(Long input) {
-        if (input != null) {
+    private String resolveParentId(String input) {
+        if (input != null && !input.isBlank()) {
             return input;
         }
-        return properties.getDefaultGroup().getId();
+        return ROOT_PARENT;
     }
 
     @Override
     public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
         LambdaQueryWrapper<GbDeviceChannel> wrapper = new LambdaQueryWrapper<>();
+        // 默认只查通道（parental=0），分组不进通道列表
+        wrapper.eq(GbDeviceChannel::getParental, 0);
         if (request.getDeviceId() != null && !request.getDeviceId().isBlank()) {
             wrapper.eq(GbDeviceChannel::getDeviceId, request.getDeviceId());
         }
@@ -65,8 +72,8 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             wrapper.eq(GbDeviceChannel::getStatus, request.getStatus());
         }
-        if (request.getGroupId() != null) {
-            wrapper.eq(GbDeviceChannel::getGroupId, request.getGroupId());
+        if (request.getParentId() != null && !request.getParentId().isBlank()) {
+            wrapper.eq(GbDeviceChannel::getParentId, request.getParentId());
         }
         if (request.getSource() != null) {
             wrapper.eq(GbDeviceChannel::getSource, request.getSource());
@@ -74,12 +81,12 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         wrapper.orderByDesc(GbDeviceChannel::getCreateTime);
         Page<GbDeviceChannel> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
 
-        // 转 response + 回填 deviceName
+        // 转 response + 回填 deviceName / parentName
         List<GbDeviceChannelResponse> rows = raw.getRecords().stream()
                 .map(GbDeviceChannelServiceImpl::toResponse)
                 .collect(Collectors.toCollection(ArrayList::new));
         fillDeviceName(rows);
-        fillGroupName(rows);
+        fillParentName(rows);
 
         Page<GbDeviceChannelResponse> resp = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
         resp.setRecords(rows);
@@ -112,40 +119,45 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     }
 
     /**
-     * 按 groupId 批量查目录名，回填到当前页所有 response。一次性 IN 查询，避免 N+1。
+     * 按 parentId 批量查父 catalog item 名，回填到当前页所有 response。
+     * <p>parentId 是父 item 的 20 位 GB 码（与父行 channel_id 对齐）。一次性 IN 查询，避免 N+1。
+     * parentId="0" 或父项已删 → parentName 留空。</p>
      */
-    private void fillGroupName(List<GbDeviceChannelResponse> rows) {
+    private void fillParentName(List<GbDeviceChannelResponse> rows) {
         if (rows.isEmpty()) return;
-        Set<Long> groupIds = rows.stream()
-                .map(GbDeviceChannelResponse::getGroupId)
-                .filter(id -> id != null)
+        Set<String> parentIds = rows.stream()
+                .map(GbDeviceChannelResponse::getParentId)
+                .filter(id -> id != null && !id.isBlank() && !ROOT_PARENT.equals(id))
                 .collect(Collectors.toCollection(HashSet::new));
-        if (groupIds.isEmpty()) return;
-        Map<Long, String> nameMap = groupMapper.selectList(
-                        new LambdaQueryWrapper<GbGroup>().in(GbGroup::getId, groupIds))
+        if (parentIds.isEmpty()) return;
+        Map<String, String> nameMap = lambdaQuery()
+                        .in(GbDeviceChannel::getChannelId, parentIds)
+                        .eq(GbDeviceChannel::getParental, 1)
+                        .list()
                 .stream()
-                .collect(Collectors.toMap(GbGroup::getId,
-                        g -> g.getName() == null ? "" : g.getName(),
+                .collect(Collectors.toMap(GbDeviceChannel::getChannelId,
+                        p -> p.getName() == null ? "" : p.getName(),
                         (a, b) -> a));
-        rows.forEach(r -> r.setGroupName(nameMap.get(r.getGroupId())));
+        rows.forEach(r -> r.setParentName(nameMap.get(r.getParentId())));
     }
 
     @Override
     public void createByManual(GbDeviceChannel channel) {
-        if (channel.getDeviceDbId() == null) {
+        if (channel.getDeviceId() == null || channel.getDeviceId().isBlank()) {
             throw new ServiceException("所属设备不能为空");
         }
         if (channel.getChannelId() == null || channel.getChannelId().isBlank()) {
             throw new ServiceException("通道国标ID不能为空");
         }
-        GbDevice device = deviceMapper.selectById(channel.getDeviceDbId());
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, channel.getDeviceId()));
         if (device == null) {
             throw new ServiceException("所属设备不存在");
         }
         // 通道国标ID在同一所属设备下唯一（跟 uk_device_channel 对齐）。GB/T 28181 语义上
         // 通道号由所属物理设备自身分配，不同厂商 NVR 出现相同末位序号是正常情况。
         boolean dup = lambdaQuery()
-                .eq(GbDeviceChannel::getDeviceDbId, channel.getDeviceDbId())
+                .eq(GbDeviceChannel::getDeviceId, channel.getDeviceId())
                 .eq(GbDeviceChannel::getChannelId, channel.getChannelId())
                 .exists();
         if (dup) {
@@ -153,13 +165,16 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         }
         // 回填冗余字段，状态与来源由系统决定
         channel.setId(null);
-        channel.setDeviceId(device.getDeviceId());
+        channel.setParental(0);  // 手动新增一定是通道
         channel.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
         channel.setSource(GbSource.SYSTEM);
-        channel.setGroupId(resolveGroupId(channel.getGroupId()));
+        channel.setParentId(resolveParentId(channel.getParentId()));
         save(channel);
         // 更新设备通道计数
-        long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, device.getId()).count();
+        long count = lambdaQuery()
+                .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
+                .eq(GbDeviceChannel::getParental, 0)
+                .count();
         device.setChannelCount((int) count);
         deviceMapper.updateById(device);
         log.info("[通道新增] 系统手动新增通道: device={} channel={}", device.getDeviceId(), channel.getChannelId());
@@ -179,7 +194,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         exist.setCivilCode(channel.getCivilCode());
         exist.setBlock(channel.getBlock());
         exist.setAddress(channel.getAddress());
-        exist.setGroupId(resolveGroupId(channel.getGroupId()));
+        exist.setParentId(resolveParentId(channel.getParentId()));
         exist.setPtzType(channel.getPtzType());
         exist.setLongitude(channel.getLongitude());
         exist.setLatitude(channel.getLatitude());
@@ -192,22 +207,29 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     public void deleteById(Long id) {
         GbDeviceChannel channel = getById(id);
         if (channel == null) return;
-        Long deviceDbId = channel.getDeviceDbId();
+        String deviceId = channel.getDeviceId();
         removeById(id);
         log.info("[通道删除] id={}", id);
         // 更新设备通道计数
-        if (deviceDbId != null) {
-            long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).count();
-            GbDevice device = deviceMapper.selectById(deviceDbId);
+        if (deviceId != null) {
+            long count = lambdaQuery()
+                    .eq(GbDeviceChannel::getDeviceId, deviceId)
+                    .eq(GbDeviceChannel::getParental, 0)
+                    .count();
+            GbDevice device = deviceMapper.selectOne(
+                    new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
             if (device != null) {
                 device.setChannelCount((int) count);
                 deviceMapper.updateById(device);
             }
             // 删除后若该设备名下已无任何通道，连同设备一起删除（这个逻辑保留）
-            boolean hasOther = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).exists();
+            boolean hasOther = lambdaQuery()
+                    .eq(GbDeviceChannel::getDeviceId, deviceId)
+                    .eq(GbDeviceChannel::getParental, 0)
+                    .exists();
             if (!hasOther) {
-                deviceMapper.deleteById(deviceDbId);
-                log.info("[通道删除] 设备已无通道，连同删除设备: deviceDbId={}", deviceDbId);
+                deviceMapper.deleteById(device.getId());
+                log.info("[通道删除] 设备已无通道，连同删除设备: deviceId={}", deviceId);
             }
         }
     }
@@ -215,8 +237,8 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Override
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
-        // 业务预处理：原始名/默认名 + 预填雪花 id（让 mapper 的 ON DUPLICATE KEY UPDATE 走通，
-        // 同时 id 也用于后续引用）。
+        // 业务预处理：原始名/默认名 + 预填雪花 id + 分组应用层查重（ADR-023 删 uk_group_code 后由这里兜底）
+        Set<String> groupChannelIdsToLookup = null;
         for (GbDeviceChannel ch : channels) {
             String reportedName = ch.getName();
             if (reportedName != null && !reportedName.isBlank()) {
@@ -225,16 +247,39 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                     ch.setName(reportedName);
                 }
             }
-            if (ch.getId() == null) {
-                ch.setId(IdWorker.getId());
+            if (ch.getParentId() == null || ch.getParentId().isBlank()) {
+                ch.setParentId(resolveParentId(null));
             }
-            if (ch.getGroupId() == null) {
-                ch.setGroupId(resolveGroupId(null));
+        }
+        // 分组（parental=1）批量前先按 channel_id 批量查重：已存在的行复用其 id（upsert 语义），
+        // 新行才预填雪花 id。无 DB 唯一键保护时的应用层兜底，量级小（通常几十个分组）开销可接受。
+        List<GbDeviceChannel> groupItems = channels.stream()
+                .filter(ch -> ch.getParental() != null && ch.getParental() == 1)
+                .filter(ch -> ch.getChannelId() != null)
+                .toList();
+        if (!groupItems.isEmpty()) {
+            Set<String> groupCodes = groupItems.stream()
+                    .map(GbDeviceChannel::getChannelId)
+                    .collect(Collectors.toSet());
+            Map<String, Long> existingIdByCode = lambdaQuery()
+                    .eq(GbDeviceChannel::getParental, 1)
+                    .in(GbDeviceChannel::getChannelId, groupCodes)
+                    .list()
+                    .stream()
+                    .collect(Collectors.toMap(GbDeviceChannel::getChannelId, GbDeviceChannel::getId, (a, b) -> a));
+            for (GbDeviceChannel g : groupItems) {
+                Long existingId = existingIdByCode.get(g.getChannelId());
+                g.setId(existingId != null ? existingId : IdWorker.getId());
+            }
+        }
+        // 通道（parental=0）：无 id 时预填雪花，让 batchUpsert 走 uk_device_channel
+        for (GbDeviceChannel ch : channels) {
+            if (ch.getParental() == null || ch.getParental() == 0) {
+                if (ch.getId() == null) ch.setId(IdWorker.getId());
             }
         }
         // 走 mapper 的 INSERT ... ON DUPLICATE KEY UPDATE：单 SQL 多行 upsert，按业务唯一键
-        // (device_db_id, channel_id) 判存在性，比 MP 的 saveOrUpdateBatch 更适合本表
-        // （MP 按主键 id 判定会走 INSERT 然后撞业务唯一键）。
+        // uk_device_channel (device_id, channel_id) 判存在性，分组靠上面的 id 复用走 ON DUPLICATE。
         int batchSize = Math.max(1, properties.getCatalog().getBatchSize());
         int total = channels.size();
         long start = System.currentTimeMillis();
@@ -244,42 +289,50 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         }
         long cost = System.currentTimeMillis() - start;
         log.info("[通道目录] 批量 upsert 完成 device={} rows={} batches={} costMs={}",
-                channels.getFirst().getDeviceId(), total, (total + batchSize - 1) / batchSize, cost);
+                channels.isEmpty() ? "?" : channels.getFirst().getDeviceId(),
+                total, (total + batchSize - 1) / batchSize, cost);
     }
 
     @Override
     @Transactional
-    public void deleteByDeviceDbId(Long deviceDbId) {
-        lambdaUpdate().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).remove();
+    public void deleteByDeviceId(String deviceId) {
+        if (deviceId == null || deviceId.isBlank()) return;
+        lambdaUpdate()
+                .eq(GbDeviceChannel::getDeviceId, deviceId)
+                .remove();
     }
 
     @Override
     @Transactional
     public void deleteBatch(List<Long> ids) {
-        // 收集所有待删除通道所属的 deviceDbId
+        // 收集所有待删除通道所属的 deviceId
         List<GbDeviceChannel> channels = listByIds(ids);
         if (channels.isEmpty()) {
             return;
         }
-        // 按 deviceDbId 分组，方便后续更新计数
-        var channelsByDeviceDbId = channels.stream()
-                .filter(ch -> ch.getDeviceDbId() != null)
-                .collect(Collectors.groupingBy(GbDeviceChannel::getDeviceDbId));
+        // 按 deviceId 分组，方便后续更新计数
+        var channelsByDeviceId = channels.stream()
+                .filter(ch -> ch.getDeviceId() != null)
+                .collect(Collectors.groupingBy(GbDeviceChannel::getDeviceId));
         // 批量删除
         removeByIds(ids);
         log.info("[通道批量删除] 删除 {} 条通道", ids.size());
         // 更新每个设备的通道计数，若设备已无通道则删除设备
-        for (var entry : channelsByDeviceDbId.entrySet()) {
-            Long deviceDbId = entry.getKey();
-            long count = lambdaQuery().eq(GbDeviceChannel::getDeviceDbId, deviceDbId).count();
-            GbDevice device = deviceMapper.selectById(deviceDbId);
+        for (var entry : channelsByDeviceId.entrySet()) {
+            String deviceId = entry.getKey();
+            long count = lambdaQuery()
+                    .eq(GbDeviceChannel::getDeviceId, deviceId)
+                    .eq(GbDeviceChannel::getParental, 0)
+                    .count();
+            GbDevice device = deviceMapper.selectOne(
+                    new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
             if (device != null) {
                 device.setChannelCount((int) count);
                 deviceMapper.updateById(device);
                 // 若该设备名下已无任何通道，连同设备一起删除
                 if (count == 0) {
-                    deviceMapper.deleteById(deviceDbId);
-                    log.info("[通道批量删除] 设备已无通道，连同删除设备: deviceDbId={}", deviceDbId);
+                    deviceMapper.deleteById(device.getId());
+                    log.info("[通道批量删除] 设备已无通道，连同删除设备: deviceId={}", deviceId);
                 }
             }
         }
@@ -297,12 +350,13 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
             return new ArrayList<>();
         }
 
-        // 查询所有在线设备下的通道
+        // 查询所有在线设备下的通道（仅 parental=0）
         List<String> deviceIds = devices.stream()
                 .map(GbDevice::getDeviceId)
                 .collect(Collectors.toList());
         List<GbDeviceChannel> channels = this.lambdaQuery()
                 .in(GbDeviceChannel::getDeviceId, deviceIds)
+                .eq(GbDeviceChannel::getParental, 0)
                 .orderByAsc(GbDeviceChannel::getChannelId)
                 .list();
 

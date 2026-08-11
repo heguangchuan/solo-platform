@@ -105,18 +105,18 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         if (channels != null && !channels.isEmpty()) {
             for (GbDeviceChannel ch : channels) {
                 ch.setId(null);
-                ch.setDeviceDbId(device.getId());
                 ch.setDeviceId(device.getDeviceId());
                 ch.setStatus(GbSource.CHANNEL_STATUS_UNREGISTERED);
                 ch.setSource(GbSource.SYSTEM);
-                ch.setGroupId(ch.getGroupId() != null
-                        ? ch.getGroupId() : properties.getDefaultGroup().getId());
+                ch.setParental(0);  // 手动新增一定是通道
+                ch.setParentId(ch.getParentId() != null && !ch.getParentId().isBlank()
+                        ? ch.getParentId() : "0");  // ADR-023: 未指定父项时回根哨兵 "0"，无默认分组
                 boolean saved = deviceChannelService.save(ch);
                 log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);
             }
             // 更新设备通道计数
             long count = deviceChannelService.lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceDbId, device.getId())
+                    .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
                     .count();
             device.setChannelCount((int) count);
             updateById(device);
@@ -303,8 +303,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         for (Long id : ids) {
             GbDevice device = getById(id);
             if (device != null) {
-                // 删除该设备下所有通道
-                deviceChannelService.deleteByDeviceDbId(id);
+                // 删除该设备下所有通道（按 GB 码）
+                deviceChannelService.deleteByDeviceId(device.getDeviceId());
                 // 删除设备
                 removeById(id);
                 // 删除 Redis 在线状态键

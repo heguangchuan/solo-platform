@@ -256,12 +256,12 @@ async function handleConfirmShare() {
   // getCheckedKeys + getHalfCheckedKeys：把半选的父分组也算上，否则保存后重开会丢父分组本身
   const checked = (shareTreeRef.value?.getCheckedKeys() || []) as string[]
   const half = (shareTreeRef.value?.getHalfCheckedKeys() || []) as string[]
+  // ADR-023：分组（g_）和通道（c_）合并到后端单字段 channelIds，后端按前缀分类入库
   const all = [...checked, ...half]
-  const groupIds = all.filter((id) => id.startsWith('g_'))
-  const channelIds = all.filter((id) => id.startsWith('c_'))
+  const channelIds = all.filter((id) => id.startsWith('g_') || id.startsWith('c_'))
   shareSubmitting.value = true
   try {
-    await saveParentPlatformSharedApi(sharePlatform.value.id, { groupIds, channelIds })
+    await saveParentPlatformSharedApi(sharePlatform.value.id, { channelIds })
     ElMessage.success('推送配置已保存')
     shareVisible.value = false
   } finally {
