@@ -120,8 +120,8 @@ public class CatalogSyncSupport {
 
         // 入库前预处理
         if (!items.isEmpty()) {
-            // 预填 id（雪花）—— batchUpsert 走业务唯一键 uk_device_channel；分组在 service
-            // 层 saveOrUpdateBatch 已按 channel_id 应用层查重复用 id（无 DB 唯一键）。
+            // 预填 id（雪花）—— batchUpsert 走业务唯一键 uk_device_channel (device_id, channel_id)
+            // 同时覆盖通道和分组（device_id 标识推送源设备）。
             for (GbDeviceChannel it : items) {
                 if (it.getId() == null) {
                     it.setId(IdWorker.getId());
@@ -131,9 +131,8 @@ public class CatalogSyncSupport {
             }
 
             // final flush 阶段做"孤儿 parentId 回落"：parent_id（GB 码）在库里/本批里都找不到
-            // （设备漏报父节点、报了非法 parent_id、或解析为空被 handler 兜底成设备 GB 码），
-            // 一律改挂到 device.deviceId 下——让目录树有唯一收口，不出现游离顶层节点。
-            // 中间 flush 不做：设备可能先报子、后报父，那时判定会误伤。
+            // （设备漏报父节点、报了非法 parent_id），一律改挂到 device.deviceId 下——
+            // 让目录树有唯一收口，不出现游离顶层节点。中间 flush 不做：设备可能先报子、后报父，那时判定会误伤。
             if (isFinalFlush) {
                 Set<String> knownCodes = new HashSet<>();
                 // 本批已见过的 channel_id 算"父可达"

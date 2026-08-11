@@ -5,7 +5,6 @@ import com.solo.gb28181.entity.GbParentPlatform;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -25,20 +24,17 @@ import java.util.stream.Collectors;
  */
 public final class PlatformCatalogXml {
 
-    /** 根哨兵——item.parent_id == "0" 表无父 */
-    private static final String ROOT_PARENT = "0";
-
     private PlatformCatalogXml() {}
 
     /**
      * 构造一片 Catalog Response XML。
      *
-     * @param platform    上级平台配置；From/To 语义由发送侧构造，本方法只用 deviceGbId 作 &lt;DeviceID&gt; +
-     *                    通道 ParentID 兜底
-     * @param sn          原请求的 SN，透传回去
-     * @param sumNum      全量总条数（每片都填相同值）
-     * @param items       本片中的 catalog item（分组 parental=1 + 通道 parental=0），调用方保证
-     *                    分组排在通道之前
+     * @param platform 上级平台配置；From/To 语义由发送侧构造，本方法只用 deviceGbId 作 &lt;DeviceID&gt; +
+     *                通道 ParentID 兜底
+     * @param sn       原请求的 SN，透传回去
+     * @param sumNum   全量总条数（每片都填相同值）
+     * @param items    本片中的 catalog item（分组 parental=1 + 通道 parental=0），调用方保证
+     *                分组排在通道之前
      */
     public static String buildResponse(GbParentPlatform platform, String sn, int sumNum,
                                        List<GbDeviceChannel> items) {
@@ -46,7 +42,6 @@ public final class PlatformCatalogXml {
         int itemNum = items.size();
 
         // 父 id（GB 码）→ 父 item 的 20 位码映射：item.parent_id 直查同批内
-        // 注：item.parent_id 已是 GB 码，等于父行的 channel_id；同批内 channel_id 即父码
         Map<String, String> parentCodeByItem = items.stream()
                 .filter(i -> i.getChannelId() != null)
                 .collect(Collectors.toMap(GbDeviceChannel::getChannelId, GbDeviceChannel::getChannelId, (a, b) -> a));
@@ -74,7 +69,7 @@ public final class PlatformCatalogXml {
      * <p>分组（parental=1）：DeviceID = item.channelId（20 位国标码 215/216）；
      *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 platform.deviceGbId）。</p>
      * <p>通道（parental=0）：DeviceID 优先 exposed_code（平台唯一），回退 channelId；
-     *   ParentID 同上规则。</p>
+     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 platform.deviceGbId）。</p>
      */
     private static void appendItem(StringBuilder sb, GbDeviceChannel it, GbParentPlatform platform,
                                    Map<String, String> parentCodeByItem) {
@@ -155,6 +150,9 @@ public final class PlatformCatalogXml {
         }
         return parentId;
     }
+
+    /** 根哨兵——item.parent_id == "0" 表无父 */
+    private static final String ROOT_PARENT = "0";
 
     /** 取 20 位国标码的类型段（第 11-13 位）；非法编码返回 0 */
     private static int typeCode(String gbCode) {

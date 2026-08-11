@@ -7,7 +7,7 @@
       ─────────────────────────────────
       入参：List<GbDeviceChannel>，由调用方预填 id（雪花）
       走业务唯一键 uk_device_channel (device_id, channel_id)，不依赖预 SELECT。
-      分组（parental=1）走 saveOrUpdateBatch 内应用层 id 复用兜底（无 DB 唯一键）。
+      device_id 标识推送源设备 / 下级平台（必填），同设备同 GB 码的通道或分组自动 upsert。
       行数受调用方 batchSize 限制（默认 500），单条 SQL 一次往返。
 
       保留语义（不在 ON DUPLICATE KEY UPDATE 中更新）：

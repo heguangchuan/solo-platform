@@ -68,6 +68,16 @@ const ptzTypeMap: Record<number, string> = {
   4: '遥控枪机',
 }
 
+/** 资源类型文案：parental 0=通道 / 1=分组 */
+const parentalMap: Record<number, { label: string; tagType: 'primary' | 'warning' }> = {
+  0: { label: '通道', tagType: 'primary' },
+  1: { label: '分组', tagType: 'warning' },
+}
+function parentalLabel(parental?: number) {
+  if (parental == null) return '-'
+  return parentalMap[parental]?.label ?? '-'
+}
+
 function makeEmpty(): Partial<GbDeviceChannel> {
   return {
     channelId: '',
@@ -78,7 +88,6 @@ function makeEmpty(): Partial<GbDeviceChannel> {
     owner: '',
     civilCode: '',
     address: '',
-    parentId: '',
     ptzType: 0,
     longitude: undefined,
     latitude: undefined,
@@ -290,19 +299,22 @@ defineExpose({ fetchData })
   <div>
     <el-card shadow="hover" v-if="showDeviceColumn" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="设备编码">
-          <el-input v-model="searchForm.deviceId" placeholder="所属设备国标编码精确" clearable style="width: 180px" />
-        </el-form-item>
-        <el-form-item label="通道编码">
-          <el-input v-model="searchForm.channelId" placeholder="通道国标编码模糊" clearable style="width: 180px" />
-        </el-form-item>
         <el-form-item label="通道名称">
           <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable style="width: 180px" />
         </el-form-item>
+        <el-form-item label="通道编码">
+          <el-input v-model="searchForm.channelId" placeholder="20 位国标编码模糊" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="设备编码">
+          <el-input v-model="searchForm.deviceId" placeholder="设备国标编码精确" clearable style="width: 180px" />
+        </el-form-item>
+        <el-form-item label="分组编码">
+          <el-input v-model="searchForm.parentId" placeholder="父分组 GB 码前缀（LIKE）" clearable style="width: 180px" />
+        </el-form-item>
         <el-form-item label="通道状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
-            <el-option label="ON" value="ON" />
-            <el-option label="OFF" value="OFF" />
+            <el-option label="在线" value="ON" />
+            <el-option label="离线" value="OFF" />
             <el-option label="未注册" value="UNREGISTERED" />
           </el-select>
         </el-form-item>
@@ -311,6 +323,13 @@ defineExpose({ fetchData })
             <el-option label="系统新增" :value="1" />
             <el-option label="表格导入" :value="2" />
             <el-option label="设备注册" :value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="资源类型">
+          <el-select v-model="searchForm.parental" placeholder="全部" clearable style="width: 180px">
+            <el-option label="全部" :value="undefined" />
+            <el-option label="通道" :value="0" />
+            <el-option label="分组" :value="1" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -328,26 +347,30 @@ defineExpose({ fetchData })
 
       <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(65vh - 200px)" @selection-change="handleSelectionChange">
         <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
         <el-table-column prop="name" label="通道名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
         </el-table-column>
-        <el-table-column prop="parentName" label="父项" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.parentName || '—' }}</template>
-        </el-table-column>
+        <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
         <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />
-        <el-table-column prop="deviceName" label="设备名称" v-if="showDeviceColumn" show-overflow-tooltip />
         <el-table-column label="云台类型" align="center" show-overflow-tooltip>
-          <template #default="{ row }">{{ ptzTypeMap[row.ptzType ?? 0] }}</template>
+          <template #default="{ row }">{{ row.parental === 1 ? '—' : ptzTypeMap[row.ptzType ?? 0] }}</template>
         </el-table-column>
-        <el-table-column label="通道状态" align="center" width="85" show-overflow-tooltip>
+        <el-table-column label="状态" align="center" width="85" show-overflow-tooltip>
           <template #default="{ row }">
-            <ListStatusBar v-if="row.status === 'ON' || row.status === 'OFF'" :active="row.status === 'ON'" />
+            <span v-if="row.parental === 1" class="text-secondary">—</span>
+            <ListStatusBar v-else-if="row.status === 'ON' || row.status === 'OFF'" :active="row.status === 'ON'" />
             <el-tag v-else type="info" size="small">未注册</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="数据来源" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
+        </el-table-column>
+        <el-table-column label="资源类型" align="center" width="100">
+          <template #default="{ row }">
+            <el-tag :type="parentalMap[row.parental ?? 0]?.tagType" disable-transitions size="small">
+              {{ parentalLabel(row.parental) }}
+            </el-tag>
+          </template>
         </el-table-column>
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
@@ -456,9 +479,6 @@ defineExpose({ fetchData })
         </el-form-item>
         <el-form-item label="安装地址">
           <el-input v-model="form.address" placeholder="安装地址" />
-        </el-form-item>
-        <el-form-item label="父项编码">
-          <el-input v-model="form.parentId" placeholder="父 catalog item 的 20 位国标码（留空=根）" />
         </el-form-item>
         <el-form-item label="云台类型">
           <el-select v-model="form.ptzType" style="width: 100%">

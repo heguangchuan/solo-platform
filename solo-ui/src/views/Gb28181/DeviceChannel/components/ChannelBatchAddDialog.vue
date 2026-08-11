@@ -121,7 +121,7 @@ function regenerateAll() {
 }
 
 function addEmptyChannel() {
-  channels.value.push({ channelId: computeNextCode(), name: '', parentId: '' })
+  channels.value.push({ channelId: computeNextCode(), name: '' })
 }
 
 function removeChannel(index: number) {
@@ -245,11 +245,6 @@ defineExpose({ open })
                   <el-form-item :prop="`channels.${$index}.name`" class="no-margin">
                     <el-input v-model="row.name" placeholder="通道名称" />
                   </el-form-item>
-                </template>
-              </el-table-column>
-              <el-table-column label="父项编码" min-width="150">
-                <template #default="{ row }">
-                  <el-input v-model="row.parentId" placeholder="父 catalog item 20 位码（留空=根）" />
                 </template>
               </el-table-column>
               <el-table-column width="90" align="center">

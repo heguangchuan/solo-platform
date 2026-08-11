@@ -174,8 +174,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
 
     /**
      * 解析单个 Item 为 GbDeviceChannel：parental=1 表分组，parental=0 表通道。
-     * 分组时 device_id 为 NULL（平台全局）；通道时 device_id 必填（GB 码字符串关联 gb_device）。
-     * 合并后无 device_db_id 字段（去掉冗余雪花主键引用），所有关系仅由 device_id（GB 码）维系。
+     * 分组与通道都必填 deviceId——分组标识推送源设备（每个设备/平台有自己的 group 树）。
+     * parentId 存报文 <ParentID> 字段，供级联回 XML 与共享树建层级使用。
      */
     private GbDeviceChannel parseItem(Element item, GbDevice device, String parentId, boolean isDirectory) {
         String channelId = XmlUtils.childText(item, "DeviceID");
@@ -186,10 +186,11 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         ch.setName(emptyToNull(XmlUtils.childText(item, "Name")));
         ch.setParentId(parentId);
         ch.setParental(isDirectory ? 1 : 0);
+        // 分组与通道都必填 deviceId：分组标识推送源设备
+        ch.setDeviceId(device.getDeviceId());
 
         if (!isDirectory) {
-            // 通道：完整业务字段；device_id 必填
-            ch.setDeviceId(device.getDeviceId());
+            // 通道：完整业务字段
             ch.setManufacturer(emptyToNull(XmlUtils.childText(item, "Manufacturer")));
             ch.setModel(emptyToNull(XmlUtils.childText(item, "Model")));
             ch.setOwner(emptyToNull(XmlUtils.childText(item, "Owner")));
@@ -215,8 +216,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
                 ch.setPtzType(parseInt(XmlUtils.childText(info, "PTZType"), 0));
             }
         } else {
-            // 分组：只保留 name / parent_id，device_id 留 NULL（分组不属于任何设备）
-            ch.setStatus("ON");  // 分组通常"在线"，与原 GbGroup 行为对齐
+            // 分组：只保留 name / parent_id + status="ON"（分组通常"在线"）
+            ch.setStatus("ON");
         }
         return ch;
     }

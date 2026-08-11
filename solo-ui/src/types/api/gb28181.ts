@@ -162,14 +162,14 @@ export interface GbParentPlatformPageRequest {
   enabled?: number
 }
 
-/** 共享目录树节点（通道推送弹窗用）：分组（parental=1）作枝干，通道（parental=0）挂在分组下 */
+/** 共享目录树节点（通道推送弹窗用）：设备作枝干，分组/通道作叶子 */
 export interface GbShareTreeNode {
-  /** 节点唯一键：分组 g_xxx / 通道 c_xxx（前端 el-tree node-key） */
+  /** 节点唯一键：设备 d_xxx（不可勾选）/ 分组 g_xxx / 通道 c_xxx */
   id: string
   /** 节点显示标签 */
   label: string
-  /** 节点类型：GROUP 分组（parental=1）/ CHANNEL 通道（parental=0）——后端按 parental 派生 */
-  type: 'GROUP' | 'CHANNEL'
+  /** 节点类型：DEVICE 设备（枝干）/ GROUP 分组（parental=1）/ CHANNEL 通道（parental=0） */
+  type: 'DEVICE' | 'GROUP' | 'CHANNEL'
   children?: GbShareTreeNode[]
 }
 
@@ -188,8 +188,10 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
   channelId?: string
   name?: string
   status?: string
-  /** 父 catalog item 20 位国标码（按父项筛通道；"0"=根） */
+  /** 父分组 GB 码前缀（后端 SQL LIKE 'value%' 匹配） */
   parentId?: string
+  /** 资源类型过滤：0=通道 / 1=分组；不传=全部（通道 + 分组） */
+  parental?: number
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
 }
@@ -197,7 +199,7 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
 /** 国标资源目录项（通道 + 分组合一，ADR-023） */
 export interface GbDeviceChannel {
   id: string
-  /** 所属设备国标ID（逻辑关联 gb_device.device_id）；分组（parental=1）时为 null */
+  /** 所属设备国标ID（逻辑关联 gb_device.device_id）；通道与分组均必填——分组标识推送源设备 */
   deviceId?: string
   /** catalog item 20 位国标码：分组=215业务分组/216虚拟组织；通道=131摄像机/132IPC */
   channelId: string
@@ -225,12 +227,8 @@ export interface GbDeviceChannel {
   updateTime?: string
 }
 
-/** 通道列表分页响应：在 entity 之上补充设备名/父项名 */
+/** 通道列表分页响应：透传 entity 全部字段（不回填冗余字段） */
 export interface GbDeviceChannelVO extends GbDeviceChannel {
-  /** 所属设备名称（后端按 deviceId 反查 gb_device.name 回填） */
-  deviceName?: string
-  /** 父 catalog item 名称（后端按 parentId 反查 gb_device_channel.name 回填；parentId="0" 时为 null） */
-  parentName?: string
 }
 
 /** 流媒体节点（ZLMediaKit）分页查询参数 */

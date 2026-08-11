@@ -91,7 +91,6 @@ function addEmptyChannel() {
   form.newChannels.push({
     channelId: genChannelCode(),
     name: '',
-    parentId: '',
   } as GbDeviceChannel)
 }
 
@@ -541,11 +540,6 @@ onMounted(() => {
                 <el-input v-model="row.name" placeholder="通道名称" style="width: 100%" />
               </el-form-item>
             </template>
-            </el-table-column>
-            <el-table-column label="父项编码" min-width="200">
-              <template #default="{ row }">
-                <el-input v-model="row.parentId" placeholder="父 catalog item 20 位码（留空=根）" />
-              </template>
             </el-table-column>
             <el-table-column width="80" align="center">
               <template #header>
