@@ -46,12 +46,8 @@ public class CatalogQueryMessageHandler extends SipRequestProcessorBase implemen
 
     @Override
     public void handleForDevice(RequestEvent event, GbDevice device, Element root) {
-        // 下级设备不会向本平台发起 Catalog Query（本平台不作为它的上级角色被查目录），忽略即可
-        try {
-            responseAck((SIPRequest) event.getRequest(), Response.OK);
-        } catch (Exception e) {
-            log.warn("[级联目录] 回 200 失败: {}", e.getMessage());
-        }
+        // 下级设备不会向本平台发起 Catalog Query（本平台不作为它的上级角色被查目录），忽略即可。
+        // 200 OK 已由 MessageRequestProcessor 在分发前统一回复。
     }
 
     @Override

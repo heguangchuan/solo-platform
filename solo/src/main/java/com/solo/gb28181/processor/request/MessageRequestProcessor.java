@@ -129,6 +129,11 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         // 先按 fromUser 查设备
         GbDevice device = lookupDeviceCached(fromUser);
         if (device != null) {
+            // ⚠️ 关键：先回 200 OK 再分发业务。GB28181 对端（尤其下级平台）普遍是
+            // "收到上一片的 200 才发下一片"，不回 200 会让对端一直等 SIP 事务超时
+            // （Timer F = 64×T1 ≈ 32s，实测某些实现 8.6s）才发下一片——4w 条目录要跑几天。
+            // responseAck 只依赖 SIPRequest 头部，不需要业务处理结果，可以安全前置。
+            ackQuietly(request, rootName, cmdType, fromUser);
             try {
                 handler.handleForDevice(event, device, root);
             } catch (Exception e) {
@@ -144,6 +149,8 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
                 .eq(GbParentPlatform::getEnabled, 1)
                 .one();
         if (platform != null) {
+            // 平台侧 handler（如 CatalogQueryMessageHandler）自己回 200——它们需要在回 200 后
+            // 才异步推数据，且部分场景要回 XML body，这里不代劳。
             try {
                 handler.handleForPlatform(event, platform, root);
             } catch (Exception e) {
@@ -176,8 +183,7 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
      * <p>catalog 同步期间 4w+ 条 MESSAGE 都按 {@code fromUser} 查设备，缓存命中后零 SQL。
      * 缓存 miss 才走 DB，写回缓存。Redis 不可用时静默回退到 DB（不影响 SIP 接收）。</p>
      */
-    private GbDevice lookupDeviceCached(String deviceId) {
-        if (deviceId == null || deviceId.isBlank()) return null;
+    private GbDevice lookupDeviceCached(String deviceId) {        if (deviceId == null || deviceId.isBlank()) return null;
         String key = GbRedisKeys.DEVICE_PROFILE_PREFIX + deviceId;
         // 1) 查缓存
         try {
@@ -201,5 +207,19 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
             }
         }
         return device;
+    }
+
+    /**
+     * 回 200 OK，失败只记 WARN 不抛——业务分发不能因为回复失败被中断。
+     * <p>设备侧所有 MESSAGE 统一在分发前由本方法回 200（见 {@link #process} 注释），
+     * 各 handler 不再自行 responseAck。</p>
+     */
+    private void ackQuietly(SIPRequest request, String rootName, String cmdType, String fromUser) {
+        try {
+            responseAck(request, Response.OK);
+        } catch (Exception e) {
+            log.warn("[消息分发] 回 200 失败 rootType={} cmdType={} from={} err={}",
+                    rootName, cmdType, fromUser, e.getMessage());
+        }
     }
 }

@@ -153,6 +153,15 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         // 累加分片（内部阈值 flush；sumNum 收齐时返回 true）
         boolean complete = cache.accumulate(ctx, chunkItems);
 
+        // 诊断：报文声明的 Num vs 我们实际解析出的条数。两者不等说明解析漏了（编码/字段名/嵌套异常）；
+        // 两者都等于 1 说明对端确实一片只发 1 条（发包节奏问题，不是本平台瓶颈）。
+        String declaredNum = deviceList.attributeValue("Num");
+        int parsedNum = chunkItems.size();
+        if (log.isInfoEnabled() && (declaredNum == null || !declaredNum.equals(String.valueOf(parsedNum)))) {
+            log.info("[通道目录] 分片计数不一致 deviceId={} sn={} 报文声明Num={} 实际解析={} sumNum={}",
+                    device.getDeviceId(), sn, declaredNum, parsedNum, sumNum);
+        }
+
         if (complete) {
             // 收齐分支已在 accumulate 内 finalize，这里仅记录日志
             log.info("[通道目录] 本片触发收齐 deviceId={} sn={}", device.getDeviceId(), sn);
