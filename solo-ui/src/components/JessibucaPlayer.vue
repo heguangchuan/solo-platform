@@ -58,8 +58,16 @@ const props = withDefaults(
     currentStream?: string
     /** 当前收流模式（业务层维护，传给 toolbar 显示） */
     transport?: 'UDP' | 'TCP-passive' | 'TCP-active'
+    /**
+     * 缓冲时长（秒）。实时点播用 0 追求最低延迟；
+     * 回放场景设备推流不均匀（定位后突发、中间断续），给 0.2~0.5s 缓冲可显著减少卡顿。
+     */
+    videoBuffer?: number
   }>(),
-  { hasAudio: true, height: '420px', streams: () => [], currentStream: '', transport: 'UDP' },
+  {
+    hasAudio: true, height: '420px', streams: () => [], currentStream: '',
+    transport: 'UDP', videoBuffer: 0,
+  },
 )
 
 const emit = defineEmits<{
@@ -154,7 +162,7 @@ function ensurePlayer() {
   }
   player = new window.Jessibuca({
     container: containerRef.value,
-    videoBuffer: 0,
+    videoBuffer: props.videoBuffer,
     isResize: true,
     text: '',
     loadingText: '正在拉流，请稍候...',
@@ -163,7 +171,9 @@ function ensurePlayer() {
     decoder: '/static/js/jessibuca/decoder.js',
     forceNoOffscreen: true,
     hasAudio: props.hasAudio,
-    isFlv: false,
+    // 本项目播放地址统一是 WS-FLV / HTTP-FLV（MediaUrlBuilder 产出），必须走 FLV demuxer。
+    // 置 false 会让 jessibuca 按裸流解析，拿到 FLV 数据解不出 track，表现为一直转圈不出画面。
+    isFlv: true,
     timeout: 10,
     heartTimeout: 5,
     heartTimeoutReplay: true,
