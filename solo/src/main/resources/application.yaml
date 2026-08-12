@@ -52,7 +52,8 @@ logging:
   level:
     com.solo: info
     # JAIN-SIP 协议栈内部日志（含收发报文摘要）默认压到 warn，避免刷屏影响排查；
-    # 调试设备方言 / SIP 交互时临时调成 info 或 debug。另见 gb28181.sip.sipLog（控制是否打完整报文体）。
+    # 调试设备方言 / SIP 交互时临时调成 info 或 debug。
+    # 排查 SIP 报文请改用 gb28181.sip-message-log.*（走 com.solo logger，不需要动这里）。
     gov.nist: warn
 
 # GB/T 28181 国标平台配置
@@ -75,6 +76,12 @@ gb28181: # 是否启用国标服务
   register-expires: 3600
   # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线
   keepalive-timeout-multiplier: 3
+
+  # 按业务场景打印 SIP 收发报文全文（含 SDP），默认全关。
+  # 走 com.solo 下的 logger，不需要配合 logging.level.gov.nist。
+  sip-message-log:
+    # 点播：INVITE / ACK / BYE 及其响应。不区分对端类型（下级平台 / IPC / NVR 全覆盖）
+    play: true
 
   # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏
   cascade:

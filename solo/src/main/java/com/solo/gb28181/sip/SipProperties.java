@@ -13,9 +13,8 @@ public final class SipProperties {
 
     /**
      * @param stackName 协议栈名（多实例隔离用）
-     * @param sipLog    是否打开 JAIN-SIP 收发报文日志（生产建议关闭，调试设备方言时开启）
      */
-    public static Properties build(String stackName, boolean sipLog) {
+    public static Properties build(String stackName) {
         Properties p = new Properties();
         p.setProperty("javax.sip.STACK_NAME", stackName);
 
@@ -50,8 +49,9 @@ public final class SipProperties {
         // Spring Boot 4 没有 log4j 1.x 会抛 NoClassDefFoundError。
         p.setProperty("gov.nist.javax.sip.STACK_LOGGER", "com.solo.gb28181.sip.log.Slf4jStackLogger");
         p.setProperty("gov.nist.javax.sip.SERVER_LOGGER", "com.solo.gb28181.sip.log.Slf4jServerLogger");
-        // sipLog 控制是否打印完整 SIP 报文内容（生产关闭，调试设备方言时开启）
-        p.setProperty("gov.nist.javax.sip.LOG_MESSAGE_CONTENT", Boolean.toString(sipLog));
+        // 报文全文日志不走 JAIN-SIP：它打在 gov.nist 下的 logger，要靠 logging.level 配合才可见，
+        // 且无法按业务场景过滤。改由 SipMessageLogger 在收发收口点按 gb28181.sip-message-log.* 打印。
+        p.setProperty("gov.nist.javax.sip.LOG_MESSAGE_CONTENT", "false");
         return p;
     }
 }

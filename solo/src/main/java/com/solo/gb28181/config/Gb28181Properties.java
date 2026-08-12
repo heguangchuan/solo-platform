@@ -60,9 +60,9 @@ public class Gb28181Properties {
     private long detectTimeoutMs = 10000;
 
     /**
-     * 是否打印 SIP 协议栈收发报文日志（开启会非常啰嗦，仅在调试设备方言时启用）
+     * 按业务场景开关 SIP 收发报文全文日志。
      */
-    private boolean sipLog = false;
+    private SipMessageLog sipMessageLog = new SipMessageLog();
 
     /**
      * 是否优先使用 SIP 报文的源 IP/端口作为设备地址。
@@ -213,5 +213,26 @@ public class Gb28181Properties {
 
         /** 队列容量（每个任务是一次 flush 批次，500-1000 条） */
         private int queueCapacity = 5000;
+    }
+
+    /**
+     * 场景化 SIP 报文日志开关。
+     * <p>取代旧的 {@code gb28181.sip-log} + JAIN-SIP {@code LOG_MESSAGE_CONTENT}：那套机制的报文由
+     * {@code gov.nist} 下的 logger 打出，必须同时放开 {@code logging.level.gov.nist} 才可见，
+     * 且一开就是全量报文——4w+ 通道做目录同步时上万条 MESSAGE 会把日志刷爆，没法只看点播。</p>
+     *
+     * <p>这里按业务场景独立开关，报文走本项目自己的 logger（{@code com.solo} 下，生产已是 info），
+     * 不依赖 {@code logging.level} 配合。默认全关。</p>
+     *
+     * <p>新增场景时：加一个 boolean 字段，并在 {@code SipMessageLogger} 的场景判定里接上分支。</p>
+     */
+    @Data
+    public static class SipMessageLog {
+
+        /**
+         * 点播场景：INVITE / ACK / BYE 及其响应的报文全文（含 SDP）。
+         * <p>不区分对端类型，下级级联平台 / IPC / NVR 一律覆盖。</p>
+         */
+        private boolean play = false;
     }
 }
