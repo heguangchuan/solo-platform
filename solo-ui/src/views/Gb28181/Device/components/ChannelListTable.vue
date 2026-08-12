@@ -373,7 +373,6 @@ defineExpose({ fetchData })
               </el-tooltip>
               <el-tooltip content="播放">
                 <el-button
-                  v-permission="'gb28181:play:start'"
                   :disabled="row.status !== 'ON'"
                   type="primary"
                   link
@@ -383,7 +382,6 @@ defineExpose({ fetchData })
               </el-tooltip>
               <el-tooltip content="回放">
                 <el-button
-                  v-permission="'gb28181:playback:start'"
                   type="primary"
                   link
                   :icon="VideoPause"

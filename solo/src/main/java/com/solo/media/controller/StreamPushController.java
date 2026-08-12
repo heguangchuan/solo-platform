@@ -52,14 +52,12 @@ public class StreamPushController {
 
     /** 播放地址 */
     @GetMapping("/{id}/play-urls")
-    @RequirePermission({"media:stream-push:list"})
     public Result<StreamPushPlayUrlResponse> playUrls(@PathVariable Long id) {
         return Result.success(streamPushService.getPlayUrls(id));
     }
 
     /** 强制中止：通知 ZLM 关流 */
     @PostMapping("/{id}/stop")
-    @RequirePermission({"media:stream-push:stop"})
     public Result<Void> stop(@PathVariable Long id) {
         streamPushService.forceStop(id);
         return Result.success();

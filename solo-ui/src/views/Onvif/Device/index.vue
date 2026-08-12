@@ -234,7 +234,6 @@ onMounted(fetchData)
             <div>
               <el-tooltip content="播放">
                 <el-button
-                  v-permission="'onvif:play:start'"
                   type="primary"
                   link
                   :icon="VideoCamera"

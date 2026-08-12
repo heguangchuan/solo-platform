@@ -325,7 +325,6 @@ onMounted(() => {
               </el-tooltip>
               <el-tooltip :content="row.status === 1 ? '停用' : '启用'">
                 <el-button
-                  v-permission="'media:stream-proxy:toggle'"
                   :type="row.status === 1 ? 'warning' : 'success'"
                   link
                   :icon="row.status === 1 ? CircleClose : CircleCheck"

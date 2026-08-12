@@ -72,7 +72,6 @@ public class StreamProxyController {
 
     /** 启用（推流） */
     @PostMapping("/{id}/enable")
-    @RequirePermission({"media:stream-proxy:toggle"})
     public Result<Void> enable(@PathVariable Long id) {
         streamProxyService.enable(id);
         return Result.success();
@@ -80,7 +79,6 @@ public class StreamProxyController {
 
     /** 停用（摘流） */
     @PostMapping("/{id}/disable")
-    @RequirePermission({"media:stream-proxy:toggle"})
     public Result<Void> disable(@PathVariable Long id) {
         streamProxyService.disable(id);
         return Result.success();
@@ -88,7 +86,6 @@ public class StreamProxyController {
 
     /** 播放地址 */
     @GetMapping("/{id}/play-urls")
-    @RequirePermission({"media:stream-proxy:list"})
     public Result<StreamProxyPlayUrlResponse> playUrls(@PathVariable Long id) {
         return Result.success(streamProxyService.getPlayUrls(id));
     }
