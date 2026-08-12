@@ -7,8 +7,7 @@ import { ref, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, Search, VideoCamera } from '@element-plus/icons-vue'
 import type { GbDevice, GbDeviceChannel } from '@/types/api'
-import { getGbDevicePageApi, saveGbDeviceChannelApi, getNextGbChannelCodeApi } from '@/api/gb28181'
-import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE, buildGbCode, nextSeqFromCodes } from '@/utils/gbCode'
+import { getGbDevicePageApi, saveGbDeviceChannelApi } from '@/api/gb28181'
 
 interface Emits {
   (e: 'refresh'): void
@@ -24,11 +23,6 @@ const keyword = ref('')
 const selectedDevice = ref<GbDevice | null>(null)
 const channels = ref<Partial<GbDeviceChannel>[]>([])
 const formRef = ref()
-
-/** 自动生成编码用的类型码（11-13位），默认 131 摄像机 */
-const typeCode = ref(DEFAULT_CHANNEL_TYPE)
-/** 选中设备后从后端取到的下一个可用编码（作为本次本地递增的基准，已计入已入库通道） */
-const baseCode = ref('')
 
 const rules = {
   'channels.*.channelId': [
@@ -66,62 +60,18 @@ function open() {
   keyword.value = ''
   selectedDevice.value = null
   channels.value = []
-  typeCode.value = DEFAULT_CHANNEL_TYPE
-  baseCode.value = ''
   loadDevices()
   nextTick(() => formRef.value?.clearValidate())
 }
 
-async function handleSelectDevice(device: GbDevice) {
+function handleSelectDevice(device: GbDevice) {
   selectedDevice.value = device
   channels.value = []
-  await refreshBaseCode()
   addEmptyChannel()
 }
 
-/** 切换类型码 / 选中设备后，从后端取该设备下下一个可用编码作为本次批量本地递增的基准 */
-async function refreshBaseCode() {
-  baseCode.value = ''
-  const device = selectedDevice.value
-  if (!device?.deviceId) return
-  try {
-    const res = await getNextGbChannelCodeApi(device.deviceId, typeCode.value)
-    baseCode.value = res.data || ''
-  } catch {
-    baseCode.value = ''
-  }
-}
-
-/** 类型码变更：重算基准并把已生成的空/自动编码行重新填一遍 */
-async function handleTypeChange() {
-  await refreshBaseCode()
-  regenerateAll()
-}
-
-/** 依据基准编码 + 当前所有行已填编码，算出下一个不冲突的编码 */
-function computeNextCode(): string {
-  if (!baseCode.value) return ''
-  const prefix13 = baseCode.value.slice(0, 13)
-  const domain10 = prefix13.slice(0, 10)
-  const type = prefix13.slice(10)
-  // baseCode 是后端给的「下一个可用」= 已入库最大 +1；减 1 得已占用最大值作为比较基线
-  const baseSeq = Number.parseInt(baseCode.value.slice(13), 10)
-  const occupiedMax = Number.isNaN(baseSeq) ? '' : prefix13 + String(baseSeq - 1).padStart(7, '0')
-  // 与当前所有行已填编码一起取最大 +1，保证不与未保存行冲突
-  const pool = [occupiedMax, ...channels.value.map(c => c.channelId || '')]
-  const seq = nextSeqFromCodes(pool, prefix13)
-  return buildGbCode(domain10, type, seq)
-}
-
-/** 重填所有「非手改」的自动编码（简单起见：仅覆盖空编码行） */
-function regenerateAll() {
-  for (const ch of channels.value) {
-    if (!ch.channelId) ch.channelId = computeNextCode()
-  }
-}
-
 function addEmptyChannel() {
-  channels.value.push({ channelId: computeNextCode(), name: '' })
+  channels.value.push({ channelId: '', name: '' })
 }
 
 function removeChannel(index: number) {
@@ -219,24 +169,12 @@ defineExpose({ open })
             </el-descriptions-item>
           </el-descriptions>
 
-          <div class="type-bar">
-            <span class="type-label">通道类型码</span>
-            <el-select v-model="typeCode" size="small" class="type-select" @change="handleTypeChange">
-              <el-option
-                v-for="opt in CHANNEL_TYPE_OPTIONS"
-                :key="opt.value"
-                :label="opt.label"
-                :value="opt.value"
-              />
-            </el-select>
-          </div>
-
           <el-form ref="formRef" :model="{ channels }" :rules="rules">
             <el-table :data="channels" border style="width: 100%; margin-top: 12px" :show-header="true">
               <el-table-column label="通道编码" width="260">
                 <template #default="{ row, $index }">
                   <el-form-item :prop="`channels.${$index}.channelId`" class="no-margin">
-                    <el-input v-model="row.channelId" placeholder="20位数字" />
+                    <el-input v-model="row.channelId" placeholder="请输入通道国标编码（20位）" />
                   </el-form-item>
                 </template>
               </el-table-column>
@@ -361,23 +299,6 @@ defineExpose({ open })
 
 .dev-desc {
   margin-bottom: 4px;
-}
-
-.type-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.type-label {
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  flex-shrink: 0;
-}
-
-.type-select {
-  flex: 1;
 }
 
 .no-margin {
