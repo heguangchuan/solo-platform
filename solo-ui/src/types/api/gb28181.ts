@@ -62,7 +62,6 @@ export interface GbDevice {
   expires?: number
   charset?: string
   status: number
-  channelCount?: number
   registerTime?: string
   keepaliveTime?: string
   lastCatalogSyncTime?: string
@@ -89,16 +88,12 @@ export interface GbPlatform {
   platformId: string
   /** 备注名（可空；仅便于运维辨识，不参与业务判定） */
   name?: string
-  /** 禁用原因（运维填写，便于回溯"为什么把它拉黑"） */
-  reason?: string
   /** 禁用开关：0 禁用（拒绝接入，默认）1 临时放行（保留记录但不拦截） */
   enabled: number
   /** 关联设备状态：0 离线 1 在线 2 未注册（由 service 关联回填） */
   status?: number
   /** 关联设备最后心跳时间 */
   keepaliveTime?: string
-  /** 该设备已同步的通道总数 */
-  channelCount?: number
   createTime: string
   updateTime: string
 }

@@ -19,7 +19,7 @@ public interface GbRedisKeys {
      * <p>缓存整个 {@code GbDevice} POJO，TTL 10 分钟。用于 {@code MessageRequestProcessor} 等
      * SIP 入口按 {@code deviceId} 查设备时减少 SQL：catalog 同步期间 4w+ 条 MESSAGE 只在首条 miss。</p>
      * <p>写入路径在 {@code GbDeviceServiceImpl}（online / offline / updateByManual / deleteBatch）
-     * 和 {@code CatalogSyncSupport}（final flush 回写 channelCount / lastCatalogSyncTime）触发
+     * 和 {@code CatalogSyncSupport}（final flush 回写 lastCatalogSyncTime）触发
      * {@code delete} 主动失效，TTL 是兜底。</p>
      */
     String DEVICE_PROFILE_PREFIX = "gb28181:device:profile:";

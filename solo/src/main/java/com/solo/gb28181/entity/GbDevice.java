@@ -110,11 +110,6 @@ public class GbDevice implements Serializable {
     private Integer source;
 
     /**
-     * 通道总数
-     */
-    private Integer channelCount;
-
-    /**
      * 最后注册时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

@@ -322,9 +322,6 @@ onMounted(() => {
           <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
         <el-table-column prop="hostAddress" label="网络地址" show-overflow-tooltip />
-        <el-table-column prop="channelCount" label="通道数量" align="center" width="100" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
-        </el-table-column>
         <el-table-column prop="keepaliveTime" label="最近心跳" show-overflow-tooltip />
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">

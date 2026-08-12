@@ -56,7 +56,7 @@ public interface GbDeviceService extends IService<GbDevice> {
     /**
      * 失效设备档案缓存（{@link com.solo.gb28181.constant.GbRedisKeys#DEVICE_PROFILE_PREFIX}）。
      * <p>凡是改了 {@code gb_device} 行的写路径（online / offline / updateByManual / deleteBatch
-     * 以及 {@code CatalogSyncSupport} final flush 改 {@code channelCount}/{@code lastCatalogSyncTime}）
+     * 以及 {@code CatalogSyncSupport} final flush 改 {@code lastCatalogSyncTime}）
      * 都必须调一次，否则下次 SIP 入站按 {@code deviceId} 查缓存会拿到旧值。TTL 是兜底。</p>
      */
     void evictProfileCache(String deviceId);

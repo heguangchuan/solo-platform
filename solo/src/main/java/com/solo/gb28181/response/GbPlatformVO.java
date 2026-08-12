@@ -27,8 +27,4 @@ public class GbPlatformVO extends GbPlatform {
     @com.fasterxml.jackson.annotation.JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime keepaliveTime;
 
-    /**
-     * 该平台下同步来的通道总数（取关联设备）
-     */
-    private Integer channelCount;
 }

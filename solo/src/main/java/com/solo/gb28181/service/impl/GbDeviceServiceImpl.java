@@ -113,12 +113,6 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
                 boolean saved = deviceChannelService.save(ch);
                 log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);
             }
-            // 更新设备通道计数
-            long count = deviceChannelService.lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
-                    .count();
-            device.setChannelCount((int) count);
-            updateById(device);
             log.info("[设备新增] 系统手动新增设备 {}，同步新增 {} 条通道", device.getDeviceId(), channels.size());
         } else {
             log.info("[设备新增] 系统手动新增设备: {}", device.getDeviceId());

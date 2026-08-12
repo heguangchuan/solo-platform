@@ -50,15 +50,6 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
         if (notBlank(manufacturer) && !manufacturer.equals(device.getManufacturer())) { device.setManufacturer(manufacturer); dirty = true; }
         if (notBlank(model) && !model.equals(device.getModel())) { device.setModel(model); dirty = true; }
         if (notBlank(firmware) && !firmware.equals(device.getFirmware())) { device.setFirmware(firmware); dirty = true; }
-        if (notBlank(channelStr)) {
-            try {
-                int channel = Integer.parseInt(channelStr.trim());
-                if (device.getChannelCount() == null || device.getChannelCount() != channel) {
-                    device.setChannelCount(channel);
-                    dirty = true;
-                }
-            } catch (NumberFormatException ignored) { }
-        }
         if (dirty) {
             deviceService.updateById(device);
             log.info("[设备信息] 回填 deviceId={} reportName={} manufacturer={} model={} firmware={}",

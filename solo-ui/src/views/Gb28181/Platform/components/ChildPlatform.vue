@@ -38,7 +38,6 @@ function makeEmpty(): Partial<GbPlatform> {
   return {
     platformId: '',
     name: '',
-    reason: '',
     // 黑名单默认就是拦截：enabled=0 拦截，=1 保留记录但临时放行
     enabled: 0,
   }
@@ -208,18 +207,12 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="reason" label="禁用原因" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.reason || '—' }}</template>
-        </el-table-column>
         <el-table-column label="在线状态" align="center" width="85">
           <template #default="{ row }">
             <ListStatusBar v-if="row.status !== undefined && row.status !== 2" :active="row.status === 1" />
             <el-tag v-else-if="row.status === 2" type="info" size="small">未注册</el-tag>
             <span v-else class="no-data">—</span>
           </template>
-        </el-table-column>
-        <el-table-column prop="channelCount" label="通道数" align="center" width="80">
-          <template #default="{ row }">{{ row.channelCount ?? '—' }}</template>
         </el-table-column>
         <el-table-column prop="keepaliveTime" label="最近心跳" min-width="160" show-overflow-tooltip />
         <el-table-column label="操作" width="140" fixed="right">
@@ -253,14 +246,6 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="备注名">
           <el-input v-model="form.name" placeholder="可空，便于运维辨识" />
-        </el-form-item>
-        <el-form-item label="禁用原因">
-          <el-input
-            v-model="form.reason"
-            type="textarea"
-            :rows="2"
-            placeholder="可空，便于回溯为什么拉黑"
-          />
         </el-form-item>
         <el-form-item label="拦截状态">
           <el-switch

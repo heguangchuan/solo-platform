@@ -44,11 +44,6 @@ public class GbPlatform {
     private String name;
 
     /**
-     * 禁用原因（运维填写，便于回溯"为什么把它拉黑"）
-     */
-    private String reason;
-
-    /**
      * 禁用开关：0 禁用（拒绝注册，默认）1 临时放行（保留记录但不拦截）。
      * <p>留这个开关是为了"先放行观察、再决定是否彻底删掉这条记录"，不必删了又加。</p>
      */

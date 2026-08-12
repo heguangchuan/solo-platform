@@ -184,11 +184,10 @@ public class CatalogSyncSupport {
                 log.warn("[通道目录] final flush 保留残缺数据 deviceId={} ratio={} < threshold={} 保留 {} 条已入库通道，等下次 sync 补齐",
                         ctx.deviceId, String.format("%.2f", ratio), threshold, countAfter);
             }
-            // 落库后回写 device.channelCount 与 lastCatalogSyncTime
-            device.setChannelCount(countAfter);
+            // 落库后回写 lastCatalogSyncTime
             device.setLastCatalogSyncTime(LocalDateTime.now());
             deviceService.updateById(device);
-            // 失效档案缓存：channelCount / lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
+            // 失效档案缓存：lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
             deviceService.evictProfileCache(device.getDeviceId());
         }
     }

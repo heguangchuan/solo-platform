@@ -76,20 +76,32 @@ public class CatalogDataCache {
     }
 
     /**
-     * 启动一次同步：若该设备已有进行中同步且 SN 一致，复用上下文；否则新建。
+     * 启动一次同步：若该设备已有进行中同步且 SN 一致，复用上下文；SN 不一致则<b>抢占</b>——
+     * 把旧上下文 partial 收尾，由新 SN 接管。
      *
-     * @return 启动（或复用）后的上下文；如果 SN 不一致且已有同步，返回 null（让调用方放弃）
+     * <p>抢占而非拒绝的理由：设备重发目录（手动重复触发 / 设备重启 / 上一轮超时后重来）时 SN 会变，
+     * 旧 SN 的分片再也不会来，那一轮永远收不齐。若只拒绝新 SN，旧上下文要等
+     * {@code catalog.expire-ms}（默认 10 分钟）才被 {@link #sweep()} 强收，这期间新 SN 的每个分片
+     * 都被丢弃并打一条 warn —— 4w+ 通道场景下就是日志刷屏 + 整轮同步作废。改为立即 partial 收尾
+     * 旧的、让新 SN 接管：已收到的部分照常入库（partial 不删"已不存在通道"，见 ADR-021），
+     * 新一轮从头累积。</p>
+     *
+     * @return 启动（或复用 / 抢占后新建）的上下文；已完成的同步返回 null（让调用方放弃）
      */
     public CatalogSyncContext startSync(String deviceId, int sn, int sumNum) {
+        CatalogSyncContext existing = contexts.get(deviceId);
+        if (existing != null && existing.sn != sn) {
+            // SN 变了 = 设备重发目录，旧那轮不可能再收齐，partial 收尾让位
+            log.info("[通道目录] SN 变更，旧同步 partial 收尾后由新 SN 接管 deviceId={} 旧SN={} 新SN={} 旧进度={}/{}",
+                    deviceId, existing.sn, sn, existing.totalReceived.get(), existing.sumNum);
+            finalize(existing, false, "SN 变更被新同步抢占");
+            // finalize 只标 done + 延迟 30s 清理；这里立刻摘掉，避免下面 computeIfAbsent 复用到 done 的旧 ctx
+            contexts.remove(deviceId, existing);
+        }
         CatalogSyncContext ctx = contexts.computeIfAbsent(deviceId,
                 k -> new CatalogSyncContext(deviceId, sn, sumNum,
                         properties.getCatalog().getFlushThreshold(),
                         properties.getCatalog().getFlushIntervalMs()));
-        if (ctx.sn != sn) {
-            log.warn("[通道目录] SN 不一致，放弃本次分片 deviceId={} inProgress={} incoming={}",
-                    deviceId, ctx.sn, sn);
-            return null;
-        }
         if (ctx.done) {
             log.info("[通道目录] 同步已完成 deviceId={} sn={} totalReceived={}/{}",
                     deviceId, sn, ctx.totalReceived.get(), ctx.sumNum);
