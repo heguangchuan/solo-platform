@@ -103,7 +103,7 @@ public class SipLayer implements CommandLineRunner {
         SipStackImpl sipStack;
         try {
             sipStack = (SipStackImpl) SipFactory.getInstance()
-                    .createSipStack(SipProperties.build("solo-gb28181-" + ip, properties.isSipLog()));
+                    .createSipStack(SipProperties.build("solo-gb28181-" + ip));
             // 强制使用国标 UTF-8 解析器
             sipStack.setMessageParserFactory(new GbStringMsgParserFactory());
         } catch (PeerUnavailableException e) {

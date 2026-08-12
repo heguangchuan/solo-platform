@@ -6,8 +6,6 @@ import gov.nist.core.StackLogger;
 import gov.nist.javax.sip.message.SIPMessage;
 import gov.nist.javax.sip.stack.SIPTransactionStack;
 
-import com.solo.gb28181.utils.XmlUtils;
-
 import javax.sip.SipStack;
 import java.util.Properties;
 
@@ -61,22 +59,7 @@ public class Slf4jServerLogger implements ServerLogger {
         StringBuilder sb = new StringBuilder(256);
         sb.append(sender ? "[SIP-OUT] → " + from : "[SIP-IN] ← " + to);
         if (status != null) sb.append(" status=").append(status);
-        // message.toString() 会用 JVM 默认编码拼报文体，海康 GB18030 中文会乱码；
-        // 头部是 ASCII 不受影响，仅报文体按真实编码重新解码后拼接。
-        sb.append('\n').append(headersOf(message));
-        byte[] body = message.getRawContent();
-        if (body != null && body.length > 0) {
-            sb.append(XmlUtils.decodeBody(body));
-        }
+        sb.append('\n').append(SipMessageRenderer.render(message));
         return sb.toString();
-    }
-
-    /** 取 message 的头部字符串（不含报文体），避免 toString() 用默认编码渲染体 */
-    private String headersOf(SIPMessage message) {
-        // SIPMessage 没有单独导出头部的公共方法，这里用 toString() 截到空行（头体分隔）为止
-        String full = message.toString();
-        int sep = full.indexOf("\r\n\r\n");
-        if (sep < 0) sep = full.indexOf("\n\n");
-        return sep < 0 ? full : full.substring(0, sep + (full.charAt(sep) == '\r' ? 4 : 2));
     }
 }
