@@ -365,18 +365,6 @@ export interface PlaybackResultVO extends PlayResultVO {
   durationSec?: number
 }
 
-/** 设备通道树节点 */
-export interface GbDeviceChannelTreeNode {
-  id: string
-  label: string
-  children?: GbDeviceChannelTreeNode[]
-  deviceId?: string
-  channelId?: string
-  isDevice: boolean
-  status?: number
-  channelStatus?: string
-}
-
 /** 拉流代理分页查询参数 */
 export interface StreamProxyPageRequest extends PageRequest {
   name?: string
