@@ -12,12 +12,10 @@ import {
   updateGbDeviceChannelApi,
   deleteGbDeviceChannelApi,
   batchDeleteGbDeviceChannelApi,
-  getNextGbChannelCodeApi,
   getPtzPresetListApi,
 } from '@/api/gb28181'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, View, Edit, VideoCamera, VideoPause, Delete, Location } from '@element-plus/icons-vue'
-import { CHANNEL_TYPE_OPTIONS, DEFAULT_CHANNEL_TYPE } from '@/utils/gbCode'
 import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
@@ -100,13 +98,11 @@ const dialogTitle = ref('')
 const formRef = ref()
 const isEdit = ref(false)
 const form = ref<Partial<GbDeviceChannel>>(makeEmpty())
-/** 新增时自动生成编码用的类型码，默认 131 摄像机 */
-const typeCode = ref(DEFAULT_CHANNEL_TYPE)
 
 const rules = {
   channelId: [
-    { required: true, message: '请输入通道国标ID（20位）', trigger: 'blur' },
-    { pattern: /^\d{20}$/, message: '通道国标ID为20位数字', trigger: 'blur' },
+    { required: true, message: '请输入通道国标编码（20位）', trigger: 'blur' },
+    { pattern: /^\d{20}$/, message: '通道国标编码为20位数字', trigger: 'blur' },
   ],
   name: [{ required: true, message: '请输入通道名称', trigger: 'blur' }],
 }
@@ -129,8 +125,9 @@ function handleSearch() {
 }
 
 function handleReset() {
-  const deviceId = searchForm.value.deviceId
-  searchForm.value = { page: 1, pageSize: 20, deviceId }
+  // 父组件传了 deviceId（设备详情页嵌入场景）时该值是锁定的归属条件，重置不能清；
+  // 独立通道管理页没有这个 prop，设备编码是普通搜索项，一并清空
+  searchForm.value = { page: 1, pageSize: 20, deviceId: props.deviceId || '' }
   handleSearch()
 }
 
@@ -169,28 +166,9 @@ async function handleAdd() {
   }
   isEdit.value = false
   dialogTitle.value = '新增通道'
-  typeCode.value = DEFAULT_CHANNEL_TYPE
   form.value = { ...makeEmpty(), deviceId: device.deviceId }
   dialogVisible.value = true
-  // 自动带出下一个可用国标编码，失败则留空让用户手输
-  await fillNextCode()
   nextTick(() => formRef.value?.clearValidate())
-}
-
-/** 按当前类型码从后端取下一个可用编码填入表单 */
-async function fillNextCode() {
-  if (!form.value.deviceId) return
-  try {
-    const res = await getNextGbChannelCodeApi(form.value.deviceId, typeCode.value)
-    form.value.channelId = res.data || ''
-  } catch {
-    // 静默失败，保留空值让用户手输
-  }
-}
-
-/** 新增态下切换类型码，重新生成编码 */
-async function handleTypeChange() {
-  if (!isEdit.value) await fillNextCode()
 }
 
 function handleEdit(row: GbDeviceChannelVO) {
@@ -300,33 +278,33 @@ defineExpose({ fetchData })
     <el-card shadow="hover" v-if="showDeviceColumn" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="通道名称">
-          <el-input v-model="searchForm.name" placeholder="名称模糊匹配" clearable style="width: 180px" />
+          <el-input v-model="searchForm.name" placeholder="请输入通道名称" clearable style="width: 240px" />
         </el-form-item>
         <el-form-item label="通道编码">
-          <el-input v-model="searchForm.channelId" placeholder="20 位国标编码模糊" clearable style="width: 180px" />
+          <el-input v-model="searchForm.channelId" placeholder="请输入通道国标编码" clearable style="width: 240px" />
         </el-form-item>
         <el-form-item label="设备编码">
-          <el-input v-model="searchForm.deviceId" placeholder="设备国标编码精确" clearable style="width: 180px" />
+          <el-input v-model="searchForm.deviceId" placeholder="请输入设备国标编码" clearable style="width: 240px" />
         </el-form-item>
         <el-form-item label="分组编码">
-          <el-input v-model="searchForm.parentId" placeholder="父分组 GB 码前缀（LIKE）" clearable style="width: 180px" />
+          <el-input v-model="searchForm.parentId" placeholder="请输入分组国标编码" clearable style="width: 240px" />
         </el-form-item>
         <el-form-item label="通道状态">
-          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
+          <el-select v-model="searchForm.status" placeholder="请选择通道状态" clearable style="width: 240px">
             <el-option label="在线" value="ON" />
             <el-option label="离线" value="OFF" />
             <el-option label="未注册" value="UNREGISTERED" />
           </el-select>
         </el-form-item>
         <el-form-item label="数据来源">
-          <el-select v-model="searchForm.source" placeholder="请选择" clearable style="width: 180px">
+          <el-select v-model="searchForm.source" placeholder="请选择数据来源" clearable style="width: 240px">
             <el-option label="系统新增" :value="1" />
             <el-option label="表格导入" :value="2" />
             <el-option label="设备注册" :value="3" />
           </el-select>
         </el-form-item>
         <el-form-item label="资源类型">
-          <el-select v-model="searchForm.parental" placeholder="全部" clearable style="width: 180px">
+          <el-select v-model="searchForm.parental" placeholder="请选择资源类型" clearable style="width: 240px">
             <el-option label="全部" :value="undefined" />
             <el-option label="通道" :value="0" />
             <el-option label="分组" :value="1" />
@@ -449,18 +427,8 @@ defineExpose({ fetchData })
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="780px" :close-on-click-modal="false" top="10vh" max-height="80vh">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item v-if="!isEdit" label="类型码">
-          <el-select v-model="typeCode" style="width: 100%" @change="handleTypeChange">
-            <el-option
-              v-for="opt in CHANNEL_TYPE_OPTIONS"
-              :key="opt.value"
-              :label="opt.label"
-              :value="opt.value"
-            />
-          </el-select>
-        </el-form-item>
         <el-form-item label="通道编码" prop="channelId">
-          <el-input v-model="form.channelId" placeholder="通道国标ID（20位）" :disabled="isEdit" />
+          <el-input v-model="form.channelId" placeholder="请输入通道国标编码（20位）" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="通道名称" prop="name">
           <el-input v-model="form.name" placeholder="通道显示名称" />
