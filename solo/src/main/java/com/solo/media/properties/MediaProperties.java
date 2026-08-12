@@ -6,10 +6,10 @@ import org.springframework.stereotype.Component;
 
 /**
  * 流媒体（ZLMediaKit）相关配置，对应 application.yaml 中 media.* 段。
- * <p>
- * 注意 ZLM 是独立部署的（Docker），本服务通过两条通道与之交互：
+ *
+ * <p>注意 ZLM 是独立部署的（Docker），本服务通过两条通道与之交互：</p>
  * <ul>
- *     <li>ZLM REST API（出站）：openRtpServer / closeRtpServer / updateRtpServerSSRC 等</li>
+ *     <li>ZLM REST API（出站）：openRtpServer / closeRtpServer / getMediaList 等</li>
  *     <li>ZLM hook 回调（入站）：on_publish / on_stream_changed / on_server_keepalive 等</li>
  * </ul>
  */
@@ -54,12 +54,6 @@ public class MediaProperties {
     private boolean autoApplyPlay = true;
 
     /**
-     * 按需拉流（streamOnDemand）：开启后，当流长时间没有人观看时，自动关闭流释放资源。
-     * 关闭后流会一直保持推送，不管有没有人看。
-     */
-    private boolean streamOnDemand = true;
-
-    /**
      * 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中
      * stream_push_client 且 enabled=1；未命中或未传 token 一律拒绝。
      * false（默认）=不做任何校验，任何客户端都能往 ZLM 推流（生产环境务必开启）。
@@ -86,8 +80,6 @@ public class MediaProperties {
         private String hostIp = "127.0.0.1";
         private int httpPort = 10005;
         private String secret;
-        private int rtpPortStart = 30000;
-        private int rtpPortEnd = 35000;
         /**
          * 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）；留空则同 hostIp
          */
@@ -97,12 +89,18 @@ public class MediaProperties {
          */
         private int streamHttpPort = 0;
         /**
-         * 对外 RTSP 端口；0 表示不生成 RTSP URL
-         */
-        private int rtspPort = 0;
-        /**
          * 对外 WebRTC 端口；0 表示不生成 WebRTC URL
          */
         private int rtcPort = 0;
+        /**
+         * 多端口 RTP 收流段起始（同步给 ZLM 的 {@code rtp_proxy.port_range}）。
+         * 实际收流时 ZLM 仍由 {@code openRtpServer} 的 port=0 自动分配；该字段仅控制
+         * ZLM 进程级可分配的端口范围，需要与 ZLM 自身启动脚本 / 防火墙放行段一致。
+         */
+        private int rtpPortStart = 30000;
+        /**
+         * 多端口 RTP 收流段结束。语义同 rtpPortStart。
+         */
+        private int rtpPortEnd = 35000;
     }
 }

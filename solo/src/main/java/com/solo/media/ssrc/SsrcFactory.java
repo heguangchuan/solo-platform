@@ -118,12 +118,26 @@ public class SsrcFactory {
         return d + middle + String.format("%04d", slot);
     }
 
-    private static Integer parseSlot(String ssrc) {
+    /**
+     * 解析<b>本平台自己分配的</b> SSRC 的序号槽位；不是本平台分配的一律返回 null。
+     *
+     * <p>必须校验中段（第 2-6 位）与本平台 {@code prefix} 一致：下级级联平台会自报它自己的 SSRC
+     * （如 {@code 0301464943}，中段取自它自己的域），这个值会被写回会话记录，之后清扫时
+     * 照样会调 {@link #release}。若不校验中段就按 {@code substring(6)} 取槽位，
+     * 会把一个从未分配过、甚至正被其它流占用的槽位错误清零，
+     * 后续 {@link #acquire} 就会发出重复 SSRC。</p>
+     */
+    private Integer parseSlot(String ssrc) {
         if (ssrc == null || ssrc.length() != 10) {
             return null;
         }
+        String p = prefix;
+        if (p == null || p.length() != 6 || !ssrc.regionMatches(1, p, 1, 5)) {
+            return null; // 非本平台命名空间（下级自定义 SSRC）
+        }
         try {
-            return Integer.parseInt(ssrc.substring(6));
+            int slot = Integer.parseInt(ssrc.substring(6));
+            return (slot >= 1 && slot <= SLOT_COUNT) ? slot : null;
         } catch (NumberFormatException e) {
             return null;
         }

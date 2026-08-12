@@ -56,89 +56,80 @@ logging:
     # 排查 SIP 报文请改用 gb28181.sip-message-log.*（走 com.solo logger，不需要动这里）。
     gov.nist: warn
 
-# GB/T 28181 国标平台配置
-gb28181: # 是否启用国标服务
+# ============================================================
+#  GB/T 28181 国标平台配置
+#  原则：可能需要部署改的字段都保留，值由代码默认/部署覆盖；
+#  只有"代码自动算"的（线程池）才不留。
+# ============================================================
+gb28181:
+  # 总开关：true 启动 SIP 监听 / 业务线程池 / 目录同步等所有国标能力
+  # 代码默认 false，留空等于关掉整个国标模块
   enabled: true
-  # SIP 监听 IP，留空表示监听所有网卡；公网/多网卡部署时建议填设备能访问到的 IP
+
+  # SIP 监听 IP；无代码默认，必填
   ip: ${project.ip}
-  # SIP 监听端口
+  # SIP 监听端口；代码默认 5060，本项目用 15060 避开公共端口
   port: 15060
-  # 本平台 SIP ID（20 位，前 10 位行政区划编码 + 后 10 位平台编号）
+
+  # 本平台 SIP ID（20 位：行政区划 10 位 + 平台编号 10 位），无代码默认
   id: 60000000042000000028
-  # 本平台 SIP 域（一般是行政区划编码 + 4 位 0000）
+  # 本平台 SIP 域（一般是行政区划 + 4 位 0000），无代码默认
   domain: 6000000004
-  # 设备注册鉴权密码。留空 = 开放模式（不挑战、不校验）。
-  # 留空时本平台对所有 REGISTER 直接回 200 OK；不推荐公网/多租户环境使用。
-  # 设置后：设备首次 REGISTER → 平台发 401 + Digest challenge（带 realm）；设备二次 REGISTER 带 Authorization → 平台**不校验**摘要，直接 200 OK。
-  # 详见 gb28181.md ADR-022
+
+  # 设备注册鉴权密码。无代码默认；留空 = 开放模式（详见 gb28181.md ADR-022）
   password:
-  # 设备注册有效期（秒）
-  register-expires: 3600
-  # 心跳超时倍数：超过 multiplier × Keepalive 周期未收到心跳即判定离线
-  keepalive-timeout-multiplier: 3
+
 
   # 按业务场景打印 SIP 收发报文全文（含 SDP），默认全关。
-  # 走 com.solo 下的 logger，不需要配合 logging.level.gov.nist。
+  # 走 com.solo 下的 logger，不依赖 logging.level.gov.nist。详见 ADR-024
   sip-message-log:
     # 点播：INVITE / ACK / BYE 及其响应。不区分对端类型（下级平台 / IPC / NVR 全覆盖）
     play: true
 
-  # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏
+  # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏与超时
   cascade:
-    # 每片 Catalog Response 中 <Item> 上限
-    catalog-page-size: 3
-    # 相邻两片 MESSAGE 间的睡眠（毫秒），避免瞬时刷屏
-    catalog-page-interval-ms: 50
+
     # 上级点播 sendRtp 本地发送端口段（需与 media rtp 收流端口段错开、防火墙放行）
     send-rtp-port-start: 50000
     send-rtp-port-end: 60000
-    # 上级点播回 200 OK 后等待 ACK 的超时（毫秒），超时释放并 BYE 上级
-    send-ack-timeout-ms: 60000
 
-  # 目录分片累积调优（10w+ 通道重写后参数）
-  catalog:
-    # 静默超时：连续多少毫秒无新 item → 视为设备发完，partial finalize
-    # idle-finalize-ms: 120000
-    # 强制收尾：完全多少毫秒无任何响应 → sweep 强收
-    # expire-ms: 600000
-    # 滚动缓冲阈值：缓冲达到该条数立即触发批量入库
-    # flush-threshold: 1000
-    # 时间触发 flush 间隔（毫秒）：距上次 flush 超过此值且缓冲非空强制 flush
-    # flush-interval-ms: 2000
-    # 单批入库 SQL 行数（MySQL max_allowed_packet 限制）
-    # batch-size: 500
-    # 丢包容忍：累计收到 >= sumNum * 该比例才清"已不存在通道"
-    # completeness-threshold: 0.95
-  # 目录同步落库专用线程池（独立于业务池，避免阻塞 SIP 分发）
-  catalog-sync-pool:
-    # core-pool-size: 20
-    # max-pool-size: 50
-    # queue-capacity: 5000
 
-# 流媒体（ZLMediaKit）相关配置
+
+# ============================================================
+#  流媒体（ZLMediaKit）相关配置
+#  原则同 gb28181：可能需要部署改的字段都保留。
+# ============================================================
 media:
+  # ZLM hook 回调的鉴权 secret（须与 ZLM config.ini 中 [api].secret 一致）；
+  # solo 收到 hook 后会校验请求中的 secret 字段。未配置时所有 hook 都会被拒，启动期日志会告警
   hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
-  default-server:
-    enabled: true
-    server-id: zlmediakit-local
-    name: 默认节点
-    host-ip: 192.168.1.25
-    http-port: 10005
-    secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
-    rtp-port-start: 30000
-    rtp-port-end: 35000
-    # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC），留空则同 host-ip
-    stream-ip:
-  # 单次点播/回放 INVITE 超时（秒），超时未收到 on_stream_changed 视为失败并回收
-  invite-timeout-seconds: 30
-  record-info-timeout-seconds: 30
-  # PLAYBACK INVITE 等待流就绪超时（秒）
-  playback-timeout-seconds: 30
-  # SSRC 池：国标 SSRC 第 4-8 位取自 SIP 域中段，序号循环 0001-9999
-  ssrc-domain-start: 0
-  # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）
+
+  # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）。
+  # 开启后用户通过播放 URL 访问不存在流时自动补一次 INVITE；关闭则需先点"播放"按钮
   auto-apply-play: true
-  # 按需拉流：无人观看时自动关闭流释放资源；false 则拉起后一直保持推送
-  stream-on-demand: true
-  # 推流鉴权是否启用
+
+  # 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中 stream_push_client；
+  # false=不做任何校验（生产环境务必开启）
   push-auth-enabled: true
+
+  # 启动时若 gb_media_server 表为空则自动 upsert 一个默认 ZLM 节点
+  default-server:
+    # 是否在启动时自动 upsert（测试环境可关掉,生产必开）
+    enabled: true
+    # ZLM 节点唯一标识，必须与 ZLM config.ini 中 [general].mediaServerId 完全一致
+    server-id: zlmediakit-local
+    # 节点显示名（仅用于管理面展示）
+    name: 默认节点
+    # ZLM 管理面 IP（用于 REST API 调用）
+    host-ip: 192.168.1.25
+    # ZLM HTTP API 端口
+    http-port: 10005
+    # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）
+    secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+    # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）。留空则同 host-ip。
+    # 勿与 host-ip 混用：SDP c= 也从此取，需对端可达
+    stream-ip:
+    # 对外 HTTP/WS-FLV/HLS 端口；0 表示与 http-port 一致
+    stream-http-port: 0
+    # 对外 WebRTC 端口；0 表示不生成 WebRTC URL
+    rtc-port: 0

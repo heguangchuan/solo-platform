@@ -13,6 +13,13 @@ import org.springframework.stereotype.Component;
  * 一个默认 ZLM 节点。
  * <p>这样部署只需启动 ZLM + solo 即可完成对接：solo 启动后默认节点已就绪，
  * ZLM hook 进来即可匹配。生产环境一般通过管理面再手工调整 hostIp / streamIp 等字段。</p>
+ *
+ * <p><b>ZLM 的全局配置（hook URL、api.secret、rtp_proxy.port_range 等）不通过本类推送</b>，
+ * 完全由 ZLM 自身的 {@code config.ini} 负责。Solo 不调用 {@code setServerConfig}，
+ * 因为：(1) ZLM 进程级配置应当由 ZLM 自身的配置文件管理，solo 越界修改会与
+ * config.ini 漂移；(2) 与某参考实现不同的是，部署时 config.ini 已经按需
+ * 配置完整（包括所有 hook URL 都指向 solo 的 {@code /api/hook} 路径），
+ * 没必要在 solo 启动时重复推一遍。</p>
  */
 @Slf4j
 @Component
@@ -69,7 +76,6 @@ public class MediaServerBootstrap {
         server.setStreamIp(cfg.getStreamIp() == null || cfg.getStreamIp().isBlank()
                 ? cfg.getHostIp() : cfg.getStreamIp());
         server.setStreamHttpPort(cfg.getStreamHttpPort());
-        server.setRtspPort(cfg.getRtspPort());
         server.setRtcPort(cfg.getRtcPort());
         server.setRtpPortStart(cfg.getRtpPortStart());
         server.setRtpPortEnd(cfg.getRtpPortEnd());

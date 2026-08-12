@@ -4,7 +4,7 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.service.impl.GbInviteSupport;
+import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.utils.SipUtils;
 import lombok.RequiredArgsConstructor;
@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class GbPtzController {
 
     private final SipCommander sipCommander;
-    private final GbInviteSupport support;
+    private final GbDeviceService deviceService;
 
     /**
      * PTZ 控制
@@ -42,7 +42,7 @@ public class GbPtzController {
                                 @RequestParam String command,
                                 @RequestParam(defaultValue = "100") int speed,
                                 @RequestParam(defaultValue = "5") int zoomSpeed) {
-        GbDevice device = support.device(deviceId);
+        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
             throw new ServiceException("设备不存在: " + deviceId);
         }

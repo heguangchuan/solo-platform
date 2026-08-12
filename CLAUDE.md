@@ -81,9 +81,9 @@ utils/         SipUtils、XmlUtils（含海康 `&` 和 `<Address` 兼容）、Di
 - **所有 `gb_*` 表都不建 `FOREIGN KEY`**，跟主库一致（ADR-011）。跨表引用用 `device_db_id` 这类逻辑字段。
 - **日志前缀走业务语义**，不用类名。按 `gb28181.md` §4 的分类表用（`[设备注册]`、`[协议栈]`、`[消息分发]`、`[实时点播]`、`[流媒体]` ……）。新增领域时同步扩展那张表。
 
-流媒体接入：SIP `INVITE` 流程先经 `media/ssrc/SsrcFactory` 分配 SSRC（按 ZLM 节点分桶），调 `media/client/ZlmRestClient.openRtpServer`，发 INVITE，等 ZLM 的 `on_stream_changed` Hook（`media/hook/ZlmHookController`）确认流就绪，然后用 `MediaUrlBuilder` 组装 HTTP-FLV / WS-FLV / HLS / WebRTC 播放地址返回。按需拉流（`gb28181.media.stream-on-demand`）在无人观看时自动回收；自动点播（`auto-apply-play`）在播放地址被访问但流不存在时自动补一次 INVITE。
+流媒体接入：SIP `INVITE` 流程先经 `media/ssrc/SsrcFactory` 分配 SSRC（按 ZLM 节点分桶），调 `media/client/ZlmRestClient.openRtpServer`（多端口模式：每路流独占一个 RTP 端口、ZLM 不按 SSRC 过滤，详见 gb28181.md ADR-025），发 INVITE，等 ZLM 的 `on_stream_changed` Hook（`media/hook/ZlmHookController`）确认流就绪，然后用 `MediaUrlBuilder` 组装 HTTP-FLV / WS-FLV / HLS / WebRTC 播放地址返回。自动点播（`media.auto-apply-play`）在播放地址被访问但流不存在时自动补一次 INVITE。
 
-`application.yaml` 是运行时配置的唯一源：`gb28181.*` 段管 SIP 身份 / 计时器，`gb28181.media.*` 段管 ZLM 节点 / 点播超时 / SSRC / 录制开关。
+`application.yaml` 是运行时配置的唯一源：`gb28181.*` 段管 SIP 身份 / 计时器，`media.*` 段管 ZLM 节点 / 点播超时 / SSRC。
 
 ## 前端要点
 

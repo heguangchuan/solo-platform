@@ -31,7 +31,6 @@ import java.util.Map;
  * <ul>
  *     <li>{@code openRtpServer}        — 申请 RTP 收流端口（国标 INVITE）</li>
  *     <li>{@code closeRtpServer}       — 关闭 RTP 收流端口</li>
- *     <li>{@code updateRtpServerSSRC}  — 修改已开启 RTP 端口的 SSRC 过滤值（S2.2 SSRC 自适应）</li>
  *     <li>{@code getMediaList}         — 查询流是否还活着</li>
  *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
  *     <li>{@code addStreamProxy}       — 让 ZLM 从 RTSP/RTMP 源拉流（ONVIF 点播）</li>
@@ -58,17 +57,20 @@ public class ZlmRestClient {
     /**
      * 打开一个 RTP 收流端口
      *
+     * <p>本平台固定<b>多端口</b>收流，每路流独占一个 RTP 端口，靠端口即可唯一定位流，
+     * 因此<b>不下发 {@code ssrc} 参数</b>——ZLM 收下该端口上的任意 SSRC。
+     * 下级级联平台普遍自报 SSRC、无视上级 INVITE 里给的值，按 SSRC 过滤会直接把包丢掉。
+     * 详见 ADR-025。</p>
+     *
      * @param server   节点
-     * @param streamId ZLM stream 名（约定 app=rtp、stream=<deviceId>_<channelId>，传完整 stream 部分即可）
-     * @param ssrc     10 位十进制 SSRC
+     * @param streamId ZLM stream 名（约定 app=rtp、stream=&lt;deviceId&gt;_&lt;channelId&gt;，传完整 stream 部分即可）
      * @param tcpMode  0=UDP，1=TCP-passive，2=TCP-active
-     * @param port     0=自动分配（推荐），>0=指定端口
+     * @param port     0=自动分配（推荐），&gt;0=指定端口
      * @return ZLM 实际分配的端口
      */
-    public int openRtpServer(MediaServer server, String streamId, String ssrc, int tcpMode, int port) {
+    public int openRtpServer(MediaServer server, String streamId, int tcpMode, int port) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
-        params.put("ssrc", ssrc);
         params.put("tcp_mode", String.valueOf(tcpMode));
         params.put("port", String.valueOf(port));
         JsonNode resp = post(server, "openRtpServer", params);
@@ -76,8 +78,8 @@ public class ZlmRestClient {
         if (actualPort <= 0) {
             throw new ServiceException("ZLM openRtpServer 未返回有效端口: " + resp);
         }
-        log.info("[流媒体] openRtpServer ok server={} stream={} ssrc={} port={}",
-                server.getServerId(), streamId, ssrc, actualPort);
+        log.info("[流媒体] openRtpServer ok server={} stream={} port={}（不按 SSRC 过滤）",
+                server.getServerId(), streamId, actualPort);
         return actualPort;
     }
 
@@ -98,30 +100,6 @@ public class ZlmRestClient {
         } catch (ServiceException e) {
             log.warn("[流媒体] closeRtpServer 失败（忽略） server={} stream={} err={}",
                     server.getServerId(), streamId, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * 更新已开启的 RTP 收流端口的 SSRC 过滤值
-     * <p>用于 INVITE 200 OK 中设备自报 SSRC 与本平台分配 SSRC 不一致的场景：
-     * 改 ZLM 内置过滤值，让 ZLM 接受设备实际用的 SSRC。</p>
-     *
-     * @param newSsrc 设备返回的 SSRC（10 位十进制）
-     * @return true=ZLM 已更新；false=ZLM 拒绝/异常
-     */
-    public boolean updateRtpServerSSRC(MediaServer server, String streamId, String newSsrc) {
-        Map<String, String> params = new LinkedHashMap<>();
-        params.put("stream_id", streamId);
-        params.put("ssrc", newSsrc);
-        try {
-            post(server, "updateRtpServerSSRC", params);
-            log.info("[流媒体] updateRtpServerSSRC ok server={} stream={} ssrc={}",
-                    server.getServerId(), streamId, newSsrc);
-            return true;
-        } catch (ServiceException e) {
-            log.warn("[流媒体] updateRtpServerSSRC 失败 server={} stream={} ssrc={} err={}",
-                    server.getServerId(), streamId, newSsrc, e.getMessage());
             return false;
         }
     }
@@ -343,6 +321,27 @@ public class ZlmRestClient {
         } catch (ServiceException e) {
             log.warn("[流媒体] stopSendRtp 失败（忽略） server={} app={} stream={} err={}",
                     server.getServerId(), app, stream, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 推送 ZLM 全局配置（hook URL、api.secret、rtp_proxy.port_range 等）
+     * <p>对应 ZLM {@code /index/api/setServerConfig} 接口。调用时机由调用方决定：
+     * 一般在默认节点 ready 之后调一次，把 solo 的 hook URL 写到 ZLM 全局配置里，
+     * 后续 ZLM 推流 / RTP 收流等所有事件都会按这个 URL 回调 solo。</p>
+     *
+     * @param params 键值对，所有 key 必须带 ZLM 配置前缀（如 {@code api.secret}、{@code hook.on_stream_changed}）。
+     *               内部会把 {@code secret} 合并进 body，不需要调用方再传。
+     * @return true=ZLM 接受（code=0），false=ZLM 拒绝或网络异常
+     */
+    public boolean setServerConfig(MediaServer server, Map<String, String> params) {
+        try {
+            post(server, "setServerConfig", params);
+            log.info("[流媒体] setServerConfig ok server={} keys={}", server.getServerId(), params.size());
+            return true;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] setServerConfig 失败 server={} err={}", server.getServerId(), e.getMessage());
             return false;
         }
     }
