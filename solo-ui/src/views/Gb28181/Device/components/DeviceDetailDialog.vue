@@ -55,7 +55,6 @@ defineExpose({ open })
       <el-descriptions-item label="信令域名">{{ detail.sipDomain || '—' }}</el-descriptions-item>
       <el-descriptions-item label="字符编码">{{ detail.charset || '—' }}</el-descriptions-item>
       <el-descriptions-item label="注册有效">{{ detail.expires ? detail.expires + ' 秒' : '—' }}</el-descriptions-item>
-      <el-descriptions-item label="通道总数">{{ detail.channelCount ?? '—' }}</el-descriptions-item>
       <el-descriptions-item label="最近注册">{{ detail.registerTime || '—' }}</el-descriptions-item>
       <el-descriptions-item label="最近心跳">{{ detail.keepaliveTime || '—' }}</el-descriptions-item>
       <el-descriptions-item label="目录同步">{{ detail.lastCatalogSyncTime || '—' }}</el-descriptions-item>

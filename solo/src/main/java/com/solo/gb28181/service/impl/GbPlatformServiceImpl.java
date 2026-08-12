@@ -63,7 +63,6 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         vo.setId(platform.getId());
         vo.setPlatformId(platform.getPlatformId());
         vo.setName(platform.getName());
-        vo.setReason(platform.getReason());
         vo.setEnabled(platform.getEnabled());
 
         vo.setCreateTime(platform.getCreateTime());
@@ -77,7 +76,6 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         if (device != null) {
             vo.setStatus(device.getStatus());
             vo.setKeepaliveTime(device.getKeepaliveTime());
-            vo.setChannelCount(device.getChannelCount());
         }
         return vo;
     }
@@ -101,8 +99,8 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         }
         save(platform);
         evictBlockedCache();
-        log.info("[接入禁用] 新增禁用名单: deviceId={} enabled={} reason={}",
-                platform.getPlatformId(), platform.getEnabled(), platform.getReason());
+        log.info("[接入禁用] 新增禁用名单: deviceId={} enabled={}",
+                platform.getPlatformId(), platform.getEnabled());
     }
 
     @Override
@@ -113,7 +111,6 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
         }
         // platformId 不可改（要换 ID 就删了重加，避免"改一下就绕过拦截"的误操作）
         exist.setName(platform.getName());
-        exist.setReason(platform.getReason());
         exist.setEnabled(platform.getEnabled());
 
         updateById(exist);

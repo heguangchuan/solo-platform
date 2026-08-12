@@ -87,7 +87,6 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             // 设备通告空目录：清理并记录 lastCatalogSyncTime
             channelService.deleteByDeviceId(device.getDeviceId());
             device.setLastCatalogSyncTime(java.time.LocalDateTime.now());
-            device.setChannelCount(0);
             deviceService.updateById(device);
             // 通知进度服务收尾（防前端等不到完成态）
             cache.finalize(buildIdleContextForEmpty(device.getDeviceId(), sn, sumNum),

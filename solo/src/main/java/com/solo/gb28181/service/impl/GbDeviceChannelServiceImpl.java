@@ -119,13 +119,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // <ParentID> 就是设备自己的 DeviceID），也与 CatalogSyncSupport 孤儿回落规则统一
         channel.setParentId(device.getDeviceId());
         save(channel);
-        // 更新设备通道计数
-        long count = lambdaQuery()
-                .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
-                .eq(GbDeviceChannel::getParental, 0)
-                .count();
-        device.setChannelCount((int) count);
-        deviceMapper.updateById(device);
         log.info("[通道新增] 系统手动新增通道: device={} channel={}", device.getDeviceId(), channel.getChannelId());
     }
 
@@ -156,31 +149,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     public void deleteById(Long id) {
         GbDeviceChannel channel = getById(id);
         if (channel == null) return;
-        String deviceId = channel.getDeviceId();
         removeById(id);
         log.info("[通道删除] id={}", id);
-        // 更新设备通道计数
-        if (deviceId != null) {
-            long count = lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, deviceId)
-                    .eq(GbDeviceChannel::getParental, 0)
-                    .count();
-            GbDevice device = deviceMapper.selectOne(
-                    new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
-            if (device != null) {
-                device.setChannelCount((int) count);
-                deviceMapper.updateById(device);
-            }
-            // 删除后若该设备名下已无任何通道，连同设备一起删除（这个逻辑保留）
-            boolean hasOther = lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, deviceId)
-                    .eq(GbDeviceChannel::getParental, 0)
-                    .exists();
-            if (!hasOther) {
-                deviceMapper.deleteById(device.getId());
-                log.info("[通道删除] 设备已无通道，连同删除设备: deviceId={}", deviceId);
-            }
-        }
+
     }
 
     @Override
@@ -233,32 +204,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (channels.isEmpty()) {
             return;
         }
-        // 按 deviceId 分组，方便后续更新计数
-        var channelsByDeviceId = channels.stream()
-                .filter(ch -> ch.getDeviceId() != null)
-                .collect(Collectors.groupingBy(GbDeviceChannel::getDeviceId));
         // 批量删除
         removeByIds(ids);
         log.info("[通道批量删除] 删除 {} 条通道", ids.size());
-        // 更新每个设备的通道计数，若设备已无通道则删除设备
-        for (var entry : channelsByDeviceId.entrySet()) {
-            String deviceId = entry.getKey();
-            long count = lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, deviceId)
-                    .eq(GbDeviceChannel::getParental, 0)
-                    .count();
-            GbDevice device = deviceMapper.selectOne(
-                    new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
-            if (device != null) {
-                device.setChannelCount((int) count);
-                deviceMapper.updateById(device);
-                // 若该设备名下已无任何通道，连同设备一起删除
-                if (count == 0) {
-                    deviceMapper.deleteById(device.getId());
-                    log.info("[通道批量删除] 设备已无通道，连同删除设备: deviceId={}", deviceId);
-                }
-            }
-        }
     }
 
 }
