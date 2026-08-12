@@ -46,7 +46,6 @@ public class GbPtzPresetController {
     }
 
     @PostMapping("/call/{id}")
-    @RequirePermission({"gb28181:ptz:preset:call"})
     public Result<Void> call(@PathVariable Long id) {
         presetService.call(id);
         return Result.success();

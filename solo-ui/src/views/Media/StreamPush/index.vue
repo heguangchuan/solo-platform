@@ -276,7 +276,6 @@ onMounted(() => {
               </el-tooltip>
               <el-tooltip content="强制中止">
                 <el-button
-                  v-permission="'media:stream-push:stop'"
                   type="warning"
                   link
                   :icon="CircleClose"

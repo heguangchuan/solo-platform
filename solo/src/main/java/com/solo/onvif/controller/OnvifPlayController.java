@@ -1,6 +1,5 @@
 package com.solo.onvif.controller;
 
-import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.onvif.request.OnvifPlayStartRequest;
 import com.solo.onvif.request.OnvifPlayStopRequest;
@@ -23,13 +22,11 @@ public class OnvifPlayController {
     private final OnvifPlayService onvifPlayService;
 
     @PostMapping("/start")
-    @RequirePermission({"onvif:play:start"})
     public Result<OnvifPlayResultResponse> start(@RequestBody OnvifPlayStartRequest req) {
         return Result.success(onvifPlayService.start(req));
     }
 
     @PostMapping("/stop")
-    @RequirePermission({"onvif:play:stop"})
     public Result<Void> stop(@RequestBody OnvifPlayStopRequest req) {
         onvifPlayService.stop(req);
         return Result.success();

@@ -254,7 +254,7 @@ defineExpose({ open })
               </template>
               <template #default="{ row }">
                 <el-tooltip content="调用">
-                  <el-button v-permission="'gb28181:ptz:preset:call'" type="primary" link :icon="Aim" @click="handleCall(row)" />
+                  <el-button type="primary" link :icon="Aim" @click="handleCall(row)" />
                 </el-tooltip>
                 <el-tooltip content="编辑">
                   <el-button v-permission="'gb28181:ptz:preset:edit'" type="primary" link :icon="Edit" @click="handleEdit(row)" />
