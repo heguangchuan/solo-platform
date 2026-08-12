@@ -12,6 +12,7 @@ import com.solo.gb28181.service.CatalogShareService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbParentPlatformService;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.transmit.cmd.PlatformSipHeaderProvider;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
@@ -41,7 +42,7 @@ import java.util.List;
  *   <li><strong>推流腿</strong>：取流就绪后用 ZLM {@code startSendRtp} 把 srcStream 推到上级 SDP 给的 ip/port/ssrc。</li>
  * </ol>
  *
- * <p>SSRC 策略：直接用上级 SDP 的 {@code y=} 值（与 WVP 默认一致），不自行分配。</p>
+ * <p>SSRC 策略：直接用上级 SDP 的 {@code y=} 值（顺从上级指定，见 ADR-019 决策 3），不自行分配。</p>
  * <p>推流触发时机：UDP / TCP 被动（本平台主动去连上级）在收到上级 ACK 后 {@code startSendRtp}；
  * TCP 主动（上级来连本平台）在回 200 OK 后立即 {@code startSendRtpPassive} 开监听。</p>
  */
@@ -59,7 +60,7 @@ public class CascadeSendService {
     private final GbInviteSessionService inviteSessionService;
     private final GbParentPlatformService gbParentPlatformService;
     private final GbPlayService playService;
-    private final GbInviteSupport support;
+    private final GbInviteSessionCleanupService support;
     private final ZlmRestClient zlmRestClient;
     private final MediaServerService mediaServerService;
     private final PlatformSipHeaderProvider headerProvider;

@@ -35,6 +35,17 @@ public final class SdpBuilder {
     }
 
     /**
+     * 把上层传入的传输方式字符串归一成 {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE}
+     * / {@link #TRANSPORT_TCP_ACTIVE} 之一；空值/未知值回落到 UDP。
+     */
+    public static String normalizeTransport(String t) {
+        if (t == null || t.isBlank()) return TRANSPORT_UDP;
+        if (TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(t)) return TRANSPORT_TCP_PASSIVE;
+        if (TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(t)) return TRANSPORT_TCP_ACTIVE;
+        return TRANSPORT_UDP;
+    }
+
+    /**
      * 构造实时点播 SDP body（{@code s=Play}, {@code t=0 0}）
      *
      * @param platformId 本平台 SIP ID（用于 o= 行 username）

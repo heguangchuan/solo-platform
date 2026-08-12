@@ -94,8 +94,7 @@ public class Gb28181Properties {
     /**
      * Catalog 分片累积调优（下级/平台设备的 Catalog 响应处理用）。
      * <p>设备通告的 SumNum 在协议层无"完成"信号，平台只能靠启发式判断何时收尾：
-     * 静默超时（无新 item）→ partial finalize，保留已收数据；完全无响应（expire）→ 强制收尾，
-     * 防止内存堆积。这两个阈值在大目录（4w+ 条）场景下需要放宽。</p>
+     * 完全无响应（expire）→ 强制收尾，防止 4w+ 大目录慢流时内存堆积。</p>
      */
     private Catalog catalog = new Catalog();
 
@@ -114,7 +113,7 @@ public class Gb28181Properties {
 
         /**
          * Catalog 响应分片大小：每包 XML 中 &lt;Item&gt; 数量上限。
-         * <p>过大易触发上级 SIP MSG 长度限制或 UDP 分片，过小徒增交互次数；WVP 默认 3-5，本项目取 3。</p>
+         * <p>过大易触发上级 SIP MSG 长度限制或 UDP 分片，过小徒增交互次数；主流开源国标平台默认 3-5，本项目取 3。</p>
          */
         private int catalogPageSize = 3;
 
@@ -144,25 +143,16 @@ public class Gb28181Properties {
     /**
      * Catalog 分片累积调优。
      * <p>设备响应 Catalog 时按 SumNum 分多个 MESSAGE 报文分批送回，平台无法从协议层判定"已发完"，
-     * 这两个阈值用来兜底：</p>
-     * <ul>
-     *   <li>{@link #idleFinalizeMs}：连续多少毫秒无新 item 进入累加 → 视为设备发完，已有数据 partial 落库</li>
-     *   <li>{@link #expireMs}：完全多少毫秒无任何响应（含空响应）→ 强制收尾，防止 4w+ 大目录慢流时内存堆积</li>
-     * </ul>
-     * <p>默认值按 4w+ 大目录场景调宽：120s / 600s。普通小目录通常 10s 内收齐，根本走不到这些路径。</p>
+     * {@link #expireMs} 用来兜底——完全多少毫秒无任何响应（含空响应）→ 强制收尾，
+     * 防止 4w+ 大目录慢流时内存堆积。其余几项是"边收边落"的刷盘策略。普通小目录通常 10s 内收齐，
+     * 根本走不到 expireMs 这条路径。</p>
      */
     @Data
     public static class Catalog {
 
         /**
-         * 静默超时：连续多少毫秒无新 item → 视为设备发完，partial finalize。
-         * <p>设备发完不发结束信号（GB28181 协议没这个字段），本参数用"长时间没新 item"做兜底。</p>
-         */
-        private long idleFinalizeMs = 120_000L;
-
-        /**
          * 强制收尾：完全多少毫秒无任何响应 → sweep 路径 partial finalize，释放内存。
-         * <p>兜底 idleFinalizeMs 失败的情况（如设备发了 item 后彻底失联但 lastNonEmptyUpdateMs 没刷）。</p>
+         * <p>4w+ 大目录 + 慢设备场景下兜底用，普通 1k 通道规模无需调整。默认 600s（10 分钟）。</p>
          */
         private long expireMs = 600_000L;
 
@@ -178,18 +168,18 @@ public class Gb28181Properties {
          * 时间触发 flush 间隔（毫秒）。距上次 flush 超过此间隔且缓冲非空，强制 flush 一次。
          * <p>解决"设备发包慢（每分片 0-1 个 item）+ flushThreshold 较大 → 进度条长期不动"
          * 问题：每 N 毫秒即便缓冲未达阈值也触发 flush，让前端进度能持续滚动。
-         * 太小 → 频繁空 flush 浪费 DB；太大 → 进度条更新卡顿。默认 2000。</p>
+         * 太小 → 频繁空 flush 浪费 DB；太大 → 进度条更新卡顿。默认 5000。</p>
          */
         private long flushIntervalMs = 5000L;
 
         /**
          * 单批入库 SQL 的行数上限。MySQL 单条 INSERT 行数受 max_allowed_packet 限制，
-         * 500-1000 行是安全区间。flush 缓冲 ≥ 该值时分片入库，每片独立执行 upsert SQL。</p>
+         * 500-1000 行是安全区间。flush 缓冲 ≥ 该值时分片入库，每片独立执行 upsert SQL。
          */
         private int batchSize = 500;
 
         /**
-         * 丢包容忍：只有累计收到 ≥ sumNum * 阈值比例时，才删"已不存在的通道"（清空设备目录）；
+         * 丢包容忍：只有累计收到 ≥ sumNum × 阈值比例时，才删"已不存在的通道"（清空设备目录）；
          * 低于此比例说明 UDP 丢包或中途超时，保留已入库数据等下次 sync 补齐。
          * <p>默认 0.95：5% 缺失容忍。</p>
          */

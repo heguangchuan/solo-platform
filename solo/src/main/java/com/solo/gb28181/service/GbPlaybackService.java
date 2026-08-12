@@ -58,8 +58,8 @@ public interface GbPlaybackService {
 
     /**
      * INVITE 收到 2xx 时由 {@code InviteResponseProcessor} 调用（按 sessionType 路由到这里）。
-     * <p>语义同 {@link GbPlayService#onInviteOk}：设备返回的 SSRC 与本地不一致时
-     * 调 ZLM {@code updateRtpServerSSRC} 自适应，失败则发 BYE 主动放弃。</p>
+     * <p>语义同 {@link GbPlayService#onInviteOk}：对端返回的 SSRC 与本地不一致时，
+     * 只把会话记录同步成对端实际值（不按 SSRC 过滤收流，见 ADR-025）。</p>
      */
     void onInviteOk(String callId, String remoteSsrc);
 

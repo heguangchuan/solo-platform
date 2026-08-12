@@ -37,9 +37,9 @@ public interface GbPlayService {
     /**
      * INVITE 收到 2xx 时由 {@link com.solo.gb28181.processor.response.InviteResponseProcessor} 调用。
      *
-     * <p>主要做 <strong>SSRC 自适应</strong>：远端 SDP 里 {@code y=} 与本平台分配的 SSRC 不一致时，
-     * 调 ZLM {@code updateRtpServerSSRC} 把节点过滤值切到设备实际用的 SSRC；
-     * 切换失败则发 BYE 主动终止，避免设备一直推一个 ZLM 收不下的流。</p>
+     * <p>处理远端 SDP 里 {@code y=} 与本平台分配的 SSRC 不一致的情况（下级级联平台普遍自报 SSRC）：
+     * 本平台固定多端口收流、<b>不按 SSRC 过滤</b>，任意 SSRC 都能收下，因此这里只把会话记录里的
+     * SSRC 同步成远端实际在用的值，保持库内与现网一致。取舍理由见 gb28181.md ADR-025。</p>
      *
      * @param callId    INVITE Dialog Call-Id（按它反查会话）
      * @param remoteSsrc 200 OK SDP 中 {@code y=} 行解析出的 SSRC；为 null 表示设备没回 y=

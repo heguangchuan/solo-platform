@@ -114,13 +114,15 @@ public class SipCommander {
      * @param channelId  通道国标 ID
      * @param sdpBody    SDP 报文（由 {@link SdpBuilder} 生成，码流标识已写入其 a= 行）
      * @param ssrc       10 位 SSRC
+     * @param rtpPort    ZLM 实际分配的多端口收流端口（写到日志便于排查，
+     *                   也与下级平台在 200 OK SDP 里看到的 m= 端口一致）
      * @param callId     调用方持有的 Call-Id（保存到 invite session）
      * @param fromTag    调用方持有的 from-tag（保存到 invite session）
      * @param onOk       2xx 回调；通常用于解析 200 OK 中真实 SSRC（业务确认）
      * @param onError    非 2xx 回调
      * @param timeoutMs  订阅超时（毫秒）
      */
-    public void sendInvite(GbDevice device, String channelId, String sdpBody, String ssrc,
+    public void sendInvite(GbDevice device, String channelId, String sdpBody, String ssrc, int rtpPort,
                            CallIdHeader callId, String fromTag,
                            Consumer<ResponseEvent> onOk,
                            Consumer<ResponseEvent> onError,
@@ -128,8 +130,8 @@ public class SipCommander {
         try {
             Request request = headerProvider.buildInviteRequest(device, channelId, sdpBody, ssrc, callId, fromTag);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, timeoutMs);
-            log.info("[实时点播] INVITE → deviceId={} channelId={} ssrc={} callId={}",
-                    device.getDeviceId(), channelId, ssrc, callId.getCallId());
+            log.info("[实时点播] INVITE → 设备:{} 通道:{} ssrc:{} 收流端口:{} callId:{}",
+                    device.getDeviceId(), channelId, ssrc, rtpPort, callId.getCallId());
         } catch (Exception e) {
             log.error("[实时点播] INVITE 发送失败 deviceId={} channelId={}",
                     device.getDeviceId(), channelId, e);

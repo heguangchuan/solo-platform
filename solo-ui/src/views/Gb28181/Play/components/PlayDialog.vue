@@ -26,7 +26,7 @@ const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
 /**
  * 码流档位：value 即发给后端的码流 token，后端原样写进 INVite 的 SDP `a=<token>` 行（如 a=streamnumber:1），
  * 设备据此选主/子码流；streamId 后缀则用冒号转下划线的归一值。主码流传空串（不写 a= 行、兼容回放）。
- * 各厂商 / 国标平台写法不一（对齐 WVP GbSteamIdentification），这里把主流写法列出，按真机点选。
+ * 各厂商 / 国标平台写法不一（对齐主流开源国标平台的码流标识枚举），这里把主流写法列出，按真机点选。
  * 当前无通道码流元数据，故前端写死。
  */
 const STREAMS = [
