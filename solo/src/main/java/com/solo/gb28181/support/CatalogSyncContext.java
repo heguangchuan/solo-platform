@@ -18,8 +18,8 @@ import java.util.concurrent.locks.ReentrantLock;
  * <h3>线程模型</h3>
  * <ul>
  *   <li>{@link #lock} 保护缓冲（{@code itemBuffer}）的拷贝+清空复合操作，
- *       与 mediaserver 那种"Collections.synchronizedList + ArrayList copy" 的非原子
- *       缺陷解耦——这里所有缓冲写都走 lock。</li>
+ *       用 lock 把这两步做成原子——比 {@code Collections.synchronizedList + ArrayList copy}
+ *       的非原子拼接稳，避免"读快照后又来一批被丢掉"这类竞态。</li>
  *   <li>累计计数 {@link #totalReceived} 用 {@link AtomicLong} 累加，独立于缓冲清空，进度上报不丢。</li>
  *   <li>收尾标志 {@link #done} 一旦置位，{@code accumulate} 后续直接放行（无操作），避免重入。</li>
  * </ul>

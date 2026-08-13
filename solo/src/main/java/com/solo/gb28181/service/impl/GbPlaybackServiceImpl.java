@@ -366,9 +366,16 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         }
 
         String body;
+        boolean needRtpGate = false;  // pause / resume 还要顺手打 ZLM 收流开关
         switch (req.getAction()) {
-            case "pause" -> body = RtspControlBuilder.pause();
-            case "resume" -> body = RtspControlBuilder.resume();
+            case "pause" -> {
+                body = RtspControlBuilder.pause();
+                needRtpGate = true;
+            }
+            case "resume" -> {
+                body = RtspControlBuilder.resume();
+                needRtpGate = true;
+            }
             case "seek" -> {
                 long sec = parseLong(req.getParam(), -1);
                 if (sec < 0) throw new ServiceException("seek 参数不合法: " + req.getParam());
@@ -379,6 +386,23 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
                 body = RtspControlBuilder.scale(speed);
             }
             default -> throw new ServiceException("不支持的 action: " + req.getAction());
+        }
+        // 暂停/恢复：先打 ZLM 收流开关（不依赖设备 MANSRTSP 响应），再发 SIP INFO 通知设备。
+        // 顺序：ZLM 先 → MANSRTSP 后，这样设备如果响应慢，ZLM 这边已经就绪
+        // （pause: ZLM 立刻停收，MANSRTSP 是"礼貌通知"；resume: ZLM 立刻允许收，等设备恢复推送）
+        if (needRtpGate) {
+            MediaServer server = mediaServerService.lambdaQuery()
+                    .eq(MediaServer::getServerId, session.getServerId()).one();
+            if (server != null) {
+                if ("pause".equals(req.getAction())) {
+                    zlmRestClient.pauseRtpServer(server, session.getStreamId());
+                } else {
+                    zlmRestClient.resumeRtpServer(server, session.getStreamId());
+                }
+            } else {
+                log.warn("[回放控制] 节点已不在表内，跳过 ZLM 收流开关 stream={} serverId={}",
+                        session.getStreamId(), session.getServerId());
+            }
         }
         sipCommander.sendInfo(device, session, body);
         log.info("[回放控制] action={} param={} stream={}", req.getAction(), req.getParam(), req.getStreamId());
