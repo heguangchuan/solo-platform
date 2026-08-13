@@ -3,6 +3,7 @@
  * 纯 HTTP 轮询 GET /sync-status，每 2s 由弹窗主动拉一次。
  */
 import { defineStore } from 'pinia'
+import { ref } from 'vue'
 import { getDeviceSyncStatusApi, parseSyncStatus } from '@/api/gb28181'
 import type { GbSyncStatus } from '@/types/api'
 
