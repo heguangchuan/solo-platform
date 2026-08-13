@@ -64,11 +64,13 @@ public final class SdpBuilder {
      *
      * @param startEpochSec 回放起始 Unix 秒
      * @param endEpochSec   回放结束 Unix 秒
+     * @param streamNumber  码流 token（主码流传 null/空，子码流原样写进 {@code a=<token>}；与点播共用一套写法）
      */
     public static String buildPlayback(String platformId, String sdpIp, int rtpPort, String ssrc,
-                                       String transport, long startEpochSec, long endEpochSec) {
+                                       String transport, long startEpochSec, long endEpochSec,
+                                       String streamNumber) {
         return buildInternal("Playback", platformId, sdpIp, rtpPort, ssrc, transport,
-                startEpochSec, endEpochSec, null, null);
+                startEpochSec, endEpochSec, null, streamNumber);
     }
 
     /**

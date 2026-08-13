@@ -212,9 +212,15 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
 
         MediaServer server = mediaServerSelector.pick();
         String transport = SdpBuilder.normalizeTransport(req.getTransport());
-        // streamId 带时间段后缀，避免不同时段并发回放同一通道冲突
+        // 码流 token：主码流（空白）→ null；子码流 → 冒号换下划线用于拼 streamId，原值另存用于 SDP a= 行
+        String streamNumber = req.getStreamNumber();
+        String streamNumberForId = (streamNumber == null || streamNumber.isBlank())
+                ? null : streamNumber.trim().replace(":", "_");
+        // streamId 带时间段 + 码流后缀，避免同通道同时段并发回放、或切换主/子码流时冲突
+        // 一行表达式内拼完，streamId 才能保持 effectively final（下面的 sendInvite lambda 要捕获它）
         String streamId = req.getDeviceId() + "_" + req.getChannelId()
-                + "_" + startDt.format(COMPACT_FMT) + "_" + endDt.format(COMPACT_FMT);
+                + "_" + startDt.format(COMPACT_FMT) + "_" + endDt.format(COMPACT_FMT)
+                + (streamNumberForId == null ? "" : "_" + streamNumberForId);
 
         // 同 streamId 已存在 → 复用 / 拒绝
         GbInviteSession exist = inviteSessionService.getByStreamId(streamId);
@@ -272,7 +278,8 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                     ? server.getStreamIp() : server.getHostIp();
             String sdpBody = SdpBuilder.buildPlayback(sipProperties.getId(), sdpIp, rtpPort, ssrc,
-                    transport, startEpoch, endEpoch);
+                    transport, startEpoch, endEpoch,
+                    (streamNumber == null || streamNumber.isBlank()) ? null : streamNumber.trim());
             long inviteTimeoutMs = Math.max(5_000L, mediaProperties.getPlaybackTimeoutSeconds() * 1000L);
 
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, rtpPort, callIdHeader, fromTag,
@@ -517,6 +524,8 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         vo.setSsrc(session.getSsrc());
         vo.setRtpPort(session.getRtpPort());
         vo.setTransport(session.getTransport());
+        // streamNumber 不回填：码流 token 已编进 streamId 末段，前端只用本地 currentStream 作 UI 回显
+        // （多下划线 token 拆出来并不可靠；保持 null 比给出错误值更安全）
         vo.setFlvUrl(session.getFlvUrl());
         vo.setWsFlvUrl(session.getWsFlvUrl());
         vo.setHlsUrl(session.getHlsUrl());
