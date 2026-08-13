@@ -81,11 +81,6 @@ const emit = defineEmits<{
   refresh: []
   /** 云台控制：direction 为方向/动作，pressing=true 开始、false 停止 */
   ptz: [direction: string, pressing: boolean]
-  /**
-   * 播放位置更新（毫秒）。jessibuca 的 timeUpdate 事件不带时间戳，只有自播放起的累计 ms；
-   * 用于回放场景驱动 UI 进度条（实时点播不订阅）。
-   */
-  'time-update': [ms: number]
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -216,17 +211,6 @@ function ensurePlayer() {
   })
   player.on('timeout', () => emit('timeout'))
   player.on('loadingTimeout', () => emit('timeout'))
-  // 播放位置更新（毫秒），回放进度条用
-  player.on('timeUpdate', () => {
-    try {
-      const ts = (player as JessibucaInstance & { getCurrentTime?: () => number }).getCurrentTime?.()
-      if (typeof ts === 'number' && Number.isFinite(ts) && ts >= 0) {
-        emit('time-update', ts)
-      }
-    } catch {
-      /* jessibuca 实例未就绪时忽略 */
-    }
-  })
   player.on('videoInfo', (data: unknown) => {
     videoInfo.value = data as { width: number; height: number }
   })

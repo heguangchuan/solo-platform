@@ -49,14 +49,15 @@ const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 const paused = ref(false)
 const speed = ref(1)
 const speedOptions = [0.25, 0.5, 1, 2, 4]
-/** 进度条当前显示值（v-model 双向绑定），外部 timeUpdate 推它、用户拖动也推它 */
+/**
+ * 进度条当前位置（v-model 双向绑定，**只跟用户拖动**有关）：
+ * - 拖动中：随拖动实时变化（视觉反馈）
+ * - 松手：发 seek 请求，sliderValue 即目标位置
+ * - 设备响应后：滑块不动
+ * - 鼠标移上去会显示时间（el-slider show-tooltip 默认 true），用来"看某位置对应的时间"
+ * - **不接入任何自动推进**（timeUpdate 不接、setInterval 也不开）
+ */
 const sliderValue = ref(0)
-/** 用户正在拖动时锁住 timeUpdate 推过来的值，避免把拖到一半的滑块拽回去 */
-const userDragging = ref(false)
-/** 拖动后的目标位置（handleSeek 设进去做兜底，设备响应后被 time-update 覆盖） */
-const seekSec = ref(0)
-/** 实际播放位置（Jessibuca timeUpdate → @time-update → ms / 1000），UI 进度条以它为基准 */
-const currentTimeSec = ref(0)
 const durationSec = ref(0)
 
 /**
@@ -111,37 +112,16 @@ function resetPlayState() {
   currentRecord.value = null
   paused.value = false
   speed.value = 1
-  seekSec.value = 0
-  currentTimeSec.value = 0
   sliderValue.value = 0
-  userDragging.value = false
   durationSec.value = 0
   // 每次开弹窗回到默认：码流 / 收流模式是临时偏好，关弹窗重置
   transport.value = 'TCP-passive'
   currentStream.value = ''
 }
 
-/** Jessibuca 抛上来的播放位置（毫秒），转秒后推进进度条 */
-function onTimeUpdate(ms: number) {
-  const sec = Math.floor(ms / 1000)
-  currentTimeSec.value = sec
-  // 用户在拖时不抢滑块；松手后下一个 timeUpdate 会追上真实位置
-  if (!userDragging.value) {
-    sliderValue.value = sec
-  }
-}
-
-/** 拖动过程中实时推 sliderValue，松手才发 seek 请求 */
-function onSliderInput(v: number | number[]) {
-  userDragging.value = true
-  sliderValue.value = Array.isArray(v) ? v[0] : v
-}
-
-/** 松手 → 发 seek；userDragging 解锁 */
+/** 松手发 seek（v-model 已经把 sliderValue 推到目标位置） */
 function onSliderChange(v: number | number[]) {
   const sec = Array.isArray(v) ? v[0] : v
-  sliderValue.value = sec
-  userDragging.value = false
   handleSeek(sec)
 }
 
@@ -206,10 +186,7 @@ async function handlePlayRecord(row: RecordItemResponse) {
     })
     streamInfo.value = res.data
     durationSec.value = res.data.durationSec || 0
-    seekSec.value = 0
-    currentTimeSec.value = 0
     sliderValue.value = 0
-    userDragging.value = false
     paused.value = false
     speed.value = 1
     statusText.value = ''
@@ -298,11 +275,7 @@ async function handleSpeed(v: number) {
 
 async function handleSeek(v: number) {
   if (!streamInfo.value?.streamId) return
-  // 立刻把进度条拨到目标位置，掩盖设备响应 + 网络往返的延迟；
-  // 设备真到位置后，下一个 timeUpdate 事件会覆盖回实际值
-  seekSec.value = v
-  currentTimeSec.value = v
-  sliderValue.value = v
+  // 滑块位置已被 v-model 自动更新，这里只发请求
   try {
     await playbackControlApi({
       streamId: streamInfo.value.streamId,
@@ -420,21 +393,19 @@ defineExpose({ open })
           @refresh="handleRefresh"
           @switch-stream="handleSwitchStream"
           @switch-transport="handleSwitchTransport"
-          @time-update="onTimeUpdate"
         />
 
         <div v-if="playing" class="control-bar">
-          <!-- 进度条单独一行：上方是时间轴，下方是操作按钮组 -->
+          <!-- 进度条单独一行：上方是时间轴（仅用户拖动控制，不接入 timeUpdate），下方是操作按钮组 -->
           <div class="seek-row">
             <el-slider
               v-model="sliderValue"
               :max="durationSec || 1"
               :format-tooltip="fmtDuration"
               size="small"
-              @input="onSliderInput"
               @change="onSliderChange"
             />
-            <span class="time-label">{{ fmtDuration(currentTimeSec) }} / {{ fmtDuration(durationSec) }}</span>
+            <span class="time-label">{{ fmtDuration(sliderValue) }} / {{ fmtDuration(durationSec) }}</span>
           </div>
           <div class="action-row">
             <el-tooltip :content="paused ? '继续' : '暂停'">

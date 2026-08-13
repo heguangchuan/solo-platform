@@ -17,8 +17,6 @@ export interface JessibucaInstance {
   destroy(): void
   clearView(): void
   hasLoaded(): boolean
-  /** 自播放起的累计位置（毫秒） */
-  getCurrentTime?(): number
   on(event: string, cb: (...args: unknown[]) => void): void
 }
 
