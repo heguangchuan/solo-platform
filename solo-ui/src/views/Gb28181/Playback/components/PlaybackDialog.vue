@@ -118,29 +118,9 @@ function fmtIso(iso?: string): string {
   return iso.replace('T', ' ')
 }
 
-/**
- * 录像类型文案：GB/T 28181 的 <Type> 取值是英文枚举，直接显示会看到 time / alarm 这种原始值。
- * 未知取值原样展示，便于遇到厂商私有值时排查。
- */
-const RECORD_TYPE_TEXT: Record<string, string> = {
-  time: '定时',
-  alarm: '报警',
-  manual: '手动',
-  all: '全部',
-}
-function recordTypeText(type?: string): string {
-  if (!type) return ''
-  return RECORD_TYPE_TEXT[type.toLowerCase()] ?? type
-}
-
-/** 录像段日期（yyyy-MM-dd），同一天的段落只在头部显示一次 */
-function recDate(iso?: string): string {
-  return fmtIso(iso).slice(0, 10)
-}
-
-/** 录像段时间（HH:mm:ss） */
+/** 录像段时间（MM-DD HH:mm:ss），开始结束都带月日，跨不跨天都一样 */
 function recClock(iso?: string): string {
-  return fmtIso(iso).slice(11, 19)
+  return fmtIso(iso).slice(5, 19)
 }
 
 async function handlePlayRecord(row: RecordItemResponse) {
@@ -306,20 +286,16 @@ defineExpose({ open })
         </div>
         <el-scrollbar class="record-list" v-loading="querying">
           <div
-            v-for="(rec, idx) in records"
-            :key="idx"
+            v-for="rec in records"
+            :key="rec.startTime + rec.endTime"
             class="record-item"
             :class="{ active: currentRecord === rec }"
             @click="handlePlayRecord(rec)"
           >
-            <div class="rec-date">{{ recDate(rec.startTime) }}</div>
             <div class="rec-range">
               <span class="rec-clock">{{ recClock(rec.startTime) }}</span>
               <span class="rec-tilde">~</span>
               <span class="rec-clock">{{ recClock(rec.endTime) }}</span>
-              <el-tag v-if="rec.type" size="small" type="info" class="rec-type">
-                {{ recordTypeText(rec.type) }}
-              </el-tag>
             </div>
           </div>
           <el-empty v-if="!querying && records.length === 0" description="无录像" :image-size="60" />
@@ -372,7 +348,7 @@ defineExpose({ open })
   height: 520px;
 }
 .record-side {
-  width: 300px;
+  width: 250px;
   display: flex;
   flex-direction: column;
   border-right: 1px solid #ebeef5;
@@ -401,30 +377,22 @@ defineExpose({ open })
   border-color: #409eff;
   background: #ecf5ff;
 }
-.rec-date {
-  font-size: 12px;
-  color: #909399;
-  line-height: 1.4;
-}
 .rec-range {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-top: 2px;
+  flex-wrap: nowrap;
 }
 .rec-clock {
   font-size: 14px;
   font-weight: 500;
   color: #303133;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .rec-tilde {
   font-size: 12px;
   color: #c0c4cc;
-}
-.rec-type {
-  margin-left: auto;
-  flex-shrink: 0;
 }
 .player-side {
   flex: 1;
