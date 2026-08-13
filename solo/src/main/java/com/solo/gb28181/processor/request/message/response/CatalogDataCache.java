@@ -120,6 +120,9 @@ public class CatalogDataCache {
     public boolean accumulate(CatalogSyncContext ctx, List<GbDeviceChannel> items) {
         if (ctx == null) return false;
         int added = 0;
+        // 复用 INFO 节流节奏在锁外发"中间进度"事件——之前只在 finalize 里发，
+        // 导致 10w+ 通道场景下 DB 已经入库上万条但前端进度条一直卡在 0/0。
+        boolean publishProgress = false;
         ctx.lock.lock();
         try {
             // 已被 cancel 标记 done：直接放行（不写缓冲、不触发 flush、不再 sumNum 收齐判定）
@@ -160,6 +163,8 @@ public class CatalogDataCache {
                         ctx.itemBuffer.size());
                 ctx.lastLogTotalReceived.set(total);
                 ctx.lastLogMs.set(now);
+                // 同节奏推中间进度：让前端进度条在 sumNum 收齐前也能持续滚动
+                publishProgress = true;
             }
 
             // 阈值触发 → flush
@@ -174,6 +179,14 @@ public class CatalogDataCache {
             }
         } finally {
             ctx.lock.unlock();
+        }
+        // 锁外推中间进度：避免 Redis IO 拖住缓冲锁；与 finalize 的"锁外发事件"保持一致
+        if (publishProgress) {
+            try {
+                eventPublisher.publishEvent(ctx.buildProgressEvent());
+            } catch (Exception e) {
+                log.warn("[通道目录] 推送中间进度失败 deviceId={} err={}", ctx.deviceId, e.getMessage());
+            }
         }
         // 收齐判定：累计 ≥ sumNum → 提交 final flush（不阻塞调用线程）
         if (ctx.sumNum > 0 && ctx.totalReceived.get() >= ctx.sumNum) {

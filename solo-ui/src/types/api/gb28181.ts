@@ -1,7 +1,7 @@
 /** GB/T 28181 国标模块相关类型 */
 import type { PageRequest } from './common'
 
-/** Catalog 同步进度（来自 GET /sync-status 或 WebSocket GB_SYNC_PROGRESS 推送） */
+/** Catalog 同步进度（来自 GET /sync-status） */
 export interface GbSyncStatus {
   deviceId: string
   /** IDLE / RUNNING / SUCCESS / FAILED */

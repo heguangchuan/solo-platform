@@ -2,7 +2,7 @@
 /**
  * 设备通道目录同步进度弹窗
  * <p>父组件持有 ref，调 {@code open(deviceId, deviceName)} 打开。
- * 内部订阅 WebSocket GB_SYNC_PROGRESS 实时更新进度；<b>同步中也允许关闭弹窗</b>
+ * 内部每 2s 轮询 GET /sync-status 拿最新进度；<b>同步中也允许关闭弹窗</b>
  * ——关闭只是不再看进度，后端同步继续跑，重新打开可接着看。</p>
  */
 import { ref, computed, onUnmounted, watch } from 'vue'
@@ -70,7 +70,6 @@ function open(id: string, name?: string) {
   visible.value = true
   notified.value = false
   status.value = null
-  syncStore.init()
   void syncStore.fetch(id).then(() => {
     status.value = syncStore.get(id) ?? null
   })
@@ -81,7 +80,7 @@ let pollTimer: number | null = null
 
 function startPoll() {
   stopPoll()
-  // WebSocket 没推到时的兜底：每 2s 拉一次 HTTP
+  // 每 2s 拉一次 HTTP，server 端约 5s 更新一次 Redis
   pollTimer = window.setInterval(() => {
     if (!visible.value) {
       stopPoll()
@@ -100,7 +99,7 @@ function stopPoll() {
   }
 }
 
-// 订阅 store 变化（WebSocket / HTTP 轮询都会写进来）
+// 订阅 store 变化（HTTP 轮询写进来）
 watch(
   () => syncStore.statusByDevice[deviceId.value],
   (v) => {
