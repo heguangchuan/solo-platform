@@ -71,9 +71,12 @@ public final class RtspControlBuilder {
 
     /**
      * SCALE：变速，正常 = 1.0，慢放 0.25/0.5，快放 2/4/8
+     * <p>必须配 {@code Range: npt=now-}：海康/大华/宇视等设备收到单发 SCALE（无 Range）会忽略或解释成"从头按新倍速播"，
+     * 加上 {@code npt=now-} 才表示"从当前位置以新倍速继续"。</p>
      * <pre>
      * PLAY RTSP/1.0
      * CSeq: 712345681
+     * Range: npt=now-
      * Scale: 2.000000
      * </pre>
      */
@@ -81,6 +84,7 @@ public final class RtspControlBuilder {
         // 强制 Locale.US：避免 zh_CN 默认 locale 输出 "1,000000" 被设备拒绝
         return "PLAY RTSP/1.0\r\n"
                 + "CSeq: " + nextCseq() + "\r\n"
+                + "Range: npt=now-\r\n"
                 + "Scale: " + String.format(Locale.US, "%.6f", speed) + "\r\n\r\n";
     }
 
