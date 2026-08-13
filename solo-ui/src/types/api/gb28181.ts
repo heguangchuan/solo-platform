@@ -336,7 +336,10 @@ export interface PlaybackStartRequest {
   /** yyyy-MM-dd HH:mm:ss */
   startTime: string
   endTime: string
-  transport?: 'UDP' | 'TCP-passive'
+  /** 收流模式，默认 UDP */
+  transport?: 'UDP' | 'TCP-passive' | 'TCP-active'
+  /** 码流 token：空/不传主码流，非空子码流（如 '1' / 'stream:sub'） */
+  streamNumber?: string
 }
 
 /** 停止回放请求 */

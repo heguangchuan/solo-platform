@@ -11,6 +11,8 @@
  * </ol>
  *
  * <p>播放器复用 {@link JessibucaPlayer}；流媒体协议跟点播一致（WS-FLV）。</p>
+ *
+ * <p>与点播对齐：可切换主/子码流 + 收流模式（UDP / TCP-passive / TCP-active）。</p>
  */
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -50,6 +52,29 @@ const speedOptions = [0.25, 0.5, 1, 2, 4]
 const seekSec = ref(0)
 const durationSec = ref(0)
 
+/**
+ * 码流档位：value 即发给后端的码流 token，后端原样写进 INVITE 的 SDP {@code a=<token>} 行（如 a=streamnumber:1）。
+ * 设备据此选主/子码流做回放；空串 = 主码流（不写 a= 行）。
+ * 与点播 {@code PlayDialog} 共用一套写法（厂商 / 国标平台写法不一，前端写死枚举透传）。
+ */
+const STREAMS = [
+  { label: '主码流', value: '' },
+  { label: '子码流 (streamnumber:1)', value: 'streamnumber:1' },
+  { label: '主码流 (streamnumber:0)', value: 'streamnumber:0' },
+  { label: '子码流 (stream:1)', value: 'stream:1' },
+  { label: '主码流 (stream:0)', value: 'stream:0' },
+  { label: '子码流 (streamprofile:1)', value: 'streamprofile:1' },
+  { label: '主码流 (streamprofile:0)', value: 'streamprofile:0' },
+  { label: '子码流 (streamMode:sub)', value: 'streamMode:sub' },
+  { label: '主码流 (streamMode:main)', value: 'streamMode:main' },
+  { label: '子码流 (1)', value: '1' },
+  { label: '子码流 (sub)', value: 'sub' },
+]
+const currentStream = ref('')
+
+/** 收流模式：默认 TCP-passive（与点播对齐；UDP 在很多 NVR 上回放会丢包 / 不通） */
+const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
+
 function defaultRange(): [string, string] {
   const now = new Date()
   const pad = (n: number) => String(n).padStart(2, '0')
@@ -81,6 +106,9 @@ function resetPlayState() {
   speed.value = 1
   seekSec.value = 0
   durationSec.value = 0
+  // 每次开弹窗回到默认：码流 / 收流模式是临时偏好，关弹窗重置
+  transport.value = 'TCP-passive'
+  currentStream.value = ''
 }
 
 // ============ 查询 ============
@@ -124,7 +152,8 @@ function recClock(iso?: string): string {
 }
 
 async function handlePlayRecord(row: RecordItemResponse) {
-  // 切换录像段前先停掉当前会话
+  // 切换录像段 / 码流 / 收流模式 / 刷新都走这里：先停旧会话再起新的。
+  // streamId 已带码流 token 后缀，主/子切换是两条独立 ZLM 流，旧流不冲突。
   await stopBackend(true)
   playerRef.value?.stop()
 
@@ -138,6 +167,8 @@ async function handlePlayRecord(row: RecordItemResponse) {
       channelId: channelIdRef.value,
       startTime: fmtIso(row.startTime),
       endTime: fmtIso(row.endTime),
+      transport: transport.value,
+      streamNumber: currentStream.value,
     })
     streamInfo.value = res.data
     durationSec.value = res.data.durationSec || 0
@@ -159,6 +190,28 @@ async function handlePlayRecord(row: RecordItemResponse) {
   } finally {
     loadingPlay.value = false
   }
+}
+
+/** 码流切换：复用已选录像段，streamNumber 变 → 后端 streamId 变 → 新的 ZLM 流 */
+async function handleSwitchStream(next: string) {
+  if (next === currentStream.value) return
+  if (!currentRecord.value) return
+  currentStream.value = next
+  await handlePlayRecord(currentRecord.value)
+}
+
+/** 收流模式切换：复用已选录像段，停旧起新 */
+async function handleSwitchTransport(next: 'UDP' | 'TCP-passive' | 'TCP-active') {
+  if (next === transport.value) return
+  if (!currentRecord.value) return
+  transport.value = next
+  await handlePlayRecord(currentRecord.value)
+}
+
+/** 工具栏"刷新"：复用当前录像段 / 码流 / 模式，停旧起新 */
+async function handleRefresh() {
+  if (!currentRecord.value) return
+  await handlePlayRecord(currentRecord.value)
 }
 
 function pickUrl(info: PlaybackResultVO): string | undefined {
@@ -311,8 +364,14 @@ defineExpose({ open })
           ref="playerRef"
           height="420px"
           :video-buffer="0.3"
+          :streams="STREAMS"
+          :current-stream="currentStream"
+          :transport="transport"
           @error="errorText = $event"
           @stream-end="onStreamEnd"
+          @refresh="handleRefresh"
+          @switch-stream="handleSwitchStream"
+          @switch-transport="handleSwitchTransport"
         />
 
         <div v-if="playing" class="control-bar">
