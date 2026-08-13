@@ -49,7 +49,14 @@ const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 const paused = ref(false)
 const speed = ref(1)
 const speedOptions = [0.25, 0.5, 1, 2, 4]
+/** 进度条当前显示值（v-model 双向绑定），外部 timeUpdate 推它、用户拖动也推它 */
+const sliderValue = ref(0)
+/** 用户正在拖动时锁住 timeUpdate 推过来的值，避免把拖到一半的滑块拽回去 */
+const userDragging = ref(false)
+/** 拖动后的目标位置（handleSeek 设进去做兜底，设备响应后被 time-update 覆盖） */
 const seekSec = ref(0)
+/** 实际播放位置（Jessibuca timeUpdate → @time-update → ms / 1000），UI 进度条以它为基准 */
+const currentTimeSec = ref(0)
 const durationSec = ref(0)
 
 /**
@@ -105,10 +112,37 @@ function resetPlayState() {
   paused.value = false
   speed.value = 1
   seekSec.value = 0
+  currentTimeSec.value = 0
+  sliderValue.value = 0
+  userDragging.value = false
   durationSec.value = 0
   // 每次开弹窗回到默认：码流 / 收流模式是临时偏好，关弹窗重置
   transport.value = 'TCP-passive'
   currentStream.value = ''
+}
+
+/** Jessibuca 抛上来的播放位置（毫秒），转秒后推进进度条 */
+function onTimeUpdate(ms: number) {
+  const sec = Math.floor(ms / 1000)
+  currentTimeSec.value = sec
+  // 用户在拖时不抢滑块；松手后下一个 timeUpdate 会追上真实位置
+  if (!userDragging.value) {
+    sliderValue.value = sec
+  }
+}
+
+/** 拖动过程中实时推 sliderValue，松手才发 seek 请求 */
+function onSliderInput(v: number | number[]) {
+  userDragging.value = true
+  sliderValue.value = Array.isArray(v) ? v[0] : v
+}
+
+/** 松手 → 发 seek；userDragging 解锁 */
+function onSliderChange(v: number | number[]) {
+  const sec = Array.isArray(v) ? v[0] : v
+  sliderValue.value = sec
+  userDragging.value = false
+  handleSeek(sec)
 }
 
 // ============ 查询 ============
@@ -173,6 +207,9 @@ async function handlePlayRecord(row: RecordItemResponse) {
     streamInfo.value = res.data
     durationSec.value = res.data.durationSec || 0
     seekSec.value = 0
+    currentTimeSec.value = 0
+    sliderValue.value = 0
+    userDragging.value = false
     paused.value = false
     speed.value = 1
     statusText.value = ''
@@ -225,14 +262,21 @@ function pickUrl(info: PlaybackResultVO): string | undefined {
 
 async function togglePause() {
   if (!streamInfo.value?.streamId) return
+  // 区分新动作：当前 paused → 下一步是 resume；当前未 paused → 下一步是 pause
+  const nextAction = paused.value ? 'resume' : 'pause'
   try {
     await playbackControlApi({
       streamId: streamInfo.value.streamId,
-      action: paused.value ? 'resume' : 'pause',
+      action: nextAction,
     })
     paused.value = !paused.value
-    // 客户端播放器同步暂停/继续
-    if (paused.value) playerRef.value?.pause()
+    // 本地播放器同步：pause → 冻住 jessibuca 缓冲；resume → 解冻重渲
+    // （不调这一对儿的话：暂停后再点恢复，设备就算真发了新 RTP，jessibuca 也只继续渲暂停那一刻的最后一帧）
+    if (paused.value) {
+      playerRef.value?.pause()
+    } else {
+      playerRef.value?.resume()
+    }
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   }
@@ -254,13 +298,17 @@ async function handleSpeed(v: number) {
 
 async function handleSeek(v: number) {
   if (!streamInfo.value?.streamId) return
+  // 立刻把进度条拨到目标位置，掩盖设备响应 + 网络往返的延迟；
+  // 设备真到位置后，下一个 timeUpdate 事件会覆盖回实际值
+  seekSec.value = v
+  currentTimeSec.value = v
+  sliderValue.value = v
   try {
     await playbackControlApi({
       streamId: streamInfo.value.streamId,
       action: 'seek',
       param: String(Math.floor(v)),
     })
-    seekSec.value = v
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : String(e))
   }
@@ -372,23 +420,30 @@ defineExpose({ open })
           @refresh="handleRefresh"
           @switch-stream="handleSwitchStream"
           @switch-transport="handleSwitchTransport"
+          @time-update="onTimeUpdate"
         />
 
         <div v-if="playing" class="control-bar">
-          <el-button :icon="paused ? VideoPlay : VideoPause" circle size="small" @click="togglePause" />
-          <span class="ctrl-label">倍速</span>
-          <el-radio-group :model-value="speed" size="small" @change="handleSpeed">
-            <el-radio-button v-for="s in speedOptions" :key="s" :value="s">{{ s }}x</el-radio-button>
-          </el-radio-group>
-          <div class="seek-wrap">
+          <!-- 进度条单独一行：上方是时间轴，下方是操作按钮组 -->
+          <div class="seek-row">
             <el-slider
-              :model-value="seekSec"
+              v-model="sliderValue"
               :max="durationSec || 1"
               :format-tooltip="fmtDuration"
               size="small"
-              @change="handleSeek"
+              @input="onSliderInput"
+              @change="onSliderChange"
             />
-            <span class="duration">{{ fmtDuration(durationSec) }}</span>
+            <span class="time-label">{{ fmtDuration(currentTimeSec) }} / {{ fmtDuration(durationSec) }}</span>
+          </div>
+          <div class="action-row">
+            <el-tooltip :content="paused ? '继续' : '暂停'">
+              <el-button :icon="paused ? VideoPlay : VideoPause" circle size="small" @click="togglePause" />
+            </el-tooltip>
+            <span class="ctrl-label">倍速</span>
+            <el-radio-group :model-value="speed" size="small" @change="handleSpeed">
+              <el-radio-button v-for="s in speedOptions" :key="s" :value="s">{{ s }}x</el-radio-button>
+            </el-radio-group>
           </div>
         </div>
       </div>
@@ -475,27 +530,32 @@ defineExpose({ open })
 }
 .control-bar {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 6px;
   margin-top: 12px;
 }
-.ctrl-label {
-  font-size: 13px;
-  color: #606266;
-}
-.seek-wrap {
-  flex: 1;
+.seek-row {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
-.seek-wrap :deep(.el-slider) {
+.seek-row :deep(.el-slider) {
   flex: 1;
 }
-.duration {
+.time-label {
   font-size: 12px;
   color: #909399;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ctrl-label {
+  font-size: 13px;
+  color: #606266;
 }
 </style>

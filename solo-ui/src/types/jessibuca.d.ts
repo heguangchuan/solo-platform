@@ -11,11 +11,14 @@ declare global {
 
 /** jessibuca 实例最小可用接口（按需扩展） */
 export interface JessibucaInstance {
-  play(url: string): void
+  /** 传 url = 拉新流；不传 = 从本地暂停态恢复（resume） */
+  play(url?: string): void
   pause(): void
   destroy(): void
   clearView(): void
   hasLoaded(): boolean
+  /** 自播放起的累计位置（毫秒） */
+  getCurrentTime?(): number
   on(event: string, cb: (...args: unknown[]) => void): void
 }
 
