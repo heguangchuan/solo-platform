@@ -179,6 +179,49 @@ public class ZlmRestClient {
     }
 
     /**
+     * 暂停 ZLM 端 RTP 收流（不向设备发任何 SIP 报文，纯 ZLM 侧停收）。
+     * <p>用于历史回放 pause 场景：MANSRTSP PAUSE 设备不响应时，靠这个让 ZLM 立刻停收，
+     * 不依赖设备固件行为。流注册（{@code on_publish} / {@code on_stream_changed}）不会被触发，
+     * 后续 {@link #resumeRtpServer} 可恢复接收同一路 RTP，不需要重新 INVITE。</p>
+     *
+     * @return true=ZLM 接受（code=0）；false=调用失败（异常已捕获，记 WARN，不抛）
+     */
+    public boolean pauseRtpServer(MediaServer server, String streamId) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("stream_id", streamId);
+        try {
+            JsonNode resp = post(server, "pauseRtpServer", params);
+            log.info("[流媒体] pauseRtpServer ok server={} stream={} hit={}",
+                    server.getServerId(), streamId, resp.path("hit").asInt(0));
+            return true;
+        } catch (Exception e) {
+            log.warn("[流媒体] pauseRtpServer 失败 server={} stream={} err={}",
+                    server.getServerId(), streamId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 恢复 ZLM 端 RTP 收流（与 {@link #pauseRtpServer} 配对）。
+     *
+     * @return true=ZLM 接受（code=0）；false=调用失败
+     */
+    public boolean resumeRtpServer(MediaServer server, String streamId) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("stream_id", streamId);
+        try {
+            JsonNode resp = post(server, "resumeRtpServer", params);
+            log.info("[流媒体] resumeRtpServer ok server={} stream={} hit={}",
+                    server.getServerId(), streamId, resp.path("hit").asInt(0));
+            return true;
+        } catch (Exception e) {
+            log.warn("[流媒体] resumeRtpServer 失败 server={} stream={} err={}",
+                    server.getServerId(), streamId, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 让 ZLM 从一个 RTSP/RTMP 源拉流，产出 app/stream 名下的可分发流。
      * <p>ONVIF 点播场景：源是 {@code rtsp://user:pwd@host:port/path}，ZLM 拉起后暴露 HTTP-FLV/HLS/WS-FLV/WebRTC。</p>
      *

@@ -32,7 +32,7 @@ import java.util.SimpleTimeZone;
  *
  * <p>只覆盖设备维护 + 点播需要的 3 个操作：GetDeviceInformation / GetProfiles / GetStreamUri。
  * 用 dom4j + Java 21 HttpClient 手写 SOAP 报文，鉴权走 WS-Security UsernameToken PasswordDigest
- * （ONVIF 规范推荐方式；对齐 mediaserver/OnvifDevice#encryptPassword 但**不复制**它的 javax.xml.soap 手写体）。</p>
+ * （ONVIF 规范推荐方式）。</p>
  *
  * <p><b>不引用</b> {@code lib/onvif-ws-client-1.0.1.jar} 里的 stub：那批 JAX-WS 生成物基于
  * {@code javax.xml.bind}（老 JAXB），与本项目的 Jakarta 生态 + Java 21 有兼容风险，无实际收益。</p>
@@ -173,7 +173,7 @@ public class OnvifClient {
     }
 
     private Element callMedia(String bodyXml, String action) {
-        // 大部分一体机 IPC 把所有 endpoint 都挂在 /onvif/device_service 下，对应 mediaserver 参考实现的做法；
+        // 大部分一体机 IPC 把所有 endpoint 都挂在 /onvif/device_service 下；
         // 更严格的 NVR 会要求走 GetCapabilities 拿到的 media XAddr。当前场景默认走 device_service 更稳。
         return callWithPathFallback(bodyXml, action);
     }

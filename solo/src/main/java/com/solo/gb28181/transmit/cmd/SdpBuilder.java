@@ -2,25 +2,38 @@ package com.solo.gb28181.transmit.cmd;
 
 /**
  * GB28181 INVITE SDP 报文体构造
- * <p>S2.2 范围：仅生成实时点播（{@code s=Play}）所需的最小 SDP；
- * 回放/下载（{@code s=Playback/Download}）后续 Sprint 接入时再扩。</p>
+ * <p>实时点播（{@code s=Play}）/ 历史回放（{@code s=Playback}）/ 录像下载（{@code s=Download}）共用
+ * {@link #buildInternal} 内部构造，仅会话名 / t= / downloadspeed 不同。</p>
  *
  * <h3>SDP 结构（参考 GB/T 28181-2016 附录 G）</h3>
  * <pre>
  * v=0
  * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;
- * s=Play
+ * s=Play / Playback / Download
+ * u=&lt;platformId&gt;:0
  * c=IN IP4 &lt;sdpIp&gt;
- * t=0 0
- * m=video &lt;rtpPort&gt; {RTP/AVP|TCP/RTP/AVP} 96 98 99
+ * t=&lt;startEpoch&gt; &lt;endEpoch&gt;            (Playback/Download 时填回放/下载时段；Play 时 0 0)
+ * m=video &lt;rtpPort&gt; {RTP/AVP|TCP/RTP/AVP} 96 97 98 99
  * a=recvonly
  * a=rtpmap:96 PS/90000
+ * a=rtpmap:97 MPEG4/90000
  * a=rtpmap:98 H264/90000
+ * a=fmtp:98 profile-level-id=42e01e
  * a=rtpmap:99 H265/90000
  * [a=setup:passive\na=connection:new]    -- TCP-passive 时
+ * [a=setup:active\na=connection:new]     -- TCP-active 时
  * [a=&lt;streamNumber&gt;]                     -- 子码流时（如 a=streamnumber:1 / a=stream:1 / a=streamMode:sub）
+ * [a=downloadspeed:N]                    -- Download 时（如 a=downloadspeed:4）
  * y=&lt;ssrc&gt;
  * </pre>
+ *
+ * <h3>为什么 m=video 多了 97 MPEG4、a=fmtp:98 profile-level-id、u= 行</h3>
+ * <p>多厂商 / 老固件 SDP 兼容性补丁：</p>
+ * <ul>
+ *   <li>海康/大华等设备看到 H264 没带 profile-level-id 会回 SDP 重协商，多 1-2 轮 SIP 往返（体感"慢"）
+ *   <li>部分老固件不识别 m=video 只列 96/98/99 三档 → 加 97 MPEG4 给一个备选（不支持的设备按 SDP 规范忽略）
+ *   <li>{@code u=} 会话 URI 多数设备忽略，但少了部分老固件会回 488 Not Acceptable
+ * </ul>
  */
 public final class SdpBuilder {
 
@@ -92,18 +105,25 @@ public final class SdpBuilder {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)
                 || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport);
         boolean tcpActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(transport);
-        StringBuilder sb = new StringBuilder(320);
+        StringBuilder sb = new StringBuilder(380);
         sb.append("v=0\r\n");
         sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
         sb.append("s=").append(sessionName).append("\r\n");
+        // u= 行：会话 URI。多数设备忽略，但少了部分老固件会回 488 重协商。
+        sb.append("u=").append(platformId).append(":0\r\n");
         sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
         sb.append("t=").append(startEpoch).append(' ').append(endEpoch).append("\r\n");
+        // m=video PT 列表：96 PS / 97 MPEG4 / 98 H264 / 99 H265。多了 97 让老固件多一个备选，
+        // 不支持的设备按 SDP 规范忽略、不影响主流程。
         sb.append("m=video ").append(rtpPort).append(' ')
                 .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
-                .append(" 96 98 99\r\n");
+                .append(" 96 97 98 99\r\n");
         sb.append("a=recvonly\r\n");
         sb.append("a=rtpmap:96 PS/90000\r\n");
+        sb.append("a=rtpmap:97 MPEG4/90000\r\n");
         sb.append("a=rtpmap:98 H264/90000\r\n");
+        // H264 profile-level-id：海康/大华等设备必备，缺失会触发 SDP 重协商（多 1-2 轮 SIP 往返）
+        sb.append("a=fmtp:98 profile-level-id=42e01e\r\n");
         sb.append("a=rtpmap:99 H265/90000\r\n");
         if (tcp) {
             sb.append("a=setup:").append(tcpActive ? "active" : "passive").append("\r\n");
