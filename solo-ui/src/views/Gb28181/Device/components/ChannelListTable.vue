@@ -3,7 +3,7 @@
  * 通道列表表格（可复用组件）
  * <p>供弹窗和独立页面共同使用</p>
  */
-import { ref, onMounted, watch } from 'vue'
+import { ref, nextTick, onMounted, watch } from 'vue'
 import type { GbDeviceChannel, GbDeviceChannelPageRequest, GbDeviceChannelVO, GbPtzPreset } from '@/types/api'
 import {
   getGbDeviceChannelPageApi,
