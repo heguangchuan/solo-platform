@@ -81,6 +81,11 @@ const emit = defineEmits<{
   refresh: []
   /** 云台控制：direction 为方向/动作，pressing=true 开始、false 停止 */
   ptz: [direction: string, pressing: boolean]
+  /**
+   * 播放位置更新（毫秒）。jessibuca 的 timeUpdate 事件不带时间戳，只有自播放起的累计 ms；
+   * 用于回放场景驱动 UI 进度条（实时点播不订阅）。
+   */
+  'time-update': [ms: number]
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -211,6 +216,17 @@ function ensurePlayer() {
   })
   player.on('timeout', () => emit('timeout'))
   player.on('loadingTimeout', () => emit('timeout'))
+  // 播放位置更新（毫秒），回放进度条用
+  player.on('timeUpdate', () => {
+    try {
+      const ts = (player as JessibucaInstance & { getCurrentTime?: () => number }).getCurrentTime?.()
+      if (typeof ts === 'number' && Number.isFinite(ts) && ts >= 0) {
+        emit('time-update', ts)
+      }
+    } catch {
+      /* jessibuca 实例未就绪时忽略 */
+    }
+  })
   player.on('videoInfo', (data: unknown) => {
     videoInfo.value = data as { width: number; height: number }
   })
@@ -251,6 +267,14 @@ function pause() {
   player?.pause()
 }
 
+/**
+ * 从本地暂停态恢复（jessibuca play() 不传 url 即可恢复之前缓存的流，不需要重新拉）。
+ * 与 {@link #play} 的区别：本方法不传 url，不会触发重新拉流 / 重新解码。
+ */
+function resume() {
+  player?.play()
+}
+
 function stop() {
   if (!player) return
   try {
@@ -285,7 +309,7 @@ onBeforeUnmount(() => {
   destroy()
 })
 
-defineExpose({ play, pause, stop, destroy })
+defineExpose({ play, pause, resume, stop, destroy })
 
 // ============ 工具栏按钮交互 ============
 
