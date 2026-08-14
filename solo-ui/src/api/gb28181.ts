@@ -6,9 +6,10 @@ import type {
   GbPlatformPageRequest,
   GbParentPlatform,
   GbParentPlatformPageRequest,
-  GbShareTreeNode,
-  GbPlatformSharedIds,
+  GbPlatformGroup,
+  GbPlatformGroupSaveRequest,
   GbDeviceChannel,
+  UnmountedChannelPageRequest,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
   GbMediaServer,
@@ -34,7 +35,7 @@ import type {
   GbSyncStatus,
   GbSyncTriggerResponse,
 } from '@/types/api'
-import { get, post, del } from '@/utils/request'
+import { get, post, put, del } from '@/utils/request'
 
 /**
  * 设备分页
@@ -148,19 +149,39 @@ export function getParentPlatformServerConfigApi() {
   )
 }
 
-/** 获取可共享的资源目录树（分组 + 通道） */
-export function getParentPlatformShareTreeApi() {
-  return get<GbShareTreeNode[]>('/api/gb28181/parent-platform/share-tree')
+/** 拉取某上级平台的推送目录分组树（含 children 嵌套） */
+export function getParentPlatformShareGroupTreeApi(id: string | number) {
+  return get<GbPlatformGroup[]>(`/api/gb28181/parent-platform/${id}/share-group-tree`)
 }
 
-/** 获取某上级平台已共享的目录 / 通道节点 id */
-export function getParentPlatformSharedApi(id: string | number) {
-  return get<GbPlatformSharedIds>(`/api/gb28181/parent-platform/${id}/shared`)
+/** 分页拉取某上级平台下未挂载的通道 */
+export function getParentPlatformUnmountedChannelsApi(
+  id: string | number,
+  data: UnmountedChannelPageRequest
+) {
+  return post<PageResult<GbDeviceChannel>>(
+    `/api/gb28181/parent-platform/${id}/unmounted-channels/page`,
+    data
+  )
 }
 
-/** 全量覆盖保存某上级平台的共享目录 / 通道 */
-export function saveParentPlatformSharedApi(id: string | number, data: GbPlatformSharedIds) {
-  return post<void>(`/api/gb28181/parent-platform/${id}/shared`, data)
+/** 新建某上级平台下的推送分组 */
+export function savePlatformGroupApi(platformId: string | number, data: GbPlatformGroupSaveRequest) {
+  return post<void>(`/api/gb28181/parent-platform/${platformId}/share-group`, data)
+}
+
+/** 改某上级平台下的推送分组 */
+export function updatePlatformGroupApi(
+  platformId: string | number,
+  groupId: string | number,
+  data: GbPlatformGroupSaveRequest
+) {
+  return put<void>(`/api/gb28181/parent-platform/${platformId}/share-group/${groupId}`, data)
+}
+
+/** 删某上级平台下的推送分组 */
+export function deletePlatformGroupApi(platformId: string | number, groupId: string | number) {
+  return del<void>(`/api/gb28181/parent-platform/${platformId}/share-group/${groupId}`)
 }
 
 /**

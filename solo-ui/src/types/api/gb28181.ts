@@ -157,24 +157,40 @@ export interface GbParentPlatformPageRequest {
   enabled?: number
 }
 
-/** 共享目录树节点（通道推送弹窗用）：设备作枝干，分组/通道作叶子 */
+/** 共享目录树节点（老版本，保留兼容：设备作枝干，分组/通道作叶子） */
 export interface GbShareTreeNode {
-  /** 节点唯一键：设备 d_xxx（不可勾选）/ 分组 g_xxx / 通道 c_xxx */
   id: string
-  /** 节点显示标签 */
   label: string
-  /** 节点类型：DEVICE 设备（枝干）/ GROUP 分组（parental=1）/ CHANNEL 通道（parental=0） */
   type: 'DEVICE' | 'GROUP' | 'CHANNEL'
   children?: GbShareTreeNode[]
 }
 
-/** 上级平台已共享的节点 id 集合 */
-export interface GbPlatformSharedIds {
-  /**
-   * 已共享的 catalog item 节点 id（g_ 前缀=分组 parental=1 / c_ 前缀=通道 parental=0），
-   * 前端按前缀渲染勾选态
-   */
-  channelIds: string[]
+/** 上级平台推送目录分组（per-platform 推送树节点）
+ *  对应后端 GbPlatformGroup 实体。children 字段由后端 Service 构树时挂上。 */
+export interface GbPlatformGroup {
+  id: number
+  name: string
+  /** 20 位国标业务码（推送时 XML DeviceID 用） */
+  code: string
+  platformId: number
+  /** 父分组 id（雪花），根节点 = 0 */
+  parentId: number
+  children?: GbPlatformGroup[]
+  createTime?: string
+  updateTime?: string
+}
+
+/** 推送分组新建 / 编辑请求（对应后端 GbPlatformGroupSaveRequest） */
+export interface GbPlatformGroupSaveRequest {
+  name: string
+  code: string
+  parentId: number
+}
+
+/** 推送目录：未挂载通道分页查询参数 */
+export interface UnmountedChannelPageRequest extends PageRequest {
+  /** 名称 / 通道国标编码 模糊匹配 */
+  keyword?: string
 }
 
 /** 通道列表分页查询参数 */
