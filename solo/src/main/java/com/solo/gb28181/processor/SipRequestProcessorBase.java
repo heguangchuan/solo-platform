@@ -13,9 +13,7 @@ import javax.sip.InvalidArgumentException;
 import javax.sip.PeerUnavailableException;
 import javax.sip.SipException;
 import javax.sip.SipFactory;
-import javax.sip.address.SipURI;
 import javax.sip.header.ContentTypeHeader;
-import javax.sip.header.ExpiresHeader;
 import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
@@ -32,8 +30,8 @@ public abstract class SipRequestProcessorBase {
     @Autowired
     protected SipSender sipSender;
 
-    protected static final HeaderFactory HEADER_FACTORY;
-    protected static final MessageFactory MESSAGE_FACTORY;
+    public static final HeaderFactory HEADER_FACTORY;
+    public static final MessageFactory MESSAGE_FACTORY;
 
     static {
         try {

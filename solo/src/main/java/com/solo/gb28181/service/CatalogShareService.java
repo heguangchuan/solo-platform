@@ -46,15 +46,20 @@ public interface CatalogShareService {
     void saveShared(Long platformId, GbPlatformShareSaveRequest request);
 
     /**
-     * 查询某上级平台已共享的所有通道明细（全量，不分组）。
-     * <p>供 S6.b-2 向上级回 Catalog Response 时构造 Item 使用。</p>
+     * 查询某上级平台已共享的目录项（分组 + 通道，ADR-028）。
+     * <p>结果含：① {@code gb_platform_share} 里的通道（{@code parental=0}），带
+     *   {@code exposedCode} 透传；② 这些通道的所有祖先分组（{@code parental=1}），
+     *   沿 {@code parent_id} 链递归上溯得到。分组在前、通道在后，按 {@code channelId}
+     *   二级排序——分片时跨片顺序稳定，上级按 {@code <ParentID>} 引用关系总能解析到。</p>
+     * <p>供 S6.b-2 向上级回 Catalog Response 时构造 Item 使用——既要通道也要它们所在的分组，
+     * 才能向上级表达正确的目录层级。</p>
      */
     List<GbDeviceChannel> loadSharedCatalogItems(Long platformId);
 
     /**
-     * 查询某上级平台已共享的所有通道明细（全量，不分组）。
-     * <p>供上级 INVITE 点播反查真实通道用。本表只存通道，与
-     * {@link #loadSharedCatalogItems} 查询等价，保留双方法是为了调用点语义清晰。</p>
+     * 查询某上级平台已共享的所有通道明细（<b>仅通道</b>，全量）。
+     * <p>供上级 INVITE 点播反查真实通道用。{@link #loadSharedCatalogItems} 含分组，
+     * 本方法只返通道——INVITE 反查按 {@code channelId} 精确匹配，混入分组会误匹配。</p>
      */
     List<GbDeviceChannel> loadSharedChannels(Long platformId);
 

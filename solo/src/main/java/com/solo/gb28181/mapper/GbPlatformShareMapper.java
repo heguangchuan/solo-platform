@@ -26,14 +26,17 @@ import java.util.List;
 public interface GbPlatformShareMapper extends BaseMapper<GbPlatformShare> {
 
     /**
-     * 查询某上级平台已共享的所有通道明细。全量（不分组），供
+     * 查询某上级平台已共享的目录项（分组 + 通道，ADR-028），供
      * CatalogQueryMessageHandler 构造向上级回复的 Catalog Response 使用。
+     * <p>包含共享通道 + 它们的祖先分组（递归 CTE 上溯 parent_id 链），
+     * 排序保证分组在前、跨片顺序稳定。</p>
      */
-    List<GbDeviceChannel> selectSharedCatalogItems(Long platformId);
+    List<GbDeviceChannel> selectSharedCatalogWithGroups(Long platformId);
 
     /**
-     * 查询某上级平台已共享的所有通道明细。全量（不分组），供
-     * CascadeSendService 处理上级 INVITE 时校验共享 + 定位真实通道。
+     * 查询某上级平台已共享的所有通道明细（全量，<b>仅通道</b>）。供
+     * CascadeSendService 处理上级 INVITE 时校验共享 + 定位真实通道——INVITE 反查按
+     * channelId 精确匹配通道，不需要分组。
      */
     List<GbDeviceChannel> selectSharedChannels(Long platformId);
 

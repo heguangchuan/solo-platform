@@ -134,7 +134,9 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
     @Override
     public List<GbDeviceChannel> loadSharedCatalogItems(Long platformId) {
-        return shareMapper.selectSharedCatalogItems(platformId);
+        // ADR-028：返回分组 + 通道。mapper 用递归 CTE 沿 parent_id 链上溯，拿到共享通道的全部祖先分组，
+        // 分组在前 + channelId 二级排序保证跨片顺序稳定。XmlBuilder 已有 parental 分支，无需特殊处理。
+        return shareMapper.selectSharedCatalogWithGroups(platformId);
     }
 
     @Override
