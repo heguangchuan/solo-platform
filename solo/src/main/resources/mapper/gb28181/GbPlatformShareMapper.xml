@@ -49,7 +49,7 @@
                manufacturer, model, owner, civil_code, address,
                safety_way, register_way, secrecy, status,
                ip_address, port, password, ptz_type,
-               longitude, latitude, create_time, update_time, deleted,
+               longitude, latitude, create_time, update_time,
                NULL AS exposed_code
         FROM group_ancestors
         UNION ALL
@@ -57,7 +57,7 @@
                manufacturer, model, owner, civil_code, address,
                safety_way, register_way, secrecy, status,
                ip_address, port, password, ptz_type,
-               longitude, latitude, create_time, update_time, deleted,
+               longitude, latitude, create_time, update_time,
                exposed_code
         FROM shared_channels
         ORDER BY parental DESC, channel_id ASC

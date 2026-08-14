@@ -17,7 +17,6 @@ import {
   updateGbParentPlatformApi,
   deleteGbParentPlatformApi,
   batchDeleteGbParentPlatformApi,
-  getParentPlatformServerConfigApi,
 } from '@/api/gb28181'
 import ShareDirectoryDialog from './ShareDirectoryDialog.vue'
 
@@ -29,11 +28,6 @@ const pageSize = ref(10)
 const selectedRows = ref<GbParentPlatform[]>([])
 
 const searchForm = ref<GbParentPlatformPageRequest>({ page: 1, pageSize: 10 })
-
-// 本平台 SIP 配置（新增时回显为默认值）
-const serverConfig = ref<{ deviceGbId: string; deviceIp: string; devicePort: number; domain: string }>({
-  deviceGbId: '', deviceIp: '', devicePort: 5060, domain: '',
-})
 
 // ---------------- 新增/编辑对话框 ----------------
 const dialogVisible = ref(false)
@@ -50,10 +44,6 @@ function makeEmpty(): Partial<GbParentPlatform> {
     serverGbDomain: '',
     serverIp: '',
     serverPort: 5060,
-    recvIp: '',
-    deviceGbId: '',
-    deviceIp: '',
-    devicePort: 5060,
     username: '',
     password: '',
     expires: 3600,
@@ -86,10 +76,6 @@ const rules = {
   ],
   serverIp: [{ required: true, message: '请输入上级地址 IP', trigger: 'blur' }],
   serverPort: [{ required: true, message: '请输入端口号', trigger: 'blur' }],
-  deviceGbId: [
-    { required: true, message: '请输入本平台国标编号（20位）', trigger: 'blur' },
-    { pattern: /^\d{20}$/, message: '国标编号必须是20位数字', trigger: 'blur' },
-  ],
   password: [{ required: true, message: '请输入认证密码', trigger: 'blur' }],
 }
 
@@ -136,12 +122,7 @@ function handleAdd() {
   isEdit.value = false
   isView.value = false
   dialogTitle.value = '新增上级平台'
-  form.value = {
-    ...makeEmpty(),
-    deviceGbId: serverConfig.value.deviceGbId,
-    deviceIp: serverConfig.value.deviceIp,
-    devicePort: serverConfig.value.devicePort,
-  }
+  form.value = makeEmpty()
   dialogVisible.value = true
   nextTick(() => {
     formRef.value?.clearValidate()
@@ -227,15 +208,9 @@ function handleShare(row: GbParentPlatform) {
   shareVisible.value = true
 }
 
-onMounted(async () => {
-  // 并行加载列表和本平台配置
+onMounted(() => {
+  // 本平台身份（deviceGbId / domain / ip / port）走全局 gb28181.* 配置，per-upper 表不再存（ADR-036）
   fetchData()
-  try {
-    const res = await getParentPlatformServerConfigApi()
-    serverConfig.value = res.data
-  } catch {
-    // 配置获取失败不影响列表展示
-  }
 })
 </script>
 <template>
@@ -325,34 +300,7 @@ onMounted(async () => {
       <div class="dialog-content">
         <el-form ref="formRef" :model="form" :rules="rules" label-width="92px">
 
-          <!-- 第一组：基本信息（自身，disabled 为主，少量填写） -->
-          <div class="form-section">
-            <div class="section-title">基本信息</div>
-            <el-row :gutter="20">
-              <el-col :span="12">
-                <el-form-item label="本地编号" prop="deviceGbId">
-                  <el-input v-model="form.deviceGbId" placeholder="本平台20位国标编号" disabled />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="本地地址">
-                  <el-input v-model="form.deviceIp" placeholder="留空取全局配置IP" disabled />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="本地端口">
-                  <el-input v-model.number="form.devicePort" placeholder="留空取全局配置端口" disabled />
-                </el-form-item>
-              </el-col>
-              <el-col :span="12">
-                <el-form-item label="注册用户" prop="username">
-                  <el-input v-model="form.username" placeholder="默认同本地编号" :disabled="isView" />
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </div>
-
-          <!-- 第二组：上级平台信息（必填，连接目标 + 注册凭据） -->
+          <!-- 第一组：上级平台信息（必填，连接目标 + 注册凭据；本平台身份走全局 gb28181.*，ADR-036） -->
           <div class="form-section">
             <div class="section-title">上级平台信息</div>
             <el-row :gutter="20">
@@ -389,13 +337,21 @@ onMounted(async () => {
             </el-row>
           </div>
 
-          <!-- 第三组：连接配置（其他要填的） -->
+          <!-- 第三组：推送配置（连接 + 目录推送节奏） -->
           <div class="form-section">
-            <div class="section-title">连接配置</div>
+            <div class="section-title">推送配置</div>
             <el-row :gutter="20">
               <el-col :span="12">
-                <el-form-item label="收流地址" prop="recvIp">
-                  <el-input v-model="form.recvIp" placeholder="上级推流的目标 IP" :disabled="isView" />
+                <el-form-item label="目录分片">
+                  <el-select v-model="form.catalogGroup" :disabled="isView" clearable placeholder="默认（走全局配置）">
+                    <el-option
+                      v-for="opt in catalogGroupOptions"
+                      :key="opt.label"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
+                  </el-select>
+                  <div class="form-tip">每次向上级发送目录时单个 SIP 报文携带的通道数。某些品牌上级 &gt; 8 会拒收，可单独配小档位；留空走全局默认。</div>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -414,7 +370,7 @@ onMounted(async () => {
               </el-col>
               <el-col :span="12">
                 <el-form-item label="传输协议">
-                  <el-select v-model="form.transport" :disabled="isView" style="width: 100%">
+                  <el-select v-model="form.transport" :disabled="isView">
                     <el-option label="UDP" value="UDP" />
                     <el-option label="TCP" value="TCP" />
                   </el-select>
@@ -422,7 +378,7 @@ onMounted(async () => {
               </el-col>
               <el-col :span="12">
                 <el-form-item label="字符编码">
-                  <el-select v-model="form.characterSet" :disabled="isView" style="width: 100%">
+                  <el-select v-model="form.characterSet" :disabled="isView">
                     <el-option label="GB2312" value="GB2312" />
                     <el-option label="UTF-8" value="UTF-8" />
                   </el-select>
@@ -430,30 +386,10 @@ onMounted(async () => {
               </el-col>
               <el-col :span="12">
                 <el-form-item label="是否启用">
-                  <el-select v-model="form.enabled" :disabled="isView" style="width: 100%">
+                  <el-select v-model="form.enabled" :disabled="isView">
                     <el-option label="启用" :value="1" />
                     <el-option label="禁用" :value="0" />
                   </el-select>
-                </el-form-item>
-              </el-col>
-            </el-row>
-          </div>
-
-          <!-- 第四组：推送配置（per-platform 推送节奏，ADR-027） -->
-          <div class="form-section">
-            <div class="section-title">推送配置</div>
-            <el-row :gutter="20">
-              <el-col :span="24">
-                <el-form-item label="目录分片">
-                  <el-select v-model="form.catalogGroup" :disabled="isView" style="width: 300px" clearable placeholder="默认（走全局配置）">
-                    <el-option
-                      v-for="opt in catalogGroupOptions"
-                      :key="opt.label"
-                      :label="opt.label"
-                      :value="opt.value"
-                    />
-                  </el-select>
-                  <div class="form-tip">每次向上级发送目录时单个 SIP 报文携带的通道数。某些品牌上级 &gt; 8 会拒收，可单独配小档位；留空走全局默认。</div>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -511,9 +447,9 @@ onMounted(async () => {
 .parent-platform-dialog :deep(.el-form-item) {
   margin-bottom: 16px;
 }
-/* input/select 不撑满 col-12，留出右边距让视觉更紧凑（300px 在 92px label + 920 弹窗下视觉平衡） */
+/* input/select 不撑满 col-12，留出右边距让视觉更紧凑（180px 在 92px label + 920 弹窗下视觉平衡） */
 .parent-platform-dialog :deep(.el-form-item .el-form-item__content) {
-  max-width: 300px;
+  max-width: 180px;
 }
 .form-tip {
   font-size: 12px;

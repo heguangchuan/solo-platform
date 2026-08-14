@@ -42,7 +42,7 @@ public class PlatformCommander {
      * @param expires 注册有效期秒；传 0 表示注销
      */
     public void register(GbParentPlatform p, int expires) {
-        String localIp = headerProvider.localIp(p);
+        String localIp = headerProvider.localIp();
         String transport = p.getTransport() == null ? "UDP" : p.getTransport();
         try {
             CallIdHeader callId = sipSender.newCallId(localIp, transport);
@@ -63,7 +63,7 @@ public class PlatformCommander {
      */
     public void registerWithAuth(GbParentPlatform p, int expires, WWWAuthenticateHeader www,
                                  CallIdHeader callId, String fromTag) {
-        String localIp = headerProvider.localIp(p);
+        String localIp = headerProvider.localIp();
         try {
             Request request = headerProvider.createRegisterRequest(p, callId, fromTag, expires, www);
             registerState.markRegistering(callId.getCallId(), p.getServerGbId(), expires > 0);
@@ -79,7 +79,7 @@ public class PlatformCommander {
      * 发送心跳（Keepalive Notify）。订阅响应：超时/错误走 onFail，成功走 onOk。
      */
     public void keepalive(GbParentPlatform p, Runnable onOk, Runnable onFail) {
-        String localIp = headerProvider.localIp(p);
+        String localIp = headerProvider.localIp();
         String transport = p.getTransport() == null ? "UDP" : p.getTransport();
         String charset = p.getCharacterSet() == null ? "GB2312" : p.getCharacterSet();
         int sn = (int) ((Math.random() * 9 + 1) * 100000);
@@ -87,7 +87,7 @@ public class PlatformCommander {
                 "<Notify>\r\n" +
                 "<CmdType>Keepalive</CmdType>\r\n" +
                 "<SN>" + sn + "</SN>\r\n" +
-                "<DeviceID>" + p.getDeviceGbId() + "</DeviceID>\r\n" +
+                "<DeviceID>" + properties.getId() + "</DeviceID>\r\n" +
                 "<Status>OK</Status>\r\n" +
                 "</Notify>\r\n";
         try {
@@ -169,12 +169,12 @@ public class PlatformCommander {
         int end = Math.min(start + pageSize, allItems.size());
         List<GbDeviceChannel> pageItems = new ArrayList<>(allItems.subList(start, end));
 
-        String localIp = headerProvider.localIp(platform);
+        String localIp = headerProvider.localIp();
         String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
         long ackTimeoutMs = Math.max(0, properties.getCascade().getCatalogAckTimeoutMs());
 
         try {
-            String xml = PlatformCatalogXml.buildResponse(platform, sn, sumNum, pageItems);
+            String xml = PlatformCatalogXml.buildResponse(platform, properties.getId(), sn, sumNum, pageItems);
             CallIdHeader callId = sipSender.newCallId(localIp, transport);
             Request request = headerProvider.createMessageRequest(platform, xml, callId);
             log.info("[级联目录] 响应 Catalog 查询 platform={} SN={} sumNum={} page={}/{} items={}",

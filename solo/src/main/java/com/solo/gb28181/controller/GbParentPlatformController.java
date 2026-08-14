@@ -5,7 +5,6 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
-import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.request.GbParentPlatformBatchDeleteRequest;
@@ -33,22 +32,6 @@ public class GbParentPlatformController {
 
     private final GbParentPlatformService gbParentPlatformService;
     private final CatalogShareService catalogShareService;
-    private final Gb28181Properties gb28181Properties;
-
-    /**
-     * 获取本平台 SIP 配置（用于新增上级平台时回显本地编号/IP/端口等默认值）
-     */
-    @GetMapping("/server-config")
-    @RequirePermission({"gb28181:parent-platform:list"})
-    public Result<Map<String, Object>> serverConfig() {
-        Map<String, Object> config = Map.of(
-                "deviceGbId", gb28181Properties.getId() != null ? gb28181Properties.getId() : "",
-                "deviceIp", gb28181Properties.getIp() != null ? gb28181Properties.getIp() : "",
-                "devicePort", gb28181Properties.getPort(),
-                "domain", gb28181Properties.getDomain() != null ? gb28181Properties.getDomain() : ""
-        );
-        return Result.success(config);
-    }
 
     /**
      * 分页查询上级平台配置

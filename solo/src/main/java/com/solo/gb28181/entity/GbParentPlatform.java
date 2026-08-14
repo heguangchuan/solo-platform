@@ -54,27 +54,7 @@ public class GbParentPlatform {
     private Integer serverPort;
 
     /**
-     * 收流IP覆盖；留空使用SDP解析地址，双栈内网互通时填上级内网IP
-     */
-    private String recvIp;
-
-    /**
-     * 本平台作为下级的国标编号（向上注册用）
-     */
-    private String deviceGbId;
-
-    /**
-     * 本平台 SIP IP（留空取 gb28181.ip）
-     */
-    private String deviceIp;
-
-    /**
-     * 本平台 SIP 端口（留空取 gb28181.port）
-     */
-    private Integer devicePort;
-
-    /**
-     * SIP 认证用户名（默认同 device_gb_id）
+     * SIP 认证用户名（默认同 gb28181.id）
      */
     private String username;
 
