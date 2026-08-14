@@ -105,8 +105,11 @@ public class PlatformCommander {
 
     /**
      * 响应上级 Catalog 查询：按 {@code catalogPageSize} 分片，每片一条独立事务的 MESSAGE。
-     * <p>不复用请求 fromTag / dialog——每片走全新 fromTag/CallId，SIP 层合规且免去等 200 联动。
-     * 分片间 sleep {@code catalogPageIntervalMs} 避免瞬时刷屏。整个过程跑在专属业务线程池，不阻塞调用者。</p>
+     * <p><b>ACK 驱动节奏（ADR-027）</b>：每发一片等上级回 200 OK 之后才发下一片——上级快则快、慢则让。
+     * 若 {@code catalogAckTimeoutMs} 内没收到 ACK，按 {@code catalogPageIntervalMs} 兜底继续
+     * （防止对端死掉时 sender 线程被长时间占用）。整个过程跑在专属业务线程池，不阻塞调用者。</p>
+     * <p>每片走全新 fromTag/CallId（与请求 CallId 无关），SIP 层合规，免去 dialog 状态维护。
+     * 回调链路靠 {@link SipSubscribe} 按 Call-Id+CSeq 匹配。</p>
      *
      * @param platform 上级平台配置
      * @param sn       请求 SN，透传回去
@@ -119,46 +122,103 @@ public class PlatformCommander {
 
     private void doSendCatalogResponse(GbParentPlatform platform, String sn,
                                        List<GbDeviceChannel> items) {
-        int pageSize = Math.max(1, properties.getCascade().getCatalogPageSize());
-        long intervalMs = Math.max(0, properties.getCascade().getCatalogPageIntervalMs());
+        int pageSize = resolveCatalogPageSize(platform);
         int total = items.size();
-        if (total == 0) {
+        int totalPages = (total + pageSize - 1) / pageSize;
+        if (totalPages == 0) {
             // 无共享数据仍要回一片空 Response，避免上级卡等
-            sendOnePage(platform, sn, 0, List.of(), 1, 1);
+            sendPage(platform, sn, 0, List.of(), 1, 1, pageSize);
             return;
         }
-
-        int totalPages = (total + pageSize - 1) / pageSize;
-        // 按 catalogPageSize 切分
-        for (int i = 0; i < total; i += pageSize) {
-            int end = Math.min(i + pageSize, total);
-            int pageIdx = (i / pageSize) + 1;
-            List<GbDeviceChannel> pageItems = new ArrayList<>(items.subList(i, end));
-            sendOnePage(platform, sn, total, pageItems, pageIdx, totalPages);
-
-            if (end < total && intervalMs > 0) {
-                try {
-                    Thread.sleep(intervalMs);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    log.warn("[级联目录] 分片间等待被打断，剩余分片放弃发送 -> {}", platform.getServerGbId());
-                    return;
-                }
-            }
-        }
+        sendPage(platform, sn, total, items, 1, totalPages, pageSize);
     }
 
-    private void sendOnePage(GbParentPlatform platform, String sn, int sumNum,
-                             List<GbDeviceChannel> pageItems, int pageIdx, int totalPages) {
+    /**
+     * 取该平台生效的 catalog 单包 Item 数。per-platform 配置（{@code catalogGroup}）优先，
+     * 必须是 1/2/4/8；NULL 或越界回落到 {@link Gb28181Properties.Cascade#getCatalogPageSize()}。
+     * <p>per-platform 越界时打 warn 不抛错——线上容错优先于拒绝服务。</p>
+     */
+    private int resolveCatalogPageSize(GbParentPlatform platform) {
+        int globalDefault = Math.max(1, properties.getCascade().getCatalogPageSize());
+        if (platform == null) {
+            return globalDefault;
+        }
+        Integer v = platform.getCatalogGroup();
+        if (v == null) {
+            return globalDefault;
+        }
+        if (v == 1 || v == 2 || v == 4 || v == 8) {
+            return v;
+        }
+        log.warn("[级联目录] 平台 {} catalogGroup={} 越界（只允许 1/2/4/8），回落全局默认={}",
+                platform.getServerGbId(), v, globalDefault);
+        return globalDefault;
+    }
+
+    /**
+     * 发送第 {@code pageIdx} 片 Catalog Response，并按回调决定是否继续下一片。
+     * 整个链路由 {@link #gb28181BizExecutor} 驱动，每次新一片都重新提交到池里——避免单线程被
+     * 长时间占用，pool 大小天然限流。
+     *
+     * @param pageSize 该平台生效的单包 Item 数（per-platform 或全局默认，由 {@link #resolveCatalogPageSize} 算好）
+     */
+    private void sendPage(GbParentPlatform platform, String sn, int sumNum,
+                          List<GbDeviceChannel> allItems, int pageIdx, int totalPages,
+                          int pageSize) {
+        int start = (pageIdx - 1) * pageSize;
+        int end = Math.min(start + pageSize, allItems.size());
+        List<GbDeviceChannel> pageItems = new ArrayList<>(allItems.subList(start, end));
+
         String localIp = headerProvider.localIp(platform);
         String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+        long ackTimeoutMs = Math.max(0, properties.getCascade().getCatalogAckTimeoutMs());
+
         try {
             String xml = PlatformCatalogXml.buildResponse(platform, sn, sumNum, pageItems);
             CallIdHeader callId = sipSender.newCallId(localIp, transport);
             Request request = headerProvider.createMessageRequest(platform, xml, callId);
-            sipSender.send(localIp, request);
             log.info("[级联目录] 响应 Catalog 查询 platform={} SN={} sumNum={} page={}/{} items={}",
                     platform.getServerGbId(), sn, sumNum, pageIdx, totalPages, pageItems.size());
+
+            // 下一片只在还有剩余时才有意义
+            int nextIdx = pageIdx + 1;
+            boolean hasNext = nextIdx <= totalPages;
+
+            Consumer<ResponseEvent> onOk = e -> {
+                log.debug("[级联目录] ACK 到达 platform={} SN={} page={}",
+                        platform.getServerGbId(), sn, pageIdx);
+                if (hasNext) {
+                    gb28181BizExecutor.execute(() -> sendPage(platform, sn, sumNum, allItems, nextIdx, totalPages, pageSize));
+                }
+            };
+            Consumer<ResponseEvent> onError = e -> {
+                int status = e.getResponse() != null ? e.getResponse().getStatusCode() : -1;
+                log.warn("[级联目录] ACK 失败 platform={} SN={} page={}/{} status={}，停止后续分片",
+                        platform.getServerGbId(), sn, pageIdx, totalPages, status);
+                // 4xx/5xx 视为对端已拒收，继续推大概率会重复被拒，整条链停下
+            };
+            Runnable onTimeout = () -> {
+                long fallbackMs = Math.max(0, properties.getCascade().getCatalogPageIntervalMs());
+                log.warn("[级联目录] ACK 超时 platform={} SN={} page={}/{}，{}ms 后 fallback 继续",
+                        platform.getServerGbId(), sn, pageIdx, totalPages, fallbackMs);
+                if (hasNext) {
+                    if (fallbackMs > 0) {
+                        gb28181BizExecutor.execute(() -> {
+                            try {
+                                Thread.sleep(fallbackMs);
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                return;
+                            }
+                            sendPage(platform, sn, sumNum, allItems, nextIdx, totalPages, pageSize);
+                        });
+                    } else {
+                        gb28181BizExecutor.execute(() -> sendPage(platform, sn, sumNum, allItems, nextIdx, totalPages, pageSize));
+                    }
+                }
+            };
+
+            sipSender.send(localIp, request, onOk, onError, onTimeout, ackTimeoutMs);
         } catch (Exception e) {
             log.warn("[级联目录] 分片发送失败 platform={} SN={} page={}/{}: {}",
                     platform.getServerGbId(), sn, pageIdx, totalPages, e.getMessage());

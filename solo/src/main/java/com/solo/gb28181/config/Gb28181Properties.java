@@ -113,15 +113,25 @@ public class Gb28181Properties {
 
         /**
          * Catalog 响应分片大小：每包 XML 中 &lt;Item&gt; 数量上限。
-         * <p>过大易触发上级 SIP MSG 长度限制或 UDP 分片，过小徒增交互次数；主流开源国标平台默认 3-5，本项目取 3。</p>
+         * <p>过大易触发上级 SIP MSG 长度限制或 UDP 分片，过小徒增交互次数。主流开源国标平台默认 3-8，
+         * 1/2/4/8 是经过线上踩坑收敛出的「单包安全档位」（ADR-027）。本项目取 3（保守起步）。</p>
          */
         private int catalogPageSize = 3;
 
         /**
-         * Catalog 响应分片间隔（毫秒）：连续两片 MESSAGE 之间的睡眠时间。
-         * <p>UDP 突发发送易被上级丢包或触发 fair-queuing，间隔 50ms 足够宽松且总耗时可控。</p>
+         * Catalog 响应等 ACK 超时（毫秒）。每发一片 MESSAGE，等上级回 200 OK 的最长等待时间；
+         * 超时则按 {@link #catalogPageIntervalMs} 兜底节奏发下一片，避免对端死掉时整条链路卡死。
+         * <p>5s 粒度受 {@link com.solo.gb28181.task.GbScheduledTasks#sweepSipSubscribe} 限制，
+         * 实际最坏情况 ≈ 5s + 3s。3s 适合内网主流平台；公网 / 老国标可上调到 5-8s。</p>
          */
-        private long catalogPageIntervalMs = 50;
+        private long catalogAckTimeoutMs = 3000;
+
+        /**
+         * Catalog 响应 fallback 间隔（毫秒）。仅当上一片等 ACK 超时 / 出错时使用——按兜底节奏继续发下一片，
+         * 防止对端长时间无响应时本平台 sender 线程被长时间占用。ACK 正常到达时不走这条（ADR-027 改为 ACK 驱动）。
+         * <p>UDP 突发易被上级丢包或触发 fair-queuing，200ms 足够宽松且最坏情况（兜底分支）总耗时可控。</p>
+         */
+        private long catalogPageIntervalMs = 200;
 
         /**
          * 上级点播（sendRtp）本地发送端口段起始。
