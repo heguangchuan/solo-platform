@@ -363,67 +363,123 @@ onMounted(async () => {
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" top="5vh" :close-on-click-modal="false">
+    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="920px" top="3vh" :close-on-click-modal="false" class="parent-platform-dialog">
       <div class="dialog-content">
-        <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-          <el-form-item label="平台名称" prop="name">
-            <el-input v-model="form.name" placeholder="上级平台显示名称" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="国标编码" prop="serverGbId">
-            <el-input v-model="form.serverGbId" placeholder="上级平台20位编码" :disabled="isEdit" />
-          </el-form-item>
-          <el-form-item label="国标域" prop="serverGbDomain">
-            <el-input v-model="form.serverGbDomain" placeholder="通常为编码前10位" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="上级地址" prop="serverIp">
-            <el-input v-model="form.serverIp" placeholder="上级 SIP 服务器 IP" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="上级端口" prop="serverPort">
-            <el-input v-model.number="form.serverPort" placeholder="上级 SIP 服务器端口" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="收流地址" prop="recvIp">
-            <el-input v-model="form.recvIp" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="本地编号" prop="deviceGbId">
-            <el-input v-model="form.deviceGbId" placeholder="本平台20位国标编号" disabled />
-          </el-form-item>
-          <el-form-item label="本地地址">
-            <el-input v-model="form.deviceIp" placeholder="留空取全局配置IP" disabled />
-          </el-form-item>
-          <el-form-item label="本地端口">
-            <el-input v-model.number="form.devicePort" placeholder="留空取全局配置端口" disabled />
-          </el-form-item>
-          <el-form-item label="用户名" prop="username">
-            <el-input v-model="form.username" placeholder="默认同本地编号" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="密码" prop="password">
-            <el-input v-model="form.password" type="password" show-password placeholder="SIP 注册密码" :disabled="isView" />
-          </el-form-item>
-          <el-form-item label="注册期限">
-            <el-input v-model.number="form.expires" placeholder="注册有效期" :disabled="isView">
-              <template #append>秒</template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="心跳间隔">
-            <el-input v-model.number="form.keepTimeout" placeholder="心跳发送间隔" :disabled="isView">
-              <template #append>秒</template>
-            </el-input>
-          </el-form-item>
-          <el-form-item label="传输协议">
-            <el-select v-model="form.transport" :disabled="isView">
-              <el-option label="UDP" value="UDP" />
-              <el-option label="TCP" value="TCP" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="字符编码">
-            <el-select v-model="form.characterSet" :disabled="isView">
-              <el-option label="GB2312" value="GB2312" />
-              <el-option label="UTF-8" value="UTF-8" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="启用">
-            <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" :disabled="isView" />
-          </el-form-item>
+        <el-form ref="formRef" :model="form" :rules="rules" label-width="92px">
+
+          <!-- 第一组：基本信息（自身，disabled 为主，少量填写） -->
+          <div class="form-section">
+            <div class="section-title">基本信息</div>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="本地编号" prop="deviceGbId">
+                  <el-input v-model="form.deviceGbId" placeholder="本平台20位国标编号" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="本地地址">
+                  <el-input v-model="form.deviceIp" placeholder="留空取全局配置IP" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="本地端口">
+                  <el-input v-model.number="form.devicePort" placeholder="留空取全局配置端口" disabled />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="注册用户" prop="username">
+                  <el-input v-model="form.username" placeholder="默认同本地编号" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+
+          <!-- 第二组：上级平台信息（必填，连接目标 + 注册凭据） -->
+          <div class="form-section">
+            <div class="section-title">上级平台信息</div>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="平台名称" prop="name">
+                  <el-input v-model="form.name" placeholder="上级平台显示名称" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="国标编码" prop="serverGbId">
+                  <el-input v-model="form.serverGbId" placeholder="上级平台20位编码" :disabled="isEdit" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="国标域" prop="serverGbDomain">
+                  <el-input v-model="form.serverGbDomain" placeholder="通常为编码前10位" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="上级地址" prop="serverIp">
+                  <el-input v-model="form.serverIp" placeholder="上级 SIP 服务器 IP" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="上级端口" prop="serverPort">
+                  <el-input v-model.number="form.serverPort" placeholder="上级 SIP 服务器端口" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="注册密码" prop="password">
+                  <el-input v-model="form.password" type="password" show-password placeholder="SIP 注册密码" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
+
+          <!-- 第三组：连接配置（其他要填的） -->
+          <div class="form-section">
+            <div class="section-title">连接配置</div>
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <el-form-item label="收流地址" prop="recvIp">
+                  <el-input v-model="form.recvIp" placeholder="上级推流的目标 IP" :disabled="isView" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="注册期限">
+                  <el-input v-model.number="form.expires" placeholder="注册有效期" :disabled="isView">
+                    <template #append>秒</template>
+                  </el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="心跳间隔">
+                  <el-input v-model.number="form.keepTimeout" placeholder="心跳发送间隔" :disabled="isView">
+                    <template #append>秒</template>
+                  </el-input>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="传输协议">
+                  <el-select v-model="form.transport" :disabled="isView" style="width: 100%">
+                    <el-option label="UDP" value="UDP" />
+                    <el-option label="TCP" value="TCP" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="字符编码">
+                  <el-select v-model="form.characterSet" :disabled="isView" style="width: 100%">
+                    <el-option label="GB2312" value="GB2312" />
+                    <el-option label="UTF-8" value="UTF-8" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="12">
+                <el-form-item label="是否启用">
+                  <el-select v-model="form.enabled" :disabled="isView" style="width: 100%">
+                    <el-option label="启用" :value="1" />
+                    <el-option label="禁用" :value="0" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
         </el-form>
       </div>
       <template #footer>
@@ -477,10 +533,36 @@ onMounted(async () => {
 .dialog-content {
   max-height: calc(80vh - 120px);
   overflow-y: auto;
+  overflow-x: hidden;
 }
 /* 共享目录树：限高滚动，避免通道过多撑爆弹窗 */
 .share-tree {
   max-height: 460px;
   overflow-y: auto;
+}
+
+/* 新增 / 编辑上级平台弹窗：三段式分组 + 两列布局 */
+.form-section {
+  margin-bottom: 8px;
+}
+.form-section:last-child {
+  margin-bottom: 0;
+}
+.section-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin: 4px 0 14px;
+  padding-left: 8px;
+  border-left: 3px solid #409eff;
+  line-height: 1.4;
+}
+/* el-form-item 默认 22px margin 偏大，两列布局下压到 16px 让节奏更紧凑 */
+.parent-platform-dialog :deep(.el-form-item) {
+  margin-bottom: 16px;
+}
+/* input/select 不撑满 col-12，留出右边距让视觉更紧凑（300px 在 92px label + 920 弹窗下视觉平衡） */
+.parent-platform-dialog :deep(.el-form-item .el-form-item__content) {
+  max-width: 300px;
 }
 </style>
