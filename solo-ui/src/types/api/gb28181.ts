@@ -120,15 +120,7 @@ export interface GbParentPlatform {
   serverIp: string
   /** 上级平台 SIP 端口 */
   serverPort: number
-  /** 收流IP覆盖；留空使用SDP解析地址，双栈内网互通时填上级内网IP */
-  recvIp?: string
-  /** 本平台作为下级的国标编号 */
-  deviceGbId: string
-  /** 本平台 SIP IP（留空取配置默认值） */
-  deviceIp?: string
-  /** 本平台 SIP 端口 */
-  devicePort?: number
-  /** SIP 认证用户名 */
+  /** SIP 认证用户名（默认同 gb28181.id 全局配置） */
   username?: string
   /** SIP 认证密码 */
   password?: string

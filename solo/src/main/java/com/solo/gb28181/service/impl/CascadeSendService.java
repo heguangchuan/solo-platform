@@ -87,16 +87,12 @@ public class CascadeSendService {
         }
 
         // 2) 解析上级期望收流的目的地址 / SSRC / 传输模式
+        // 严格走协议层 SDP c=/m=/y=：下级无 authority 修改上级声明的收流地址（ADR-034）
+        // —— 网络不通时让上级修 SDP，不在业务代码层面做静默覆盖
         String dstIp = SdpBuilder.extractConnectionIp(upstreamSdp);
         int dstPort = SdpBuilder.extractMediaPort(upstreamSdp);
         String ssrc = SdpBuilder.extractSsrc(upstreamSdp);
         String transport = SdpBuilder.extractTransport(upstreamSdp);
-        // 如果上级平台配置了收流IP覆盖（双栈内网互通场景），强制覆盖SDP解析出的地址
-        if (platform.getRecvIp() != null && !platform.getRecvIp().isBlank()) {
-            log.info("[{}] 上级平台 {} 配置了收流IP覆盖：原地址(SDP) = {}，新地址(覆盖) = {}",
-                    LOG_TAG, platform.getServerGbId(), dstIp, platform.getRecvIp());
-            dstIp = platform.getRecvIp();
-        }
         if (dstIp == null || dstPort <= 0 || ssrc == null || ssrc.isBlank()) {
             log.warn("[{}] 上级 SDP 缺 c=/m=/y= 关键字段 dstIp={} dstPort={} ssrc={}，回 400",
                     LOG_TAG, dstIp, dstPort, ssrc);
@@ -138,7 +134,7 @@ public class CascadeSendService {
         session.setServerId(server.getServerId());
         session.setPlatformDbId(platform.getId());
         session.setPlatformServerGbId(platform.getServerGbId());
-        session.setLocalGbId(platform.getDeviceGbId());
+        session.setLocalGbId(properties.getId());
         session.setChannelId(channelId);
         session.setLocalChannelId(channel.getChannelId());
         session.setDeviceId(channel.getDeviceId());
@@ -176,7 +172,7 @@ public class CascadeSendService {
         // 6) 回 200 OK（sendonly SDP）
         String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                 ? server.getStreamIp() : server.getHostIp();
-        String answer = SdpBuilder.buildSendAnswer(platform.getDeviceGbId(), sdpIp, sendPort, ssrc, transport);
+        String answer = SdpBuilder.buildSendAnswer(properties.getId(), sdpIp, sendPort, ssrc, transport);
         try {
             SIPResponse ok = headerProvider.buildInviteOk(platform, request, answer, localToTag);
             sipSender.send(request.getLocalAddress().getHostAddress(), ok);
@@ -316,7 +312,7 @@ public class CascadeSendService {
         try {
             Request request = headerProvider.createByeToUpstream(
                     p, session.getCallId(), session.getFromTag(), session.getToTag());
-            sipSender.send(headerProvider.localIp(p), request);
+            sipSender.send(headerProvider.localIp(), request);
             log.info("[{}] 已向上级发 BYE 上级平台={} 本平台通道编码={}", LOG_TAG, p.getServerGbId(), session.getLocalChannelId());
         } catch (Exception e) {
             log.warn("[{}] 向上级发 BYE 失败 platform={}: {}", LOG_TAG, p.getServerGbId(), e.getMessage());

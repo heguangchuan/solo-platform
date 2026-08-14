@@ -43,13 +43,13 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 级联出站 SIP 头构造器（本平台作为下级向上级平台发起请求）
  *
- * <p>与设备侧 {@link SipRequestHeaderProvider} 的区别：身份取自 {@link GbParentPlatform} 逐行配置
- * （{@code deviceGbId}/{@code deviceIp}/{@code devicePort}/{@code username}/{@code password}），
- * 而非全局 {@code gb28181.id}。故独立成类，见 ADR-018。</p>
+ * <p>与设备侧 {@link SipRequestHeaderProvider} 的区别：身份信息（本平台国标编号 / 域 / 出口 IP / 端口）一律
+ * 取自全局 {@link Gb28181Properties}，per-upper 只存对端配置（{@code serverGbId} / {@code serverIp} / {@code serverPort} /
+ * {@code username} / {@code password}）。故独立成类，见 ADR-018 + ADR-036。</p>
  *
  * <ul>
  *   <li>Request-URI / To：{@code sip:<serverGbId>@<serverIp>:<serverPort>}（注册时 To=自己=serverGbId）</li>
- *   <li>From：{@code sip:<deviceGbId>@<serverGbDomain>}</li>
+ *   <li>From：{@code sip:<deviceGbId>@<deviceDomain>}（本平台国标编号 + 本平台域，ADR-035）</li>
  *   <li>Contact：{@code sip:<deviceGbId>@<localIp>:<localPort>}</li>
  * </ul>
  */
@@ -83,19 +83,37 @@ public class PlatformSipHeaderProvider {
         this.sipLayer = sipLayer;
     }
 
-    /** 本平台对该上级使用的出口 IP（留空回落全局配置） */
-    public String localIp(GbParentPlatform p) {
-        return StringUtils.hasText(p.getDeviceIp()) ? p.getDeviceIp() : properties.getIp();
+    /**
+     * 本平台 SIP 出口 IP（全局，ADR-036）
+     */
+    public String localIp() {
+        return properties.getIp();
     }
 
-    /** 本平台对该上级使用的出口端口（留空回落全局配置） */
-    public int localPort(GbParentPlatform p) {
-        return p.getDevicePort() != null && p.getDevicePort() > 0 ? p.getDevicePort() : properties.getPort();
+    /**
+     * 本平台 SIP 出口端口（全局，ADR-036）
+     */
+    public int localPort() {
+        return properties.getPort();
     }
 
-    /** 认证用户名（默认同 deviceGbId） */
+    /**
+     * 本平台国标域（From / Contact 头用，全局，ADR-036）
+     */
+    public String deviceDomain() {
+        return properties.getDomain();
+    }
+
+    /**
+     * 本平台国标编号（向上注册时 From / Contact / 200 OK 头用，全局，ADR-036）
+     */
+    public String deviceGbId() {
+        return properties.getId();
+    }
+
+    /** 认证用户名（默认同 deviceGbId()） */
     private String username(GbParentPlatform p) {
-        return StringUtils.hasText(p.getUsername()) ? p.getUsername() : p.getDeviceGbId();
+        return StringUtils.hasText(p.getUsername()) ? p.getUsername() : deviceGbId();
     }
 
     private String transport(GbParentPlatform p) {
@@ -114,7 +132,7 @@ public class PlatformSipHeaderProvider {
     public Request createRegisterRequest(GbParentPlatform p, CallIdHeader callId, String fromTag,
                                          int expires, WWWAuthenticateHeader www)
             throws ParseException, InvalidArgumentException {
-        String localIp = localIp(p);
+        String localIp = localIp();
         String transport = transport(p);
         String serverHost = p.getServerIp() + ":" + p.getServerPort();
 
@@ -123,16 +141,16 @@ public class PlatformSipHeaderProvider {
 
         // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(p), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
-        // From: sip:<deviceGbId>@<serverGbDomain>;tag=<fromTag>
-        SipURI fromUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), p.getServerGbDomain());
+        // From: sip:<deviceGbId>@<deviceDomain>（本平台国标域，ADR-035）；tag=<fromTag>
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), fromTag);
 
-        // To: 注册语义 To=自己（deviceGbId@serverGbDomain），无 tag
-        SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), p.getServerGbDomain());
+        // To: 注册语义 To=自己（deviceGbId@serverGbDomain，registrar 域），无 tag
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), p.getServerGbDomain());
         ToHeader toHeader = HEADER_FACTORY.createToHeader(ADDRESS_FACTORY.createAddress(toUri), null);
 
         MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
@@ -142,7 +160,7 @@ public class PlatformSipHeaderProvider {
                 requestUri, Request.REGISTER, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
         // Contact: sip:<deviceGbId>@<localIp>:<localPort>
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), localIp + ":" + localPort(p));
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
         ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
         request.addHeader(contact);
 
@@ -200,18 +218,18 @@ public class PlatformSipHeaderProvider {
      */
     public Request createMessageRequest(GbParentPlatform p, String xmlBody, CallIdHeader callId)
             throws ParseException, InvalidArgumentException {
-        String localIp = localIp(p);
+        String localIp = localIp();
         String transport = transport(p);
         String serverHost = p.getServerIp() + ":" + p.getServerPort();
 
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
 
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(p), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
-        SipURI fromUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), p.getServerGbDomain());
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), SipUtils.newFromTag());
 
         SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
@@ -266,19 +284,19 @@ public class PlatformSipHeaderProvider {
     public Request createByeToUpstream(GbParentPlatform p, String callId,
                                        String upstreamFromTag, String localToTag)
             throws ParseException, InvalidArgumentException {
-        String localIp = localIp(p);
+        String localIp = localIp();
         String transport = transport(p);
         String serverHost = p.getServerIp() + ":" + p.getServerPort();
 
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
 
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(p), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
-        // From = 本平台（被叫方，带本平台在 200 OK 里生成的 to-tag）
-        SipURI fromUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), p.getServerGbDomain());
+        // From = 本平台（被叫方，带本平台在 200 OK 里生成的 to-tag；host 用本平台国标域，ADR-035）
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), localToTag);
 
         // To = 上级（主叫方，带上级 INVITE 的 from-tag）
@@ -292,7 +310,7 @@ public class PlatformSipHeaderProvider {
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.BYE, callIdHeader, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), localIp + ":" + localPort(p));
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
         ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
         request.addHeader(contact);
         return request;
@@ -313,8 +331,8 @@ public class PlatformSipHeaderProvider {
         SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.OK, request);
         response.getToHeader().setTag(localToTag);
 
-        String localIp = localIp(p);
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(p.getDeviceGbId(), localIp + ":" + localPort(p));
+        String localIp = localIp();
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
         ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
         response.setHeader(contact);
 

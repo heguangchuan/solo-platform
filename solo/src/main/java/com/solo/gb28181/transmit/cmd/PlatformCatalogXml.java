@@ -29,14 +29,14 @@ public final class PlatformCatalogXml {
     /**
      * 构造一片 Catalog Response XML。
      *
-     * @param platform 上级平台配置；From/To 语义由发送侧构造，本方法只用 deviceGbId 作 &lt;DeviceID&gt; +
-     *                通道 ParentID 兜底
-     * @param sn       原请求的 SN，透传回去
-     * @param sumNum   全量总条数（每片都填相同值）
-     * @param items    本片中的 catalog item（分组 parental=1 + 通道 parental=0），调用方保证
-     *                分组排在通道之前
+     * @param platform    上级平台配置；从 p 取 serverGbId 拼 URI 等
+     * @param deviceGbId  本平台国标编号（从全局 gb28181.id 取，ADR-036）；Item 内部兜底 ParentID 用
+     * @param sn          原请求的 SN，透传回去
+     * @param sumNum      全量总条数（每片都填相同值）
+     * @param items       本片中的 catalog item（分组 parental=1 + 通道 parental=0），调用方保证
+     *                    分组排在通道之前
      */
-    public static String buildResponse(GbParentPlatform platform, String sn, int sumNum,
+    public static String buildResponse(GbParentPlatform platform, String deviceGbId, String sn, int sumNum,
                                        List<GbDeviceChannel> items) {
         String charset = platform.getCharacterSet() == null ? "GB2312" : platform.getCharacterSet();
         int itemNum = items.size();
@@ -51,12 +51,12 @@ public final class PlatformCatalogXml {
         sb.append("<Response>\r\n");
         sb.append("<CmdType>Catalog</CmdType>\r\n");
         sb.append("<SN>").append(sn).append("</SN>\r\n");
-        sb.append("<DeviceID>").append(platform.getDeviceGbId()).append("</DeviceID>\r\n");
+        sb.append("<DeviceID>").append(deviceGbId).append("</DeviceID>\r\n");
         sb.append("<SumNum>").append(sumNum).append("</SumNum>\r\n");
         sb.append("<DeviceList Num=\"").append(itemNum).append("\">\r\n");
 
         for (GbDeviceChannel it : items) {
-            appendItem(sb, it, platform, parentCodeByItem);
+            appendItem(sb, it, deviceGbId, parentCodeByItem);
         }
 
         sb.append("</DeviceList>\r\n");
@@ -67,11 +67,11 @@ public final class PlatformCatalogXml {
     /**
      * 合并版 Item 渲染：按 {@code parental} 选字段集。
      * <p>分组（parental=1）：DeviceID = item.channelId（20 位国标码 215/216）；
-     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 platform.deviceGbId）。</p>
+     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 deviceGbId）。</p>
      * <p>通道（parental=0）：DeviceID 优先 exposed_code（平台唯一），回退 channelId；
-     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 platform.deviceGbId）。</p>
+     *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 deviceGbId）。</p>
      */
-    private static void appendItem(StringBuilder sb, GbDeviceChannel it, GbParentPlatform platform,
+    private static void appendItem(StringBuilder sb, GbDeviceChannel it, String deviceGbId,
                                    Map<String, String> parentCodeByItem) {
         boolean isGroup = it.getParental() != null && it.getParental() == 1;
         String reportId;
@@ -83,7 +83,7 @@ public final class PlatformCatalogXml {
             reportId = it.getExposedOrChannelId();
         }
 
-        String parentCode = resolveParentCode(it.getParentId(), parentCodeByItem, platform);
+        String parentCode = resolveParentCode(it.getParentId(), parentCodeByItem, deviceGbId);
 
         sb.append("<Item>\r\n");
         sb.append("<DeviceID>").append(nullSafe(reportId)).append("</DeviceID>\r\n");
@@ -115,8 +115,8 @@ public final class PlatformCatalogXml {
             sb.append("<Status>ON</Status>\r\n");
             int type = typeCode(it.getChannelId());
             if (type == 216) {
-                // 216 虚拟组织需要 BusinessGroupID；solo 无独立字段，用平台 deviceGbId 兜底
-                sb.append("<BusinessGroupID>").append(platform.getDeviceGbId()).append("</BusinessGroupID>\r\n");
+                // 216 虚拟组织需要 BusinessGroupID；solo 无独立字段，用本平台 deviceGbId 兜底
+                sb.append("<BusinessGroupID>").append(deviceGbId).append("</BusinessGroupID>\r\n");
             }
         } else {
             appendTag(sb, "SafetyWay", it.getSafetyWay());
@@ -137,15 +137,15 @@ public final class PlatformCatalogXml {
     /**
      * 解析 item.parentId → XML 中实际写入的 &lt;ParentID&gt;：
      * <ul>
-     *   <li>"0"（根哨兵）→ 兜底 platform.deviceGbId（挂到平台自身节点下）</li>
+     *   <li>"0"（根哨兵）→ 兜底 deviceGbId（挂到平台自身节点下）</li>
      *   <li>其他值 → 直接用 item.parentId 自身（已是父 item 的 20 位 GB 码，
      *       与父行 channel_id 对齐；同批内 map 仅作查存在性，这里直接透传即可）</li>
      * </ul>
      */
     private static String resolveParentCode(String parentId, Map<String, String> parentCodeByItem,
-                                            GbParentPlatform platform) {
+                                            String deviceGbId) {
         if (parentId == null || ROOT_PARENT.equals(parentId)) {
-            return platform.getDeviceGbId();
+            return deviceGbId;
         }
         return parentId;
     }
