@@ -6,10 +6,12 @@ import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.request.GbParentPlatformBatchDeleteRequest;
 import com.solo.gb28181.request.GbParentPlatformPageRequest;
 import com.solo.gb28181.request.GbPlatformShareSaveRequest;
+import com.solo.gb28181.request.UnmountedChannelPageRequest;
 import com.solo.gb28181.response.GbPlatformSharedResponse;
 import com.solo.gb28181.response.GbShareTreeNodeResponse;
 import com.solo.gb28181.service.CatalogShareService;
@@ -132,5 +134,97 @@ public class GbParentPlatformController {
     public Result<Void> saveShared(@PathVariable Long id, @RequestBody GbPlatformShareSaveRequest request) {
         catalogShareService.saveShared(id, request);
         return Result.success();
+    }
+
+    /**
+     * 分页查询某上级平台某分组下已挂载的 catalog item（推送目录弹窗"已挂载"列表）
+     */
+    @PostMapping("/{id}/share-group/{groupId}/shared/page")
+    @RequirePermission({"gb28181:parent-platform:list"})
+    public Result<PageResult<GbDeviceChannel>> sharedPage(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId,
+            @RequestBody UnmountedChannelPageRequest req) {
+        Page<GbDeviceChannel> page = new Page<>(req.getPage(), req.getPageSize());
+        var result = catalogShareService.pageSharedByGroup(id, groupId, page, req.getKeyword());
+        return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
+    }
+
+    /**
+     * 分页查询某上级平台"未挂载到本组"的通道（推送目录弹窗"添加"picker）
+     */
+    @PostMapping("/{id}/share-group/{groupId}/unmounted-channels/page")
+    @RequirePermission({"gb28181:parent-platform:list"})
+    public Result<PageResult<GbDeviceChannel>> unmountedChannelsPage(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId,
+            @RequestBody UnmountedChannelPageRequest req) {
+        Page<GbDeviceChannel> page = new Page<>(req.getPage(), req.getPageSize());
+        var result = catalogShareService.pageUnmountedByGroup(id, groupId, page, req.getKeyword());
+        return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
+    }
+
+    /**
+     * 批量挂载 catalog item 到某分组（推送目录弹窗"添加"确认）。请求体：{@code {"resourceIds": [id1, id2, ...]}}
+     */
+    @PostMapping("/{id}/share-group/{groupId}/share")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Map<String, Object>> addShares(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId,
+            @RequestBody Map<String, List<Long>> body) {
+        List<Long> resourceIds = body == null ? null : body.get("resourceIds");
+        if (resourceIds == null || resourceIds.isEmpty()) {
+            throw new ServiceException("resourceIds 不能为空");
+        }
+        int n = catalogShareService.addShares(id, groupId, resourceIds);
+        return Result.success(Map.of("added", n));
+    }
+
+    /**
+     * 单条卸载（按 (platform_id, group_id, resource_id) 定位删除）
+     */
+    @DeleteMapping("/{id}/share-group/{groupId}/share/{resourceId}")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Void> removeShare(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId,
+            @PathVariable("resourceId") Long resourceId) {
+        catalogShareService.removeShare(id, groupId, resourceId);
+        return Result.success();
+    }
+
+    /**
+     * 清除某上级平台某分组下的全部挂载关系（管理台树节点"清除本组"按钮）
+     */
+    @DeleteMapping("/{id}/share-group/{groupId}/share")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Map<String, Object>> clearShares(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId) {
+        int n = catalogShareService.clearShares(id, groupId);
+        return Result.success(Map.of("cleared", n));
+    }
+
+    /**
+     * 清除某上级平台下全部挂载关系（管理台右侧"一键清除"按钮；不分组，按 platform_id 全删）
+     */
+    @DeleteMapping("/{id}/share")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Map<String, Object>> clearAllSharesByPlatform(@PathVariable("id") Long id) {
+        int n = catalogShareService.clearAllSharesByPlatform(id);
+        return Result.success(Map.of("cleared", n));
+    }
+
+    /**
+     * 一键添加所有"未挂载到本组"通道到该分组（管理台"一键添加"按钮）
+     */
+    @PostMapping("/{id}/share-group/{groupId}/share-all")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Map<String, Object>> addAllShares(
+            @PathVariable("id") Long id,
+            @PathVariable("groupId") Long groupId) {
+        int n = catalogShareService.addAllUnmounted(id, groupId);
+        return Result.success(Map.of("added", n));
     }
 }

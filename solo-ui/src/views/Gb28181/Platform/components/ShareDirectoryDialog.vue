@@ -1,14 +1,26 @@
 <script setup lang="ts">
 /**
- * 推送目录管理弹窗（per-platform 推送树 CRUD + 通道挂载）
+ * 推送目录挂载管理弹窗（per-platform 推送树 + catalog item 挂载）
  *
  * <p>左右双栏布局：
  * <ul>
- *   <li>左侧：推送目录树（gb_platform_group） + CRUD（新建/编辑/删除）</li>
- *   <li>右侧：未挂载通道列表 + 挂载到选中组</li>
+ *   <li>左侧：推送目录树（gb_platform_group） + CRUD（新建/编辑/删除），share 表的 group_id
+ *       指向这里——必须先在左侧选中分组才能挂载/卸载/清除</li>
+ *   <li>右侧：<b>必须先在左侧选中分组</b>展示该组已挂载通道（gb_platform_share，只存通道）；
+ *       搜索 + 卸载按钮 + 添加 / 一键添加 / 清除三个操作按钮</li>
  * </ul>
  *
- * <p>当前版本：分组 CRUD 已对接后端。挂载 / 卸载接口待后续迭代"推送保存"功能时落地。</p>
+ * <p>挂载语义（gb_platform_share，2026-08 改造）：
+ * <ul>
+ *   <li>{@code group_id} → 推送分组（必选，UI 强制）；{@code resource_id} → gb_device_channel.id
+ *       （<b>只存通道</b>，parental=0 的行；分组不入 share 表）</li>
+ *   <li>同一通道在同一平台下只能挂载一次（uk_platform_resource 是 (platform_id, resource_id)
+ *       联合唯一），换组要先卸载旧组</li>
+ *   <li>{@code exposed_code}：撞码时按 (deviceId, channelId) SHA-256 派生
+ *       （ADR-026 决策 2），平台内唯一</li>
+ *   <li>推送时 XML {@code <DeviceID>} = exposedCode ?? channelId（{@code GbDeviceChannel.getExposedOrChannelId()}）</li>
+ * </ul>
+ * </p>
  */
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import {
@@ -18,14 +30,20 @@ import {
   Folder,
   FolderOpened,
   VideoCamera,
-  Connection,
   Search,
+  QuestionFilled,
 } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { GbDeviceChannel, GbPlatformGroup, GbPlatformGroupSaveRequest } from '@/types/api'
 import {
   getParentPlatformShareGroupTreeApi,
+  getParentPlatformSharedByGroupPageApi,
   getParentPlatformUnmountedChannelsApi,
+  clearAllSharesByPlatformApi,
+  addSharesApi,
+  addAllSharesApi,
+  removeShareApi,
+  clearSharesApi,
   savePlatformGroupApi,
   updatePlatformGroupApi,
   deletePlatformGroupApi,
@@ -43,20 +61,22 @@ const emit = defineEmits<{
 
 const ROOT_ID = 0
 
-// ---------------- 数据（真实后端） ----------------
+// ---------------- 数据 ----------------
 const loading = ref(false)
+// 区分当前正在进行的操作，避免"一键清除"和"一键添加"等按钮互抢 loading 状态
+const pendingAction = ref<'' | 'addAll' | 'clearAll' | 'clearGroup'>('')
 const groupTree = ref<GbPlatformGroup[]>([])
-const unmountedChannelList = ref<GbDeviceChannel[]>([])
 
-const selectedGroupId = ref<number | null>(null)
-const selectedUnmountedIds = ref<string[]>([])
-
-// 分页 / 搜索
-const unmountedKeyword = ref('')
-const unmountedPage = ref(1)
-const unmountedPageSize = ref(20)
-const unmountedTotal = ref(0)
+// 右侧"已共享"列表
+const rightKeyword = ref('')
+const rightPage = ref(1)
+const rightPageSize = ref(20)
+const rightTotal = ref(0)
+const rightList = ref<GbDeviceChannel[]>([])
 let searchTimer: number | null = null
+
+// 左侧"推送目录树"当前选中（仅高亮，不影响右侧）
+const selectedGroupId = ref<number | null>(null)
 
 const selectedGroup = computed<GbPlatformGroup | null>(() => {
   if (selectedGroupId.value == null) return null
@@ -78,19 +98,27 @@ async function loadTree() {
   groupTree.value = res.data || []
 }
 
-async function loadUnmountedChannels() {
-  if (!props.platformId) return
+async function loadShared() {
+  if (!props.platformId || selectedGroupId.value == null) {
+    rightList.value = []
+    rightTotal.value = 0
+    return
+  }
   loading.value = true
   try {
-    const res = await getParentPlatformUnmountedChannelsApi(props.platformId, {
-      page: unmountedPage.value,
-      pageSize: unmountedPageSize.value,
-      keyword: unmountedKeyword.value.trim() || undefined,
-    })
-    unmountedChannelList.value = res.data?.rows || []
-    unmountedTotal.value = res.data?.total || 0
+    const res = await getParentPlatformSharedByGroupPageApi(
+      props.platformId,
+      selectedGroupId.value,
+      {
+        page: rightPage.value,
+        pageSize: rightPageSize.value,
+        keyword: rightKeyword.value.trim() || undefined,
+      }
+    )
+    rightList.value = res.data?.rows || []
+    rightTotal.value = res.data?.total || 0
   } catch (e: any) {
-    ElMessage.error('加载未挂载通道失败：' + (e?.message || '未知错误'))
+    ElMessage.error('加载已挂载列表失败：' + (e?.message || '未知错误'))
   } finally {
     loading.value = false
   }
@@ -104,17 +132,21 @@ async function loadData() {
   loading.value = true
   try {
     await loadTree()
-    await loadUnmountedChannels()
+    // 默认进：<b>不</b>自动选中分组——必须由用户在左侧手动选才能挂载（"必须要选中左侧的目录树后才能挂载"）。
     selectedGroupId.value = null
-    selectedUnmountedIds.value = []
-    unmountedPage.value = 1
-    unmountedKeyword.value = ''
   } catch (e: any) {
     ElMessage.error('加载推送目录失败：' + (e?.message || '未知错误'))
   } finally {
     loading.value = false
   }
 }
+
+watch(selectedGroupId, () => {
+  // 切换分组：重置分页 + 关键字 + 拉该组已挂载
+  rightPage.value = 1
+  rightKeyword.value = ''
+  loadShared()
+})
 
 watch(
   () => props.modelValue,
@@ -132,25 +164,23 @@ onBeforeUnmount(() => {
 function onSearchInput() {
   if (searchTimer) window.clearTimeout(searchTimer)
   searchTimer = window.setTimeout(() => {
-    unmountedPage.value = 1
-    // 关键字变了：之前跨页选中的可能搜不到了，清空避免误导
-    selectedUnmountedIds.value = []
-    loadUnmountedChannels()
+    rightPage.value = 1
+    loadShared()
   }, 250)
 }
 
 function onPageChange(p: number) {
-  unmountedPage.value = p
-  loadUnmountedChannels()
+  rightPage.value = p
+  loadShared()
 }
 
 function onSizeChange(s: number) {
-  unmountedPageSize.value = s
-  unmountedPage.value = 1
-  loadUnmountedChannels()
+  rightPageSize.value = s
+  rightPage.value = 1
+  loadShared()
 }
 
-// ---------------- 树交互 ----------------
+// ---------------- 树交互（仅高亮 / 导航） ----------------
 function onNodeClick(data: GbPlatformGroup) {
   selectedGroupId.value = data.id
 }
@@ -171,9 +201,6 @@ const editRules = {
   ],
 }
 
-/**
- * 顶部"新建"按钮：强制顶级（parentId = 0）
- */
 function handleCreateGroup() {
   if (!props.platformId) {
     ElMessage.warning('缺少上级平台 id')
@@ -182,9 +209,6 @@ function handleCreateGroup() {
   openEditDialog('新建顶级分组', null, ROOT_ID)
 }
 
-/**
- * 节点"+"按钮：在选中节点下新建子分组
- */
 function handleAddChildGroup(parent: GbPlatformGroup) {
   if (!props.platformId) {
     ElMessage.warning('缺少上级平台 id')
@@ -193,9 +217,6 @@ function handleAddChildGroup(parent: GbPlatformGroup) {
   openEditDialog(`新建子分组（父：${parent.name}）`, null, parent.id)
 }
 
-/**
- * 节点"编辑"按钮
- */
 function handleEditGroup(g: GbPlatformGroup) {
   openEditDialog('编辑分组', g.id, g.parentId, g.name, g.code)
 }
@@ -232,7 +253,7 @@ async function handleConfirmEdit() {
       ElMessage.success('修改成功')
     }
     editDialogVisible.value = false
-    await loadData()
+    await loadTree()
   } catch (e: any) {
     ElMessage.error('保存失败：' + (e?.message || '未知错误'))
   } finally {
@@ -244,30 +265,22 @@ async function handleDeleteGroup(g: GbPlatformGroup) {
   if (!props.platformId) return
   try {
     await ElMessageBox.confirm(
-      `确定删除分组「${g.name}」？该分组下的挂载关系将一并解除。`,
+      `确定删除分组「${g.name}」？该操作不影响已挂载的 catalog item。`,
       '提示',
       { type: 'warning' }
     )
     await deletePlatformGroupApi(props.platformId, g.id)
     ElMessage.success('删除成功')
     if (selectedGroupId.value === g.id) selectedGroupId.value = null
-    await loadData()
+    await loadTree()
   } catch {
     // cancelled
   }
 }
 
-// ---------------- 挂载 / 卸载（待后端实现） ----------------
-function notImplemented(action: string) {
-  ElMessage.warning(`「${action}」待推送保存功能实现后开放`)
-}
-function handleMount() { notImplemented('挂载通道') }
-function handleUnmount() { notImplemented('卸载通道') }
-
-// ---------------- 选中组 → "添加挂载"嵌套弹窗 ----------------
+// ---------------- 添加（嵌套弹窗：未挂载通道多选） ----------------
 const pickerVisible = ref(false)
-const pickerSelected = ref<string[]>([])
-
+const pickerSelected = ref<number[]>([])
 const pickerKeyword = ref('')
 const pickerPage = ref(1)
 const pickerPageSize = ref(20)
@@ -277,14 +290,18 @@ const pickerLoading = ref(false)
 let pickerSearchTimer: number | null = null
 
 async function loadPickerChannels() {
-  if (!props.platformId) return
+  if (!props.platformId || selectedGroupId.value == null) return
   pickerLoading.value = true
   try {
-    const res = await getParentPlatformUnmountedChannelsApi(props.platformId, {
-      page: pickerPage.value,
-      pageSize: pickerPageSize.value,
-      keyword: pickerKeyword.value.trim() || undefined,
-    })
+    const res = await getParentPlatformUnmountedChannelsApi(
+      props.platformId,
+      selectedGroupId.value,
+      {
+        page: pickerPage.value,
+        pageSize: pickerPageSize.value,
+        keyword: pickerKeyword.value.trim() || undefined,
+      }
+    )
     pickerList.value = res.data?.rows || []
     pickerTotal.value = res.data?.total || 0
   } catch (e: any) {
@@ -295,11 +312,28 @@ async function loadPickerChannels() {
 }
 
 function openPicker() {
+  if (selectedGroupId.value == null) {
+    ElMessage.warning('请先在左侧选择一个分组')
+    return
+  }
   pickerSelected.value = []
   pickerKeyword.value = ''
   pickerPage.value = 1
   pickerVisible.value = true
   loadPickerChannels()
+}
+
+/** 全选本页：把当前页所有未挂载通道加到选择集合（不冲掉已选跨页项） */
+function selectAllOnPage() {
+  const ids = pickerList.value.map((c) => c.id)
+  const merged = new Set(pickerSelected.value)
+  for (const id of ids) merged.add(id)
+  pickerSelected.value = Array.from(merged)
+}
+
+/** 全不选：清空选择 */
+function clearAllSelected() {
+  pickerSelected.value = []
 }
 
 function onPickerSearchInput() {
@@ -322,17 +356,133 @@ function onPickerSizeChange(s: number) {
   loadPickerChannels()
 }
 
-function handlePickerConfirm() {
+async function handlePickerConfirm() {
+  if (!props.platformId || selectedGroupId.value == null) return
   if (pickerSelected.value.length === 0) {
     ElMessage.warning('请先勾选要挂载的通道')
     return
   }
-  const groupName = selectedGroup.value?.name ?? '未选组'
-  // 挂载接口未实现：弹占位提示
-  notImplemented(`批量挂载到「${groupName}」（${pickerSelected.value.length} 条）`)
-  pickerVisible.value = false
+  try {
+    const res = await addSharesApi(props.platformId, selectedGroupId.value, {
+      resourceIds: pickerSelected.value,
+    })
+    ElMessage.success(`挂载成功（新增 ${res.data?.added ?? pickerSelected.value.length} 条）`)
+    pickerVisible.value = false
+    await loadShared()
+  } catch (e: any) {
+    ElMessage.error('挂载失败：' + (e?.message || '未知错误'))
+  }
 }
 
+// ---------------- 卸载（右侧每行） ----------------
+async function handleUnmount(row: GbDeviceChannel) {
+  if (!props.platformId || selectedGroupId.value == null) return
+  try {
+    await ElMessageBox.confirm(
+      `确定从「${selectedGroup.value?.name || ''}」卸载「${row.name || row.channelId}」？该操作不影响 catalog item 本身。`,
+      '提示',
+      { type: 'warning' }
+    )
+    await removeShareApi(props.platformId, selectedGroupId.value, row.id)
+    ElMessage.success('卸载成功')
+    await loadShared()
+  } catch {
+    // cancelled
+  }
+}
+
+// ---------------- 清除本组挂载（树节点上"清除本组"按钮） ----------------
+async function handleClearGroup(g: GbPlatformGroup) {
+  if (!props.platformId) return
+  // 先查本组当前挂载条数（带在 tree 上时右侧不一定加载过）
+  let count = 0
+  try {
+    const res = await getParentPlatformSharedByGroupPageApi(
+      props.platformId,
+      g.id,
+      { page: 1, pageSize: 1, keyword: '' }
+    )
+    count = res.data?.total ?? 0
+  } catch {
+    /* 查不到就走下面 0 的分支提示 */
+  }
+  if (count === 0) {
+    ElMessage.warning(`「${g.name}」下没有挂载通道`)
+    return
+  }
+  let confirmed = false
+  try {
+    await ElMessageBox.confirm(
+      `确定清空「${g.name}」的挂载吗`,
+      '清空确认',
+      { type: 'warning' }
+    )
+    confirmed = true
+  } catch {
+    // 用户取消
+  }
+  if (!confirmed) return
+
+  loading.value = true
+  pendingAction.value = 'clearGroup'
+  try {
+    const res = await clearSharesApi(props.platformId, g.id)
+    ElMessage.success(`已清空「${g.name}」的挂载`)
+    // 当前选中的就是被清的组时才需要重新拉右侧列表
+    if (selectedGroupId.value === g.id) await loadShared()
+  } catch (e: any) {
+    ElMessage.error('清除失败：' + (e?.message || '未知错误'))
+  } finally {
+    loading.value = false
+    pendingAction.value = ''
+  }
+}
+
+// ---------------- 清除该平台下全部挂载（右侧大按钮，不分分组） ----------------
+async function handleClearAll() {
+  if (!props.platformId) return
+  let confirmed = false
+  try {
+    await ElMessageBox.confirm('确定全部清除吗', '清空确认', { type: 'warning' })
+    confirmed = true
+  } catch {
+    // 用户取消
+  }
+  if (!confirmed) return
+
+  loading.value = true
+  pendingAction.value = 'clearAll'
+  try {
+    const res = await clearAllSharesByPlatformApi(props.platformId)
+    ElMessage.success('已清空该平台的全部挂载')
+    // 当前选中组可能也被清了 → 重新拉已挂列表
+    await loadShared()
+  } catch (e: any) {
+    ElMessage.error('清除失败：' + (e?.message || '未知错误'))
+  } finally {
+    loading.value = false
+    pendingAction.value = ''
+  }
+}
+
+// ---------------- 一键添加全部未挂载 ----------------
+async function handleAddAll() {
+  if (!props.platformId || selectedGroupId.value == null) return
+  loading.value = true
+  pendingAction.value = 'addAll'
+  try {
+    const res = await addAllSharesApi(props.platformId, selectedGroupId.value)
+    ElMessage.success(`一键添加完成（新增 ${res.data?.added ?? 0} 条）`)
+    await loadShared()
+  } catch (e: any) {
+    ElMessage.error('一键添加失败：' + (e?.message || '未知错误'))
+  } finally {
+    loading.value = false
+    pendingAction.value = ''
+  }
+}
+
+// ---------------- 关闭 ----------------
 function handleClose() {
   emit('update:modelValue', false)
 }
@@ -342,7 +492,7 @@ function handleClose() {
   <el-dialog
     :model-value="modelValue"
     :title="`推送目录 - ${platformName || '上级平台'}`"
-    width="1000px"
+    width="1200px"
     top="3vh"
     :close-on-click-modal="false"
     class="share-directory-dialog"
@@ -350,7 +500,7 @@ function handleClose() {
   >
     <div class="dialog-content">
       <div class="split-layout">
-        <!-- 左侧：推送目录树 -->
+        <!-- 左侧：推送目录树（与 share 表解耦，仅 admin UI 组织树） -->
         <div class="left-pane">
           <div class="pane-header">
             <span class="pane-title">推送目录树</span>
@@ -364,6 +514,7 @@ function handleClose() {
             node-key="id"
             highlight-current
             :expand-on-click-node="false"
+            :default-expanded-keys="groupTree.map((g) => g.id)"
             class="group-tree"
             @node-click="onNodeClick"
           >
@@ -394,7 +545,17 @@ function handleClose() {
                       @click.stop="handleEditGroup(data)"
                     />
                   </el-tooltip>
-                  <el-tooltip content="删除" placement="top">
+                  <el-tooltip content="清除本组挂载" placement="top">
+                    <el-button
+                      v-permission="'gb28181:parent-platform:edit'"
+                      type="warning"
+                      link
+                      :icon="Delete"
+                      size="small"
+                      @click.stop="handleClearGroup(data)"
+                    />
+                  </el-tooltip>
+                  <el-tooltip content="删除分组" placement="top">
                     <el-button
                       v-permission="'gb28181:share-group:delete'"
                       type="danger"
@@ -410,93 +571,114 @@ function handleClose() {
           </el-tree>
         </div>
 
-        <!-- 右侧：未挂载 / 已挂载切换 -->
+        <!-- 右侧：当前选中组的已挂载通道列表 -->
         <div class="right-pane">
           <div class="pane-header">
-            <span class="pane-title">
-              {{ selectedGroup ? `已挂载通道（${selectedGroup.name}）` : '未挂载通道' }}
-            </span>
             <div class="pane-actions">
-              <!-- 未选组：顶部放搜索 -->
               <el-input
-                v-if="!selectedGroup"
-                v-model="unmountedKeyword"
+                v-model="rightKeyword"
                 size="small"
-                placeholder="搜索通道"
+                placeholder="搜索名称 / 国标编码"
                 :prefix-icon="Search"
                 clearable
-                style="width: 180px"
+                style="width: 280px"
+                :disabled="selectedGroupId == null"
                 @input="onSearchInput"
               />
-              <!-- 选中组：顶部放"添加挂载" -->
               <el-button
-                v-else
-                v-permission="'gb28181:share-group:edit'"
+                v-permission="'gb28181:parent-platform:edit'"
+                type="warning"
+                size="small"
+                :icon="Plus"
+                plain
+                :loading="loading && pendingAction === 'addAll'"
+                :disabled="selectedGroupId == null"
+                @click="handleAddAll"
+              >
+                一键添加
+              </el-button>
+              <el-button
+                v-permission="'gb28181:parent-platform:edit'"
+                type="danger"
+                size="small"
+                :icon="Delete"
+                plain
+                :loading="loading && pendingAction === 'clearAll'"
+                @click="handleClearAll"
+              >
+                一键清除
+              </el-button>
+              <el-button
+                v-permission="'gb28181:parent-platform:edit'"
                 type="primary"
                 size="small"
                 :icon="Plus"
+                :disabled="selectedGroupId == null"
                 @click="openPicker"
               >
-                添加挂载
+                添加
               </el-button>
             </div>
           </div>
 
-          <!-- 列表区 -->
           <div class="channel-list" v-loading="loading">
-            <!-- 未选组：未挂载通道分页列表 -->
-            <template v-if="!selectedGroup">
-              <div v-if="unmountedChannelList.length === 0" class="empty-tip">
-                暂无未挂载通道
-              </div>
-              <el-checkbox-group v-else v-model="selectedUnmountedIds" class="channel-check-group">
-                <div v-for="ch in unmountedChannelList" :key="ch.id" class="channel-item">
-                  <el-checkbox :value="ch.id">
-                    <span class="channel-name">
-                      <el-icon class="channel-icon"><VideoCamera /></el-icon>
-                      {{ ch.name || '(无名称)' }}
-                    </span>
-                    <span class="channel-code">({{ ch.channelId }})</span>
-                  </el-checkbox>
-                </div>
-              </el-checkbox-group>
-            </template>
-
-            <!-- 选中组：已挂载占位（接口未实现时为空） -->
-            <template v-else>
-              <div class="empty-tip">
-                暂无已挂载通道<br />
-                <span class="empty-sub">挂载关系接口待推送保存功能落地后开放</span>
-              </div>
-            </template>
+            <div v-if="selectedGroupId == null" class="empty-tip">
+              请先在左侧选择一个推送分组
+            </div>
+            <div v-else-if="rightList.length === 0" class="empty-tip">
+              暂无已挂载项<br />
+              <span class="empty-sub">点击右上角"添加"从 catalog 选择</span>
+            </div>
+            <el-table v-else :data="rightList" border stripe size="small" max-height="calc(80vh - 280px)">
+              <el-table-column prop="name" label="名称" min-width="180" show-overflow-tooltip />
+              <el-table-column label="国标编码" min-width="200">
+                <template #default="{ row }">
+                  <span>{{ row.channelId }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="推送国标码" min-width="200">
+                <template #header>
+                  <span>推送国标码</span>
+                  <el-tooltip
+                    placement="top"
+                    content="实际推送给上级平台的国标码。普通通道为空时表示透传设备原始 GB 码；多个通道国标码相同时会被系统重码成唯一码"
+                  >
+                    <el-icon class="header-tip"><QuestionFilled /></el-icon>
+                  </el-tooltip>
+                </template>
+                <template #default="{ row }">
+                  <span class="expose-code">{{ row.exposedCode || '-' }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="80" align="center" fixed="right">
+                <template #default="{ row }">
+                  <el-tooltip content="卸载" placement="top">
+                    <el-button
+                      v-permission="'gb28181:parent-platform:edit'"
+                      type="danger"
+                      :icon="Delete"
+                      link
+                      size="small"
+                      @click="handleUnmount(row)"
+                    />
+                  </el-tooltip>
+                </template>
+              </el-table-column>
+            </el-table>
           </div>
 
-          <!-- 分页器：仅未选组时显示 -->
           <el-pagination
-            v-if="!selectedGroup && unmountedTotal > 0"
+            v-if="rightTotal > 0"
             class="channel-pager"
-            :current-page="unmountedPage"
-            :page-size="unmountedPageSize"
-            :total="unmountedTotal"
+            :current-page="rightPage"
+            :page-size="rightPageSize"
+            :total="rightTotal"
             :page-sizes="[10, 20, 50, 100]"
             small
             layout="total, sizes, prev, pager, next, jumper"
             @current-change="onPageChange"
             @size-change="onSizeChange"
           />
-
-          <div class="pane-footer" v-if="!selectedGroup">
-            <el-button
-              v-permission="'gb28181:share-group:edit'"
-              type="primary"
-              size="small"
-              :icon="Connection"
-              :disabled="!selectedGroup || selectedUnmountedIds.length === 0"
-              @click="handleMount"
-            >
-              挂载到「{{ selectedGroup?.name || '未选组' }}」
-            </el-button>
-          </div>
         </div>
       </div>
     </div>
@@ -509,16 +691,23 @@ function handleClose() {
   <el-dialog
     v-model="editDialogVisible"
     :title="editDialogTitle"
-    width="360px"
+    width="520px"
     :close-on-click-modal="false"
     append-to-body
+    align-center
   >
-    <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px">
+    <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="100px" label-position="right">
       <el-form-item label="分组名称" prop="name">
-        <el-input v-model="editForm.name" placeholder="分组名称" maxlength="64" show-word-limit />
+        <el-input v-model="editForm.name" placeholder="请输入分组名称（如：大门、出入口）" maxlength="64" show-word-limit clearable />
       </el-form-item>
       <el-form-item label="分组编码" prop="code">
-        <el-input v-model="editForm.code" placeholder="20 位数字，第 11-13 位为 215 或 216" maxlength="20" />
+        <el-input
+          v-model="editForm.code"
+          placeholder="20 位国标编码"
+          maxlength="20"
+          clearable
+        />
+        <div class="form-tip">20 位数字，第 11-13 位必须为 215 或 216（如 11000000002150000001）</div>
       </el-form-item>
     </el-form>
     <template #footer>
@@ -530,8 +719,8 @@ function handleClose() {
   <!-- 选择未挂载通道（嵌套弹窗） -->
   <el-dialog
     v-model="pickerVisible"
-    :title="`选择要挂载到「${selectedGroup?.name || ''}」的通道`"
-    width="640px"
+    title="选择要挂载的通道"
+    width="800px"
     :close-on-click-modal="false"
     append-to-body
     @closed="pickerSelected = []"
@@ -540,24 +729,35 @@ function handleClose() {
       <el-input
         v-model="pickerKeyword"
         size="small"
-        placeholder="搜索通道"
+        placeholder="搜索名称 / 国标编码"
         :prefix-icon="Search"
         clearable
         style="width: 220px"
         @input="onPickerSearchInput"
       />
-      <span class="picker-hint">已选 {{ pickerSelected.length }} 条</span>
+      <div class="picker-actions">
+        <el-button
+          size="small"
+          :disabled="pickerList.length === 0"
+          @click="selectAllOnPage"
+        >
+          全选
+        </el-button>
+        <el-button
+          size="small"
+          :disabled="pickerSelected.length === 0"
+          @click="clearAllSelected"
+        >
+          全不选
+        </el-button>
+      </div>
     </div>
     <div class="picker-list" v-loading="pickerLoading">
       <div v-if="pickerList.length === 0" class="empty-tip">暂无未挂载通道</div>
       <el-checkbox-group v-else v-model="pickerSelected" class="channel-check-group">
         <div v-for="ch in pickerList" :key="ch.id" class="channel-item">
           <el-checkbox :value="ch.id">
-            <span class="channel-name">
-              <el-icon class="channel-icon"><VideoCamera /></el-icon>
-              {{ ch.name || '(无名称)' }}
-            </span>
-            <span class="channel-code">({{ ch.channelId }})</span>
+            {{ ch.name || '(无名称)' }} ({{ ch.channelId }})
           </el-checkbox>
         </div>
       </el-checkbox-group>
@@ -576,7 +776,7 @@ function handleClose() {
     />
     <template #footer>
       <el-button @click="pickerVisible = false">取 消</el-button>
-      <el-button type="primary" @click="handlePickerConfirm">挂 载</el-button>
+      <el-button type="primary" :disabled="pickerSelected.length === 0" @click="handlePickerConfirm">确定</el-button>
     </template>
   </el-dialog>
 </template>
@@ -588,15 +788,24 @@ function handleClose() {
   padding: 0 4px;
 }
 
-/* 左右分栏 */
+/* 左右分栏：左侧推送树固定 360px（名字+国标编码展示够用），右侧已挂载表占剩余宽度 */
 .split-layout {
   display: flex;
   gap: 16px;
   min-height: 420px;
 }
-.left-pane,
+.left-pane {
+  flex: 0 0 360px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
 .right-pane {
   flex: 1;
+  min-width: 0;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   background: #fafafa;
@@ -613,6 +822,7 @@ function handleClose() {
   padding: 10px 12px;
   background: #f5f7fa;
   border-bottom: 1px solid #e4e7ed;
+  gap: 8px;
 }
 .pane-title {
   font-size: 13px;
@@ -622,6 +832,7 @@ function handleClose() {
 .pane-actions {
   display: flex;
   gap: 4px;
+  align-items: center;
 }
 
 /* 树 */
@@ -670,57 +881,38 @@ function handleClose() {
   padding: 0 4px;
 }
 
-/* 通道列表 */
+/* 右侧已挂载表 */
 .channel-list {
   flex: 1;
   padding: 8px 12px;
   overflow-y: auto;
 }
-.channel-check-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.channel-item {
-  padding: 6px 8px;
-  border-radius: 4px;
-  transition: background 0.2s;
-}
-.channel-item:hover {
-  background: #f0f2f5;
-}
-.channel-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 4px;
-}
-.channel-icon {
-  color: #409eff;
-  font-size: 14px;
-}
-.channel-code {
-  color: #909399;
-  font-size: 12px;
-  margin-left: 4px;
-}
-
-.pane-footer {
-  padding: 8px 12px;
-  border-top: 1px solid #e4e7ed;
-  background: #fafafa;
-  display: flex;
-  justify-content: flex-end;
-}
-
 .channel-pager {
   padding: 4px 8px 8px;
   justify-content: flex-end;
   background: #fafafa;
   border-top: 1px solid #e4e7ed;
 }
+.expose-code {
+  font-family: 'Menlo', 'Consolas', monospace;
+  color: #409eff;
+}
+.header-tip {
+  margin-left: 4px;
+  color: #909399;
+  cursor: help;
+  vertical-align: -2px;
+}
+.muted {
+  color: #c0c4cc;
+}
 
-/* 已挂载占位次级文案 */
+.empty-tip {
+  padding: 60px 16px;
+  text-align: center;
+  color: #909399;
+  font-size: 13px;
+}
 .empty-sub {
   display: inline-block;
   margin-top: 6px;
@@ -736,10 +928,12 @@ function handleClose() {
   padding-bottom: 8px;
   border-bottom: 1px solid #ebeef5;
   margin-bottom: 8px;
+  gap: 12px;
 }
-.picker-hint {
-  font-size: 12px;
-  color: #909399;
+.picker-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .picker-list {
   max-height: 50vh;
@@ -750,35 +944,25 @@ function handleClose() {
   margin-top: 8px;
   justify-content: flex-end;
 }
-
-/* 已挂载区 */
-.mounted-section {
-  margin-top: 12px;
-  border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  background: #fafafa;
-}
-.mounted-list {
-  padding: 10px 12px;
+.channel-check-group {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+  flex-direction: column;
+  gap: 2px;
 }
-.mounted-tag {
-  margin: 0;
+.channel-item {
+  padding: 3px 8px;
+  border-radius: 4px;
+  transition: background 0.2s;
 }
-.empty-tip {
-  padding: 16px;
-  text-align: center;
-  color: #909399;
-  font-size: 13px;
+.channel-item:hover {
+  background: #f0f2f5;
 }
 
-/* 父分组输入提示 */
+/* 新建/编辑分组弹窗内字段说明 */
 .form-tip {
   font-size: 12px;
   color: #909399;
+  line-height: 1.5;
   margin-top: 4px;
-  line-height: 1.4;
 }
 </style>

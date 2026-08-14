@@ -1,43 +1,62 @@
 package com.solo.gb28181.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPlatformShare;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
 /**
- * 上级平台共享资源 Mapper（gb_platform_share，catalog item 共享，ADR-023）。
+ * 上级平台共享 Mapper（gb_platform_share，ADR-023 / ADR-020 / ADR-026）。
  *
- * <p>分组/通道统一存 {@code gb_device_channel}（靠 {@code parental} 区分），
- * 本表只存 {@code (platform_id, resource_id)} 关系；查询时 JOIN 派生 parental。</p>
+ * <p>{@code gb_platform_share} <b>只存通道</b>（{@code gb_device_channel} 中 {@code parental=0} 的行），
+ * 本表存 {@code (platform_id, group_id, resource_id)} + 可选撞码重映射 {@code exposed_code}。
+ * 复杂查询（JOIN 派生、NOT EXISTS 排除等）写在 {@code mapper/xml/GbPlatformShareMapper.xml}，
+ * 简单 CRUD 走 {@link BaseMapper}。</p>
+ *
+ * <p>2026-08 改造：share 表与 {@code gb_platform_group} 关联，UI 强制先选组才能挂载；
+ * 同一通道在同一平台下只能挂载一次（{@code uk_platform_resource}）。弹窗所有"按组"查询走
+ * group_id 过滤；catalog 响应 / INVITE 反查仍按 platform_id 全量查（不分组）——上级不关心挂在哪个组里。</p>
  */
 @Mapper
 public interface GbPlatformShareMapper extends BaseMapper<GbPlatformShare> {
 
     /**
-     * 查询某上级平台已勾选共享的所有 catalog item（含分组/通道）。
-     * <p>join {@code gb_device_channel}，按 resource_id 一并带出，调用方按 {@code parental}
-     * 派生 type；通过 {@code gb_platform_share.exposed_code} 一并带出对上级暴露的唯一码
-     * （仅通道有效，分行为 NULL）。</p>
+     * 查询某上级平台已共享的所有通道明细。全量（不分组），供
+     * CatalogQueryMessageHandler 构造向上级回复的 Catalog Response 使用。
      */
-    @Select("SELECT ch.*, s.exposed_code AS exposed_code FROM gb_device_channel ch " +
-            "INNER JOIN gb_platform_share s ON s.resource_id = ch.id " +
-            "WHERE s.platform_id = #{platformId} " +
-            "ORDER BY ch.parental DESC, ch.channel_id ASC")
-    List<GbDeviceChannel> selectSharedCatalogItems(@Param("platformId") Long platformId);
+    List<GbDeviceChannel> selectSharedCatalogItems(Long platformId);
 
     /**
-     * 查询某上级平台已勾选共享的所有通道明细。
-     * <p>仅返回 {@code parental=0} 的 catalog item（实际通道），分组不会混入。
-     * 与 {@link #selectSharedCatalogItems} 区别：本方法只筛通道，省去调用方过滤。</p>
+     * 查询某上级平台已共享的所有通道明细。全量（不分组），供
+     * CascadeSendService 处理上级 INVITE 时校验共享 + 定位真实通道。
      */
-    @Select("SELECT ch.*, s.exposed_code AS exposed_code FROM gb_device_channel ch " +
-            "INNER JOIN gb_platform_share s ON s.resource_id = ch.id " +
-            "WHERE s.platform_id = #{platformId} AND ch.parental = 0 " +
-            "ORDER BY ch.channel_id ASC")
-    List<GbDeviceChannel> selectSharedChannels(@Param("platformId") Long platformId);
+    List<GbDeviceChannel> selectSharedChannels(Long platformId);
+
+    /**
+     * 分页查询某上级平台某推送分组下已挂载的通道（推送目录弹窗"已挂载"列表）。
+     */
+    IPage<GbDeviceChannel> selectSharedByGroupPage(Page<GbDeviceChannel> page,
+                                                   @Param("platformId") Long platformId,
+                                                   @Param("groupId") Long groupId,
+                                                   @Param("keyword") String keyword);
+
+    /**
+     * 分页查询某上级平台"未挂载"的通道（推送目录弹窗"添加"picker）。
+     * <p>未挂载 = 不在该平台任何 share 里（任意分组都算已挂载）——同一通道在本平台只能挂一次。</p>
+     */
+    IPage<GbDeviceChannel> selectUnmountedByGroupPage(Page<GbDeviceChannel> page,
+                                                      @Param("platformId") Long platformId,
+                                                      @Param("groupId") Long groupId,
+                                                      @Param("keyword") String keyword);
+
+    /**
+     * 列出某平台"未挂载"的所有通道 id（不分页），供"一键添加"使用。
+     */
+    List<Long> selectUnmountedByGroupAllIds(@Param("platformId") Long platformId,
+                                            @Param("groupId") Long groupId);
 }

@@ -296,22 +296,34 @@ CREATE TABLE gb_platform_group
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台推送目录分组表（per-platform 推送树节点）';
 
 -- =====================================================
--- 上级平台共享资源表（gb_platform_share）：catalog item（分组+通道）共享关系
--- 本平台作为下级向上级共享资源时，选中的 catalog item 记录。
--- 一行 = 一个上级平台 × 一个 catalog item，靠 resource.parental 区分分组/通道，无物理外键（ADR-011）。
+-- 上级平台共享通道表（gb_platform_share）：推送给上级的通道
+-- 本平台作为下级向上级共享资源时，选中的通道记录。
+-- 一行 = 一个上级平台 × 一个推送分组 × 一个通道。
+--
+-- resource_id：通道主键（gb_device_channel.id，parental=0 的行）。本表只存通道——分组（parental=1）
+--   是本平台内部的目录组织，当前不推送给上级（Catalog XML 只发通道 Item）；若未来要推分组 Item，
+--   届时再加类型区分字段。
+-- group_id：所属推送分组（gb_platform_group.id）。同一通道在同一平台下只能挂载一次
+--   （uk_platform_resource），即只能落在某一个推送分组下。想"移动"到另一组：先卸载旧组再添加到新组。
+-- exposed_code：撞码时分配的平台命名空间内唯一 20 位码（ADR-020 决策 4 / ADR-026 决策 1）。
+--   撞码判定是「平台级」的（不是分组级）——上级看到的是扁平 DeviceID 空间，跨组同码也会让上级
+--   INVITE 认错通道。推送时 DeviceID = exposedCode ?? channel_id。
+-- 按组拉已挂载走 idx_platform_group。
 -- =====================================================
 DROP TABLE IF EXISTS gb_platform_share;
 CREATE TABLE gb_platform_share
 (
     id           bigint      NOT NULL COMMENT '主键ID（雪花）',
     platform_id  bigint      NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
-    resource_id  bigint      NOT NULL COMMENT '资源主键（gb_device_channel.id，parental 区分分组/通道）',
-    exposed_code varchar(20)          DEFAULT NULL COMMENT '对上级暴露的国标码（parental=0 通道；平台命名空间内唯一，仅撞码时分配，懒生成，ADR-026）',
+    group_id     bigint      NOT NULL COMMENT '所属推送分组（gb_platform_group.id，UI 强制先选组才能挂载）',
+    resource_id  bigint      NOT NULL COMMENT '通道主键（gb_device_channel.id，parental=0）',
+    exposed_code varchar(20) DEFAULT NULL COMMENT '对上级暴露的唯一国标码（撞码时分配，平台内唯一；不撞码时 NULL 表示透传 channel_id）',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_platform_resource (platform_id, resource_id),
-    UNIQUE KEY uk_exposed_code (exposed_code)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享资源表（目录+通道合一）';
+    UNIQUE KEY uk_platform_exposed_code (platform_id, exposed_code),
+    KEY          idx_platform_group (platform_id, group_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享通道表（同一通道在同一平台下只能挂载一次，必须先卸再换组）';
 
 SET
 FOREIGN_KEY_CHECKS = 1;
