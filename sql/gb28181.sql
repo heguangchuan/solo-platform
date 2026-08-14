@@ -275,6 +275,27 @@ CREATE TABLE gb_parent_platform
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台配置表';
 
 -- =====================================================
+-- 上级平台推送目录分组表（gb_platform_group）：per-platform 的推送树节点
+-- 推送树与 catalog（gb_device_channel）解耦，独立的"该平台要推送给上级的目录结构"。
+-- parent_id 引用同表 id（雪花），不是国标码——平台内自引用，uk_platform_code 保证国标编码唯一。
+-- 一行 = 一个上级平台下的一个推送目录分组，根节点的 parent_id 固定为 0。
+-- =====================================================
+DROP TABLE IF EXISTS gb_platform_group;
+CREATE TABLE gb_platform_group
+(
+    id          bigint      NOT NULL COMMENT '主键ID（雪花）',
+    name        varchar(64) NOT NULL COMMENT '分组名称（运营可读）',
+    code        varchar(20) NOT NULL COMMENT '分组国标编码（GB/T 28181-2016 附录 D 20 位数字，前 10 位 domain + 第 11-13 位 业务分类 215=业务分组/216=虚拟组织 + 后 7 位序号，平台内唯一）',
+    platform_id bigint      NOT NULL COMMENT '所属上级平台主键（gb_parent_platform.id）',
+    parent_id   bigint      NOT NULL COMMENT '父分组主键（引用同表 id；根节点 parent_id = 自身 id 即自指）',
+    create_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_code (platform_id, code),
+    KEY         idx_platform_parent (platform_id, parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台推送目录分组表（per-platform 推送树节点）';
+
+-- =====================================================
 -- 上级平台共享资源表（gb_platform_share）：catalog item（分组+通道）共享关系
 -- 本平台作为下级向上级共享资源时，选中的 catalog item 记录。
 -- 一行 = 一个上级平台 × 一个 catalog item，靠 resource.parental 区分分组/通道，无物理外键（ADR-011）。

@@ -100,6 +100,12 @@
             <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
 
+        <!-- Spring Boot Validation：基于 Hibernate Validator，提供 @Valid / @NotBlank / @Pattern 等参数校验 -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
         <!-- Spring Boot AspectJ：提供面向切面编程（AOP）支持，基于 AspectJ 实现日志记录、事务管理、权限校验等横切关注点 -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

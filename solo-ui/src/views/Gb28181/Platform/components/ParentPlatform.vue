@@ -10,7 +10,6 @@ import { Search, Refresh, Plus, Edit, Delete, View, Share } from '@element-plus/
 import type {
   GbParentPlatform,
   GbParentPlatformPageRequest,
-  GbShareTreeNode,
 } from '@/types/api'
 import {
   getGbParentPlatformPageApi,
@@ -19,10 +18,8 @@ import {
   deleteGbParentPlatformApi,
   batchDeleteGbParentPlatformApi,
   getParentPlatformServerConfigApi,
-  getParentPlatformShareTreeApi,
-  getParentPlatformSharedApi,
-  saveParentPlatformSharedApi,
 } from '@/api/gb28181'
+import ShareDirectoryDialog from './ShareDirectoryDialog.vue'
 
 const loading = ref(false)
 const tableData = ref<GbParentPlatform[]>([])
@@ -208,65 +205,15 @@ async function handleBatchDelete() {
   }
 }
 
-// ---------------- 通道推送（共享目录 + 通道） ----------------
+// ---------------- 通道推送（推送目录管理弹窗） ----------------
 const shareVisible = ref(false)
-const shareLoading = ref(false)
-const shareSubmitting = ref(false)
-const shareTreeRef = ref<any>()
-const shareTree = ref<GbShareTreeNode[]>([])   // 全平台共用同一棵资源目录树，首次加载后缓存
-const shareTreeProps = { label: 'label', children: 'children' }
-const sharePlatform = ref<GbParentPlatform | null>(null)
+const sharePlatformId = ref<number | string>('')
+const sharePlatformName = ref('')
 
-/** 递归收集所有通道叶子节点 id（c_ 前缀），用于过滤回填避免父节点强制勾选 */
-function collectChannelIds(nodes: GbShareTreeNode[] | undefined, into: Set<string>) {
-  if (!nodes?.length) return
-  nodes.forEach((n) => {
-    if (n.type === 'CHANNEL') into.add(n.id)
-    if (n.children?.length) collectChannelIds(n.children, into)
-  })
-}
-
-async function handleShare(row: GbParentPlatform) {
-  sharePlatform.value = row
+function handleShare(row: GbParentPlatform) {
+  sharePlatformId.value = row.id as number
+  sharePlatformName.value = row.name || row.serverGbId || '上级平台'
   shareVisible.value = true
-  shareLoading.value = true
-  let checkedLeaves: string[] = []
-  try {
-    if (!shareTree.value.length) {
-      const treeRes = await getParentPlatformShareTreeApi()
-      shareTree.value = treeRes.data
-    }
-    const sharedRes = await getParentPlatformSharedApi(row.id)
-    // 只回填叶子（通道）节点。non-strict 模式下 setCheckedKeys 传入父分组会强制勾选其全部子通道，
-    // 从而把"分组下只共享部分通道"的真实状态吃掉；父分组的勾选态由子节点联动自然得出。
-    const leafSet = new Set<string>()
-    collectChannelIds(shareTree.value, leafSet)
-    checkedLeaves = (sharedRes.data.channelIds || []).filter((id) => leafSet.has(id))
-  } finally {
-    shareLoading.value = false
-  }
-  // loading=false 后 v-loading 容器内的 el-tree 才渲染完，等 DOM 更新再回填
-  await nextTick()
-  shareTreeRef.value?.setCheckedKeys([])
-  shareTreeRef.value?.setCheckedKeys(checkedLeaves)
-}
-
-async function handleConfirmShare() {
-  if (!sharePlatform.value) return
-  // getCheckedKeys + getHalfCheckedKeys：把半选的父分组也算上，否则保存后重开会丢父分组本身
-  const checked = (shareTreeRef.value?.getCheckedKeys() || []) as string[]
-  const half = (shareTreeRef.value?.getHalfCheckedKeys() || []) as string[]
-  // ADR-023：分组（g_）和通道（c_）合并到后端单字段 channelIds，后端按前缀分类入库
-  const all = [...checked, ...half]
-  const channelIds = all.filter((id) => id.startsWith('g_') || id.startsWith('c_'))
-  shareSubmitting.value = true
-  try {
-    await saveParentPlatformSharedApi(sharePlatform.value.id, { channelIds })
-    ElMessage.success('推送配置已保存')
-    shareVisible.value = false
-  } finally {
-    shareSubmitting.value = false
-  }
 }
 
 onMounted(async () => {
@@ -488,31 +435,8 @@ onMounted(async () => {
       </template>
     </el-dialog>
 
-    <!-- 通道推送（共享目录 + 通道）弹窗 -->
-    <el-dialog
-      v-model="shareVisible"
-      title="通道推送"
-      width="560px"
-      destroy-on-close
-      :close-on-click-modal="false"
-    >
-      <div v-loading="shareLoading" style="min-height: 300px">
-        <el-tree
-          v-if="!shareLoading"
-          ref="shareTreeRef"
-          :data="shareTree"
-          :props="shareTreeProps"
-          node-key="id"
-          show-checkbox
-          default-expand-all
-          class="share-tree"
-        />
-      </div>
-      <template #footer>
-        <el-button @click="shareVisible = false">取 消</el-button>
-        <el-button type="primary" :loading="shareSubmitting" @click="handleConfirmShare">保 存</el-button>
-      </template>
-    </el-dialog>
+    <!-- 推送目录管理弹窗（独立组件） -->
+    <ShareDirectoryDialog v-model="shareVisible" :platform-id="sharePlatformId" :platform-name="sharePlatformName" />
   </div>
 </template>
 
@@ -534,11 +458,6 @@ onMounted(async () => {
   max-height: calc(80vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
-}
-/* 共享目录树：限高滚动，避免通道过多撑爆弹窗 */
-.share-tree {
-  max-height: 460px;
-  overflow-y: auto;
 }
 
 /* 新增 / 编辑上级平台弹窗：三段式分组 + 两列布局 */
