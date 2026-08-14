@@ -74,7 +74,7 @@ utils/         SipUtils、XmlUtils（含海康 `&` 和 `<Address` 兼容）、Di
 **关键约束，除非在 `gb28181.md` 里补写 ADR 否则不要打破：**
 
 - **禁止阻塞 SIP 监听线程**。所有 handler 分发到异步线程池；心跳排队 100 ms 批处理 200 条一批（ADR-007）。
-- **JAIN-SIP 栈必须无条件设置两个属性**：`gov.nist.javax.sip.STACK_LOGGER=Slf4jStackLogger` 和 `SERVER_LOGGER=Slf4jServerLogger`。任一漏设启动即 `NoClassDefFoundError: org/apache/log4j/Priority`，这两个类也不能删（ADR-001）。SIP 报文全文日志已不走 JAIN-SIP 的 `LOG_MESSAGE_CONTENT`（固定 `false`），改由 `sip/log/SipMessageLogger` 按 `gb28181.sip-message-log.*` 场景开关打印，日志走 `com.solo` logger，不依赖 `logging.level.gov.nist`（ADR-024）。
+- **JAIN-SIP 栈必须无条件设置两个属性**：`gov.nist.javax.sip.STACK_LOGGER=Slf4jStackLogger` 和 `SERVER_LOGGER=Slf4jServerLogger`。任一漏设启动即 `NoClassDefFoundError: org/apache/log4j/Priority`，这两个类也不能删（ADR-001）。SIP 报文全文日志一律不开（ADR-033），排查走 tcpdump / wireshark。
 - **自定义 `MessageParser`**（`GbStringMsgParser`）强制 UTF-8 解析头 / 首行——JAIN-SIP 默认 ISO-8859-1，中文 `name` / `address` 会乱码（ADR-009）。
 - **Digest 挑战必须带 `qop=auth`、`cnonce`、`nc`**——海康 / 大华 / 宇视都走这条分支，简化版 `MD5(HA1:nonce:HA2)` 全线失败（ADR-006）。
 - **设备在线状态双写**：MySQL `gb_device.status` 供查询，Redis TTL Key 才是权威。`@Scheduled` 每 30s 对账（ADR-005）。

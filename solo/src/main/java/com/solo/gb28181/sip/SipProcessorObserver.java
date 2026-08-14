@@ -2,7 +2,6 @@ package com.solo.gb28181.sip;
 
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipResponseProcessor;
-import com.solo.gb28181.sip.log.SipMessageLogger;
 import gov.nist.javax.sip.message.SIPResponse;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
@@ -43,9 +42,6 @@ public class SipProcessorObserver implements SipListener {
     @Autowired
     private SipSubscribe sipSubscribe;
 
-    @Autowired
-    private SipMessageLogger sipMessageLogger;
-
     private final Map<String, SipRequestProcessor> requestMap = new HashMap<>();
     private final Map<String, SipResponseProcessor> responseMap = new HashMap<>();
 
@@ -69,7 +65,6 @@ public class SipProcessorObserver implements SipListener {
     @Async("taskExecutor")
     public void processRequest(RequestEvent requestEvent) {
         String method = requestEvent.getRequest().getMethod();
-        sipMessageLogger.logInbound(requestEvent.getRequest());
         SipRequestProcessor processor = requestMap.get(method.toUpperCase());
         if (processor == null) {
             log.warn("[消息分发] 未注册的 SIP 请求方法: {}", method);
@@ -90,9 +85,6 @@ public class SipProcessorObserver implements SipListener {
         CallIdHeader callIdHeader = response.getCallIdHeader();
         CSeqHeader cSeqHeader = response.getCSeqHeader();
         String method = cSeqHeader == null ? null : cSeqHeader.getMethod();
-
-        // 报文日志必须在 1xx return 之前打，否则 100 Trying 永远看不到
-        sipMessageLogger.logInbound(response);
 
         // 1xx 不处理（180 Ringing 等）
         if (status >= Response.TRYING && status < Response.OK) {

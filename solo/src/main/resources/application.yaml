@@ -1,5 +1,5 @@
 project:
-  ip: 192.168.1.39
+  ip: 192.168.1.3
 
 server:
   port: 10003
@@ -51,9 +51,8 @@ minio:
 logging:
   level:
     com.solo: info
-    # JAIN-SIP 协议栈内部日志（含收发报文摘要）默认压到 warn，避免刷屏影响排查；
+    # JAIN-SIP 协议栈内部日志默认压到 warn，避免刷屏影响排查。
     # 调试设备方言 / SIP 交互时临时调成 info 或 debug。
-    # 排查 SIP 报文请改用 gb28181.sip-message-log.*（走 com.solo logger，不需要动这里）。
     gov.nist: warn
 
 # ============================================================
@@ -79,12 +78,6 @@ gb28181:
   # 设备注册鉴权密码。无代码默认；留空 = 开放模式（详见 gb28181.md ADR-022）
   password:
 
-
-  # 按业务场景打印 SIP 收发报文全文（含 SDP），默认全关。
-  # 走 com.solo 下的 logger，不依赖 logging.level.gov.nist。详见 ADR-024
-  sip-message-log:
-    # 点播：INVITE / ACK / BYE 及其响应。不区分对端类型（下级平台 / IPC / NVR 全覆盖）
-    play: true
 
   # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏与超时
   cascade:

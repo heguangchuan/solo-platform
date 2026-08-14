@@ -4,6 +4,7 @@ import com.solo.media.properties.MediaProperties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.StreamPushClientService;
 import com.solo.media.service.StreamPushService;
 import com.solo.media.service.MediaServerService;
@@ -38,6 +39,7 @@ public class ZlmHookService {
 
     private final MediaProperties mediaProperties;
     private final MediaServerService mediaServerService;
+    private final MediaServerLoader loadIndex;
     private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
@@ -53,6 +55,8 @@ public class ZlmHookService {
             log.warn("[ZLM 回调] on_server_keepalive 缺少 mediaServerId: {}", body);
             return HookResult.ok();
         }
+        // 节点首次触达入负载索引（addIfAbsent，已存在不刷分数）
+        loadIndex.onNodeOnline(serverId);
         mediaServerService.keepalive(serverId);
         return HookResult.ok();
     }
@@ -61,6 +65,9 @@ public class ZlmHookService {
         String serverId = stringOf(body, "mediaServerId");
         log.info("[ZLM 回调] on_server_started serverId={}", serverId);
         if (serverId == null) return HookResult.ok();
+
+        // 节点首次触达入负载索引（即使节点在管理面已存在，也要确保入索引）
+        loadIndex.onNodeOnline(serverId);
 
         MediaServer exist = mediaServerService.lambdaQuery()
                 .eq(MediaServer::getServerId, serverId).one();
@@ -149,6 +156,14 @@ public class ZlmHookService {
         String stream = stringOf(body, "stream");
         String mediaServerId = stringOf(body, "mediaServerId");
         log.info("[ZLM 回调] on_stream_changed app={} stream={} regist={}", app, stream, regist);
+
+        // 先记负载，再走业务侧（业务侧可能因会话缺失早 return，但分数仍然反映 ZLM 上的真实流数）
+        if (Boolean.TRUE.equals(regist)) {
+            loadIndex.onStreamArrival(mediaServerId);
+        } else if (Boolean.FALSE.equals(regist)) {
+            loadIndex.onStreamDeparture(mediaServerId);
+        }
+
         try {
             // 按 streamId 反查 session 判断是点播还是回放 — 两个 service 都收到 hook 但只处理自己的会话
             boolean isPlayback = isPlaybackStream(stream);

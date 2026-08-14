@@ -1,7 +1,6 @@
 package com.solo.gb28181.sip;
 
 import gov.nist.javax.sip.SipProviderImpl;
-import com.solo.gb28181.sip.log.SipMessageLogger;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -33,12 +32,10 @@ public class SipSender {
 
     private final SipLayer sipLayer;
     private final SipSubscribe sipSubscribe;
-    private final SipMessageLogger sipMessageLogger;
 
-    public SipSender(@Lazy SipLayer sipLayer, SipSubscribe sipSubscribe, SipMessageLogger sipMessageLogger) {
+    public SipSender(@Lazy SipLayer sipLayer, SipSubscribe sipSubscribe) {
         this.sipLayer = sipLayer;
         this.sipSubscribe = sipSubscribe;
-        this.sipMessageLogger = sipMessageLogger;
     }
 
     /** 不等响应 */
@@ -98,7 +95,6 @@ public class SipSender {
             log.error("[消息发送] 未找到 {} {} 的 Provider", transport, localIp);
             throw new SipException("no provider for " + transport + "/" + localIp);
         }
-        sipMessageLogger.logOutbound(message);
         if (message instanceof Request req) {
             provider.sendRequest(req);
         } else if (message instanceof Response resp) {
