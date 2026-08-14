@@ -1,28 +1,34 @@
 package com.solo.gb28181.utils;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.entity.GbPlatformShare;
-import com.solo.gb28181.mapper.GbPlatformShareMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 /**
- * 「对上级暴露」通道国标码生成器（GB/T 28181-2016 附录 D 编码结构）。
+ * 「对上级暴露」通道国标码生成器（GB/T 28181-2016 附录 D 编码结构，ADR-026 哈希派生版）。
  *
- * <p>20 位国标编码结构：{@code [8位行政区划][2位行业码][3位类型码][7位序号]}。前 10 位统一取本平台
- * {@link Gb28181Properties#getDomain()}（即本平台的行政区划中心编码），后 3 位固定通道类型码，
- * 末 7 位序号在全表已用 {@code exposed_code} 上递增。</p>
+ * <p>20 位国标编码结构：{@code [10位 domain][3位 131][7位 hash 末位]}。前 10 位统一取本平台
+ * {@link Gb28181Properties#getDomain()}（即本平台的行政区划中心编码），第 11-13 位固定通道类型码
+ * 131（摄像机），末 7 位由 {@code SHA-256(deviceId + "|" + channelId)} 截前 8 字节作为 long
+ * 后 mod 10⁷ 派生。</p>
  *
- * <p><b>只服务级联共享场景</b>。设备 / 通道的国标编码一律由运营在管理面手工填入，
- * 不再由平台自动生成——自动生成会与设备侧真实编码规则冲突（GB/T 28181 语义上编码由
- * 物理设备自身分配），且给运营造成「系统已经算好了」的错觉。原先的
- * {@code nextDeviceCode} / {@code nextChannelCode} / {@code nextGroupCode}
- * 与配套的 {@code /api/gb28181/code/*} 端点已移除。</p>
+ * <p><b>稳定性</b>：同 {@code (deviceId, channelId)} 永远得到同一码——纯函数、无状态、无随机、
+ * 无扫描。同一通道在多次 saveShared、跨上级共享、跨 JVM 部署下都稳定，上级缓存的旧
+ * {@code DeviceID} 不失效（解决 ADR-020 决策 4 强调的"已分码不收回"语义）。</p>
+ *
+ * <p><b>唯一性</b>：{@code hash64} 截 7 位理论撞码率 ≈ 10⁻⁷；库层
+ * {@code gb_platform_share.uk_platform_exposed_code} 兜底。日常业务不会触发 UK 违规，
+ * 10⁻⁷ 量级的撞码由库层抛 {@code DuplicateKeyException} 业务可见，不静默重试。</p>
+ *
+ * <p><b>仅服务级联共享场景</b>。设备/通道的国标编码一律由运营在管理面手工填入，平台不再自动生成——
+ * 自动生成会与设备侧真实编码规则冲突（GB/T 28181 语义上编码由物理设备自身分配），且给运营造成
+ * 「系统已经算好了」的错觉。本生成器只用于"对上级共享时撞码集合"中需要重码的子集（ADR-026 决策 1）。</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -31,39 +37,35 @@ public class GbCodeGenerator {
     /** 通道类型码：131 摄像机 */
     private static final String CHANNEL_TYPE = "131";
 
+    /** 末 7 位序号容量 */
+    private static final long SEQ_MOD = 10_000_000L;
+
     private final Gb28181Properties properties;
-    private final GbPlatformShareMapper platformShareMapper;
 
     /**
-     * 批量生成 {@code count} 个连续的「对上级暴露」通道国标码（写入 {@code gb_platform_share.exposed_code}）。
+     * 按 {@code (deviceId, channelId)} 计算平台命名空间内唯一的 20 位「对上级暴露」通道国标码。
      *
-     * <p>通道原始 {@code channel_id} 只在设备内唯一，跨设备/级联透传可能撞码，会让上级点播认错通道。
-     * 故对上级暴露时统一改用本平台命名空间内唯一的 20 位码：前 10 位本平台 domain + 3 位通道类型码
-     * （131 摄像机）+ 7 位序号。序号在全表已用 exposed_code 上取同前缀最大值 +1，保证平台级唯一，
-     * 且是合法 20 位纯数字（满足海康等上级校验）。</p>
+     * <p>纯函数——可重复调用、可并发调用、可跨进程调用，结果一致。不读库、不写库、不持有状态。</p>
      *
-     * <p>只扫描一次全表已用 exposed_code 取同前缀最大序号，之后在内存里连续 +1 分配，
-     * 避免调用方逐个通道触发全表扫描（N 通道 → N 次扫描的 O(n²)）。</p>
+     * <p>库层唯一性兜底：{@code gb_platform_share.uk_platform_exposed_code}。理论上 hash 撞码
+     * 概率 ≈ 10⁻⁷（一次撞码集合内分配 10 个码 = 10⁻⁶；按当前业务撞码本身是事故级频率，10 年内
+     * 几乎不触发），触发时由库层抛错，业务层不静默重试，由运营/监控介入。</p>
      *
-     * @param count 需要的码数量；&le;0 返回空列表
+     * @param deviceId  设备国标码（{@code GbDeviceChannel.deviceId}），{@code null} 视为空串
+     * @param channelId 通道国标码（{@code GbDeviceChannel.channelId}），{@code null} 视为空串
+     * @return 20 位纯数字 GB 28181 通道编码
      */
-    public List<String> nextExposedChannelCodes(int count) {
-        if (count <= 0) return List.of();
+    public String nextExposedChannelCode(String deviceId, String channelId) {
         String prefix13 = domainPrefix10() + CHANNEL_TYPE;
-        LambdaQueryWrapper<GbPlatformShare> wrapper = new LambdaQueryWrapper<GbPlatformShare>()
-                .isNotNull(GbPlatformShare::getExposedCode)
-                .likeRight(GbPlatformShare::getExposedCode, prefix13)
-                .select(GbPlatformShare::getExposedCode);
-        int max = 0;
-        for (GbPlatformShare share : platformShareMapper.selectList(wrapper)) {
-            int seq = parseTailSeq(share.getExposedCode(), prefix13);
-            if (seq > max) max = seq;
-        }
-        List<String> codes = new ArrayList<>(count);
-        for (int i = 1; i <= count; i++) {
-            codes.add(prefix13 + pad7(max + i));
-        }
-        return codes;
+        String input = safe(deviceId) + "|" + safe(channelId);
+        long hash = hash64(input);
+        // Math.floorMod 永远返回非负结果；Math.abs(Long.MIN_VALUE) 仍是负数会污染末 7 位
+        long seq = Math.floorMod(hash, SEQ_MOD);
+        return prefix13 + String.format("%07d", seq);
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
     }
 
     /** 返回本平台域前 10 位；未配置或非 10 位数字直接报错 */
@@ -75,17 +77,18 @@ public class GbCodeGenerator {
         return domain;
     }
 
-    /** 从 20 位编码里取末 7 位序号；前缀不匹配或长度非 20 返回 0 */
-    private static int parseTailSeq(String code, String prefix13) {
-        if (code == null || code.length() != 20 || !code.startsWith(prefix13)) return 0;
+    /**
+     * SHA-256 摘要截前 8 字节 → long。
+     * <p>SHA-256 是 JDK 标准算法、无外部依赖、分布均匀；常规 {@code deviceId+channelId} 输入
+     * ≤ 30 字符，单次计算纳秒级。截 8 字节作为 long 已经足够散列，无须 Murmur/SipHash 等额外依赖。</p>
+     */
+    private static long hash64(String input) {
         try {
-            return Integer.parseInt(code.substring(13));
-        } catch (NumberFormatException e) {
-            return 0;
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(input.getBytes(StandardCharsets.UTF_8));
+            return ByteBuffer.wrap(digest, 0, 8).getLong();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
         }
-    }
-
-    private static String pad7(int seq) {
-        return String.format("%07d", seq);
     }
 }

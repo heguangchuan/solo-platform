@@ -18,12 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -114,8 +109,8 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         // 一份 channelIds 列表混合 g_/c_ 前缀的节点 id，前端按前缀渲染。
         // 通过 JOIN catalog item 派生 parental 来派生前缀。
         List<String> nodeIds = shares.stream()
-                .map(s -> prefixResourceId(s))
-                .filter(id -> id != null)
+                .map(this::prefixResourceId)
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
         resp.setChannelIds(nodeIds);
         return resp;
@@ -133,11 +128,35 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     @Override
     @Transactional
     public void saveShared(Long platformId, GbPlatformShareSaveRequest request) {
-        // 通道 exposed_code 须在删除前解析：全量覆盖会先删本平台旧行，若本平台是该通道唯一分享方，
-        // 删后就取不到，会重新生成不同码 → 破坏上级已缓存的旧码。
-        // 故先按 resource_id 一次性捞已分配的 exposed_code（任一平台行），保证同一通道 exposed_code 恒定。
+        // ADR-026 懒生成：默认透传原始 channelId，仅当"本批 + 历史合并"撞码时才为撞码集合统一取码。
+        // 1) 解析节点 id
         List<Long> channelIds = parseIds(request.getChannelIds(), CHANNEL_PREFIX);
         List<Long> groupIds = parseIds(request.getChannelIds(), GROUP_PREFIX);
+
+        // 2) 拉本批要共享的通道实体（仅 parental=0；不在表里的 resourceId 自然被过滤）
+        Map<Long, GbDeviceChannel> channelByResourceId = channelIds.isEmpty()
+                ? Map.of()
+                : channelMapper.selectList(new LambdaQueryWrapper<GbDeviceChannel>()
+                        .eq(GbDeviceChannel::getParental, 0)
+                        .in(GbDeviceChannel::getId, channelIds)).stream()
+                .collect(Collectors.toMap(GbDeviceChannel::getId, c -> c, (a, b) -> a));
+
+        // 3) 查"该平台删旧前"已共享的非本批通道的 channelId 集合。
+        //    用于识别"本批与历史撞码"——必须在删旧前查，删旧后历史就没了。
+        //    仅 parental=0 参与（分组不参与 exposedCode，ADR-023 决策 3）。
+        Set<String> historyChannelIds = new HashSet<>();
+        if (!channelByResourceId.isEmpty()) {
+            List<GbDeviceChannel> existingShared = shareMapper.selectSharedChannels(platformId);
+            for (GbDeviceChannel c : existingShared) {
+                if (c.getChannelId() != null && !channelByResourceId.containsKey(c.getId())) {
+                    historyChannelIds.add(c.getChannelId());
+                }
+            }
+        }
+
+        // 4) 查"本批通道是否已分码"（按 resource_id 跨平台稳定，ADR-020 决策 4）
+        //    必须在删旧前捞：全量覆盖会先删本平台旧行，若本平台是该通道唯一分享方，
+        //    删后就取不到，会重新生成不同码 → 破坏上级已缓存的旧码。
         Map<Long, String> exposedByChannel = new HashMap<>();
         if (!channelIds.isEmpty()) {
             shareMapper.selectList(new LambdaQueryWrapper<GbPlatformShare>()
@@ -147,58 +166,66 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     .forEach(s -> exposedByChannel.putIfAbsent(s.getResourceId(), s.getExposedCode()));
         }
 
-        // 全量覆盖：先删该平台旧的共享关系
-        shareMapper.delete(new LambdaQueryWrapper<GbPlatformShare>()
-                .eq(GbPlatformShare::getPlatformId, platformId));
-
-        List<GbPlatformShare> toInsert = new ArrayList<>();
-
-        // 分组：解析 g_ 前缀主键，过滤已不存在的分组后入库
-        if (!groupIds.isEmpty()) {
-            Set<Long> existing = channelMapper.selectList(
-                            new LambdaQueryWrapper<GbDeviceChannel>()
-                                    .eq(GbDeviceChannel::getParental, 1)
-                                    .in(GbDeviceChannel::getId, groupIds))
-                    .stream()
-                    .map(GbDeviceChannel::getId)
-                    .collect(Collectors.toSet());
-            for (Long gid : groupIds) {
-                if (!existing.contains(gid)) continue; // 分组已不存在，跳过
-                toInsert.add(newShare(platformId, gid, null));  // 分组 exposedCode 为 null
+        // 5) 撞码检测：本批按 channelId 分组，size>1 自身撞码；或与 historyChannelIds 相交视为撞码
+        Map<String, List<Long>> conflictByChannelId = new HashMap<>();
+        Map<String, List<Long>> batchByChannelId = channelByResourceId.values().stream()
+                .filter(c -> c.getChannelId() != null)
+                .collect(Collectors.groupingBy(
+                        GbDeviceChannel::getChannelId,
+                        Collectors.mapping(GbDeviceChannel::getId, Collectors.toList())));
+        for (Map.Entry<String, List<Long>> e : batchByChannelId.entrySet()) {
+            if (e.getValue().size() > 1 || historyChannelIds.contains(e.getKey())) {
+                conflictByChannelId.put(e.getKey(), new ArrayList<>(e.getValue()));
             }
         }
 
-        // 通道：过滤已不存在的通道后入库；每个通道分配/复用 exposed_code（对上级暴露的唯一码）
-        if (!channelIds.isEmpty()) {
-            Set<Long> existing = channelMapper.selectList(
+        // 6) 撞码集合中无码的统一按 (deviceId, channelId) 派生（纯函数，ADR-026 哈希派生版）
+        //    无需 max+1、无需全表扫描，O(1) 算 hash。同一 (deviceId, channelId) 永远得同一码。
+        Set<Long> conflictResourceIds = conflictByChannelId.values().stream()
+                .flatMap(List::stream).collect(Collectors.toSet());
+        List<Long> needCode = conflictResourceIds.stream()
+                .filter(rid -> !exposedByChannel.containsKey(rid))
+                .distinct()
+                .toList();
+        for (Long rid : needCode) {
+            GbDeviceChannel ch = channelByResourceId.get(rid);
+            if (ch == null) continue; // 防御：@Transactional 内不会发生
+            String code = gbCodeGenerator.nextExposedChannelCode(ch.getDeviceId(), ch.getChannelId());
+            exposedByChannel.put(rid, code);
+        }
+
+        // 7) 全量覆盖：先删该平台旧的共享关系
+        shareMapper.delete(new LambdaQueryWrapper<GbPlatformShare>()
+                .eq(GbPlatformShare::getPlatformId, platformId));
+
+        // 8) 构插入
+        List<GbPlatformShare> toInsert = new ArrayList<>();
+
+        // 分组：exposedCode 写 null（分组不参与编码，ADR-023 决策 3）
+        if (!groupIds.isEmpty()) {
+            Set<Long> existingGroups = channelMapper.selectList(
                             new LambdaQueryWrapper<GbDeviceChannel>()
-                                    .eq(GbDeviceChannel::getParental, 0)
-                                    .in(GbDeviceChannel::getId, channelIds))
-                    .stream()
-                    .map(GbDeviceChannel::getId)
-                    .collect(Collectors.toSet());
-            // 现存且尚无 exposed_code 的通道，一次性批量取码（避免逐个通道全表扫描的 O(n²)）
-            List<Long> needCode = channelIds.stream()
-                    .filter(existing::contains)
-                    .filter(cid -> !exposedByChannel.containsKey(cid))
-                    .distinct()
-                    .toList();
-            List<String> newCodes = gbCodeGenerator.nextExposedChannelCodes(needCode.size());
-            for (int i = 0; i < needCode.size(); i++) {
-                exposedByChannel.put(needCode.get(i), newCodes.get(i));
+                                    .eq(GbDeviceChannel::getParental, 1)
+                                    .in(GbDeviceChannel::getId, groupIds))
+                    .stream().map(GbDeviceChannel::getId).collect(Collectors.toSet());
+            for (Long gid : groupIds) {
+                if (!existingGroups.contains(gid)) continue; // 分组已不存在，跳过
+                toInsert.add(newShare(platformId, gid, null));
             }
-            for (Long cid : channelIds) {
-                if (!existing.contains(cid)) continue; // 通道已不存在，跳过
-                toInsert.add(newShare(platformId, cid, exposedByChannel.get(cid)));
-            }
+        }
+
+        // 通道：撞码的写码，不撞码的写 null（沿用原始 channelId 透传给上级）
+        for (Long cid : channelByResourceId.keySet()) {
+            String code = conflictResourceIds.contains(cid) ? exposedByChannel.get(cid) : null;
+            toInsert.add(newShare(platformId, cid, code));
         }
 
         if (!toInsert.isEmpty()) {
             Db.saveBatch(toInsert);
         }
 
-        log.info("[通道推送] 保存共享: platformId={} 分组数={} 通道数={}",
-                platformId, groupIds.size(), channelIds.size());
+        log.info("[通道推送] 保存共享: platformId={} 分组数={} 通道数={} 撞码通道数={}",
+                platformId, groupIds.size(), channelByResourceId.size(), conflictResourceIds.size());
     }
 
     @Override
