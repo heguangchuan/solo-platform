@@ -89,6 +89,18 @@ gb28181:
   # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏与超时
   cascade:
 
+    # Catalog 响应每片 XML 中装多少个 Item。1/2/4/8 是 ADR-027 收敛出的单包安全档位，
+    # 超过 8 某些品牌上级会拒收/拆包失败。保守起步 3，遇问题调成 1 或 2。
+    catalog-page-size: 3
+
+    # 等上级回 200 OK 的超时（毫秒）。到点没收 ACK 就走 catalog-page-interval-ms 兜底节奏继续。
+    # 内网主流平台 3s 够用；公网/老国标可上调到 5-8s。
+    catalog-ack-timeout-ms: 3000
+
+    # ACK 驱动改造（ADR-027）后，本字段退化为「ACK 超时/出错时的 fallback 兜底间隔」，
+    # 200ms 防止对端长时间无响应时 sender 线程被占用。ACK 正常时不走这条。
+    catalog-page-interval-ms: 200
+
     # 上级点播 sendRtp 本地发送端口段（需与 media rtp 收流端口段错开、防火墙放行）
     send-rtp-port-start: 50000
     send-rtp-port-end: 60000

@@ -113,6 +113,13 @@ public class GbParentPlatform {
      */
     private Integer status;
 
+    /**
+     * Catalog 响应单包 Item 数（ADR-027）：1 / 2 / 4 / 8。
+     * <p>NULL 表示走 {@code gb28181.cascade.catalog-page-size} 全局默认。某些品牌上级 > 8 会拒收 / 拆包失败，
+     * 对这些上级需要单独配小档位。</p>
+     */
+    private Integer catalogGroup;
+
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

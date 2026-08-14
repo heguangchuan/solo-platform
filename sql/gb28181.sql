@@ -268,6 +268,7 @@ CREATE TABLE gb_parent_platform
     character_set    varchar(16)  NOT NULL DEFAULT 'GB2312' COMMENT '字符集',
     enabled          tinyint      NOT NULL DEFAULT 1 COMMENT '启用状态：0禁用 1启用',
     status           tinyint      NOT NULL DEFAULT 0 COMMENT '在线状态：0离线 1在线（后续注册成功回填）',
+    catalog_group    tinyint               DEFAULT NULL COMMENT 'Catalog 响应单包 Item 数：1/2/4/8（ADR-027）。NULL 走全局默认 gb28181.cascade.catalog-page-size',
     create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (id),

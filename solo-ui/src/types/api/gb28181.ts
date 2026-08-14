@@ -144,6 +144,8 @@ export interface GbParentPlatform {
   enabled: number
   /** 在线状态：0离线 1在线（后续注册成功回填） */
   status?: number
+  /** Catalog 响应单包 Item 数（ADR-027）：1/2/4/8。undefined=走全局默认 */
+  catalogGroup?: number
   createTime?: string
   updateTime?: string
 }

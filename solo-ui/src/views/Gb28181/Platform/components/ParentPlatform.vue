@@ -61,8 +61,19 @@ function makeEmpty(): Partial<GbParentPlatform> {
     transport: 'UDP',
     characterSet: 'GB2312',
     enabled: 1,
+    // catalogGroup 留空 → 走全局默认（gb28181.cascade.catalog-page-size）
+    catalogGroup: undefined,
   }
 }
+
+// 推送节奏：per-platform catalogGroup 可选项。1/2/4/8 是 ADR-027 收敛出的"单包安全档位"
+const catalogGroupOptions = [
+  { label: '默认（走全局配置）', value: undefined },
+  { label: '1 条/包', value: 1 },
+  { label: '2 条/包', value: 2 },
+  { label: '4 条/包', value: 4 },
+  { label: '8 条/包', value: 8 },
+]
 
 const rules = {
   name: [{ required: true, message: '请输入上级平台名称', trigger: 'blur' }],
@@ -427,6 +438,26 @@ onMounted(async () => {
               </el-col>
             </el-row>
           </div>
+
+          <!-- 第四组：推送配置（per-platform 推送节奏，ADR-027） -->
+          <div class="form-section">
+            <div class="section-title">推送配置</div>
+            <el-row :gutter="20">
+              <el-col :span="24">
+                <el-form-item label="目录分片">
+                  <el-select v-model="form.catalogGroup" :disabled="isView" style="width: 300px" clearable placeholder="默认（走全局配置）">
+                    <el-option
+                      v-for="opt in catalogGroupOptions"
+                      :key="opt.label"
+                      :label="opt.label"
+                      :value="opt.value"
+                    />
+                  </el-select>
+                  <div class="form-tip">每次向上级发送目录时单个 SIP 报文携带的通道数。某些品牌上级 &gt; 8 会拒收，可单独配小档位；留空走全局默认。</div>
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </div>
         </el-form>
       </div>
       <template #footer>
@@ -483,5 +514,11 @@ onMounted(async () => {
 /* input/select 不撑满 col-12，留出右边距让视觉更紧凑（300px 在 92px label + 920 弹窗下视觉平衡） */
 .parent-platform-dialog :deep(.el-form-item .el-form-item__content) {
   max-width: 300px;
+}
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  line-height: 1.5;
+  margin-top: 4px;
 }
 </style>
