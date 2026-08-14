@@ -285,11 +285,11 @@ CREATE TABLE gb_platform_share
     id           bigint      NOT NULL COMMENT '主键ID（雪花）',
     platform_id  bigint      NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
     resource_id  bigint      NOT NULL COMMENT '资源主键（gb_device_channel.id，parental 区分分组/通道）',
-    exposed_code varchar(20)          DEFAULT NULL COMMENT '对上级暴露的国标码（parental=0 通道；平台命名空间内唯一，解决跨设备/级联撞码导致上级点播认错）',
+    exposed_code varchar(20)          DEFAULT NULL COMMENT '对上级暴露的国标码（parental=0 通道；平台命名空间内唯一，仅撞码时分配，懒生成，ADR-026）',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_platform_resource (platform_id, resource_id),
-    KEY          idx_exposed_code (exposed_code)
+    UNIQUE KEY uk_exposed_code (exposed_code)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享资源表（目录+通道合一）';
 
 SET

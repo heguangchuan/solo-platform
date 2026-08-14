@@ -79,9 +79,8 @@ public final class PlatformCatalogXml {
             // 分组：直接用自身 GB 码
             reportId = it.getChannelId();
         } else {
-            // 通道：优先 exposed_code（平台唯一），回退 channelId
-            reportId = (it.getExposedCode() != null && !it.getExposedCode().isBlank())
-                    ? it.getExposedCode() : it.getChannelId();
+            // 通道：暴露码 helper 统一回退（ADR-026 决策 1 配套保险）
+            reportId = it.getExposedOrChannelId();
         }
 
         String parentCode = resolveParentCode(it.getParentId(), parentCodeByItem, platform);

@@ -131,4 +131,13 @@ public class GbDeviceChannel {
      */
     @TableField(exist = false)
     private String exposedCode;
+
+    /**
+     * 暴露给上级的国标码：{@link #exposedCode} 不为空时取它（撞码集合的重码），否则回退
+     * {@link #channelId}（默认透传设备原始 GB 码）。Catalog XML 上报 / 上级点播反查
+     * 一律调本方法，<b>不要</b>自己写三元表达式，避免消费方遗漏回退逻辑（ADR-026 决策 1 配套保险）。
+     */
+    public String getExposedOrChannelId() {
+        return (exposedCode != null && !exposedCode.isBlank()) ? exposedCode : channelId;
+    }
 }
