@@ -1,18 +1,17 @@
 package com.solo.gb28181.service;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPlatformGroup;
 import com.solo.gb28181.request.GbPlatformGroupSaveRequest;
-import com.solo.gb28181.request.UnmountedChannelPageRequest;
 import com.solo.gb28181.response.GbPlatformGroupResponse;
 
 import java.util.List;
 
 /**
- * 上级平台推送目录分组服务（per-platform 推送树）
+ * 上级平台推送目录分组服务（per-platform 推送树，admin UI 组织结构）。
  *
- * <p>当前提供查询 + CRUD。挂载 / 卸载接口待后续迭代"推送保存"功能时实现。</p>
+ * <p>本服务只管推送分组树的 CRUD，<b>不与 gb_platform_share 耦合</b>——分组是 admin UI 的
+ * 组织树，不参与"哪些 catalog item 已共享给上级平台"的判定。挂载/卸载走
+ * {@link CatalogShareService}。</p>
  */
 public interface PlatformGroupService {
 
@@ -22,14 +21,6 @@ public interface PlatformGroupService {
      * 树由 {@link com.solo.common.utils.TreeUtils#build} 在 VO 上构建，Entity 不挂树形字段。
      */
     List<GbPlatformGroupResponse> listGroupTree(Long platformId);
-
-    /**
-     * 分页拉取某上级平台下"未挂载的通道"。
-     *
-     * <p><b>当前简化实现</b>：因为挂载关系尚未持久化，未挂载 = 所有 catalog 通道。
-     * 后续实现挂载表后，本方法应改为"全通道 - 该平台任何组下挂载的通道"。</p>
-     */
-    IPage<GbDeviceChannel> pageUnmountedChannels(Long platformId, UnmountedChannelPageRequest req);
 
     /**
      * 新建分组
@@ -45,4 +36,9 @@ public interface PlatformGroupService {
      * 删分组（拒绝有子节点）
      */
     void deleteGroup(Long platformId, Long groupId);
+
+    /**
+     * 校验分组存在且属于该 platformId。供其他服务复用（避免重复实现 ownership 校验）。
+     */
+    GbPlatformGroup requireOwnedGroup(Long platformId, Long groupId);
 }

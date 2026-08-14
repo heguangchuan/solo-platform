@@ -1,12 +1,8 @@
 package com.solo.gb28181.controller;
 
-import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.solo.aop.RequirePermission;
-import com.solo.common.PageResult;
 import com.solo.common.Result;
-import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbPlatformGroupSaveRequest;
-import com.solo.gb28181.request.UnmountedChannelPageRequest;
 import com.solo.gb28181.response.GbPlatformGroupResponse;
 import com.solo.gb28181.service.PlatformGroupService;
 import jakarta.validation.Valid;
@@ -23,9 +19,10 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 /**
- * 上级平台推送目录分组（per-platform 推送树）
+ * 上级平台推送目录分组（per-platform 推送树）CRUD 端点。
  *
- * <p>提供查询 + CRUD。通道挂载 / 卸载待后续迭代"推送保存"功能。</p>
+ * <p>本控制器只管分组树的 CRUD；挂载/卸载走 {@link GbParentPlatformController} 上的
+ * {@code /share} 系列端点（{@code CatalogShareService} 实现）。分组与 share 表解耦。</p>
  */
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
@@ -41,18 +38,6 @@ public class PlatformGroupController {
     @RequirePermission({"gb28181:share-group:list"})
     public Result<List<GbPlatformGroupResponse>> shareGroupTree(@PathVariable("id") Long id) {
         return Result.success(platformGroupService.listGroupTree(id));
-    }
-
-    /**
-     * 分页拉取该上级平台下未挂载的通道
-     */
-    @PostMapping("/{id}/unmounted-channels/page")
-    @RequirePermission({"gb28181:share-group:list"})
-    public Result<PageResult<GbDeviceChannel>> unmountedChannelsPage(
-            @PathVariable("id") Long id,
-            @RequestBody UnmountedChannelPageRequest req) {
-        IPage<GbDeviceChannel> page = platformGroupService.pageUnmountedChannels(id, req);
-        return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
     /**

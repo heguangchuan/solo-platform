@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD MyBatis 3 Mapper//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.solo.gb28181.mapper.GbPlatformShareMapper">
+
+    <!--
+      共享通道复杂查询（JOIN 派生、NOT EXISTS 排除等）统一收口在本文件。
+      简单 CRUD 走 BaseMapper。
+
+      命名约定：select 单一结果 / selectList 列表 / selectPage 分页。
+      透传字段：gb_platform_share.exposed_code → GbDeviceChannel.exposedCode（瞬态 @TableField(exist=false)）。
+      本表只存通道（parental=0），分组不入表——所以所有查询无需按 type 过滤。
+    -->
+
+    <!--
+      某上级平台已共享的所有通道。
+      供 CatalogQueryMessageHandler 构造向上级回复的 Catalog Response 使用（全量，不分组——
+      上级不关心挂在哪个组里，Catalog XML 的层级靠 channel.parent_id 表达）。
+    -->
+    <select id="selectSharedCatalogItems" resultType="com.solo.gb28181.entity.GbDeviceChannel">
+        SELECT ch.*, s.exposed_code AS exposed_code
+        FROM gb_device_channel ch
+        INNER JOIN gb_platform_share s ON s.resource_id = ch.id
+        WHERE s.platform_id = #{platformId}
+        ORDER BY ch.channel_id ASC
+    </select>
+
+    <!--
+      某上级平台已共享的通道明细。
+      供 CascadeSendService 处理上级 INVITE 时校验共享 + 定位真实通道（全量，不分组）。
+      与 selectSharedCatalogItems 同源——本表只存通道，两者查询等价，保留双方法是为了语义清晰。
+    -->
+    <select id="selectSharedChannels" resultType="com.solo.gb28181.entity.GbDeviceChannel">
+        SELECT ch.*, s.exposed_code AS exposed_code
+        FROM gb_device_channel ch
+        INNER JOIN gb_platform_share s ON s.resource_id = ch.id
+        WHERE s.platform_id = #{platformId}
+        ORDER BY ch.channel_id ASC
+    </select>
+
+    <!--
+      某上级平台某推送分组下已挂载的通道分页查询（推送目录弹窗"已挂载"列表）。
+      keyword 同时匹配 name / channel_id（任一命中即返回）。
+    -->
+    <select id="selectSharedByGroupPage" resultType="com.solo.gb28181.entity.GbDeviceChannel">
+        SELECT ch.*, s.exposed_code AS exposed_code
+        FROM gb_device_channel ch
+        INNER JOIN gb_platform_share s ON s.resource_id = ch.id
+        <where>
+            s.platform_id = #{platformId}
+            AND s.group_id = #{groupId}
+            <if test="keyword != null and keyword != ''">
+                AND (ch.name LIKE CONCAT('%', #{keyword}, '%')
+                  OR ch.channel_id LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY ch.channel_id ASC
+    </select>
+
+    <!--
+      某上级平台"未挂载"的通道分页查询（推送目录弹窗"添加"picker）。
+      "未挂载"= 不在该平台任何 share 里——按 (platform_id, resource_id) UK，channel 一旦挂载到任一组就
+      不再属于"未挂载"。想在另一组里出现，必须先从原组卸。
+      仅看通道（parental=0；分组不参与推送）。走 NOT EXISTS anti-join 优化。
+    -->
+    <select id="selectUnmountedByGroupPage" resultType="com.solo.gb28181.entity.GbDeviceChannel">
+        SELECT ch.*
+        FROM gb_device_channel ch
+        WHERE ch.parental = 0
+          AND NOT EXISTS (
+              SELECT 1 FROM gb_platform_share s
+              WHERE s.platform_id = #{platformId}
+                AND s.resource_id = ch.id
+          )
+          <if test="keyword != null and keyword != ''">
+              AND (ch.name LIKE CONCAT('%', #{keyword}, '%')
+                OR ch.channel_id LIKE CONCAT('%', #{keyword}, '%'))
+          </if>
+        ORDER BY ch.device_id, ch.channel_id
+    </select>
+
+    <!--
+      列出某平台"未挂载"的所有通道 id（不分页；按 platform_id 范围），供"一键添加"使用。
+    -->
+    <select id="selectUnmountedByGroupAllIds" resultType="java.lang.Long">
+        SELECT ch.id
+        FROM gb_device_channel ch
+        WHERE ch.parental = 0
+          AND NOT EXISTS (
+              SELECT 1 FROM gb_platform_share s
+              WHERE s.platform_id = #{platformId}
+                AND s.resource_id = ch.id
+          )
+    </select>
+
+</mapper>

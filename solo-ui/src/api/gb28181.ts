@@ -34,6 +34,7 @@ import type {
   StreamPushClientPageRequest,
   GbSyncStatus,
   GbSyncTriggerResponse,
+  AddShareRequest,
 } from '@/types/api'
 import { get, post, put, del } from '@/utils/request'
 
@@ -154,14 +155,69 @@ export function getParentPlatformShareGroupTreeApi(id: string | number) {
   return get<GbPlatformGroup[]>(`/api/gb28181/parent-platform/${id}/share-group-tree`)
 }
 
-/** 分页拉取某上级平台下未挂载的通道 */
+/** 分页拉取某上级平台某分组下未挂载到本组的通道（parental=0；用于"添加"picker） */
 export function getParentPlatformUnmountedChannelsApi(
-  id: string | number,
+  platformId: string | number,
+  groupId: string | number,
   data: UnmountedChannelPageRequest
 ) {
   return post<PageResult<GbDeviceChannel>>(
-    `/api/gb28181/parent-platform/${id}/unmounted-channels/page`,
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/unmounted-channels/page`,
     data
+  )
+}
+
+/** 分页拉取某上级平台某分组下已共享的 catalog item（推送目录弹窗"已共享"列表） */
+export function getParentPlatformSharedByGroupPageApi(
+  platformId: string | number,
+  groupId: string | number,
+  data: UnmountedChannelPageRequest
+) {
+  return post<PageResult<GbDeviceChannel>>(
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/shared/page`,
+    data
+  )
+}
+
+/** 批量挂载 catalog item 到某分组 */
+export function addSharesApi(
+  platformId: string | number,
+  groupId: string | number,
+  data: AddShareRequest
+) {
+  return post<{ added: number }>(
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/share`,
+    data
+  )
+}
+
+/** 单条卸载（按 (platform_id, group_id, resource_id) 定位删除） */
+export function removeShareApi(
+  platformId: string | number,
+  groupId: string | number,
+  resourceId: string | number
+) {
+  return del<void>(
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/share/${resourceId}`
+  )
+}
+
+/** 清除某上级平台某分组下的全部挂载关系 */
+export function clearSharesApi(platformId: string | number, groupId: string | number) {
+  return del<{ cleared: number }>(
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/share`
+  )
+}
+
+/** 清除某上级平台下全部挂载关系（管理台右侧"一键清除"按钮；不分组） */
+export function clearAllSharesByPlatformApi(platformId: string | number) {
+  return del<{ cleared: number }>(`/api/gb28181/parent-platform/${platformId}/share`)
+}
+
+/** 一键添加所有"未挂载到本组"通道到该分组 */
+export function addAllSharesApi(platformId: string | number, groupId: string | number) {
+  return post<{ added: number }>(
+    `/api/gb28181/parent-platform/${platformId}/share-group/${groupId}/share-all`
   )
 }
 

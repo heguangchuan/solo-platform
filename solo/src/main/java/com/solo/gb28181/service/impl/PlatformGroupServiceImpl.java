@@ -1,36 +1,40 @@
 package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.baomidou.mybatisplus.core.metadata.IPage;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.baomidou.mybatisplus.extension.toolkit.Db;
 import com.solo.common.ServiceException;
 import com.solo.common.utils.TreeUtils;
-import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPlatformGroup;
-import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.entity.GbPlatformShare;
 import com.solo.gb28181.mapper.GbPlatformGroupMapper;
+import com.solo.gb28181.mapper.GbPlatformShareMapper;
 import com.solo.gb28181.request.GbPlatformGroupSaveRequest;
-import com.solo.gb28181.request.UnmountedChannelPageRequest;
 import com.solo.gb28181.response.GbPlatformGroupResponse;
 import com.solo.gb28181.service.PlatformGroupService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
 
 import java.util.Collections;
 import java.util.List;
 
 /**
- * 上级平台推送目录分组服务实现
+ * 上级平台推送目录分组服务实现（推送树 CRUD；share 表由 CatalogShareService 管理）。
+ *
+ * <p>2026-08：删分组时联动清理该组下所有 share，避免出现"分组删了但 share 还挂着 group_id"
+ * 孤儿数据。</p>
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class PlatformGroupServiceImpl implements PlatformGroupService {
 
+    private static final String LOG_TAG = "推送分组";
+
     private final GbPlatformGroupMapper groupMapper;
-    private final GbDeviceChannelMapper channelMapper;
+    private final GbPlatformShareMapper shareMapper;
 
     @Override
     public List<GbPlatformGroupResponse> listGroupTree(Long platformId) {
@@ -57,20 +61,6 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
     }
 
     @Override
-    public IPage<GbDeviceChannel> pageUnmountedChannels(Long platformId, UnmountedChannelPageRequest req) {
-        // 简化：挂载关系未持久化时，所有 parental=0 的 catalog 通道都是"未挂载"
-        LambdaQueryWrapper<GbDeviceChannel> wrapper = new LambdaQueryWrapper<GbDeviceChannel>()
-                .eq(GbDeviceChannel::getParental, 0);
-        if (StringUtils.hasText(req.getKeyword())) {
-            String kw = req.getKeyword().trim();
-            wrapper.and(w -> w.like(GbDeviceChannel::getName, kw).or().like(GbDeviceChannel::getChannelId, kw));
-        }
-        wrapper.orderByAsc(GbDeviceChannel::getDeviceId, GbDeviceChannel::getChannelId);
-        return channelMapper.selectPage(
-                new Page<>(req.getPage(), req.getPageSize()), wrapper);
-    }
-
-    @Override
     @Transactional
     public void createGroup(Long platformId, GbPlatformGroupSaveRequest req) {
         // 父分组（如果非 0）必须属于同一 platformId
@@ -93,7 +83,7 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
     @Override
     @Transactional
     public void updateGroup(Long platformId, Long groupId, GbPlatformGroupSaveRequest req) {
-        GbPlatformGroup existing = getOwnedGroup(platformId, groupId);
+        GbPlatformGroup existing = requireOwnedGroup(platformId, groupId);
         // 不能把自己设为自己的父级
         if (req.getParentId() != null && req.getParentId().equals(groupId)) {
             throw new ServiceException("不能把分组设为自己的父分组");
@@ -117,7 +107,7 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
     @Override
     @Transactional
     public void deleteGroup(Long platformId, Long groupId) {
-        getOwnedGroup(platformId, groupId);
+        requireOwnedGroup(platformId, groupId);
         // 拒绝有子节点
         Long childCount = groupMapper.selectCount(new LambdaQueryWrapper<GbPlatformGroup>()
                 .eq(GbPlatformGroup::getPlatformId, platformId)
@@ -125,13 +115,20 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
         if (childCount != null && childCount > 0) {
             throw new ServiceException("该分组下还有子分组，请先删除子分组");
         }
+        // 联动清理该组下所有 share，避免 group_id 孤儿
+        int unmounted = shareMapper.delete(
+                new LambdaQueryWrapper<GbPlatformShare>()
+                        .eq(GbPlatformShare::getPlatformId, platformId)
+                        .eq(GbPlatformShare::getGroupId, groupId));
         groupMapper.deleteById(groupId);
+        if (unmounted > 0) {
+            log.info("[{}] 删分组时联动清理挂载 platformId={} groupId={} unmounted={}",
+                    LOG_TAG, platformId, groupId, unmounted);
+        }
     }
 
-    /**
-     * 校验分组存在且属于该 platformId
-     */
-    private GbPlatformGroup getOwnedGroup(Long platformId, Long groupId) {
+    @Override
+    public GbPlatformGroup requireOwnedGroup(Long platformId, Long groupId) {
         GbPlatformGroup g = groupMapper.selectById(groupId);
         if (g == null) {
             throw new ServiceException("分组不存在");

@@ -187,10 +187,18 @@ export interface GbPlatformGroupSaveRequest {
   parentId: number
 }
 
-/** 推送目录：未挂载通道分页查询参数 */
+/** 推送目录：已挂载/未挂载通道分页查询参数 */
 export interface UnmountedChannelPageRequest extends PageRequest {
   /** 名称 / 通道国标编码 模糊匹配 */
   keyword?: string
+}
+
+/**
+ * 批量挂载请求体（对应后端 POST /api/gb28181/parent-platform/{id}/share）
+ * <p>resourceIds 来自 {@link GbDeviceChannel.id}；parental=0 通道 / parental=1 分组均接受</p>
+ */
+export interface AddShareRequest {
+  resourceIds: number[]
 }
 
 /** 通道列表分页查询参数 */
