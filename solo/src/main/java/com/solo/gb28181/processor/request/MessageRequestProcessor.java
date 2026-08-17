@@ -80,7 +80,9 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
 
     @PostConstruct
     public void init() {
-        if (handlerBeans == null) return;
+        if (handlerBeans == null) {
+            return;
+        }
         for (MessageHandler h : handlerBeans) {
             handlerMap.computeIfAbsent(h.getRootType(), k -> new HashMap<>())
                     .put(h.getCmdType(), h);

@@ -61,9 +61,13 @@ public class CatalogDataCache {
      * 留待设备重新注册后由新的 sync 重新拉完整目录覆盖。</p>
      */
     public void cancel(String deviceId) {
-        if (deviceId == null) return;
+        if (deviceId == null) {
+            return;
+        }
         CatalogSyncContext removed = contexts.remove(deviceId);
-        if (removed == null) return;
+        if (removed == null) {
+            return;
+        }
         // 持锁改 done：与 accumulate 的 lock block 互斥，保证 in-flight 写入要么跑完要么不跑
         removed.lock.lock();
         try {
@@ -118,7 +122,9 @@ public class CatalogDataCache {
      * @param items               本片解析出的 catalog item 列表（分组 + 通道合一）
      */
     public boolean accumulate(CatalogSyncContext ctx, List<GbDeviceChannel> items) {
-        if (ctx == null) return false;
+        if (ctx == null) {
+            return false;
+        }
         int added = 0;
         // 复用 INFO 节流节奏在锁外发"中间进度"事件——之前只在 finalize 里发，
         // 导致 10w+ 通道场景下 DB 已经入库上万条但前端进度条一直卡在 0/0。
@@ -133,7 +139,9 @@ public class CatalogDataCache {
             // 通道 / 分组统一按 channel_id 去重
             if (items != null && !items.isEmpty()) {
                 for (GbDeviceChannel it : items) {
-                    if (it == null || it.getChannelId() == null) continue;
+                    if (it == null || it.getChannelId() == null) {
+                        continue;
+                    }
                     if (ctx.syncedItemIds.add(it.getChannelId())) {
                         ctx.itemBuffer.add(it);
                         added++;
@@ -205,11 +213,15 @@ public class CatalogDataCache {
      * </ul>
      */
     public void finalize(CatalogSyncContext ctx, boolean normal, String reason) {
-        if (ctx == null || ctx.done) return;
+        if (ctx == null || ctx.done) {
+            return;
+        }
         // 1) 锁内改 done / 算 ratio / 提交 final flush
         ctx.lock.lock();
         try {
-            if (ctx.done) return;
+            if (ctx.done) {
+                return;
+            }
             ctx.done = true;
             ctx.partial = !normal;
             ctx.finalizeReason = reason;
@@ -264,7 +276,9 @@ public class CatalogDataCache {
         long now = System.currentTimeMillis();
         long expireMs = properties.getCatalog().getExpireMs();
         for (CatalogSyncContext ctx : contexts.values()) {
-            if (ctx.done) continue;
+            if (ctx.done) {
+                continue;
+            }
             if (now - ctx.lastUpdateMs.get() > expireMs) {
                 log.warn("[通道目录] batch expire 强收 deviceId={} sn={} total={}/{}",
                         ctx.deviceId, ctx.sn, ctx.totalReceived.get(), ctx.sumNum);

@@ -74,7 +74,9 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         // 3) 按 device_id 分桶
         Map<String, List<GbDeviceChannel>> itemsByDevice = new LinkedHashMap<>();
         for (GbDeviceChannel it : allItems) {
-            if (it.getDeviceId() == null) continue;
+            if (it.getDeviceId() == null) {
+                continue;
+            }
             itemsByDevice.computeIfAbsent(it.getDeviceId(), k -> new ArrayList<>()).add(it);
         }
 
@@ -233,8 +235,12 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         // 4) 撞码检测：本批按 channelId 分组，size>1 自身撞码；任一与 historyChannelIds 相交视为撞码
         Map<String, List<Long>> conflictByChannelId = new HashMap<>();
         for (GbDeviceChannel c : resources) {
-            if (c.getChannelId() == null) continue;
-            if (alreadySharedInGroup.contains(c.getId())) continue;
+            if (c.getChannelId() == null) {
+                continue;
+            }
+            if (alreadySharedInGroup.contains(c.getId())) {
+                continue;
+            }
             conflictByChannelId.computeIfAbsent(c.getChannelId(), k -> new ArrayList<>()).add(c.getId());
         }
         for (Map.Entry<String, List<Long>> e : new ArrayList<>(conflictByChannelId.entrySet())) {
@@ -264,9 +270,13 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         // 5) 批量插（跳过已挂本组的）
         List<GbPlatformShare> toInsert = new ArrayList<>();
         for (Long rid : resourceIds) {
-            if (alreadySharedInGroup.contains(rid)) continue;
+            if (alreadySharedInGroup.contains(rid)) {
+                continue;
+            }
             GbDeviceChannel res = resourceById.get(rid);
-            if (res == null) continue; // 通道已不存在
+            if (res == null) {
+                continue;
+            }
             String exposed = null;
             if (needExposed.contains(rid)) {
                 // 优先复用旧码（跨平台稳定），无旧码才按 (deviceId, channelId) 哈希派生

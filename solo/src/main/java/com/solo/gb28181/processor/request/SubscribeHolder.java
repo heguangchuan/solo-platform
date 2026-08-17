@@ -43,7 +43,9 @@ public class SubscribeHolder {
      * @return 被移除的记录（若不存在则返回 {@code null}）
      */
     public SubscribeInfo remove(String platformId, String cmdType) {
-        if (platformId == null || cmdType == null) return null;
+        if (platformId == null || cmdType == null) {
+            return null;
+        }
         return map.remove(key(platformId, cmdType));
     }
 
@@ -51,7 +53,9 @@ public class SubscribeHolder {
      * 取单条订阅。NOTIFY 推送时按此定位发送目标。
      */
     public Optional<SubscribeInfo> get(String platformId, String cmdType) {
-        if (platformId == null || cmdType == null) return Optional.empty();
+        if (platformId == null || cmdType == null) {
+            return Optional.empty();
+        }
         return Optional.ofNullable(map.get(key(platformId, cmdType)));
     }
 
@@ -59,7 +63,9 @@ public class SubscribeHolder {
      * 列出某事件类型下的全部订阅。catalog 变更时遍历此集合给所有订阅方推 NOTIFY。
      */
     public Collection<SubscribeInfo> listByCmdType(String cmdType) {
-        if (cmdType == null) return java.util.Collections.emptyList();
+        if (cmdType == null) {
+            return java.util.Collections.emptyList();
+        }
         return map.values().stream()
                 .filter(s -> cmdType.equals(s.getCmdType()))
                 .toList();

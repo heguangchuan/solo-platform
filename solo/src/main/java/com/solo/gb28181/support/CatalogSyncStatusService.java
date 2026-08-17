@@ -124,7 +124,9 @@ public class CatalogSyncStatusService {
     @EventListener
     public void onProgress(CatalogSyncProgressEvent event) {
         CatalogSyncProgress p = event.getProgress();
-        if (p == null) return;
+        if (p == null) {
+            return;
+        }
         try {
             String json = toJson(p);
             redis.opsForValue().set(STATUS_KEY_PREFIX + p.getDeviceId(), json, STATUS_TTL);

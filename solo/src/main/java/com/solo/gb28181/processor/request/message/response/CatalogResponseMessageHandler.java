@@ -112,7 +112,9 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         while (it.hasNext()) {
             Element item = it.next();
             String itemId = XmlUtils.childText(item, "DeviceID");
-            if (itemId == null || itemId.isBlank()) continue;
+            if (itemId == null || itemId.isBlank()) {
+                continue;
+            }
 
             int len = itemId.length();
             // ID 长度规则：20 位走 GB 标准类型码分流；≤8 位按 GB/T 2260 行政码当目录；

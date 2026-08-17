@@ -90,7 +90,9 @@ public class StreamPushClientServiceImpl extends ServiceImpl<StreamPushClientMap
 
     @Override
     public String authenticate(String token) {
-        if (token == null || token.isBlank()) return null;
+        if (token == null || token.isBlank()) {
+            return null;
+        }
         StreamPushClient hit = lambdaQuery()
                 .eq(StreamPushClient::getToken, token)
                 .eq(StreamPushClient::getEnabled, 1)
@@ -100,7 +102,9 @@ public class StreamPushClientServiceImpl extends ServiceImpl<StreamPushClientMap
 
     @Override
     public String clientIdOfToken(String token) {
-        if (token == null || token.isBlank()) return null;
+        if (token == null || token.isBlank()) {
+            return null;
+        }
         StreamPushClient hit = lambdaQuery().eq(StreamPushClient::getToken, token).one();
         return hit == null ? null : hit.getClientId();
     }
@@ -112,7 +116,9 @@ public class StreamPushClientServiceImpl extends ServiceImpl<StreamPushClientMap
 
     /** 日志脱敏：只显示前 6 位 + *** */
     private static String tokenPrefix(String token) {
-        if (token == null || token.length() < 6) return "***";
+        if (token == null || token.length() < 6) {
+            return "***";
+        }
         return token.substring(0, 6) + "***";
     }
 }

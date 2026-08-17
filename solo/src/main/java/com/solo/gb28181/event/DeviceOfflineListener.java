@@ -37,7 +37,9 @@ public class DeviceOfflineListener {
         // 2) 通道置 OFF
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
-        if (device == null) return;
+        if (device == null) {
+            return;
+        }
 
         int updated = channelMapper.update(null, new LambdaUpdateWrapper<GbDeviceChannel>()
                 .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())

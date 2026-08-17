@@ -148,10 +148,11 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Transactional
     public void deleteById(Long id) {
         GbDeviceChannel channel = getById(id);
-        if (channel == null) return;
+        if (channel == null) {
+            return;
+        }
         removeById(id);
         log.info("[通道删除] id={}", id);
-
     }
 
     @Override
@@ -190,7 +191,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Override
     @Transactional
     public void deleteByDeviceId(String deviceId) {
-        if (deviceId == null || deviceId.isBlank()) return;
+        if (deviceId == null || deviceId.isBlank()) {
+            return;
+        }
         lambdaUpdate()
                 .eq(GbDeviceChannel::getDeviceId, deviceId)
                 .remove();

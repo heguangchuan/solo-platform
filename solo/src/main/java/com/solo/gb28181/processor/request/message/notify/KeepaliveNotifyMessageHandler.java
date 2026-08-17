@@ -55,14 +55,20 @@ public class KeepaliveNotifyMessageHandler extends SipRequestProcessorBase imple
     }
 
     public void drain() {
-        if (queue.isEmpty()) return;
+        if (queue.isEmpty()) {
+            return;
+        }
         List<KeepaliveTask> batch = new ArrayList<>(Math.min(queue.size(), 200));
         for (int i = 0; i < 200; i++) {
             KeepaliveTask t = queue.poll();
-            if (t == null) break;
+            if (t == null) {
+                break;
+            }
             batch.add(t);
         }
-        if (batch.isEmpty()) return;
+        if (batch.isEmpty()) {
+            return;
+        }
 
         for (KeepaliveTask task : batch) {
             try {
