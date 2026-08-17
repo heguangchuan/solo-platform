@@ -51,8 +51,9 @@ minio:
 logging:
   level:
     com.solo: info
-    # JAIN-SIP 协议栈内部日志默认压到 warn，避免刷屏影响排查。
-    # 调试设备方言 / SIP 交互时临时调成 info 或 debug。
+    # JAIN-SIP 协议栈内部日志压到 warn，避免刷屏影响排查。
+    # Spring Boot 默认会把它继承到 INFO，会让协议栈自带的 logInfo（事务生命周期、
+    # Dialog 状态、消息派发摘要）全部打出来。调试设备方言 / SIP 交互时临时调成 info 或 debug。
     gov.nist: warn
 
 # ============================================================
