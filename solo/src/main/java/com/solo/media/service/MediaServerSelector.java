@@ -13,7 +13,8 @@ import java.util.List;
  *
  * <p>选点优先级：</p>
  * <ol>
- *     <li>{@link MediaServerLoader#pickLeastLoaded()} —— 升序 ZSet 首成员 = 活跃流数最少</li>
+ *     <li>{@link MediaServerLoader#pickLeastLoadedServerId()} —— 升序 ZSet 首成员 = 活跃流数最少
+ *         （拿到 serverId 后由本类查 MySQL 拿完整配置；Loader 不再持有 MediaServer 实体职责）</li>
  *     <li>兜底：按 {@code status=1} 选第一个登记行（Redis 抖动 / 索引空时）</li>
  *     <li>兜底：返回首个登记行（即使离线，至少不让点播接口 500）</li>
  *     <li>全无登记节点：抛 {@link ServiceException}</li>
@@ -36,13 +37,20 @@ public class MediaServerSelector {
      * @throws ServiceException 无任何登记节点
      */
     public MediaServer pick() {
-        // 1. 优先按负载索引选最闲的
-        MediaServer least = loadIndex.pickLeastLoaded();
-        if (least != null) {
-            return least;
+        // 1. 优先按负载索引选最闲的：Loader 只返 serverId，MySQL 查实体由本类做
+        String leastId = loadIndex.pickLeastLoadedServerId();
+        if (leastId != null) {
+            MediaServer least = mediaServerService.lambdaQuery()
+                    .eq(MediaServer::getServerId, leastId)
+                    .one();
+            if (least != null) {
+                return least;
+            }
+            // 索引里有但 MySQL 已删（管理面删除时序竞争）→ 落到 tier 2/3 兜底
+            log.warn("[流媒体] 负载索引指向已不存在的节点 serverId={}", leastId);
         }
 
-        // 2. 索引为空时兜底：按 status=1 选第一个
+        // 2. 索引为空（或指向孤儿）时兜底：按 status=1 选第一个
         List<MediaServer> all = mediaServerService.list();
         for (MediaServer s : all) {
             if (s.getStatus() != null && s.getStatus() == 1) {
