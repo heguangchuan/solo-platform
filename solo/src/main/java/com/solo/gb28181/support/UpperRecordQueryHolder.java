@@ -78,10 +78,14 @@ public class UpperRecordQueryHolder {
     void sweep() {
         long now = System.currentTimeMillis();
         for (Map.Entry<Integer, Entry> e : pending.entrySet()) {
-            if (now - e.getValue().registerMs <= EXPIRE_MS) continue;
+            if (now - e.getValue().registerMs <= EXPIRE_MS) {
+                continue;
+            }
             int snInner = e.getKey();
             // 双重检查：被并发消费掉的不要重复回
-            if (pending.remove(snInner) == null) continue;
+            if (pending.remove(snInner) == null) {
+                continue;
+            }
             UpperQueryContext ctx = e.getValue().context;
             log.warn("[级联录像查询] 设备 {} 设备未在 {}ms 内响应，给上级 {} SN={} 回空响应",
                     ctx.deviceId(), EXPIRE_MS, ctx.platform().getServerGbId(), ctx.snOuter());

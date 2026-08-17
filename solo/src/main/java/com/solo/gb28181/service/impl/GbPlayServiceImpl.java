@@ -407,7 +407,9 @@ public class GbPlayServiceImpl implements GbPlayService {
 
     @Override
     public void onDeviceBye(GbInviteSession session) {
-        if (session == null) return;
+        if (session == null) {
+            return;
+        }
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
 

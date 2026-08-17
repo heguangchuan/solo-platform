@@ -75,7 +75,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
             return vo;
         }
         MediaServer server = findServer(p.getMediaServerId());
-        if (server == null) return vo;
+        if (server == null) {
+            return vo;
+        }
         vo.setMediaServerId(server.getServerId());
         vo.setFlvUrl(urlBuilder.buildFlv(server, p.getApp(), p.getStream()));
         vo.setWsFlvUrl(urlBuilder.buildWsFlv(server, p.getApp(), p.getStream()));
@@ -108,7 +110,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     @Override
     public void deleteById(Long id) {
         StreamPush p = getById(id);
-        if (p == null) return;
+        if (p == null) {
+            return;
+        }
         if (p.getPushing() != null && p.getPushing() == 1) {
             throw new ServiceException("推流仍在推送，请先『强制中止』再删除");
         }
@@ -118,7 +122,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     @Override
     public void deleteBatch(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) return;
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
         for (Long id : ids) {
             try {
                 deleteById(id);
@@ -130,9 +136,13 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     @Override
     public void onStreamRegist(String app, String stream, String mediaServerId, Map<String, Object> body) {
-        if (app == null || stream == null || mediaServerId == null) return;
+        if (app == null || stream == null || mediaServerId == null) {
+            return;
+        }
         String originType = mapOriginType(stringOf(body, "originTypeStr"));
-        if (originType == null) return;
+        if (originType == null) {
+            return;
+        }
 
         StreamPush old = lambdaQuery()
                 .eq(StreamPush::getApp, app)
@@ -162,11 +172,15 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     @Override
     public void onStreamCancel(String app, String stream, String mediaServerId) {
-        if (app == null || stream == null) return;
+        if (app == null || stream == null) {
+            return;
+        }
         StreamPush old = lambdaQuery()
                 .eq(StreamPush::getApp, app)
                 .eq(StreamPush::getStream, stream).one();
-        if (old == null) return;
+        if (old == null) {
+            return;
+        }
         // 直接物理删（solo 未启用级联，不需要保留"离线记录"）
         removeById(old.getId());
         log.info("[推流] 注销 id={} app={} stream={}", old.getId(), app, stream);
@@ -176,7 +190,6 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     public void reconcileWithZlm(String mediaServerId) {
         MediaServer server = findServer(mediaServerId);
         if (server == null) {
-            log.warn("[推流] reconcile 时节点不存在 serverId={}", mediaServerId);
             return;
         }
         List<JsonNode> mediaList = zlmRestClient.getMediaList(server);
@@ -210,7 +223,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     // ---------------- helpers ----------------
 
     private MediaServer findServer(String serverId) {
-        if (serverId == null) return null;
+        if (serverId == null) {
+            return null;
+        }
         return mediaServerMapper.selectOne(
                 new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
     }
@@ -220,7 +235,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
      * 但本类不依赖 {@code StreamPushClientService}，直接走 mapper）。
      */
     private String clientIdOfToken(String token) {
-        if (token == null || token.isBlank()) return null;
+        if (token == null || token.isBlank()) {
+            return null;
+        }
         com.solo.media.entity.StreamPushClient hit = streamPushClientMapper.selectOne(
                 new LambdaQueryWrapper<com.solo.media.entity.StreamPushClient>()
                         .eq(com.solo.media.entity.StreamPushClient::getToken, token));
@@ -233,7 +250,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
      * 其余（rtp_push=国标、pull=拉流代理、mp4_vod、device_chn 等）返回 null。</p>
      */
     private static String mapOriginType(String originTypeStr) {
-        if (originTypeStr == null) return null;
+        if (originTypeStr == null) {
+            return null;
+        }
         return switch (originTypeStr) {
             case "rtmp_push" -> "rtmp";
             case "rtsp_push" -> "rtsp";
@@ -249,8 +268,12 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     private static int intOf(Map<String, Object> body, String key) {
         Object v = body == null ? null : body.get(key);
-        if (v == null) return 0;
-        if (v instanceof Number n) return n.intValue();
+        if (v == null) {
+            return 0;
+        }
+        if (v instanceof Number n) {
+            return n.intValue();
+        }
         try {
             return Integer.parseInt(v.toString());
         } catch (NumberFormatException e) {
@@ -260,11 +283,15 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     /** 解析 ZLM 上报的 params 串（形如 {@code token=abc&other=1}）取指定 key */
     private static String parseParam(String params, String key) {
-        if (params == null || params.isEmpty() || key == null) return null;
+        if (params == null || params.isEmpty() || key == null) {
+            return null;
+        }
         String decoded = decodeHtmlEntities(params);
         for (String pair : decoded.split("&")) {
             int idx = pair.indexOf('=');
-            if (idx <= 0) continue;
+            if (idx <= 0) {
+                continue;
+            }
             if (key.equals(pair.substring(0, idx))) {
                 return pair.substring(idx + 1);
             }
@@ -277,7 +304,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
      * 拆分前先跑一遍简单解码。
      */
     private static String decodeHtmlEntities(String s) {
-        if (s == null || s.indexOf('&') < 0) return s;
+        if (s == null || s.indexOf('&') < 0) {
+            return s;
+        }
         StringBuilder sb = new StringBuilder(s.length());
         int i = 0;
         while (i < s.length()) {

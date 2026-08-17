@@ -84,7 +84,9 @@ public class CatalogSyncSupport {
      * 提交一次 flush 任务到 catalogSyncExecutor。
      */
     public void executeFlush(CatalogSyncContext ctx, List<GbDeviceChannel> items, boolean isFinalFlush) {
-        if (ctx == null) return;
+        if (ctx == null) {
+            return;
+        }
         // 队列前再 check 一次：cancel 已发生（done=true）→ 不入队
         // ⚠️ 但 final flush 必须入队——finalize 已设 done=true，这里再 check 会自误，
         //   导致 sumNum 收齐时 final flush 被自己的 done=true 拦截、Item 永远不落库。

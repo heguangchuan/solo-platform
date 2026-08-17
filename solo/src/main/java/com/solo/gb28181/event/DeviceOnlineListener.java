@@ -51,7 +51,9 @@ public class DeviceOnlineListener {
 
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
-        if (device == null) return;
+        if (device == null) {
+            return;
+        }
         try {
             sipCommander.queryDeviceInfo(device);
             Thread.sleep(500);

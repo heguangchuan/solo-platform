@@ -87,8 +87,12 @@ public class SubscribeResponseBuilder {
 
     /** 防御性钳位：负数 → 0，> 24h → 24h。 */
     private static int clampExpires(int expires) {
-        if (expires < 0) return 0;
-        if (expires > 86400) return 86400;
+        if (expires < 0) {
+            return 0;
+        }
+        if (expires > 86400) {
+            return 86400;
+        }
         return expires;
     }
 

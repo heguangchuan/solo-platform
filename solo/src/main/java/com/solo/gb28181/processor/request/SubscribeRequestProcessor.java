@@ -248,9 +248,13 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
      * 这里只取冒号后最后一段，避免响应头变成巨长字符串。
      */
     private static String normalizeEventId(String raw) {
-        if (raw == null) return CMD_CATALOG.toLowerCase();
+        if (raw == null) {
+            return CMD_CATALOG.toLowerCase();
+        }
         String s = raw.trim();
-        if (s.isEmpty()) return CMD_CATALOG.toLowerCase();
+        if (s.isEmpty()) {
+            return CMD_CATALOG.toLowerCase();
+        }
         int colon = s.lastIndexOf(':');
         if (colon >= 0 && colon + 1 < s.length()) {
             s = s.substring(colon + 1);

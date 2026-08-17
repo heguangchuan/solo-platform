@@ -311,7 +311,9 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
     @Override
     public void evictProfileCache(String deviceId) {
-        if (deviceId == null || deviceId.isBlank()) return;
+        if (deviceId == null || deviceId.isBlank()) {
+            return;
+        }
         try {
             redisTemplate.delete(GbRedisKeys.DEVICE_PROFILE_PREFIX + deviceId);
         } catch (Exception e) {
