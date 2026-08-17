@@ -479,3 +479,19 @@ export interface StreamPushClientPageRequest extends PageRequest {
   clientId?: string
   enabled?: number
 }
+
+/** 本平台国标身份（对应 GET /api/gb28181/parent-platform/local-info） */
+export interface GbLocalPlatformInfo {
+  /** 本平台 SIP ID（20 位国标编码） */
+  id?: string
+  /** 本平台 SIP 域 */
+  domain?: string
+  /** 本平台 SIP 监听 IP */
+  ip?: string
+  /** 本平台 SIP 监听端口 */
+  port?: number
+  /** 鉴权密码（上级平台白名单配置用） */
+  password?: string
+  /** 设备注册有效期（秒） */
+  registerExpires?: number
+}

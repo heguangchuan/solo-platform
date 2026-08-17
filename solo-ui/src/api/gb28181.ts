@@ -12,6 +12,7 @@ import type {
   UnmountedChannelPageRequest,
   GbDeviceChannelPageRequest,
   GbDeviceChannelVO,
+  GbLocalPlatformInfo,
   GbMediaServer,
   GbMediaServerPageRequest,
   PageResult,
@@ -143,11 +144,9 @@ export function batchDeleteGbParentPlatformApi(ids: (number | string)[]) {
   return post<void>('/api/gb28181/parent-platform/batch/delete', { ids })
 }
 
-/** 获取本平台 SIP 配置（新增上级平台时回显默认值） */
-export function getParentPlatformServerConfigApi() {
-  return get<{ deviceGbId: string; deviceIp: string; devicePort: number; domain: string }>(
-    '/api/gb28181/parent-platform/server-config'
-  )
+/** 获取本平台国标身份（上级平台白名单配置时参考） */
+export function getGbLocalPlatformInfoApi() {
+  return get<GbLocalPlatformInfo>('/api/gb28181/parent-platform/local-info')
 }
 
 /** 拉取某上级平台的推送目录分组树（含 children 嵌套） */
