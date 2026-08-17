@@ -1,0 +1,40 @@
+/**
+ * 首页仪表盘调色板与设计变量
+ *
+ * <h3>状态色（保留专用，不充当"系列 4"）</h3>
+ * <ul>
+ *   <li>success  在线 / 成功 / 健康</li>
+ *   <li>warning  抖动 / 注意 / 警告</li>
+ *   <li>serious  异常 / 失败 / 告警</li>
+ *   <li>critical 严重故障</li>
+ *   <li>neutral  离线 / 禁用</li>
+ * </ul>
+ *
+ * <h3>分类色（固定顺序，9+ 折叠为"其他"）</h3>
+ * <p>用于厂商分布等多分类场景；调色板已通过 CVD ΔE 检验。</p>
+ */
+:root {
+  /* 状态色 */
+  --ds-success:  #67C23A;
+  --ds-warning:  #E6A23C;
+  --ds-serious:  #F56C6C;
+  --ds-critical: #C03639;
+  --ds-neutral:  #909399;
+
+  /* 分类色（按使用顺序） */
+  --ds-cat-1: #409EFF;
+  --ds-cat-2: #17A2B8;
+  --ds-cat-3: #8E44AD;
+  --ds-cat-4: #16A085;
+  --ds-cat-5: #F39C12;
+  --ds-cat-6: #34495E;
+
+  /* 卡片 */
+  --ds-card-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 2px 12px rgba(0, 0, 0, 0.04);
+  --ds-card-radius: 8px;
+  --ds-card-padding: 20px;
+
+  /* 间距 */
+  --ds-gap: 20px;
+  --ds-gap-tight: 12px;
+}

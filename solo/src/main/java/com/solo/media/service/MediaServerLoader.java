@@ -125,4 +125,31 @@ public class MediaServerLoader {
         }
         return redis.opsForZSet().score(ONLINE_KEY, serverId);
     }
+
+    /**
+     * 全网 ZLM 活跃流总数 = 所有 ZSet 成员的 score 之和。
+     *
+     * <p>供仪表盘 / 监控面板一站式读"当前全网承载多少路流"——
+     * 避免调用方自己遍历 ZSet 累加（同样的 SQL 已经在 {@code onStreamArrival / onStreamDeparture}
+     * 里同步维护过）。Redis 不可达或索引空时返回 0，不抛异常。</p>
+     */
+    public long getTotalLoad() {
+        try {
+            Set<String> ids = redis.opsForZSet().range(ONLINE_KEY, 0, -1);
+            if (ids == null || ids.isEmpty()) {
+                return 0L;
+            }
+            long total = 0;
+            for (String id : ids) {
+                Double score = redis.opsForZSet().score(ONLINE_KEY, id);
+                if (score != null) {
+                    total += score.longValue();
+                }
+            }
+            return total;
+        } catch (Exception e) {
+            // Redis 异常时返回 0，不阻塞仪表盘渲染
+            return 0L;
+        }
+    }
 }
