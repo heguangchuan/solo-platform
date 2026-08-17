@@ -7,10 +7,13 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.request.GbMediaServerPageRequest;
+import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.MediaServerService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
@@ -18,8 +21,11 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, MediaServer>
         implements MediaServerService {
+
+    private final MediaServerLoader loadIndex;
 
     @Override
     public Page<MediaServer> pageQuery(GbMediaServerPageRequest request) {
@@ -44,6 +50,24 @@ public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, Med
             server.setId(exist.getId());
             updateById(server);
         }
+    }
+
+    @Override
+    public boolean removeById(Serializable id) {
+        // 先查出 serverId，MySQL 删成功后再清 Redis 负载索引
+        MediaServer s = getById(id);
+        boolean ok = super.removeById(id);
+        if (ok && s != null) {
+            try {
+                loadIndex.onNodeOffline(s.getServerId());
+            } catch (Exception e) {
+                // 负载索引不是配置权威源；清理失败不影响功能——下次选点会被
+                // MediaServerSelector 走 status=1 兜底分支挡住。这里只记日志，不让 500。
+                log.warn("[流媒体] 删除节点后清理 Redis 负载索引失败 serverId={} err={}",
+                        s.getServerId(), e.getMessage());
+            }
+        }
+        return ok;
     }
 
     @Override
