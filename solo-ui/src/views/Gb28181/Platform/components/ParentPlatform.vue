@@ -6,10 +6,11 @@
  */
 import { ref, onMounted, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, Edit, Delete, View, Share } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, Edit, Delete, View, Share, CopyDocument } from '@element-plus/icons-vue'
 import type {
   GbParentPlatform,
   GbParentPlatformPageRequest,
+  GbLocalPlatformInfo,
 } from '@/types/api'
 import {
   getGbParentPlatformPageApi,
@@ -17,6 +18,7 @@ import {
   updateGbParentPlatformApi,
   deleteGbParentPlatformApi,
   batchDeleteGbParentPlatformApi,
+  getGbLocalPlatformInfoApi,
 } from '@/api/gb28181'
 import ShareDirectoryDialog from './ShareDirectoryDialog.vue'
 
@@ -28,6 +30,9 @@ const pageSize = ref(10)
 const selectedRows = ref<GbParentPlatform[]>([])
 
 const searchForm = ref<GbParentPlatformPageRequest>({ page: 1, pageSize: 10 })
+
+// 本平台国标身份（顶部展示卡片用）。加载失败不影响主列表
+const localInfo = ref<GbLocalPlatformInfo>({})
 
 // ---------------- 新增/编辑对话框 ----------------
 const dialogVisible = ref(false)
@@ -208,13 +213,73 @@ function handleShare(row: GbParentPlatform) {
   shareVisible.value = true
 }
 
+// ---------------- 本平台国标身份（顶部信息卡） ----------------
+async function fetchLocalInfo() {
+  try {
+    const res = await getGbLocalPlatformInfoApi()
+    localInfo.value = res.data || {}
+  } catch {
+    // 加载失败时保持空对象，卡片渲染空值；不影响主列表
+  }
+}
+
+async function copyValue(value: string, label: string) {
+  if (!value) return
+  try {
+    await navigator.clipboard.writeText(value)
+    ElMessage.success(`已复制${label}`)
+  } catch {
+    ElMessage.warning('复制失败，请手动选择文本')
+  }
+}
+
 onMounted(() => {
   // 本平台身份（deviceGbId / domain / ip / port）走全局 gb28181.* 配置，per-upper 表不再存（ADR-036）
+  fetchLocalInfo()
   fetchData()
 })
 </script>
 <template>
   <div>
+    <!-- 本平台国标身份：给上级平台配白名单时复制用，参考 ADR-036 走全局 gb28181.* 单例 -->
+    <el-card shadow="hover" class="local-info-card">
+      <template #header>
+        <div class="local-info-header">
+          <span class="local-info-title">本平台国标身份</span>
+          <span class="local-info-subtitle">提供给上级平台配置白名单时使用</span>
+        </div>
+      </template>
+      <el-descriptions :column="3" border>
+        <el-descriptions-item label="SIP ID">
+          <span class="copyable">
+            <span class="value-text">{{ localInfo.id || '—' }}</span>
+            <el-button v-if="localInfo.id" link :icon="CopyDocument" class="copy-btn" @click="copyValue(localInfo.id!, 'SIP ID')" />
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="SIP 域">
+          <span class="copyable">
+            <span class="value-text">{{ localInfo.domain || '—' }}</span>
+            <el-button v-if="localInfo.domain" link :icon="CopyDocument" class="copy-btn" @click="copyValue(localInfo.domain!, 'SIP 域')" />
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="SIP 地址">
+          <span class="copyable">
+            <span class="value-text">{{ localInfo.ip || '—' }}:{{ localInfo.port }}</span>
+            <el-button v-if="localInfo.ip" link :icon="CopyDocument" class="copy-btn" @click="copyValue(`${localInfo.ip}:${localInfo.port}`, 'SIP 地址')" />
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="鉴权密码">
+          <span class="copyable">
+            <span class="value-text">{{ localInfo.password || '（未配置）' }}</span>
+            <el-button v-if="localInfo.password" link :icon="CopyDocument" class="copy-btn" @click="copyValue(localInfo.password!, '鉴权密码')" />
+          </span>
+        </el-descriptions-item>
+        <el-descriptions-item label="设备注册有效期">
+          <span class="value-text">{{ localInfo.registerExpires ?? '—' }} 秒</span>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-card>
+
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="上级编码">
@@ -410,6 +475,36 @@ onMounted(() => {
 <style scoped>
 .search-card {
   margin-bottom: 0;
+}
+.local-info-card {
+  margin-bottom: 16px;
+}
+.local-info-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.local-info-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.local-info-subtitle {
+  font-size: 12px;
+  color: #909399;
+}
+.copyable {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+.value-text {
+  word-break: break-all;
+}
+.copy-btn {
+  flex-shrink: 0;
+  padding: 0 4px;
 }
 .table-toolbar {
   display: flex;

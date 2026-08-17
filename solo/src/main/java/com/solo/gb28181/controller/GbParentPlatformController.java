@@ -5,12 +5,14 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.request.GbParentPlatformBatchDeleteRequest;
 import com.solo.gb28181.request.GbParentPlatformPageRequest;
 import com.solo.gb28181.request.GbPlatformShareSaveRequest;
 import com.solo.gb28181.request.UnmountedChannelPageRequest;
+import com.solo.gb28181.response.GbLocalPlatformInfo;
 import com.solo.gb28181.response.GbPlatformSharedResponse;
 import com.solo.gb28181.response.GbShareTreeNodeResponse;
 import com.solo.gb28181.service.CatalogShareService;
@@ -32,6 +34,7 @@ public class GbParentPlatformController {
 
     private final GbParentPlatformService gbParentPlatformService;
     private final CatalogShareService catalogShareService;
+    private final Gb28181Properties gb28181Properties;
 
     /**
      * 分页查询上级平台配置
@@ -87,6 +90,23 @@ public class GbParentPlatformController {
     public Result<Void> batchDelete(@RequestBody GbParentPlatformBatchDeleteRequest request) {
         gbParentPlatformService.deleteBatch(request.getIds());
         return Result.success();
+    }
+
+    /**
+     * 获取本平台国标身份（id / 域 / IP / 端口 / 鉴权密码等）
+     * <p>上级平台配置白名单时需要这些信息。前端管理面"上级平台"页面顶部展示。</p>
+     */
+    @GetMapping("/local-info")
+    @RequirePermission({"gb28181:parent-platform:list"})
+    public Result<GbLocalPlatformInfo> localInfo() {
+        GbLocalPlatformInfo info = new GbLocalPlatformInfo();
+        info.setId(gb28181Properties.getId());
+        info.setDomain(gb28181Properties.getDomain());
+        info.setIp(gb28181Properties.getIp());
+        info.setPort(gb28181Properties.getPort());
+        info.setPassword(gb28181Properties.getPassword());
+        info.setRegisterExpires(gb28181Properties.getRegisterExpires());
+        return Result.success(info);
     }
 
     // ==================== 通道推送 ====================
