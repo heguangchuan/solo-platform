@@ -14,8 +14,9 @@ import java.util.Properties;
  *
  * <p><strong>日志级别由 SLF4J 掌控</strong>：JAIN-SIP 打每条日志前先问 {@link #isLoggingEnabled(int)}，
  * 本实现据此委派到 {@code gov.nist} 这个 SLF4J logger 的对应级别，让协议栈按配置短路——既不产出噪音，
- * 也不浪费 CPU 拼日志串。想彻底静音把 {@code logging.level.gov.nist} 调到 warn/off 即可（默认 warn，
- * 仍保留真正的 SIP 错误/告警）。之前无条件返回 true 会让协议栈把全部 debug/trace/收发摘要灌进日志。</p>
+ * 也不浪费 CPU 拼日志串。想彻底静音把 {@code logging.level.gov.nist} 调到 warn/off 即可（Spring
+ * Boot 默认会把它继承到 INFO，导致 JAIN-SIP 自带的 logInfo 全部打出来；显式设 warn 后仍保留
+ * 真正的 SIP 错误/告警）。之前无条件返回 true 会让协议栈把全部 debug/trace/收发摘要灌进日志。</p>
  */
 public class Slf4jStackLogger implements StackLogger {
 
