@@ -1,9 +1,9 @@
 package com.solo.common.utils;
 
+import com.solo.config.JwtProperties;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
@@ -57,25 +57,18 @@ public class JwtUtils {
     public static final String TOKEN_TYPE_REFRESH = "refresh";
 
     private final RedisTemplate<String, Object> redisTemplate;
+    private final JwtProperties jwtProperties;
 
-    @Value("${jwt.secret}")
-    private String secret;
-
-    @Value("${jwt.access-expiration}")
-    private long accessExpiration;
-
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpiration;
-
-    public JwtUtils(RedisTemplate<String, Object> redisTemplate) {
+    public JwtUtils(RedisTemplate<String, Object> redisTemplate, JwtProperties jwtProperties) {
         this.redisTemplate = redisTemplate;
+        this.jwtProperties = jwtProperties;
     }
 
     /**
      * 生成密钥
      */
     private SecretKey getSecretKey() {
-        return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
     /* ============================== Token 生成 ============================== */
@@ -88,7 +81,7 @@ public class JwtUtils {
                 .subject(username)
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_ACCESS)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessExpiration))
+                .expiration(new Date(System.currentTimeMillis() + jwtProperties.getAccessExpiration()))
                 .signWith(getSecretKey())
                 .compact();
     }
@@ -101,7 +94,7 @@ public class JwtUtils {
                 .subject(username)
                 .claim(CLAIM_TOKEN_TYPE, TOKEN_TYPE_REFRESH)
                 .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + refreshExpiration))
+                .expiration(new Date(System.currentTimeMillis() + jwtProperties.getRefreshExpiration()))
                 .signWith(getSecretKey())
                 .compact();
     }
@@ -199,7 +192,7 @@ public class JwtUtils {
         data.put(FIELD_TOKEN, token);
         if (meta != null) data.putAll(meta);
         redisTemplate.opsForHash().putAll(key, data);
-        redisTemplate.expire(key, Duration.ofMillis(accessExpiration));
+        redisTemplate.expire(key, Duration.ofMillis(jwtProperties.getAccessExpiration()));
         redisTemplate.opsForSet().add(ONLINE_INDEX_KEY, username);
     }
 
@@ -256,7 +249,7 @@ public class JwtUtils {
         redisTemplate.opsForValue().set(
                 REFRESH_KEY_PREFIX + username,
                 refreshToken,
-                Duration.ofMillis(refreshExpiration));
+                Duration.ofMillis(jwtProperties.getRefreshExpiration()));
     }
 
     /**

@@ -2,13 +2,13 @@ package com.solo.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 /**
  * Web 终端配置
  */
 @Data
-@Configuration
+@Component
 @ConfigurationProperties(prefix = "terminal")
 public class TerminalProperties {
 

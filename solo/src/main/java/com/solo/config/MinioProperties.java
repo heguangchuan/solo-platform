@@ -2,13 +2,13 @@ package com.solo.config;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
+import org.springframework.stereotype.Component;
 
 /**
  * 文件存储配置（仅支持 MinIO）。
  */
 @Data
-@Configuration
+@Component
 @ConfigurationProperties(prefix = "minio")
 public class MinioProperties {
 
