@@ -1,8 +1,8 @@
 package com.solo.onvif.task;
 
 import com.solo.onvif.entity.OnvifDevice;
+import com.solo.onvif.mapper.OnvifDeviceMapper;
 import com.solo.onvif.service.OnvifDeviceService;
-import com.solo.onvif.service.impl.OnvifDeviceServiceImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -22,12 +22,14 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OnvifDeviceStatusTask {
 
+    private final OnvifDeviceMapper deviceMapper;
     private final OnvifDeviceService deviceService;
     private final ThreadPoolTaskExecutor taskExecutor;
 
     @Scheduled(fixedDelay = 30_000L, initialDelay = 10_000L)
     public void checkAll() {
-        List<OnvifDevice> all = deviceService.list();
+        // 先查所有设备 id（mapper 轻量查询），再按 id 逐个查实体 + 探测（service 承载业务方法）
+        List<OnvifDevice> all = deviceMapper.selectList(null);
         if (all.isEmpty()) {
             return;
         }

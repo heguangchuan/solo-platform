@@ -1,9 +1,10 @@
 package com.solo.gb28181.processor.response;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbInviteSession;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.SipResponseProcessor;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
@@ -52,8 +53,9 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     private SipRequestHeaderProvider headerProvider;
     @Autowired
     private GbInviteSessionService inviteSessionService;
+    /** 设备查表：按 ADR-037 原则直接走 mapper，不绕 service。 */
     @Autowired
-    private GbDeviceService deviceService;
+    private GbDeviceMapper deviceMapper;
 
     /**
      * 用 @Lazy 打破 InviteResponseProcessor → GbPlayService → SipCommander →
@@ -92,7 +94,8 @@ public class InviteResponseProcessor implements SipResponseProcessor {
             log.warn("[实时点播] 收到 INVITE {} 响应，但 callId 无对应会话: {}", status, callId);
             return;
         }
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, session.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device == null) {
             log.warn("[实时点播] 收到 INVITE {} 响应，但设备已离线: deviceId={}", status, session.getDeviceId());
             return;

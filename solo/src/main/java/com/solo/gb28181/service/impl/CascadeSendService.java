@@ -6,6 +6,7 @@ import com.solo.gb28181.entity.CascadeSendSession;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.entity.GbParentPlatform;
+import com.solo.gb28181.mapper.GbParentPlatformMapper;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.CascadeSendSessionService;
@@ -78,6 +79,7 @@ public class CascadeSendService {
     private final GbMediaServerMapper mediaServerMapper;
     private final PlatformSipHeaderProvider headerProvider;
     private final SipSender sipSender;
+    private final GbParentPlatformMapper gbParentPlatformMapper;
 
     /**
      * 处理上级 INVITE：校验共享 → 取流 → 建会话 → 回 200 OK（sendonly SDP）。
