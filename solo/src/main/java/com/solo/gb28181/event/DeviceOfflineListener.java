@@ -1,10 +1,12 @@
 package com.solo.gb28181.event;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
-import com.solo.gb28181.service.GbDeviceChannelService;
-import com.solo.gb28181.service.GbDeviceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -19,8 +21,8 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DeviceOfflineListener {
 
-    private final GbDeviceService deviceService;
-    private final GbDeviceChannelService channelService;
+    private final GbDeviceMapper deviceMapper;
+    private final GbDeviceChannelMapper channelMapper;
     private final CatalogDataCache catalogDataCache;
 
     @Async("taskExecutor")
@@ -33,14 +35,14 @@ public class DeviceOfflineListener {
         catalogDataCache.cancel(event.getDeviceId());
 
         // 2) 通道置 OFF
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, event.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
         if (device == null) return;
 
-        boolean updated = channelService.lambdaUpdate()
+        int updated = channelMapper.update(null, new LambdaUpdateWrapper<GbDeviceChannel>()
                 .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
-                .set(GbDeviceChannel::getStatus, "OFF")
-                .update();
-        if (updated) {
+                .set(GbDeviceChannel::getStatus, "OFF"));
+        if (updated > 0) {
             log.info("[设备离线] 通道批量置 OFF deviceId={} reason={}", event.getDeviceId(), event.getReason());
         }
     }

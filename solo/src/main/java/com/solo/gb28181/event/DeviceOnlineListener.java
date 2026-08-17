@@ -1,8 +1,9 @@
 package com.solo.gb28181.event;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.CatalogSyncStatusService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,7 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class DeviceOnlineListener {
 
-    private final GbDeviceService deviceService;
+    private final GbDeviceMapper deviceMapper;
     private final SipCommander sipCommander;
     private final CatalogDataCache catalogDataCache;
     private final CatalogSyncStatusService catalogSyncStatusService;
@@ -48,7 +49,8 @@ public class DeviceOnlineListener {
         }
         // 锁由 CatalogSyncProgressEvent 在 sync 收尾（非 RUNNING 状态）时自动 release
 
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, event.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
         if (device == null) return;
         try {
             sipCommander.queryDeviceInfo(device);

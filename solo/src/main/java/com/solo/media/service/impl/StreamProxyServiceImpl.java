@@ -149,7 +149,9 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
     @Override
     public void deleteById(Long id) {
         StreamProxy p = getById(id);
-        if (p == null) return;
+        if (p == null) {
+            return;
+        }
         tryDisableOnZlm(p);
         removeById(id);
         log.info("[拉流代理] 删除 id={} app={} stream={}", id, p.getApp(), p.getStream());
@@ -157,7 +159,9 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
 
     @Override
     public void deleteBatch(List<Long> ids) {
-        if (ids == null || ids.isEmpty()) return;
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
         for (Long id : ids) {
             try {
                 deleteById(id);
@@ -179,6 +183,8 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         if (p.getStatus() == null || p.getStatus() != 1 || p.getMediaServerId() == null) {
             return vo;
         }
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, p.getMediaServerId()));
         if (server == null) {
             return vo;
         }
@@ -212,26 +218,42 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
     }
 
     private void applyDefaults(StreamProxy p) {
-        if (p.getApp() == null || p.getApp().isBlank()) p.setApp("proxy");
-        if (p.getRtpType() == null) p.setRtpType(1);
-        if (p.getEnableAudio() == null) p.setEnableAudio(1);
-        if (p.getEnableMp4() == null) p.setEnableMp4(0);
-        if (p.getEnableDisableNoneReader() == null) p.setEnableDisableNoneReader(0);
-        if (p.getEnabled() == null) p.setEnabled(1);
+        if (p.getApp() == null || p.getApp().isBlank()) {
+            p.setApp("proxy");
+        }
+        if (p.getRtpType() == null) {
+            p.setRtpType(1);
+        }
+        if (p.getEnableAudio() == null) {
+            p.setEnableAudio(1);
+        }
+        if (p.getEnableMp4() == null) {
+            p.setEnableMp4(0);
+        }
+        if (p.getEnableDisableNoneReader() == null) {
+            p.setEnableDisableNoneReader(0);
+        }
+        if (p.getEnabled() == null) {
+            p.setEnabled(1);
+        }
     }
 
     private MediaServer pickServer(StreamProxy p) {
         if (p.getMediaServerId() != null && !p.getMediaServerId().isBlank()) {
             MediaServer s = mediaServerMapper.selectOne(
                     new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, p.getMediaServerId()));
-            if (s != null) return s;
+            if (s != null) {
+                return s;
+            }
             log.warn("[拉流代理] 指定节点不存在，回退自动选择 serverId={}", p.getMediaServerId());
         }
         return mediaServerSelector.pick();
     }
 
     private void tryDisableOnZlm(StreamProxy p) {
-        if (p.getProxyKey() == null || p.getMediaServerId() == null) return;
+        if (p.getProxyKey() == null || p.getMediaServerId() == null) {
+            return;
+        }
         MediaServer server = mediaServerMapper.selectOne(
                 new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, p.getMediaServerId()));
         if (server == null) {
@@ -246,7 +268,9 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
     }
 
     private static String shorten(String s) {
-        if (s == null) return null;
+        if (s == null) {
+            return null;
+        }
         return s.length() > 490 ? s.substring(0, 490) : s;
     }
 }

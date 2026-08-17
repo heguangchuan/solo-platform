@@ -1,13 +1,14 @@
 package com.solo.gb28181.support;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.service.GbDeviceChannelService;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.service.GbDeviceService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -42,6 +43,10 @@ import java.util.concurrent.atomic.AtomicLong;
  *     </ul>
  *   </li>
  * </ol>
+ *
+ * <h3>依赖说明</h3>
+ * <p>本类直接走 {@link GbDeviceMapper} / {@link GbDeviceChannelMapper}，单表 CRUD 包装不绕 service。
+ * 仍保留 {@link GbDeviceService#evictProfileCache}（设备档案缓存失效，业务方法，跨 Redis + DB）。</p>
  */
 @Slf4j
 @Service
@@ -52,7 +57,8 @@ public class CatalogSyncSupport {
 
     private final Gb28181Properties properties;
     private final GbDeviceService deviceService;
-    private final GbDeviceChannelService channelService;
+    private final GbDeviceChannelMapper channelMapper;
+    private final GbDeviceMapper deviceMapper;
     private final ThreadPoolTaskExecutor executor;
 
     private final AtomicLong totalFlushCount = new AtomicLong(0);
@@ -64,11 +70,13 @@ public class CatalogSyncSupport {
      */
     public CatalogSyncSupport(Gb28181Properties properties,
                               GbDeviceService deviceService,
-                              GbDeviceChannelService channelService,
+                              GbDeviceChannelMapper channelMapper,
+                              GbDeviceMapper deviceMapper,
                               @Qualifier("catalogSyncExecutor") ThreadPoolTaskExecutor executor) {
         this.properties = properties;
         this.deviceService = deviceService;
-        this.channelService = channelService;
+        this.channelMapper = channelMapper;
+        this.deviceMapper = deviceMapper;
         this.executor = executor;
     }
 
@@ -110,9 +118,8 @@ public class CatalogSyncSupport {
     }
 
     private void doFlush(CatalogSyncContext ctx, List<GbDeviceChannel> items, boolean isFinalFlush) {
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, ctx.deviceId)
-                .one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, ctx.deviceId));
         if (device == null) {
             log.warn("[通道目录] flush 跳过：设备不存在 deviceId={}", ctx.deviceId);
             return;
@@ -140,9 +147,8 @@ public class CatalogSyncSupport {
                     if (it.getChannelId() != null) knownCodes.add(it.getChannelId());
                 }
                 // 库里已存在的 channel_id 也算"父可达"（本次没重报但历史已入库）
-                channelService.lambdaQuery()
-                        .select(GbDeviceChannel::getChannelId)
-                        .list()
+                channelMapper.selectList(
+                                new LambdaQueryWrapper<GbDeviceChannel>().select(GbDeviceChannel::getChannelId))
                         .forEach(e -> { if (e.getChannelId() != null) knownCodes.add(e.getChannelId()); });
 
                 int reparented = 0;
@@ -160,33 +166,33 @@ public class CatalogSyncSupport {
                 }
             }
 
-            channelService.saveOrUpdateBatch(items);
+            channelMapper.batchUpsert(items);
         }
 
         // final flush 阶段：依据 completenessRatio 决定是否清理"已不存在通道"
         if (isFinalFlush) {
             double ratio = ctx.completenessRatio;
             double threshold = properties.getCatalog().getCompletenessThreshold();
-            int countAfter = Math.toIntExact(channelService.lambdaQuery()
-                    .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
-                    .eq(GbDeviceChannel::getParental, 0)
-                    .count());
+            Long countAfter = channelMapper.selectCount(
+                    new LambdaQueryWrapper<GbDeviceChannel>()
+                            .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
+                            .eq(GbDeviceChannel::getParental, 0));
             if (ratio >= threshold) {
-                boolean ok = channelService.lambdaUpdate()
-                        .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
-                        .eq(GbDeviceChannel::getParental, 0)
-                        .notIn(GbDeviceChannel::getChannelId, ctx.syncedItemIds)
-                        .remove();
+                int rows = channelMapper.delete(
+                        new LambdaQueryWrapper<GbDeviceChannel>()
+                                .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
+                                .eq(GbDeviceChannel::getParental, 0)
+                                .notIn(GbDeviceChannel::getChannelId, ctx.syncedItemIds));
                 log.info("[通道目录] final flush 清扫 deviceId={} ratio={} threshold={} (传入 {} 条)  ok={}",
                         ctx.deviceId, String.format("%.2f", ratio), threshold,
-                        ctx.syncedItemIds.size(), ok);
+                        ctx.syncedItemIds.size(), rows > 0);
             } else {
                 log.warn("[通道目录] final flush 保留残缺数据 deviceId={} ratio={} < threshold={} 保留 {} 条已入库通道，等下次 sync 补齐",
                         ctx.deviceId, String.format("%.2f", ratio), threshold, countAfter);
             }
             // 落库后回写 lastCatalogSyncTime
             device.setLastCatalogSyncTime(LocalDateTime.now());
-            deviceService.updateById(device);
+            deviceMapper.updateById(device);
             // 失效档案缓存：lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
             deviceService.evictProfileCache(device.getDeviceId());
         }
