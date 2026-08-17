@@ -1,15 +1,16 @@
 package com.solo.gb28181.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
-import com.solo.media.service.MediaServerService;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.ssrc.SsrcFactory;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,14 +21,18 @@ import org.springframework.stereotype.Service;
  *
  * <p>S3 引入 — 原先散在 {@code GbPlayServiceImpl} 里的私有 helper 抽到这里，
  * 让 {@code GbPlaybackServiceImpl} 也能复用，避免大段重复。</p>
+ *
+ * <p>依赖说明：本类不直接依赖 {@code GbDeviceService} / {@code MediaServerService}，所有
+ * 单表查（设备、节点）走 mapper。{@code GbInviteSessionService} 必须留——会话数据在 Redis，
+ * 没有 mapper 等价实现。</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanupService {
 
-    private final GbDeviceService deviceService;
-    private final MediaServerService mediaServerService;
+    private final GbDeviceMapper deviceMapper;
+    private final GbMediaServerMapper mediaServerMapper;
     private final GbInviteSessionService inviteSessionService;
     private final SsrcFactory ssrcFactory;
     private final ZlmRestClient zlmRestClient;
@@ -51,9 +56,8 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
     @Override
     public void cleanupZlm(GbInviteSession session) {
         try {
-            MediaServer server = mediaServerService.lambdaQuery()
-                    .eq(MediaServer::getServerId, session.getServerId())
-                    .one();
+            MediaServer server = mediaServerMapper.selectOne(
+                    new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
             if (server != null) {
                 zlmRestClient.closeRtpServer(server, session.getStreamId());
             }
@@ -100,9 +104,8 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
         if (session.getToTag() == null) {
             return;
         }
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, session.getDeviceId())
-                .one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device != null) {
             sipCommander.sendBye(device, session);
         }

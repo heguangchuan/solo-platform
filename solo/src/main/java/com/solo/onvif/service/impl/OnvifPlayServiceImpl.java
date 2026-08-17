@@ -1,16 +1,17 @@
 package com.solo.onvif.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
 import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.service.MediaServerSelector;
-import com.solo.media.service.MediaServerService;
 import com.solo.onvif.entity.OnvifDevice;
+import com.solo.onvif.mapper.OnvifDeviceMapper;
 import com.solo.onvif.request.OnvifPlayStartRequest;
 import com.solo.onvif.request.OnvifPlayStopRequest;
 import com.solo.onvif.response.OnvifPlayResultResponse;
-import com.solo.onvif.service.OnvifDeviceService;
 import com.solo.onvif.service.OnvifPlayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,9 +54,9 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
     private static final int RTP_TYPE_TCP = 1;
     private static final int RTP_TYPE_UDP = 2;
 
-    private final OnvifDeviceService deviceService;
+    private final OnvifDeviceMapper deviceMapper;
     private final MediaServerSelector mediaServerSelector;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
     private final ZlmRestClient zlmRestClient;
     private final MediaUrlBuilder urlBuilder;
     private final StringRedisTemplate redisTemplate;
@@ -65,7 +66,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         if (req == null || req.getDeviceId() == null) {
             throw new ServiceException("deviceId 不能为空");
         }
-        OnvifDevice device = deviceService.getById(req.getDeviceId());
+        OnvifDevice device = deviceMapper.selectById(req.getDeviceId());
         if (device == null) {
             throw new ServiceException("设备不存在: " + req.getDeviceId());
         }
@@ -158,7 +159,8 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
 
     private MediaServer findServer(String serverId) {
         if (serverId == null) return null;
-        return mediaServerService.lambdaQuery().eq(MediaServer::getServerId, serverId).one();
+        return mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
     }
 
     /**

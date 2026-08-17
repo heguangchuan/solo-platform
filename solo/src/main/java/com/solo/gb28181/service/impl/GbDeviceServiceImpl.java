@@ -10,10 +10,10 @@ import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
-import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
@@ -47,7 +47,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private final StringRedisTemplate redisTemplate;
     private final Gb28181Properties properties;
     private final GbInviteSessionService inviteSessionService;
-    private final GbDeviceChannelService deviceChannelService;
+    private final GbDeviceChannelMapper channelMapper;
 
     /**
      * {@code @Lazy} 注入打破循环依赖：
@@ -110,8 +110,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
                 ch.setSource(GbSource.SYSTEM);
                 ch.setParental(0);  // 手动新增一定是通道
                 ch.setParentId(device.getDeviceId());  // parentId = 所属设备 GB 码（与 GB 协议语义一致）
-                boolean saved = deviceChannelService.save(ch);
-                log.info("[设备新增] save channel channelId={}, result={}", ch.getChannelId(), saved);
+                int rows = channelMapper.insert(ch);
+                log.info("[设备新增] save channel channelId={}, rows={}", ch.getChannelId(), rows);
             }
             log.info("[设备新增] 系统手动新增设备 {}，同步新增 {} 条通道", device.getDeviceId(), channels.size());
         } else {
@@ -297,7 +297,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             GbDevice device = getById(id);
             if (device != null) {
                 // 删除该设备下所有通道（按 GB 码）
-                deviceChannelService.deleteByDeviceId(device.getDeviceId());
+                channelMapper.delete(new LambdaQueryWrapper<GbDeviceChannel>()
+                        .eq(GbDeviceChannel::getDeviceId, device.getDeviceId()));
                 // 删除设备
                 removeById(id);
                 // 删除 Redis 在线状态键

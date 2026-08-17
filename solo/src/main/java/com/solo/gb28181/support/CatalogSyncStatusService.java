@@ -1,9 +1,10 @@
 package com.solo.gb28181.support;
 
-import com.solo.gb28181.event.CatalogSyncProgressEvent;
-import com.solo.gb28181.transmit.cmd.SipCommander;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.event.CatalogSyncProgressEvent;
+import com.solo.gb28181.mapper.GbDeviceMapper;
+import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -41,7 +42,7 @@ public class CatalogSyncStatusService {
 
     private final StringRedisTemplate redis;
     private final SipCommander sipCommander;
-    private final GbDeviceService deviceService;
+    private final GbDeviceMapper deviceMapper;
 
     /**
      * 尝试占用同步锁。返回 true 表示抢到锁可发起同步；false 表示已有同步在进行。
@@ -101,9 +102,8 @@ public class CatalogSyncStatusService {
             log.warn("[通道目录] 写初始状态失败 deviceId={} err={}", deviceId, e.getMessage());
         }
         // 发 SIP Query
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, deviceId)
-                .one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
         if (device == null) {
             release(deviceId);
             throw new IllegalArgumentException("DEVICE_NOT_FOUND");

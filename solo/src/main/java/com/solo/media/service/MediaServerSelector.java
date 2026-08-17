@@ -1,7 +1,9 @@
 package com.solo.media.service;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.mapper.GbMediaServerMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,7 +30,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class MediaServerSelector {
 
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
     private final MediaServerLoader loadIndex;
 
     /**
@@ -40,9 +42,8 @@ public class MediaServerSelector {
         // 1. 优先按负载索引选最闲的：Loader 只返 serverId，MySQL 查实体由本类做
         String leastId = loadIndex.pickLeastLoadedServerId();
         if (leastId != null) {
-            MediaServer least = mediaServerService.lambdaQuery()
-                    .eq(MediaServer::getServerId, leastId)
-                    .one();
+            MediaServer least = mediaServerMapper.selectOne(
+                    new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, leastId));
             if (least != null) {
                 return least;
             }
@@ -51,7 +52,7 @@ public class MediaServerSelector {
         }
 
         // 2. 索引为空（或指向孤儿）时兜底：按 status=1 选第一个
-        List<MediaServer> all = mediaServerService.list();
+        List<MediaServer> all = mediaServerMapper.selectList(null);
         for (MediaServer s : all) {
             if (s.getStatus() != null && s.getStatus() == 1) {
                 return s;

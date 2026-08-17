@@ -8,12 +8,12 @@ import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.entity.StreamProxy;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.mapper.StreamProxyMapper;
 import com.solo.media.request.StreamProxyPageRequest;
 import com.solo.media.response.StreamProxyPlayUrlResponse;
 import com.solo.media.service.StreamProxyService;
 import com.solo.media.service.MediaServerSelector;
-import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,7 +40,7 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
 
     private final ZlmRestClient zlmRestClient;
     private final MediaServerSelector mediaServerSelector;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
     private final MediaUrlBuilder urlBuilder;
 
     @Override
@@ -179,8 +179,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         if (p.getStatus() == null || p.getStatus() != 1 || p.getMediaServerId() == null) {
             return vo;
         }
-        MediaServer server = mediaServerService.lambdaQuery()
-                .eq(MediaServer::getServerId, p.getMediaServerId()).one();
         if (server == null) {
             return vo;
         }
@@ -224,8 +222,8 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
 
     private MediaServer pickServer(StreamProxy p) {
         if (p.getMediaServerId() != null && !p.getMediaServerId().isBlank()) {
-            MediaServer s = mediaServerService.lambdaQuery()
-                    .eq(MediaServer::getServerId, p.getMediaServerId()).one();
+            MediaServer s = mediaServerMapper.selectOne(
+                    new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, p.getMediaServerId()));
             if (s != null) return s;
             log.warn("[拉流代理] 指定节点不存在，回退自动选择 serverId={}", p.getMediaServerId());
         }
@@ -234,8 +232,8 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
 
     private void tryDisableOnZlm(StreamProxy p) {
         if (p.getProxyKey() == null || p.getMediaServerId() == null) return;
-        MediaServer server = mediaServerService.lambdaQuery()
-                .eq(MediaServer::getServerId, p.getMediaServerId()).one();
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, p.getMediaServerId()));
         if (server == null) {
             log.warn("[拉流代理] 摘流时目标节点丢失 serverId={}", p.getMediaServerId());
             return;

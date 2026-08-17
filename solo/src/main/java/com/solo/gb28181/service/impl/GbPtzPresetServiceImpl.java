@@ -1,12 +1,13 @@
 package com.solo.gb28181.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPtzPreset;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPtzPresetMapper;
-import com.solo.gb28181.service.GbDeviceChannelService;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbPtzPresetService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.utils.SipUtils;
@@ -24,8 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtzPreset> implements GbPtzPresetService {
 
-    private final GbDeviceService deviceService;
-    private final GbDeviceChannelService channelService;
+    private final GbDeviceMapper deviceMapper;
+    private final GbDeviceChannelMapper channelMapper;
     private final SipCommander sipCommander;
 
     @Override
@@ -81,12 +82,12 @@ public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtz
      * 向设备发送预置位 PTZ 指令
      */
     private void sendPresetCmd(GbPtzPreset preset, String action, String ptzCmd) {
-        GbDeviceChannel channel = channelService.getById(preset.getChannelDbId());
+        GbDeviceChannel channel = channelMapper.selectById(preset.getChannelDbId());
         if (channel == null) {
             throw new com.solo.common.ServiceException("通道不存在");
         }
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, channel.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, channel.getDeviceId()));
         if (device == null) {
             throw new com.solo.common.ServiceException("设备不存在");
         }

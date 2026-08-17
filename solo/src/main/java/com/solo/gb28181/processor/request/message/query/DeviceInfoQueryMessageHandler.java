@@ -1,10 +1,11 @@
 package com.solo.gb28181.processor.request.message.query;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.processor.request.message.MessageHandler;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.utils.XmlUtils;
 import gov.nist.javax.sip.message.SIPRequest;
@@ -37,7 +38,7 @@ public class DeviceInfoQueryMessageHandler extends SipRequestProcessorBase imple
 
     private static final String LOG_TAG = "[级联设备信息]";
 
-    private final GbDeviceService deviceService;
+    private final GbDeviceMapper deviceMapper;
     private final PlatformCommander platformCommander;
 
     @Override
@@ -73,9 +74,8 @@ public class DeviceInfoQueryMessageHandler extends SipRequestProcessorBase imple
             return;
         }
 
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, deviceId)
-                .one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
         if (device != null) {
             log.info("{} 命中下发 platform={} SN={} deviceId={} manufacturer={} model={} firmware={}",
                     LOG_TAG, platform.getServerGbId(), sn, deviceId,

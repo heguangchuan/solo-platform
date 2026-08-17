@@ -1,7 +1,9 @@
 package com.solo.gb28181.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbParentPlatform;
-import com.solo.gb28181.service.GbParentPlatformService;
+import com.solo.gb28181.mapper.GbParentPlatformMapper;
 import com.solo.gb28181.service.PlatformRegisterService;
 import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.transmit.cmd.PlatformRegisterState;
@@ -23,7 +25,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PlatformRegisterServiceImpl implements PlatformRegisterService {
 
-    private final GbParentPlatformService parentPlatformService;
+    private final GbParentPlatformMapper parentPlatformMapper;
     private final PlatformCommander commander;
     private final PlatformRegisterState registerState;
 
@@ -42,10 +44,10 @@ public class PlatformRegisterServiceImpl implements PlatformRegisterService {
     @Override
     public void registerOffline() {
         // 启用但离线的上级：重试注册（上级恢复后自动上线）
-        List<GbParentPlatform> platforms = parentPlatformService.lambdaQuery()
-                .eq(GbParentPlatform::getEnabled, 1)
-                .ne(GbParentPlatform::getStatus, 1)
-                .list();
+        List<GbParentPlatform> platforms = parentPlatformMapper.selectList(
+                new LambdaQueryWrapper<GbParentPlatform>()
+                        .eq(GbParentPlatform::getEnabled, 1)
+                        .ne(GbParentPlatform::getStatus, 1));
         for (GbParentPlatform p : platforms) {
             commander.register(p, expiresOf(p));
         }
@@ -62,10 +64,10 @@ public class PlatformRegisterServiceImpl implements PlatformRegisterService {
 
     @Override
     public void keepaliveAll() {
-        List<GbParentPlatform> online = parentPlatformService.lambdaQuery()
-                .eq(GbParentPlatform::getEnabled, 1)
-                .eq(GbParentPlatform::getStatus, 1)
-                .list();
+        List<GbParentPlatform> online = parentPlatformMapper.selectList(
+                new LambdaQueryWrapper<GbParentPlatform>()
+                        .eq(GbParentPlatform::getEnabled, 1)
+                        .eq(GbParentPlatform::getStatus, 1));
         for (GbParentPlatform p : online) {
             commander.keepalive(p,
                     () -> registerState.resetKeepaliveFail(p.getServerGbId()),
@@ -84,34 +86,30 @@ public class PlatformRegisterServiceImpl implements PlatformRegisterService {
 
     @Override
     public void online(GbParentPlatform platform) {
-        parentPlatformService.lambdaUpdate()
+        parentPlatformMapper.update(null, new LambdaUpdateWrapper<GbParentPlatform>()
                 .eq(GbParentPlatform::getId, platform.getId())
-                .set(GbParentPlatform::getStatus, 1)
-                .update();
+                .set(GbParentPlatform::getStatus, 1));
         registerState.resetKeepaliveFail(platform.getServerGbId());
     }
 
     @Override
     public void offline(GbParentPlatform platform) {
-        parentPlatformService.lambdaUpdate()
+        parentPlatformMapper.update(null, new LambdaUpdateWrapper<GbParentPlatform>()
                 .eq(GbParentPlatform::getId, platform.getId())
-                .set(GbParentPlatform::getStatus, 0)
-                .update();
+                .set(GbParentPlatform::getStatus, 0));
     }
 
     @Override
     public void unregisterAll() {
-        List<GbParentPlatform> online = parentPlatformService.lambdaQuery()
-                .eq(GbParentPlatform::getStatus, 1)
-                .list();
+        List<GbParentPlatform> online = parentPlatformMapper.selectList(
+                new LambdaQueryWrapper<GbParentPlatform>().eq(GbParentPlatform::getStatus, 1));
         for (GbParentPlatform p : online) {
             commander.register(p, 0);
         }
     }
 
     private List<GbParentPlatform> enabledPlatforms() {
-        return parentPlatformService.lambdaQuery()
-                .eq(GbParentPlatform::getEnabled, 1)
-                .list();
+        return parentPlatformMapper.selectList(
+                new LambdaQueryWrapper<GbParentPlatform>().eq(GbParentPlatform::getEnabled, 1));
     }
 }

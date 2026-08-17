@@ -1,5 +1,6 @@
 package com.solo.gb28181.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.CascadeSendSession;
 import com.solo.gb28181.entity.GbDeviceChannel;
@@ -9,17 +10,17 @@ import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.CascadeSendSessionService;
 import com.solo.gb28181.service.CatalogShareService;
+import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbParentPlatformService;
 import com.solo.gb28181.service.GbPlayService;
-import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.transmit.cmd.PlatformSipHeaderProvider;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
 import com.solo.gb28181.utils.SipUtils;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
-import com.solo.media.service.MediaServerService;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import gov.nist.javax.sip.message.SIPRequest;
 import gov.nist.javax.sip.message.SIPResponse;
@@ -45,6 +46,18 @@ import java.util.List;
  * <p>SSRC 策略：直接用上级 SDP 的 {@code y=} 值（顺从上级指定，见 ADR-019 决策 3），不自行分配。</p>
  * <p>推流触发时机：UDP / TCP 被动（本平台主动去连上级）在收到上级 ACK 后 {@code startSendRtp}；
  * TCP 主动（上级来连本平台）在回 200 OK 后立即 {@code startSendRtpPassive} 开监听。</p>
+ *
+ * <h3>依赖说明</h3>
+ * <p>本类作为级联点播唯一编排层，<b>必须</b>调下列业务方法，因此直接依赖这些 service：</p>
+ * <ul>
+ *   <li>{@link CatalogShareService#loadSharedChannels} — 共享通道 + 授权校验（跨表 JOIN，非 mapper 能替代）</li>
+ *   <li>{@link CascadeSendSessionService} — 推流会话生命周期（CRUD + 端口分配，全 Redis 复合键）</li>
+ *   <li>{@link GbInviteSessionService#getByStreamId} — 取流侧会话查询（Redis 实现，无 mapper）</li>
+ *   <li>{@link GbPlayService#start} — 复用设备点播全链路</li>
+ *   <li>{@link GbInviteSessionCleanupService#failAndBye} — 取流回收（关 RTP 端口 + 释放 SSRC + 删会话）</li>
+ *   <li>{@link PlatformSipHeaderProvider} / {@link SipSender} / {@link ZlmRestClient} — SIP 出站 + ZLM 推流接口</li>
+ * </ul>
+ * <p>单表查（节点、平台）走 mapper；保留的 service 依赖都是真正业务方法或跨表逻辑。</p>
  */
 @Slf4j
 @Service
@@ -62,7 +75,7 @@ public class CascadeSendService {
     private final GbPlayService playService;
     private final GbInviteSessionCleanupService support;
     private final ZlmRestClient zlmRestClient;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
     private final PlatformSipHeaderProvider headerProvider;
     private final SipSender sipSender;
 
@@ -304,7 +317,7 @@ public class CascadeSendService {
     }
 
     private void byeUpstream(CascadeSendSession session) {
-        GbParentPlatform p = gbParentPlatformService.getById(session.getPlatformDbId());
+        GbParentPlatform p = gbParentPlatformMapper.selectById(session.getPlatformDbId());
         if (p == null) {
             log.warn("[{}] BYE 上级时平台已删除 platformDbId={}", LOG_TAG, session.getPlatformDbId());
             return;
@@ -348,7 +361,8 @@ public class CascadeSendService {
     }
 
     private MediaServer mediaServer(String serverId) {
-        return mediaServerService.lambdaQuery().eq(MediaServer::getServerId, serverId).one();
+        return mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
     }
 
     private Integer sendPortInRange() {
