@@ -9,8 +9,8 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.request.GbMediaServerPageRequest;
 import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.MediaServerService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.io.Serializable;
@@ -21,22 +21,11 @@ import java.time.LocalDateTime;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, MediaServer>
         implements MediaServerService {
 
     private final MediaServerLoader loadIndex;
-
-    /**
-     * 打破循环依赖：{@code MediaServerServiceImpl → MediaServerLoader → MediaServerServiceImpl}
-     * <ul>
-     *     <li>本服务在 {@link #removeById} 中调用 {@code loadIndex.onNodeOffline}，删除节点时清 Redis 负载索引</li>
-     *     <li>{@code MediaServerLoader.pickLeastLoaded} 反过来查 MySQL 拿完整实体，依赖本服务</li>
-     * </ul>
-     * 对 {@code loadIndex} 加 {@code @Lazy} 注入代理即可破环，沿用 ADR-015。
-     */
-    public MediaServerServiceImpl(@Lazy MediaServerLoader loadIndex) {
-        this.loadIndex = loadIndex;
-    }
 
     @Override
     public Page<MediaServer> pageQuery(GbMediaServerPageRequest request) {
