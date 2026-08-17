@@ -4,6 +4,9 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.gb28181.support.UpperRecordQueryHolder;
+import com.solo.gb28181.support.UpperRecordQueryHolder.UpperQueryContext;
+import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.utils.XmlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
@@ -23,7 +26,12 @@ import java.util.List;
  * <ol>
  *   <li>解析单片 Item 列表（{@code <RecordList><Item>...} 节点）</li>
  *   <li>交给 {@link RecordInfoDataCache} 按 {@code (deviceId, sn)} 累积</li>
- *   <li>达到 SumNum 时回调 {@link GbPlaybackService#onRecordInfoReceived}，完成等待中的 future</li>
+ *   <li>达到 SumNum 时按"路由目的地"分发——
+ *       <ul>
+ *         <li>SN 在 {@link UpperRecordQueryHolder} 里 → 改 outer SN 转给上级（ADR-031）</li>
+ *         <li>SN 不在 holder 里 → 现有 {@code playbackService.onRecordInfoReceived} 路径</li>
+ *       </ul>
+ *   </li>
  * </ol>
  *
  * <p>分片累积用 in-memory cache — 单条 RecordInfo 查询生命周期通常只有几秒，无需 Redis 持久化。</p>
@@ -44,6 +52,14 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
     @Lazy
     private GbPlaybackService playbackService;
 
+    /** ADR-031：命中说明这是上级查询的响应，要转给上级 */
+    @Autowired
+    private UpperRecordQueryHolder upperRecordQueryHolder;
+
+    /** ADR-031：转给上级时通过这个 commander 发 */
+    @Autowired
+    private PlatformCommander platformCommander;
+
     @Override
     public String getRootType() { return "Response"; }
 
@@ -60,8 +76,17 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
         }
 
         if (sumNum == 0) {
-            log.info("[录像查询] 该时段无录像 deviceId={} sn={}", device.getDeviceId(), sn);
-            playbackService.onRecordInfoReceived(device.getDeviceId(), sn, new ArrayList<>());
+            // 设备回复"该时段无录像"：按 SN 路由到上级或内部
+            UpperQueryContext upperCtx = upperRecordQueryHolder.consume(sn);
+            if (upperCtx != null) {
+                log.info("[录像查询] 上级侧空响应 platform={} outerSN={} deviceId={} innerSN={}",
+                        upperCtx.platform().getServerGbId(), upperCtx.snOuter(), upperCtx.deviceId(), sn);
+                platformCommander.sendRecordInfoResponse(
+                        upperCtx.platform(), upperCtx.snOuter(), upperCtx.deviceId(), List.of());
+            } else {
+                log.info("[录像查询] 该时段无录像 deviceId={} sn={}", device.getDeviceId(), sn);
+                playbackService.onRecordInfoReceived(device.getDeviceId(), sn, new ArrayList<>());
+            }
             return;
         }
 
@@ -81,8 +106,18 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
         RecordInfoDataCache.Batch batch = cache.accumulate(device.getDeviceId(), sn, sumNum, chunk);
         if (batch != null && batch.done) {
             List<RecordItemResponse> items = batch.items();
-            log.info("[录像查询] 分片合并完成 deviceId={} sn={} total={}", device.getDeviceId(), sn, items.size());
-            playbackService.onRecordInfoReceived(device.getDeviceId(), sn, items);
+            // ADR-031：先查 holder，命中转上级；未命中走现有内部路径
+            UpperQueryContext upperCtx = upperRecordQueryHolder.consume(sn);
+            if (upperCtx != null) {
+                log.info("[录像查询] 上级侧收齐 platform={} outerSN={} deviceId={} innerSN={} total={}",
+                        upperCtx.platform().getServerGbId(), upperCtx.snOuter(),
+                        upperCtx.deviceId(), sn, items.size());
+                platformCommander.sendRecordInfoResponse(
+                        upperCtx.platform(), upperCtx.snOuter(), upperCtx.deviceId(), items);
+            } else {
+                log.info("[录像查询] 分片合并完成 deviceId={} sn={} total={}", device.getDeviceId(), sn, items.size());
+                playbackService.onRecordInfoReceived(device.getDeviceId(), sn, items);
+            }
         }
     }
 
