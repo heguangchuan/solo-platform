@@ -1,8 +1,10 @@
 package com.solo.gb28181.transmit.cmd;
 
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
+import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.utils.SipUtils;
 import lombok.RequiredArgsConstructor;
@@ -223,5 +225,57 @@ public class PlatformCommander {
             log.warn("[级联目录] 分片发送失败 platform={} SN={} page={}/{}: {}",
                     platform.getServerGbId(), sn, pageIdx, totalPages, e.getMessage());
         }
+    }
+
+    // ==================== DeviceInfo 业务应答（ADR-031） ====================
+
+    /**
+     * 响应上级 {@code Query/DeviceInfo}：本平台登记的设备，回完整厂商/型号/固件。
+     * <p>异步走业务线程池；fire-and-forget（不订阅响应，上级是否回 ACK 不重要）。</p>
+     */
+    public void sendDeviceInfoResponse(GbParentPlatform platform, String sn, GbDevice device) {
+        String xml = PlatformDeviceInfoXml.buildResponse(platform, device.getDeviceId(), sn, device);
+        sendSingleMessageResponse(platform, xml, "设备信息", sn);
+    }
+
+    /**
+     * 响应上级 {@code Query/DeviceInfo}：设备未登记，回 {@code Result=ERROR}。
+     */
+    public void sendDeviceInfoError(GbParentPlatform platform, String deviceId, String sn, String reason) {
+        String xml = PlatformDeviceInfoXml.buildErrorResponse(platform, deviceId, sn, reason);
+        sendSingleMessageResponse(platform, xml, "设备信息-ERROR", sn);
+    }
+
+    // ==================== RecordInfo 业务应答（ADR-031） ====================
+
+    /**
+     * 响应上级 {@code Query/RecordInfo}：回录像段列表（设备响应经 SN 重映射后转给上级）。
+     * <p>{@code items} 可为空或空集合——空集合会出 {@code SumNum=0 RecordList Num=0} 报文，
+     * 用于"设备无录像 / 设备超时未响应"两种场景。</p>
+     */
+    public void sendRecordInfoResponse(GbParentPlatform platform, String sn, String deviceId,
+                                       List<RecordItemResponse> items) {
+        String xml = PlatformRecordInfoXml.buildResponse(platform, deviceId, sn, items);
+        sendSingleMessageResponse(platform, xml, "录像查询", sn);
+    }
+
+    /**
+     * 单条 MESSAGE 响应上级的私有 helper：每条独立事务（新 Call-Id / fromTag），走业务线程池。
+     * <p>与 {@link #sendCatalogResponse} 的"分片每片一条事务"是同一思路，只是这里不分片。</p>
+     */
+    private void sendSingleMessageResponse(GbParentPlatform platform, String xml, String label, String sn) {
+        gb28181BizExecutor.execute(() -> {
+            String localIp = headerProvider.localIp();
+            String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+            try {
+                CallIdHeader callId = sipSender.newCallId(localIp, transport);
+                Request request = headerProvider.createMessageRequest(platform, xml, callId);
+                sipSender.send(localIp, request);
+                log.info("[级联{}] 响应 platform={} SN={}", label, platform.getServerGbId(), sn);
+            } catch (Exception e) {
+                log.warn("[级联{}] 发送失败 platform={} SN={}: {}",
+                        label, platform.getServerGbId(), sn, e.getMessage());
+            }
+        });
     }
 }
