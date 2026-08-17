@@ -1,15 +1,16 @@
 package com.solo.gb28181.service.impl;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
-import com.solo.gb28181.service.GbDeviceChannelService;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
@@ -21,9 +22,9 @@ import com.solo.gb28181.utils.SipUtils;
 import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerSelector;
-import com.solo.media.service.MediaServerService;
 import com.solo.media.ssrc.SsrcFactory;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
@@ -78,10 +79,10 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final MediaUrlBuilder urlBuilder;
     private final GbInviteSessionCleanupService inviteCleanup;
     private final java.util.concurrent.ThreadPoolExecutor gb28181BizExecutor;
-    private final GbDeviceService deviceService;
-    private final GbDeviceChannelService channelService;
+    private final GbDeviceMapper deviceMapper;
+    private final GbDeviceChannelMapper channelMapper;
     private final MediaServerSelector mediaServerSelector;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
 
     /**
      * 等待 on_stream_changed 的 future，key=streamId
@@ -117,17 +118,18 @@ public class GbPlayServiceImpl implements GbPlayService {
             throw new ServiceException("deviceId / channelId 不能为空");
         }
 
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, req.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, req.getDeviceId()));
         if (device == null) {
             throw new ServiceException("设备不存在: " + req.getDeviceId());
         }
         if (device.getStatus() == null || device.getStatus() != 1) {
             throw new ServiceException("设备离线，无法点播");
         }
-        GbDeviceChannel channel = channelService.lambdaQuery()
-                .eq(GbDeviceChannel::getDeviceId, req.getDeviceId())
-                .eq(GbDeviceChannel::getChannelId, req.getChannelId())
-                .one();
+        GbDeviceChannel channel = channelMapper.selectOne(
+                new LambdaQueryWrapper<GbDeviceChannel>()
+                        .eq(GbDeviceChannel::getDeviceId, req.getDeviceId())
+                        .eq(GbDeviceChannel::getChannelId, req.getChannelId()));
         if (channel == null) {
             throw new ServiceException("通道不存在: " + req.getChannelId());
         }
@@ -261,7 +263,8 @@ public class GbPlayServiceImpl implements GbPlayService {
             return;
         }
 
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, session.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device != null && session.getCallId() != null && session.getFromTag() != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         } else {
@@ -322,7 +325,8 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
             return; // 幂等
         }
-        MediaServer server = mediaServerService.lambdaQuery().eq(MediaServer::getServerId, session.getServerId()).one();
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
         if (server == null) {
             log.error("[实时点播] on_stream_changed 节点丢失 serverId={}", session.getServerId());
             return;
@@ -362,7 +366,8 @@ public class GbPlayServiceImpl implements GbPlayService {
             return;
         }
         // ZLM 端流断了，理论上需要发 BYE 通知设备停推
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, session.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }
@@ -384,7 +389,8 @@ public class GbPlayServiceImpl implements GbPlayService {
                 || GbInviteSession.STATUS_TIMEOUT.equals(session.getStatus())) {
             return;
         }
-        GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, session.getDeviceId()).one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         }

@@ -9,12 +9,12 @@ import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.entity.StreamPush;
+import com.solo.media.mapper.GbMediaServerMapper;
+import com.solo.media.mapper.StreamPushClientMapper;
 import com.solo.media.mapper.StreamPushMapper;
 import com.solo.media.request.StreamPushPageRequest;
 import com.solo.media.response.StreamPushPlayUrlResponse;
 import com.solo.media.service.StreamPushService;
-import com.solo.media.service.StreamPushClientService;
-import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,9 +39,9 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         implements StreamPushService {
 
     private final ZlmRestClient zlmRestClient;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
+    private final StreamPushClientMapper streamPushClientMapper;
     private final MediaUrlBuilder urlBuilder;
-    private final StreamPushClientService streamPushClientService;
 
     @Override
     public Page<StreamPush> pageQuery(StreamPushPageRequest req) {
@@ -148,7 +148,7 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         entity.setAliveSecond(intOf(body, "aliveSecond"));
         // 反查 client_id 做溯源；未开启鉴权 or 找不到时为空
         String token = parseParam(stringOf(body, "params"), "token");
-        entity.setClientId(streamPushClientService.clientIdOfToken(token));
+        entity.setClientId(clientIdOfToken(token));
         if (old == null) {
             entity.setPushTime(LocalDateTime.now());
             save(entity);
@@ -211,8 +211,20 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
 
     private MediaServer findServer(String serverId) {
         if (serverId == null) return null;
-        return mediaServerService.lambdaQuery()
-                .eq(MediaServer::getServerId, serverId).one();
+        return mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
+    }
+
+    /**
+     * 按 token 查 clientId（与 {@code StreamPushClientServiceImpl.clientIdOfToken} 等价，
+     * 但本类不依赖 {@code StreamPushClientService}，直接走 mapper）。
+     */
+    private String clientIdOfToken(String token) {
+        if (token == null || token.isBlank()) return null;
+        com.solo.media.entity.StreamPushClient hit = streamPushClientMapper.selectOne(
+                new LambdaQueryWrapper<com.solo.media.entity.StreamPushClient>()
+                        .eq(com.solo.media.entity.StreamPushClient::getToken, token));
+        return hit == null ? null : hit.getClientId();
     }
 
     /**

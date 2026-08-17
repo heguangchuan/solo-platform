@@ -1,19 +1,21 @@
 package com.solo.gb28181.processor.request.message.query;
 
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.processor.request.message.MessageHandler;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.UpperRecordQueryHolder;
 import com.solo.gb28181.support.UpperRecordQueryHolder.UpperQueryContext;
 import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.utils.XmlUtils;
 import gov.nist.javax.sip.message.SIPRequest;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
@@ -47,15 +49,31 @@ import java.util.List;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase implements MessageHandler {
 
     private static final String LOG_TAG = "[级联录像查询]";
 
-    private final GbDeviceService deviceService;
-    private final SipCommander sipCommander;
-    private final UpperRecordQueryHolder upperRecordQueryHolder;
-    private final PlatformCommander platformCommander;
+    @Autowired
+    private GbDeviceMapper deviceMapper;
+
+    /**
+     * 用 {@code @Lazy} 避免循环依赖（ADR-015）：
+     * <pre>
+     *   RecordInfoQueryMessageHandler → SipCommander → SipLayer → SipProcessorObserver
+     *   → List&lt;SipRequestProcessor&gt; → MessageRequestProcessor → List&lt;MessageHandler&gt;
+     *   → RecordInfoQueryMessageHandler
+     * </pre>
+     * 设备应答超时 30s 才走 holder sweep，期间不调用本字段，{@code @Lazy} 零副作用。
+     */
+    @Autowired
+    @Lazy
+    private SipCommander sipCommander;
+
+    @Autowired
+    private UpperRecordQueryHolder upperRecordQueryHolder;
+
+    @Autowired
+    private PlatformCommander platformCommander;
 
     @Override
     public String getRootType() { return "Query"; }
@@ -94,9 +112,8 @@ public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase imple
         }
 
         // 按设备 ID 查本平台登记表。命中则转发；未命中回空
-        GbDevice device = deviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, deviceId)
-                .one();
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
         if (device == null) {
             log.warn("{} 设备未登记，无法转发 platform={} SN={} deviceId={}",
                     LOG_TAG, platform.getServerGbId(), sn, deviceId);

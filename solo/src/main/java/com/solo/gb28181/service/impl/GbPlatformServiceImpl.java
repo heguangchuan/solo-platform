@@ -7,10 +7,10 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbPlatform;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPlatformMapper;
 import com.solo.gb28181.request.GbPlatformPageRequest;
 import com.solo.gb28181.response.GbPlatformVO;
-import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbPlatformService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,7 +35,7 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
     /** 空名单占位成员：Redis 不存空 Set，用哨兵区分"缓存过但是空"和"没缓存过" */
     private static final String EMPTY_MARKER = "__none__";
 
-    private final GbDeviceService gbDeviceService;
+    private final GbDeviceMapper gbDeviceMapper;
     private final StringRedisTemplate redis;
 
     @Override
@@ -70,9 +70,8 @@ public class GbPlatformServiceImpl extends ServiceImpl<GbPlatformMapper, GbPlatf
 
         // 关联 gb_device 回填运行态：被拉黑的 ID 可能之前注册过，
         // 展示在线状态便于运维确认"拉黑后是否真的断了"
-        GbDevice device = gbDeviceService.lambdaQuery()
-                .eq(GbDevice::getDeviceId, platform.getPlatformId())
-                .one();
+        GbDevice device = gbDeviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, platform.getPlatformId()));
         if (device != null) {
             vo.setStatus(device.getStatus());
             vo.setKeepaliveTime(device.getKeepaliveTime());

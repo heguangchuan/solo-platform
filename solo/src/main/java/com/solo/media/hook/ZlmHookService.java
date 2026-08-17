@@ -1,15 +1,19 @@
 package com.solo.media.hook;
 
-import com.solo.media.properties.MediaProperties;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.media.entity.MediaServer;
 import com.solo.gb28181.service.GbInviteSessionService;
-import com.solo.media.service.MediaServerLoader;
-import com.solo.media.service.StreamPushClientService;
-import com.solo.media.service.StreamPushService;
-import com.solo.media.service.MediaServerService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.gb28181.service.impl.CascadeSendService;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.entity.StreamPushClient;
+import com.solo.media.mapper.GbMediaServerMapper;
+import com.solo.media.mapper.StreamPushClientMapper;
+import com.solo.media.properties.MediaProperties;
+import com.solo.media.service.MediaServerLoader;
+import com.solo.media.service.StreamPushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +27,9 @@ import java.util.Map;
  * <h3>职责</h3>
  * <ul>
  *   <li>消息字段解析（{@code stringOf / booleanOf}）</li>
- *   <li>转发到对应业务服务（{@link MediaServerService} / {@link GbPlayService}）</li>
+ *   <li>按 streamId / 推流事件 / 服务事件等路由到对应业务 service</li>
+ *   <li>节点级状态写回（status / hookAliveTime）：本类直接走 {@link GbMediaServerMapper}，
+ *       不经 {@code MediaServerService}，避免 service-in-service</li>
  * </ul>
  *
  * <p>所有方法接收 ZLM 原始 body，返回 {@link HookResult}。Secret 校验由 {@link ZlmHookController}
@@ -31,6 +37,17 @@ import java.util.Map;
  *
  * <h3>响应约定</h3>
  * <p>业务异常一律用日志承担并返 {@code code=0}，避免 ZLM 因 4xx/5xx 反复重试。</p>
+ *
+ * <h3>依赖说明</h3>
+ * <p>本类作为 ZLM Hook 入口的编排层，<b>必须</b>调下列业务方法，因此直接依赖这些 service
+ * （按项目规则，service 互相依赖的"业务编排"场景以"职责拆分不消解"为由允许，但应尽量集中到
+ * 这种唯一编排点而非散落到多处）。每个 service 保留的业务调用点都注释了用途：</p>
+ * <ul>
+ *   <li>{@link GbInviteSessionService#getByStreamId} — 流级事件按 streamId 反查会话类型</li>
+ *   <li>{@link GbPlayService} / {@link GbPlaybackService} — 实时 / 回放会话生命周期回调</li>
+ *   <li>{@link StreamPushService} — 推流入表 + 推流兜底</li>
+ *   <li>{@link CascadeSendService#onSendRtpStopped} — 级联推流异常断开清理</li>
+ * </ul>
  */
 @Slf4j
 @Service
@@ -38,14 +55,14 @@ import java.util.Map;
 public class ZlmHookService {
 
     private final MediaProperties mediaProperties;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
+    private final StreamPushClientMapper streamPushClientMapper;
     private final MediaServerLoader loadIndex;
     private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
     private final StreamPushService streamPushService;
-    private final StreamPushClientService streamPushClientService;
-    private final com.solo.gb28181.service.impl.CascadeSendService cascadeSendService;
+    private final CascadeSendService cascadeSendService;
 
     // ============ 服务级 ============
 
@@ -57,7 +74,14 @@ public class ZlmHookService {
         }
         // 节点首次触达入负载索引（addIfAbsent，已存在不刷分数）
         loadIndex.onNodeOnline(serverId);
-        mediaServerService.keepalive(serverId);
+        // 与 MediaServerService.keepalive 等价：直接走 update 一次性更新避免 select-then-update
+        int rows = mediaServerMapper.update(null, new LambdaUpdateWrapper<MediaServer>()
+                .eq(MediaServer::getServerId, serverId)
+                .set(MediaServer::getStatus, 1)
+                .set(MediaServer::getHookAliveTime, LocalDateTime.now()));
+        if (rows == 0) {
+            log.warn("[ZLM 回调] on_server_keepalive 但节点未登记 serverId={}", serverId);
+        }
         return HookResult.ok();
     }
 
@@ -69,14 +93,14 @@ public class ZlmHookService {
         // 节点首次触达入负载索引（即使节点在管理面已存在，也要确保入索引）
         loadIndex.onNodeOnline(serverId);
 
-        MediaServer exist = mediaServerService.lambdaQuery()
-                .eq(MediaServer::getServerId, serverId).one();
+        MediaServer exist = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
         if (exist == null) {
             log.warn("[ZLM 回调] on_server_started 但节点未在 gb_media_server 登记 serverId={}（请在管理面新增）", serverId);
         } else {
             exist.setStatus(1);
             exist.setHookAliveTime(LocalDateTime.now());
-            mediaServerService.updateById(exist);
+            mediaServerMapper.updateById(exist);
         }
         // ZLM 重启：该节点下所有 INVITE 会话都已死；GbPlayService 的 onStreamStopped 会按需清扫
         // 推流表兜底同步：ZLM 上没有的 push 行删掉
@@ -133,7 +157,8 @@ public class ZlmHookService {
         boolean isPlatformInternalApp = "rtp".equals(app) || "broadcast".equals(app) || "talk".equals(app);
         if (mediaProperties.isPushAuthEnabled() && !isPlatformInternalApp) {
             String token = parseParam(stringOf(body, "params"), "token");
-            String clientId = streamPushClientService.authenticate(token);
+            // 与 StreamPushClientServiceImpl.authenticate 等价：token + enabled=1 才放行
+            String clientId = authenticate(token);
             if (clientId == null) {
                 log.warn("[推流鉴权] 拒绝 app={} stream={} ip={} tokenPrefix={} 原因={}",
                         app, stream, stringOf(body, "ip"), maskToken(token),
@@ -250,6 +275,20 @@ public class ZlmHookService {
             log.error("[ZLM 回调] on_send_rtp_stopped 业务异常 {}", body, e);
         }
         return HookResult.ok();
+    }
+
+    /**
+     * 推流鉴权：与 {@code StreamPushClientServiceImpl.authenticate} 等价，
+     * 但本类直接走 {@link StreamPushClientMapper}，避免 service-in-service。
+     * token 命中且 {@code enabled=1} 返回 clientId，其他情况返回 null。
+     */
+    private String authenticate(String token) {
+        if (token == null || token.isBlank()) return null;
+        StreamPushClient hit = streamPushClientMapper.selectOne(
+                new LambdaQueryWrapper<StreamPushClient>()
+                        .eq(StreamPushClient::getToken, token)
+                        .eq(StreamPushClient::getEnabled, 1));
+        return hit == null ? null : hit.getClientId();
     }
 
     // ============ 工具 ============

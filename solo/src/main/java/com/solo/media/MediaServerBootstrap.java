@@ -1,8 +1,9 @@
 package com.solo.media;
 
-import com.solo.media.properties.MediaProperties;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.media.entity.MediaServer;
-import com.solo.media.service.MediaServerService;
+import com.solo.media.mapper.GbMediaServerMapper;
+import com.solo.media.properties.MediaProperties;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +28,7 @@ import org.springframework.stereotype.Component;
 public class MediaServerBootstrap {
 
     private final MediaProperties mediaProperties;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
 
     @PostConstruct
     void init() {
@@ -47,11 +48,12 @@ public class MediaServerBootstrap {
             log.warn("[流媒体] default-server.server-id 为空，跳过默认节点自举");
             return;
         }
-        MediaServer exist = mediaServerService.lambdaQuery().eq(MediaServer::getServerId, cfg.getServerId()).one();
+        MediaServer exist = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, cfg.getServerId()));
         if (exist != null) {
             // 已存在则以配置为准整体更新，保留 id / status / hookAliveTime 等运行期状态
             applyConfig(exist, cfg);
-            mediaServerService.updateById(exist);
+            mediaServerMapper.updateById(exist);
             log.info("[流媒体] 默认 ZLM 节点已更新 serverId={} {}:{}",
                     cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
             return;
@@ -59,7 +61,7 @@ public class MediaServerBootstrap {
         MediaServer server = new MediaServer();
         applyConfig(server, cfg);
         server.setStatus(0);
-        mediaServerService.save(server);
+        mediaServerMapper.insert(server);
         log.info("[流媒体] 默认 ZLM 节点已写入 serverId={} {}:{}",
                 cfg.getServerId(), cfg.getHostIp(), cfg.getHttpPort());
     }

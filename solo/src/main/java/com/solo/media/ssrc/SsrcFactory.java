@@ -5,8 +5,8 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
-import com.solo.media.service.MediaServerService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +56,7 @@ public class SsrcFactory {
     private final Gb28181Properties sipProperties;
     private final MediaProperties mediaProperties;
     private final GbInviteSessionService inviteSessionService;
-    private final MediaServerService mediaServerService;
+    private final GbMediaServerMapper mediaServerMapper;
     private final StringRedisTemplate redis;
 
     /** SSRC 前缀（D + HHHHH，共 6 位）— 跨节点共享 */
@@ -77,7 +77,7 @@ public class SsrcFactory {
         this.prefix = d + middle;
 
         // 启动时为每个已登记 ZLM 预建池（防御性兜底；正常情况下池已存在）
-        List<MediaServer> servers = mediaServerService.list();
+        List<MediaServer> servers = mediaServerMapper.selectList(null);
         for (MediaServer s : servers) {
             initPoolIfMissing(s.getServerId());
         }
