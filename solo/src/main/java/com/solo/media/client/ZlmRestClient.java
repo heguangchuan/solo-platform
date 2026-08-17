@@ -391,6 +391,26 @@ public class ZlmRestClient {
 
     // ---------------- 底层 POST ----------------
 
+    /**
+     * 健康探测：调 ZLM {@code /index/api/version} 接口，能正常返回即视为在线
+     *
+     * <p>选用 {@code /version} 是因为它返回 payload 极小（仅 ZLM 版本号），
+     * 不读任何运行时状态，是 ZLM 自身监控脚本的标准 ping 端点。
+     * 任何异常（连接拒绝 / 超时 / 非 200 / code != 0）一律视为离线。</p>
+     *
+     * <p>超时受 {@link #httpClient}（5s 连接）+ {@code HttpRequest.timeout(10s)} 约束。
+     * 上层 {@code CompletableFuture.orTimeout} 可提前打断，但底层线程在 connect 阶段
+     * 不可中断，会一直占位到 5s 兜底——10s 探测周期足够释放，不会拖垮线程池。</p>
+     */
+    public boolean ping(MediaServer server) {
+        try {
+            post(server, "version", new LinkedHashMap<>());
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private JsonNode post(MediaServer server, String method, Map<String, String> params) {
         String url = "http://" + server.getHostIp() + ":" + server.getHttpPort() + "/index/api/" + method;
         Map<String, String> merged = new LinkedHashMap<>(params);
@@ -415,12 +435,14 @@ public class ZlmRestClient {
         } catch (ServiceException e) {
             throw e;
         } catch (Exception e) {
-            // 底层异常（连接拒绝/超时/JSON 异常等）很多 getMessage() 为 null，必须带类名 + url 给出诊断信息
-            log.error("[流媒体] ZLM 调用异常 method={} url={}", method, url, e);
+            // 底层异常（连接拒绝/超时/JSON 异常等）很多 getMessage() 为 null，
+            // 回退到类名兜底；不打完整堆栈（健康探测每 10s 一次，堆栈刷屏），
+            // 堆栈仍保留在抛出的 ServiceException cause 里，需要时可从全局异常链捞
             String detail = e.getMessage();
             if (detail == null || detail.isBlank()) {
                 detail = e.getClass().getSimpleName();
             }
+            log.warn("[流媒体] ZLM 调用异常 method={} url={} err={}", method, url, detail);
             throw new ServiceException("ZLM 调用异常: " + method + " @ " + url + " - " + detail);
         }
     }
