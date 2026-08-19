@@ -16,20 +16,10 @@ export interface OnvifDevice {
   port?: number
   username?: string
   password?: string
-  transport?: string
-  /** 0 主码流 1 子码流 */
-  streamType?: number
-  manufacturer?: string
-  model?: string
-  firmware?: string
-  serialNumber?: string
-  profileToken?: string
   streamUri?: string
   /** 0 离线 1 在线 */
   status: number
   lastCheckTime?: string
-  /** 1 系统新增 2 表格导入 */
-  source?: number
   createTime: string
   updateTime: string
 }
@@ -37,7 +27,6 @@ export interface OnvifDevice {
 /** 点播开始参数 */
 export interface OnvifPlayStartRequest {
   deviceId: string | number
-  streamType?: number
 }
 
 /** 点播停止参数 */

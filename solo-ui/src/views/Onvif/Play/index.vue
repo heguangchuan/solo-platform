@@ -153,7 +153,7 @@ onUnmounted(() => {
               <div class="device-item-info">
                 <div class="device-item-name">{{ d.name || `${d.host}:${d.port}` }}</div>
                 <div class="device-item-meta">
-                  {{ d.manufacturer || '未探测' }} · {{ d.streamType === 1 ? '子码流' : '主码流' }}
+                  —
                 </div>
               </div>
             </div>

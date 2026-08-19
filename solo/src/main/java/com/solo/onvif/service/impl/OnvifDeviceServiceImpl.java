@@ -24,9 +24,6 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, OnvifDevice> implements OnvifDeviceService {
 
-    /** 数据来源：系统新增 */
-    private static final int SOURCE_MANUAL = 1;
-
     @Override
     public Page<OnvifDevice> pageQuery(OnvifDevicePageRequest req) {
         LambdaQueryWrapper<OnvifDevice> wrapper = new LambdaQueryWrapper<>();
@@ -39,7 +36,6 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
         if (req.getStatus() != null) {
             wrapper.eq(OnvifDevice::getStatus, req.getStatus());
         }
-        wrapper.orderByDesc(OnvifDevice::getCreateTime);
         return page(new Page<>(req.getPage(), req.getPageSize()), wrapper);
     }
 
@@ -52,14 +48,7 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
         if (device.getPort() == null || device.getPort() <= 0) {
             device.setPort(80);
         }
-        if (device.getTransport() == null || device.getTransport().isBlank()) {
-            device.setTransport("TCP");
-        }
-        if (device.getStreamType() == null) {
-            device.setStreamType(0);
-        }
         if (device.getId() == null) {
-            device.setSource(SOURCE_MANUAL);
             device.setStatus(0);
             saveOrUpdate(device);
             log.info("[ONVIF设备] 新增 host={}:{} name={}", device.getHost(), device.getPort(), device.getName());
@@ -74,10 +63,7 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
             old.setPort(device.getPort());
             old.setUsername(device.getUsername());
             old.setPassword(device.getPassword());
-            old.setTransport(device.getTransport());
-            old.setStreamType(device.getStreamType());
             // 关键信息可能变了，清掉过时的探测结果
-            old.setProfileToken(null);
             old.setStreamUri(null);
             updateById(old);
             device.setId(old.getId());
@@ -102,33 +88,35 @@ public class OnvifDeviceServiceImpl extends ServiceImpl<OnvifDeviceMapper, Onvif
     }
 
     /**
-     * 探测逻辑：TCP ping → SOAP 探测 → 回填字段。永远更新 last_check_time / status。
+     * 探测逻辑：TCP ping → SOAP 探测 → 更新 status / streamUri / lastCheckTime。
+     * 厂商/型号/固件/序列号只打日志，不落库。
      */
     @Override
     public void probeInternal(OnvifDevice device) {
-        device.setLastCheckTime(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        device.setLastCheckTime(now);
         if (!OnvifClient.ping(device.getHost(), device.getPort(), 3000)) {
             device.setStatus(0);
+            device.setStreamUri(null);
             updateById(device);
-            log.info("[ONVIF探测] {}:{} TCP 不通", device.getHost(), device.getPort());
+            log.info("[ONVIF探测] {}:{} TCP 不通 | lastCheckTime={}", device.getHost(), device.getPort(), now);
             return;
         }
         try {
             OnvifClient client = new OnvifClient(device.getHost(), device.getPort(),
                     device.getUsername(), device.getPassword());
-            OnvifClient.OnvifProbeResult r = client.probe(device.getStreamType() == null ? 0 : device.getStreamType());
-            device.setManufacturer(r.getManufacturer());
-            device.setModel(r.getModel());
-            device.setFirmware(r.getFirmware());
-            device.setSerialNumber(r.getSerialNumber());
-            device.setProfileToken(r.getProfileToken());
+            OnvifClient.OnvifProbeResult r = client.probe();
             device.setStreamUri(r.getStreamUri());
             device.setStatus(1);
-            log.info("[ONVIF探测] 成功 {}:{} manufacturer={} model={} uri={}",
-                    device.getHost(), device.getPort(), r.getManufacturer(), r.getModel(), r.getStreamUri());
+            // 基本信息只打日志，不写入 DB
+            log.info("[ONVIF探测] 成功 {}:{} manufacturer={} model={} firmware={} serialNumber={} uri={} | lastCheckTime={}",
+                    device.getHost(), device.getPort(), r.getManufacturer(), r.getModel(),
+                    r.getFirmware(), r.getSerialNumber(), r.getStreamUri(), now);
         } catch (Exception e) {
             device.setStatus(0);
-            log.info("[ONVIF探测] 失败 {}:{} err={}", device.getHost(), device.getPort(), e.getMessage());
+            device.setStreamUri(null);
+            log.info("[ONVIF探测] 失败 {}:{} err={} | lastCheckTime={}",
+                    device.getHost(), device.getPort(), e.getMessage(), now);
         }
         updateById(device);
     }

@@ -1,5 +1,5 @@
 project:
-  ip: 192.168.1.3
+  ip: 192.168.1.205
 
 server:
   port: 10003
@@ -127,7 +127,7 @@ media:
     # 节点显示名（仅用于管理面展示）
     name: 默认节点
     # ZLM 管理面 IP（用于 REST API 调用）
-    host-ip: 192.168.1.25
+    host-ip: 192.168.1.200
     # ZLM HTTP API 端口
     http-port: 10005
     # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）

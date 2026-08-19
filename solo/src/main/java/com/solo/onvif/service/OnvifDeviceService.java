@@ -16,7 +16,8 @@ public interface OnvifDeviceService extends IService<OnvifDevice> {
     Page<OnvifDevice> pageQuery(OnvifDevicePageRequest request);
 
     /**
-     * 保存或更新设备。保存成功后同步探测一次，回填 manufacturer / model / firmware / profile / stream_uri / status
+     * 保存或更新设备。保存成功后同步探测一次，回填 stream_uri / status / last_check_time。
+     * 厂商/型号/固件/序列号只打日志，不落库。
      */
     void saveWithProbe(OnvifDevice device);
 
