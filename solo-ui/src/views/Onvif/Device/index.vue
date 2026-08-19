@@ -25,12 +25,6 @@ const pageSize = ref(10)
 
 const searchForm = ref<OnvifDevicePageRequest>({ page: 1, pageSize: 10 })
 
-/** 数据来源文案 */
-const sourceMap: Record<number, string> = { 1: '系统新增', 2: '表格导入' }
-function sourceText(source?: number) {
-  return source == null ? '-' : sourceMap[source] ?? '-'
-}
-
 // ---------------- 新增/编辑对话框 ----------------
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -46,8 +40,6 @@ function makeEmpty(): Partial<OnvifDevice> {
     port: 80,
     username: 'admin',
     password: '',
-    transport: 'TCP',
-    streamType: 0,
   }
 }
 
@@ -210,22 +202,6 @@ onMounted(fetchData)
             <ListStatusBar :active="row.status === 1" />
           </template>
         </el-table-column>
-        <el-table-column prop="manufacturer" label="厂商" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.manufacturer || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="model" label="型号" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.model || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="firmware" label="固件版本" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.firmware || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="码流" align="center" width="80">
-          <template #default="{ row }">{{ row.streamType === 1 ? '子码流' : '主码流' }}</template>
-        </el-table-column>
-        <el-table-column prop="transport" label="传输" align="center" width="80" />
-        <el-table-column label="数据来源" align="center" width="100">
-          <template #default="{ row }">{{ sourceText(row.source) }}</template>
-        </el-table-column>
         <el-table-column prop="lastCheckTime" label="最近探测" width="160" show-overflow-tooltip>
           <template #default="{ row }">{{ row.lastCheckTime || '—' }}</template>
         </el-table-column>
@@ -287,7 +263,7 @@ onMounted(fetchData)
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="560px" :close-on-click-modal="false" top="10vh">
       <el-alert
-        title="保存后会立即向设备发起一次探测，回填厂商、型号、固件、RTSP 流地址等信息"
+        title="保存后会立即向设备发起一次探测，回填 RTSP 流地址及在线状态；厂商/型号/固件/序列号仅打印到日志"
         type="info"
         :closable="false"
         show-icon
@@ -314,18 +290,6 @@ onMounted(fetchData)
         </el-form-item>
         <el-form-item label="设备密码">
           <el-input v-model="form.password" type="password" autocomplete="new-password" show-password />
-        </el-form-item>
-        <el-form-item label="传输协议">
-          <el-select v-model="form.transport" style="width: 100%">
-            <el-option label="TCP" value="TCP" />
-            <el-option label="UDP" value="UDP" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="码流类型">
-          <el-select v-model="form.streamType" style="width: 100%">
-            <el-option label="主码流" :value="0" />
-            <el-option label="子码流" :value="1" />
-          </el-select>
         </el-form-item>
       </el-form>
       <template #footer>

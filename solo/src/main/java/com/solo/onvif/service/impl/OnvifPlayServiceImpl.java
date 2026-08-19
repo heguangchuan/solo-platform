@@ -51,8 +51,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
     /** Redis Key 前缀 */
     private static final String REDIS_PREFIX = "onvif:play:";
     /** 拉流 rtp_type: 1=TCP */
-    private static final int RTP_TYPE_TCP = 1;
-    private static final int RTP_TYPE_UDP = 2;
+    private static final int RTP_TYPE = 1;
 
     private final OnvifDeviceMapper deviceMapper;
     private final MediaServerSelector mediaServerSelector;
@@ -97,11 +96,10 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
 
         MediaServer server = mediaServerSelector.pick();
         String authorizedUrl = buildAuthorizedRtspUrl(device);
-        int rtpType = "UDP".equalsIgnoreCase(device.getTransport()) ? RTP_TYPE_UDP : RTP_TYPE_TCP;
         String proxyKey;
         try {
             proxyKey = zlmRestClient.addStreamProxy(server, APP, streamId, authorizedUrl,
-                    rtpType, true, false);
+                    RTP_TYPE, true, false);
         } catch (ServiceException e) {
             log.error("[ONVIF点播] addStreamProxy 失败 device={} err={}", device.getId(), e.getMessage());
             throw e;
@@ -113,8 +111,8 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 "deviceId", String.valueOf(device.getId()),
                 "startTime", String.valueOf(System.currentTimeMillis())
         ));
-        log.info("[ONVIF点播] start ok device={} stream={} server={} rtpType={}",
-                device.getId(), streamId, server.getServerId(), rtpType);
+        log.info("[ONVIF点播] start ok device={} stream={} server={}",
+                device.getId(), streamId, server.getServerId());
         return buildResult(server, streamId);
     }
 

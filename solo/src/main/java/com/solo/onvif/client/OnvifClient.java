@@ -96,15 +96,12 @@ public class OnvifClient {
     }
 
     /**
-     * 探测设备：抓厂商/型号/固件/序列号 + 选定 profile + 抓 RTSP 流地址（TCP 传输）
-     *
-     * @param streamType 0=主码流（profile 0），1=子码流（profile 1）
+     * 探测设备：抓厂商/型号/固件/序列号 + 抓 RTSP 流地址（profile 固定取主码流，TCP 传输）
      */
-    public OnvifProbeResult probe(int streamType) {
+    public OnvifProbeResult probe() {
         OnvifProbeResult result = new OnvifProbeResult();
         fillDeviceInformation(result);
-        String profileToken = pickProfileToken(streamType);
-        result.setProfileToken(profileToken);
+        String profileToken = pickProfileToken();
         result.setStreamUri(getStreamUri(profileToken));
         return result;
     }
@@ -125,7 +122,7 @@ public class OnvifClient {
     }
 
     /** 从 device_service 探测 media 服务地址；同一 host 一般不用重定向，直接沿用 host 换 wsdl 后缀 */
-    private String pickProfileToken(int streamType) {
+    private String pickProfileToken() {
         String body = """
                 <trt:GetProfiles xmlns:trt="%s"/>
                 """.formatted(NS_MEDIA);
@@ -134,8 +131,8 @@ public class OnvifClient {
         if (profiles.isEmpty()) {
             throw new ServiceException("ONVIF GetProfiles 返回空");
         }
-        int idx = streamType == 1 && profiles.size() > 1 ? 1 : 0;
-        Node profile = (Node) profiles.get(idx);
+        // 固定取 profile[0]（主码流）
+        Node profile = (Node) profiles.get(0);
         Node tokenAttr = profile.selectSingleNode("@token");
         if (tokenAttr == null || tokenAttr.getText().isBlank()) {
             throw new ServiceException("ONVIF Profile 未带 token 属性");
@@ -341,14 +338,12 @@ public class OnvifClient {
         private String model;
         private String firmware;
         private String serialNumber;
-        private String profileToken;
         private String streamUri;
 
         void setManufacturer(String v) { this.manufacturer = v; }
         void setModel(String v) { this.model = v; }
         void setFirmware(String v) { this.firmware = v; }
         void setSerialNumber(String v) { this.serialNumber = v; }
-        void setProfileToken(String v) { this.profileToken = v; }
         void setStreamUri(String v) { this.streamUri = v; }
     }
 }
