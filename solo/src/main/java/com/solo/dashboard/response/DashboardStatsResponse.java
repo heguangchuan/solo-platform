@@ -25,11 +25,6 @@ public class DashboardStatsResponse {
     private Device device;
 
     /**
-     * 通道聚合
-     */
-    private Channel channel;
-
-    /**
      * ZLM 节点列表（含在线状态 + 负载）
      */
     private List<MediaServer> mediaServer;
@@ -71,12 +66,6 @@ public class DashboardStatsResponse {
     }
 
     @Data
-    public static class Channel {
-        private Long total;
-        private Long online;
-    }
-
-    @Data
     public static class MediaServer {
         private String serverId;
         private String name;
@@ -103,16 +92,6 @@ public class DashboardStatsResponse {
     public static class Alert {
         private Long unreadCount;
         private Long todayCount;
-        private List<Recent> recent;
-    }
-
-    @Data
-    public static class Recent {
-        private Long id;
-        private String title;
-        private String level;
-        private String createTime;
-        private String route;
     }
 
     @Data
@@ -123,8 +102,6 @@ public class DashboardStatsResponse {
 
     @Data
     public static class TrendPoint {
-        /** 形如 "14:00" */
-        private String hour;
         private Long value;
     }
 

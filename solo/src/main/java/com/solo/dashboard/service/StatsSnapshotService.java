@@ -112,8 +112,9 @@ public class StatsSnapshotService {
         int comma = s.indexOf(',');
         if (comma <= 0 || comma == s.length() - 1) return null;
         try {
+            // Redis 桶里存的格式是 "14:00,12"，hour 字段前端不消费（sparkline 只用 value），
+            // 这里仍按格式解析但不写入 TrendPoint 省字节
             DashboardStatsResponse.TrendPoint p = new DashboardStatsResponse.TrendPoint();
-            p.setHour(s.substring(0, comma));
             p.setValue(Long.parseLong(s.substring(comma + 1)));
             return p;
         } catch (NumberFormatException e) {
