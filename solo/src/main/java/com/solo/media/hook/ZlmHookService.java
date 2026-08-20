@@ -13,6 +13,7 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.mapper.StreamPushClientMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerLoader;
+import com.solo.media.service.StreamProxyService;
 import com.solo.media.service.StreamPushService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,7 @@ public class ZlmHookService {
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
     private final StreamPushService streamPushService;
+    private final StreamProxyService streamProxyService;
     private final CascadeSendService cascadeSendService;
 
     // ============ 服务级 ============
@@ -108,6 +110,12 @@ public class ZlmHookService {
             streamPushService.reconcileWithZlm(serverId);
         } catch (Exception e) {
             log.warn("[ZLM 回调] on_server_started 推流兜底同步异常 serverId={} err={}", serverId, e.getMessage());
+        }
+        // 拉流代理兜底：ZLM 重启后所有 addStreamProxy 创建的流都没了，对账后标 status=0 + lastError
+        try {
+            streamProxyService.reconcileWithZlm(serverId);
+        } catch (Exception e) {
+            log.warn("[ZLM 回调] on_server_started 拉流代理兜底异常 serverId={} err={}", serverId, e.getMessage());
         }
         return HookResult.ok();
     }
