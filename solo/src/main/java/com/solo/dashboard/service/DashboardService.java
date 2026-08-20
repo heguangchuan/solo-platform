@@ -5,10 +5,16 @@ import com.solo.common.utils.UserHolderUtils;
 import com.solo.dashboard.response.DashboardStatsResponse;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
+import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.entity.StreamProxy;
+import com.solo.media.entity.StreamPush;
 import com.solo.media.mapper.GbMediaServerMapper;
+import com.solo.media.mapper.StreamProxyMapper;
+import com.solo.media.mapper.StreamPushMapper;
 import com.solo.media.service.MediaServerLoader;
 import com.solo.system.entity.SysMessage;
 import com.solo.system.mapper.SysMessageMapper;
@@ -24,6 +30,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
  * 首页聚合统计服务
@@ -51,6 +60,9 @@ public class DashboardService {
     private final SysMessageMapper messageMapper;
     private final MediaServerLoader mediaServerLoader;
     private final StatsSnapshotService snapshotService;
+    private final StreamPushMapper streamPushMapper;
+    private final StreamProxyMapper streamProxyMapper;
+    private final GbInviteSessionService gbInviteSessionService;
 
     public DashboardStatsResponse aggregate() {
         DashboardStatsResponse out = new DashboardStatsResponse();
@@ -62,7 +74,6 @@ public class DashboardService {
         out.setAlert(buildAlert());
         out.setTrends(buildTrends());
         out.setManufacturerDist(buildManufacturerDist());
-        out.setCompareHour(buildCompareHour());
         return out;
     }
 
@@ -124,16 +135,32 @@ public class DashboardService {
     private List<DashboardStatsResponse.MediaServer> buildMediaServerList() {
         try {
             List<MediaServer> all = mediaServerMapper.selectList(null);
+            // 一次性把三类流的 serverId 分布拉出来，避免 N+1
+            Map<String, Long> gbByServer = safeGroupByServerId(
+                    () -> gbInviteSessionService.listAllActive(),
+                    GbInviteSession::getServerId);
+            Map<String, Long> pushByServer = safeGroupByServerId(
+                    () -> streamPushMapper.selectList(null),
+                    StreamPush::getMediaServerId);
+            Map<String, Long> proxyByServer = safeGroupByServerId(
+                    () -> streamProxyMapper.selectList(
+                            new LambdaQueryWrapper<StreamProxy>().eq(StreamProxy::getStatus, 1)),
+                    StreamProxy::getMediaServerId);
+
             List<DashboardStatsResponse.MediaServer> out = new ArrayList<>(all.size());
             for (MediaServer s : all) {
                 DashboardStatsResponse.MediaServer m = new DashboardStatsResponse.MediaServer();
-                m.setServerId(s.getServerId());
+                String sid = s.getServerId();
+                m.setServerId(sid);
                 m.setName(s.getName());
                 m.setStatus(s.getStatus());
-                Double load = mediaServerLoader.getLoad(s.getServerId());
+                Double load = mediaServerLoader.getLoad(sid);
                 m.setLoadScore(load == null ? 0d : load);
                 m.setHostIp(s.getHostIp());
                 m.setHttpPort(s.getHttpPort());
+                m.setGbStream(gbByServer.getOrDefault(sid, 0L));
+                m.setPushStream(pushByServer.getOrDefault(sid, 0L));
+                m.setProxyStream(proxyByServer.getOrDefault(sid, 0L));
                 out.add(m);
             }
             return out;
@@ -146,15 +173,27 @@ public class DashboardService {
     private DashboardStatsResponse.Stream buildStreamStats() {
         DashboardStatsResponse.Stream s = new DashboardStatsResponse.Stream();
         try {
-            // 活跃流 = ZLM Redis ZSet 总 score（每路流就绪 +1、断开 -1）
+            // 活跃流 = ZLM Redis ZSet 总 score（每路流就绪 +1、断开 -1），含 GB / 推流 / 拉流 全部
             s.setLive(mediaServerLoader.getTotalLoad());
         } catch (Exception e) {
             log.warn("[仪表盘] 活跃流统计失败 err={}", e.getMessage());
             s.setLive(0L);
         }
-        // 推流 / 拉流代理数量按需补；当前 stat 表简单给 0，前端用 stream.live 即可
-        s.setPush(0L);
-        s.setProxy(0L);
+        // 推流：stream_push 表里每行代表一路活跃推流（on_stream_changed 驱动物理删/增）
+        try {
+            s.setPush(streamPushMapper.selectCount(null));
+        } catch (Exception e) {
+            log.warn("[仪表盘] 推流统计失败 err={}", e.getMessage());
+            s.setPush(0L);
+        }
+        // 拉流代理：status=1 即 ZLM 上正在跑的代理
+        try {
+            s.setProxy(streamProxyMapper.selectCount(
+                    new LambdaQueryWrapper<StreamProxy>().eq(StreamProxy::getStatus, 1)));
+        } catch (Exception e) {
+            log.warn("[仪表盘] 拉流代理统计失败 err={}", e.getMessage());
+            s.setProxy(0L);
+        }
         return s;
     }
 
@@ -250,19 +289,22 @@ public class DashboardService {
         }
     }
 
-    private DashboardStatsResponse.CompareHour buildCompareHour() {
-        DashboardStatsResponse.CompareHour c = new DashboardStatsResponse.CompareHour();
+    /**
+     * 拉一遍全量数据 → 按 serverId group by 计数。任一数据源失败都不影响整体（返回空 Map，
+     * 外层 {@code getOrDefault} 会按 0 处理），避免单点故障导致首页 500。
+     */
+    private <T> Map<String, Long> safeGroupByServerId(
+            Supplier<List<T>> source, Function<T, String> keyExtractor) {
         try {
-            DashboardStatsResponse.Device d = buildDeviceStats();
-            Long oneHourAgoDevice = snapshotService.getDeviceOnlineOneHourAgo();
-            c.setDeviceOnline(oneHourAgoDevice == null ? null : d.getOnline() - oneHourAgoDevice);
-
-            Long oneHourAgoStream = snapshotService.getActiveStreamOneHourAgo();
-            Long currentStream = buildStreamStats().getLive();
-            c.setActiveStream(oneHourAgoStream == null ? null : currentStream - oneHourAgoStream);
+            List<T> list = source.get();
+            if (list == null || list.isEmpty()) {
+                return Collections.emptyMap();
+            }
+            return list.stream().collect(Collectors.groupingBy(
+                    keyExtractor::apply, Collectors.counting()));
         } catch (Exception e) {
-            log.warn("[仪表盘] 1h 差值计算失败 err={}", e.getMessage());
+            log.warn("[仪表盘] 流分布 group by 失败 err={}", e.getMessage());
+            return Collections.emptyMap();
         }
-        return c;
     }
 }

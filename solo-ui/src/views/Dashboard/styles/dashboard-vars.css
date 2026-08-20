@@ -35,6 +35,6 @@
   --ds-card-padding: 20px;
 
   /* 间距 */
-  --ds-gap: 20px;
-  --ds-gap-tight: 12px;
+  --ds-gap: 12px;
+  --ds-gap-tight: 8px;
 }

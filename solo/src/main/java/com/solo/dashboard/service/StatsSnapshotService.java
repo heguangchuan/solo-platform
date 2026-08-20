@@ -85,19 +85,6 @@ public class StatsSnapshotService {
         return readTrend(STREAM_KEY);
     }
 
-    /**
-     * 取 1h 前的设备在线数（用于 KPI 卡"较 1h 前"差值）
-     *
-     * @return 1h 前的快照值；null=桶里没数据（冷启动或调度刚跑过 1 次）
-     */
-    public Long getDeviceOnlineOneHourAgo() {
-        return readSecondLatest(DEVICE_KEY);
-    }
-
-    public Long getActiveStreamOneHourAgo() {
-        return readSecondLatest(STREAM_KEY);
-    }
-
     private List<DashboardStatsResponse.TrendPoint> readTrend(String key) {
         List<String> raw;
         try {
@@ -118,24 +105,6 @@ public class StatsSnapshotService {
             if (p != null) out.add(p);
         }
         return out;
-    }
-
-    /**
-     * 取最新之前的第二条（即 1h 前的值）。
-     * 列表 index 0 = newest，index 1 = 上一个 bucket。
-     */
-    private Long readSecondLatest(String key) {
-        try {
-            List<String> top2 = redis.opsForList().range(key, 0, 1);
-            if (top2 == null || top2.size() < 2) {
-                return null;
-            }
-            DashboardStatsResponse.TrendPoint p = parse(top2.get(1));
-            return p == null ? null : p.getValue();
-        } catch (Exception e) {
-            log.warn("[仪表盘] 读 1h 前快照失败 key={} err={}", key, e.getMessage());
-            return null;
-        }
     }
 
     private static DashboardStatsResponse.TrendPoint parse(String s) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 单个 KPI 卡片：标题 / 大数字 / sparkline 微图 / 较 1h 前差值
+ * 单个 KPI 卡片：标题 / 大数字 / sparkline 微图
  *
  * <p>sparkline 用 ECharts mini 模式：隐藏所有坐标轴/图例/网格，只保留一条折线 + 区域渐变。
  * 卡片整体遵循"一个焦点"原则：进首页第一眼看到的就是大数字，其他都是辅助。</p>
@@ -15,8 +15,6 @@ interface Props {
   value: number | string
   /** sparkline 数据（顺序：旧→新）；为空时不渲染图 */
   trend: number[]
-  /** 较 1h 前差值；null=无法比较 */
-  diff: number | null
   /** sparkline 主色（hex，例如 "#409EFF"），区域渐变由色值自动派生 */
   color: string
   /** 数字单位（"%" / "路" / ""） */
@@ -25,20 +23,6 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   unit: '',
-})
-
-const diffText = computed(() => {
-  if (props.diff === null || props.diff === undefined) return '—'
-  if (props.diff > 0) return `+${props.diff}`
-  if (props.diff < 0) return `${props.diff}`
-  return '±0'
-})
-
-const diffType = computed<'up' | 'down' | 'flat'>(() => {
-  if (props.diff === null || props.diff === undefined) return 'flat'
-  if (props.diff > 0) return 'up'
-  if (props.diff < 0) return 'down'
-  return 'flat'
 })
 
 // 暴露的 sparkline option（响应 trend 变化）
@@ -105,15 +89,6 @@ function buildOption(data: number[], color: string): Record<string, unknown> {
         <VChart :option="option" autoresize />
       </div>
     </div>
-    <div class="kpi-foot">
-      <span class="kpi-diff" :class="`diff-${diffType}`">
-        <span v-if="diffType === 'up'" class="diff-arrow">▲</span>
-        <span v-else-if="diffType === 'down'" class="diff-arrow">▼</span>
-        <span v-else class="diff-arrow">─</span>
-        {{ diffText }}
-      </span>
-      <span class="kpi-foot-label">较 1h 前</span>
-    </div>
   </div>
 </template>
 
@@ -125,7 +100,7 @@ function buildOption(data: number[], color: string): Record<string, unknown> {
   padding: var(--ds-card-padding);
   display: flex;
   flex-direction: column;
-  height: 148px;
+  height: 120px;
   position: relative;
   transition: box-shadow 0.2s ease;
 }
@@ -179,40 +154,5 @@ function buildOption(data: number[], color: string): Record<string, unknown> {
   width: 96px;
   height: 48px;
   flex-shrink: 0;
-}
-
-.kpi-foot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--el-text-color-secondary);
-  margin-top: 4px;
-}
-
-.kpi-diff {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-weight: 500;
-}
-
-.diff-arrow {
-  font-size: 10px;
-  line-height: 1;
-}
-
-.diff-up {
-  color: var(--ds-success);
-}
-.diff-down {
-  color: var(--ds-serious);
-}
-.diff-flat {
-  color: var(--el-text-color-placeholder);
-}
-
-.kpi-foot-label {
-  color: var(--el-text-color-placeholder);
 }
 </style>

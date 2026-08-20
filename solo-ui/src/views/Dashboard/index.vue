@@ -6,11 +6,8 @@
  * <ol>
  *   <li>顶部问候条（GreetingBar）</li>
  *   <li>4 个 KPI 卡片横排：在线设备 / ZLM 节点 / 活跃流 / 告警</li>
- *   <li>24h 趋势折线（双系列 direct label）</li>
  *   <li>设备状态分布 + 厂商分布 双 donut</li>
- *   <li>ZLM 节点状态网格（紧凑卡片列表）</li>
- *   <li>最近告警列表</li>
- *   <li>快捷入口（6 卡片）</li>
+ *   <li>流媒体节点网格（带国标/推流/拉流统计）</li>
  * </ol>
  *
  * <h3>数据流</h3>
@@ -23,10 +20,7 @@ import type { DashboardStats, DashboardTrendPoint } from '@/types/api'
 
 import GreetingBar from './components/GreetingBar.vue'
 import KpiCard from './components/KpiCard.vue'
-import TrendChart from './components/TrendChart.vue'
 import DonutChart from './components/DonutChart.vue'
-import AlertList from './components/AlertList.vue'
-import QuickActions from './components/QuickActions.vue'
 
 import './styles/dashboard-vars.css'
 
@@ -97,12 +91,34 @@ const zlmOnline = computed(() => {
 })
 const zlmTotal = computed(() => stats.value?.mediaServer.length ?? 0)
 const activeStreams = computed(() => stats.value?.stream.live ?? 0)
+const pushStreams = computed(() => stats.value?.stream.push ?? 0)
+const proxyStreams = computed(() => stats.value?.stream.proxy ?? 0)
+// 国标流 = 活跃流 - 推流 - 拉流（Redis ZSet 总 score 包含三类，扣除后即 GB 点播+回放）
+const gbStreams = computed(() => {
+  const s = stats.value?.stream
+  if (!s) return 0
+  return Math.max(0, s.live - s.push - s.proxy)
+})
 const alertToday = computed(() => stats.value?.alert.todayCount ?? 0)
 const alertUnread = computed(() => stats.value?.alert.unreadCount ?? 0)
 
-// 较 1h 前差值
-const compareDevice = computed(() => stats.value?.compareHour.deviceOnline ?? null)
-const compareStream = computed(() => stats.value?.compareHour.activeStream ?? null)
+// 各节点最大流数（取所有节点中三类的最大峰值，用于流条比例尺，避免单节点值太大把条撑爆）
+const maxNodeStream = computed(() => {
+  const arr = stats.value?.mediaServer || []
+  let m = 0
+  for (const s of arr) {
+    if ((s.gbStream || 0) > m) m = s.gbStream || 0
+    if ((s.pushStream || 0) > m) m = s.pushStream || 0
+    if ((s.proxyStream || 0) > m) m = s.proxyStream || 0
+  }
+  // 至少 1 避免除 0
+  return Math.max(m, 1)
+})
+// 给单条流条用：0 路返回 0%，最大路数占满 100%（视觉上同类条间能直观比较）
+function barWidth(n: number): string {
+  if (!n) return '0%'
+  return Math.min(100, Math.round((n / maxNodeStream.value) * 100)) + '%'
+}
 </script>
 
 <template>
@@ -122,7 +138,6 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
           :value="onlineDevices"
           unit="台"
           :trend="deviceOnlineTrend"
-          :diff="compareDevice"
           color="#409EFF"
         />
       </el-col>
@@ -131,7 +146,6 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
           title="ZLM 节点"
           :value="`${zlmOnline}/${zlmTotal}`"
           :trend="activeStreamTrend"
-          :diff="null"
           color="#17A2B8"
         />
       </el-col>
@@ -141,7 +155,6 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
           :value="activeStreams"
           unit="路"
           :trend="activeStreamTrend"
-          :diff="compareStream"
           color="#E6A23C"
         />
       </el-col>
@@ -151,23 +164,10 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
           :value="alertToday"
           unit="条"
           :trend="[]"
-          :diff="null"
           color="#F56C6C"
         />
       </el-col>
     </el-row>
-
-    <!-- 24h 趋势 -->
-    <div v-if="stats" class="block-card">
-      <div class="block-header">
-        <span class="block-title">24h 趋势</span>
-        <span class="block-sub">设备在线 · 活跃流</span>
-      </div>
-      <TrendChart
-        :device-online="stats.trends.deviceOnline24h"
-        :active-stream="stats.trends.activeStream24h"
-      />
-    </div>
 
     <!-- 设备状态分布 + 厂商分布 -->
     <el-row v-if="stats" :gutter="20" class="block-row">
@@ -200,11 +200,33 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
       </el-col>
     </el-row>
 
-    <!-- ZLM 节点状态网格 -->
-    <div v-if="stats && stats.mediaServer.length" class="block-card">
-      <div class="block-header">
-        <span class="block-title">ZLM 节点</span>
-        <span class="block-sub">{{ zlmOnline }} / {{ zlmTotal }} 在线</span>
+    <!-- 流媒体节点 -->
+    <div v-if="stats && stats.mediaServer.length" class="block-card media-block">
+      <div class="block-header media-header">
+        <div class="media-header-main">
+          <span class="block-title">流媒体节点</span>
+          <span class="block-sub">{{ zlmOnline }} / {{ zlmTotal }} 在线</span>
+        </div>
+        <div class="stream-stats">
+          <span class="stream-stat">
+            <i class="dot dot-gb" />
+            <span class="stream-stat-label">国标流</span>
+            <span class="stream-stat-value">{{ gbStreams }}</span>
+            <span class="stream-stat-unit">路</span>
+          </span>
+          <span class="stream-stat">
+            <i class="dot dot-push" />
+            <span class="stream-stat-label">推流</span>
+            <span class="stream-stat-value">{{ pushStreams }}</span>
+            <span class="stream-stat-unit">路</span>
+          </span>
+          <span class="stream-stat">
+            <i class="dot dot-proxy" />
+            <span class="stream-stat-label">拉流</span>
+            <span class="stream-stat-value">{{ proxyStreams }}</span>
+            <span class="stream-stat-unit">路</span>
+          </span>
+        </div>
       </div>
       <div class="zlm-grid">
         <div
@@ -214,37 +236,59 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
           :class="`status-${m.status}`"
         >
           <div class="zlm-card-head">
-            <span class="zlm-dot" />
             <span class="zlm-name">{{ m.name || m.serverId }}</span>
-            <span class="zlm-status">{{ m.status === 1 ? '在线' : '离线' }}</span>
+            <span class="zlm-status-badge">{{ m.status === 1 ? '在线' : '离线' }}</span>
           </div>
-          <div class="zlm-card-body">
+          <div class="zlm-host">{{ m.hostIp }}:{{ m.httpPort }}</div>
+          <!-- 每节点的三类流分布 -->
+          <div class="zlm-stream-bars">
+            <div class="zlm-bar-row">
+              <span class="zlm-bar-label"><i class="dot dot-gb" />国标</span>
+              <div class="zlm-bar-track">
+                <div
+                  class="zlm-bar-fill bar-gb"
+                  :style="{ width: barWidth(m.gbStream || 0) }"
+                />
+              </div>
+              <span class="zlm-bar-num">{{ m.gbStream || 0 }}</span>
+            </div>
+            <div class="zlm-bar-row">
+              <span class="zlm-bar-label"><i class="dot dot-push" />推流</span>
+              <div class="zlm-bar-track">
+                <div
+                  class="zlm-bar-fill bar-push"
+                  :style="{ width: barWidth(m.pushStream || 0) }"
+                />
+              </div>
+              <span class="zlm-bar-num">{{ m.pushStream || 0 }}</span>
+            </div>
+            <div class="zlm-bar-row">
+              <span class="zlm-bar-label"><i class="dot dot-proxy" />拉流</span>
+              <div class="zlm-bar-track">
+                <div
+                  class="zlm-bar-fill bar-proxy"
+                  :style="{ width: barWidth(m.proxyStream || 0) }"
+                />
+              </div>
+              <span class="zlm-bar-num">{{ m.proxyStream || 0 }}</span>
+            </div>
+          </div>
+          <div class="zlm-load">
+            <div class="zlm-load-label">
+              <span>总负载</span>
+              <span class="zlm-load-num">{{ m.loadScore }}</span>
+            </div>
             <div class="zlm-load-bar">
               <div
                 class="zlm-load-fill"
+                :class="m.loadScore >= 8 ? 'high' : m.loadScore >= 5 ? 'mid' : 'low'"
                 :style="{ width: Math.min(100, m.loadScore * 10) + '%' }"
               />
-            </div>
-            <div class="zlm-meta">
-              <span>负载 {{ m.loadScore }}</span>
-              <span>{{ m.hostIp }}:{{ m.httpPort }}</span>
             </div>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- 最近告警 -->
-    <div v-if="stats" class="block-card">
-      <div class="block-header">
-        <span class="block-title">最近告警</span>
-        <span class="block-sub">最新 10 条</span>
-      </div>
-      <AlertList :alerts="stats.alert.recent" />
-    </div>
-
-    <!-- 快捷入口 -->
-    <QuickActions />
 
     <!-- 加载/错误提示 -->
     <div v-if="error" class="error-tip">{{ error }} <el-button link @click="refresh">重试</el-button></div>
@@ -291,6 +335,64 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
   margin-bottom: 0 !important;
 }
 
+/* ==================== 流媒体节点 ==================== */
+
+.media-header {
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.media-header-main {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.stream-stats {
+  display: flex;
+  gap: 24px;
+  margin-left: auto;
+  padding: 4px 14px;
+  background: var(--el-fill-color-light);
+  border-radius: 6px;
+}
+
+.stream-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+}
+
+.stream-stat-label {
+  font-weight: 500;
+}
+
+.stream-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.stream-stat-unit {
+  font-size: 11px;
+  color: var(--el-text-color-placeholder);
+}
+
+.dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  align-self: center;
+}
+.dot-gb { background: #409EFF; }
+.dot-push { background: #67C23A; }
+.dot-proxy { background: #E6A23C; }
+
 .zlm-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
@@ -299,83 +401,177 @@ const compareStream = computed(() => stats.value?.compareHour.activeStream ?? nu
 
 .zlm-card {
   border: 1px solid var(--el-border-color-lighter);
-  border-radius: 6px;
-  padding: 12px 14px;
-  transition: border-color 0.15s ease;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--el-bg-color);
+  transition: all 0.18s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.zlm-card::before {
+  /* 状态色条 */
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--el-border-color-lighter);
+  transition: background 0.18s ease;
 }
 
 .zlm-card:hover {
   border-color: var(--ds-cat-1);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .zlm-card.status-0 {
-  opacity: 0.72;
+  opacity: 0.7;
+}
+
+.zlm-card.status-0::before {
+  background: var(--el-text-color-placeholder);
+}
+
+.zlm-card.status-1::before {
+  background: var(--ds-success);
 }
 
 .zlm-card-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
   margin-bottom: 8px;
-}
-
-.zlm-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ds-neutral);
-  flex-shrink: 0;
-}
-
-.status-1 .zlm-dot {
-  background: var(--ds-success);
-  box-shadow: 0 0 0 3px rgba(103, 194, 58, 0.18);
+  gap: 8px;
 }
 
 .zlm-name {
-  font-weight: 500;
-  font-size: 13px;
+  font-weight: 600;
+  font-size: 14px;
   color: var(--el-text-color-primary);
-  flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
 }
 
-.zlm-status {
+.zlm-status-badge {
   font-size: 11px;
-  padding: 1px 6px;
-  border-radius: 3px;
+  padding: 2px 8px;
+  border-radius: 10px;
   background: var(--el-fill-color);
   color: var(--el-text-color-secondary);
+  flex-shrink: 0;
 }
 
-.status-1 .zlm-status {
+.status-1 .zlm-status-badge {
   background: rgba(103, 194, 58, 0.1);
   color: var(--ds-success);
 }
 
-.zlm-load-bar {
-  height: 4px;
+.status-0 .zlm-status-badge {
+  background: rgba(144, 147, 153, 0.1);
+  color: var(--el-text-color-placeholder);
+}
+
+.zlm-host {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  margin-bottom: 12px;
+  letter-spacing: 0.2px;
+}
+
+.zlm-stream-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-bottom: 12px;
+  padding: 8px 10px;
   background: var(--el-fill-color-light);
-  border-radius: 2px;
+  border-radius: 4px;
+}
+
+.zlm-bar-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 24px;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.zlm-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--el-text-color-secondary);
+}
+
+.zlm-bar-track {
+  height: 6px;
+  background: var(--el-bg-color);
+  border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 6px;
+}
+
+.zlm-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+  min-width: 2px;
+}
+
+.zlm-bar-fill.bar-gb { background: linear-gradient(90deg, #409EFF, #66B1FF); }
+.zlm-bar-fill.bar-push { background: linear-gradient(90deg, #67C23A, #85CE61); }
+.zlm-bar-fill.bar-proxy { background: linear-gradient(90deg, #E6A23C, #EEBE77); }
+
+.zlm-bar-num {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.zlm-load {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zlm-load-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11px;
+  color: var(--el-text-color-secondary);
+}
+
+.zlm-load-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.zlm-load-bar {
+  height: 5px;
+  background: var(--el-fill-color-light);
+  border-radius: 3px;
+  overflow: hidden;
 }
 
 .zlm-load-fill {
   height: 100%;
-  background: var(--ds-cat-2);
-  border-radius: 2px;
-  transition: width 0.4s ease;
+  border-radius: 3px;
+  transition: width 0.4s ease, background 0.4s ease;
 }
 
-.zlm-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: var(--el-text-color-placeholder);
-}
+.zlm-load-fill.low { background: linear-gradient(90deg, #67C23A, #95D475); }
+.zlm-load-fill.mid { background: linear-gradient(90deg, #E6A23C, #EEBE77); }
+.zlm-load-fill.high { background: linear-gradient(90deg, #F56C6C, #F89898); }
 
 .error-tip {
   text-align: center;
