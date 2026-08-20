@@ -46,9 +46,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
     @Override
     public Page<StreamProxy> pageQuery(StreamProxyPageRequest req) {
         LambdaQueryWrapper<StreamProxy> w = new LambdaQueryWrapper<>();
-        if (req.getName() != null && !req.getName().isBlank()) {
-            w.like(StreamProxy::getName, req.getName());
-        }
         if (req.getApp() != null && !req.getApp().isBlank()) {
             w.eq(StreamProxy::getApp, req.getApp());
         }
@@ -111,9 +108,7 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
                     p.getApp(),
                     p.getStream(),
                     p.getSrcUrl(),
-                    p.getRtpType() == null ? 1 : p.getRtpType(),
-                    p.getEnableAudio() != null && p.getEnableAudio() == 1,
-                    p.getEnableMp4() != null && p.getEnableMp4() == 1);
+                    p.getRtpType() == null ? 1 : p.getRtpType());
             p.setProxyKey(key);
             p.setStatus(1);
             p.setEnabled(1);
@@ -223,15 +218,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         }
         if (p.getRtpType() == null) {
             p.setRtpType(1);
-        }
-        if (p.getEnableAudio() == null) {
-            p.setEnableAudio(1);
-        }
-        if (p.getEnableMp4() == null) {
-            p.setEnableMp4(0);
-        }
-        if (p.getEnableDisableNoneReader() == null) {
-            p.setEnableDisableNoneReader(0);
         }
         if (p.getEnabled() == null) {
             p.setEnabled(1);

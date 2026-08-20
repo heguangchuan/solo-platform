@@ -383,10 +383,9 @@ export interface PlaybackResultVO extends PlayResultVO {
 
 /** 拉流代理分页查询参数 */
 export interface StreamProxyPageRequest extends PageRequest {
-  name?: string
   app?: string
   stream?: string
-  /** 0 未启动 1 已推给 ZLM */
+  /** 0 未启动 1 已启动 */
   status?: number
   /** 0 禁用 1 启用 */
   enabled?: number
@@ -395,16 +394,12 @@ export interface StreamProxyPageRequest extends PageRequest {
 /** 拉流代理 */
 export interface StreamProxy {
   id: string
-  name?: string
   app: string
   stream: string
   srcUrl: string
   mediaServerId?: string
   /** 0 TCP+UDP 自适应 1 TCP 2 UDP 3 组播 */
   rtpType?: number
-  enableAudio?: number
-  enableMp4?: number
-  enableDisableNoneReader?: number
   enabled?: number
   proxyKey?: string
   /** 0 未启动 1 已推给 ZLM */

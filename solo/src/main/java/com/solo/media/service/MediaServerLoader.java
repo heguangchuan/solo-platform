@@ -23,13 +23,11 @@ import java.util.Set;
  * <ul>
  *     <li>{@link #onNodeOnline} —— 节点首次触达时入索引（{@code addIfAbsent}，避免覆盖已有分数）</li>
  *     <li>{@link #onNodeOffline} —— 节点从索引移除</li>
- *     <li>{@link #onStreamArrival} / {@link #onStreamDeparture} —— 每次国标点播/回放流就绪/断开时分数 ±1</li>
+ *     <li>{@link #onStreamArrival} / {@link #onStreamDeparture} —— ZLM 上每路流就绪/断开时分数 ±1。
+ *         不管流来源（国标 INVITE 点播/回放、ONVIF 点播、客户端推流、ZLM 主动拉的代理流）都计入——
+ *         它们都吃 ZLM 的带宽 / 转封装 / 录制 CPU，对编排层来说"哪台机器还有空"是同一个问题。</li>
  *     <li>{@link #pickLeastLoadedServerId} —— 选点：升序取 ZSet 首成员 = 当前最闲节点的 serverId</li>
  * </ul>
- *
- * <h3>边界</h3>
- * <p>只对国标 rtp 应用（app=rtp + schema=rtsp）的点播/回放流计数，推流（originType=PUSH）的
- * stream 不计入。理由：推流是 ZLM 主动收的，不属于本平台编排的"负载"。</p>
  *
  * <h3>Redis 抖动兜底</h3>
  * <p>{@link #pickLeastLoadedServerId} 返回 null 时（ZSet 为空 / Redis 不可达），调用方
