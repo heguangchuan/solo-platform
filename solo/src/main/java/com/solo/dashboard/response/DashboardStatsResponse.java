@@ -54,11 +54,6 @@ public class DashboardStatsResponse {
      */
     private List<Distribution> manufacturerDist;
 
-    /**
-     * 较 1h 前的差值（KPI 卡上的"+"-"箭头用）
-     */
-    private CompareHour compareHour;
-
     @Data
     public static class Greeting {
         private String username;
@@ -89,6 +84,12 @@ public class DashboardStatsResponse {
         private Double loadScore;
         private String hostIp;
         private Integer httpPort;
+        /** 该节点上的国标点播/回放会话数（GbInviteSession.serverId = 此节点） */
+        private Long gbStream;
+        /** 该节点上的第三方推流数（stream_push.mediaServerId = 此节点） */
+        private Long pushStream;
+        /** 该节点上的拉流代理数（stream_proxy.mediaServerId = 此节点 且 status=1） */
+        private Long proxyStream;
     }
 
     @Data
@@ -131,13 +132,5 @@ public class DashboardStatsResponse {
     public static class Distribution {
         private String name;
         private Long value;
-    }
-
-    @Data
-    public static class CompareHour {
-        /** 正数=增加，负数=减少；null=无 1h 前数据无法比较 */
-        private Long deviceOnline;
-        private Long activeStream;
-        private Long alertCount;
     }
 }

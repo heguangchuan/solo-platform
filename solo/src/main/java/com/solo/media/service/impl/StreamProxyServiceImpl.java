@@ -121,11 +121,13 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             updateById(p);
             log.info("[拉流代理] enable ok id={} server={} key={}", id, server.getServerId(), key);
         } catch (Exception e) {
+            String friendly = friendlyError(e.getMessage());
             p.setStatus(0);
-            p.setLastError(shorten(e.getMessage()));
+            p.setLastError(shorten(friendly));
             updateById(p);
-            log.warn("[拉流代理] enable 失败 id={} err={}", id, e.getMessage());
-            throw new ServiceException("推流到 ZLM 失败：" + e.getMessage());
+            // 日志保留原始错误便于排查
+            log.warn("[拉流代理] enable 失败 id={} raw={}", id, e.getMessage());
+            throw new ServiceException(friendly);
         }
     }
 
@@ -257,6 +259,37 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             return null;
         }
         return s.length() > 490 ? s.substring(0, 490) : s;
+    }
+
+    /**
+     * 把 ZLM 原始错误（英文 + URL + 方法名）翻译成用户能看懂的中文短句。
+     * 列表 tooltip 和保存/启用的 toast 都消费这个返回值。
+     */
+    static String friendlyError(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return "推流失败";
+        }
+        String m = raw.toLowerCase();
+        if (m.contains("timed out") || m.contains("timeout")) {
+            return "源流连接超时，请检查源 URL 是否可达";
+        }
+        if (m.contains("connection refused") || m.contains("connect failed") || m.contains("connection failed")) {
+            return "ZLM 节点不可达，请检查节点状态";
+        }
+        if (m.contains("401") || m.contains("unauthorized")) {
+            return "源 RTSP 鉴权失败，请检查账号密码";
+        }
+        if (m.contains("404") || m.contains("not found")) {
+            return "源流地址不存在，请检查 URL 路径";
+        }
+        if (m.contains("already exists")) {
+            return "ZLM 中已存在该流，请稍后重试";
+        }
+        if (m.contains("unsupported") || m.contains("not support")) {
+            return "ZLM 不支持该源协议，请检查 URL 协议类型";
+        }
+        // 兜底：去掉技术前缀，给一句"拉流失败"开头
+        return "拉流失败：" + raw;
     }
 
     @Override

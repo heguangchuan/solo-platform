@@ -17,12 +17,9 @@ export interface DashboardStats {
   stream: DashboardStream
   /** 告警聚合 */
   alert: DashboardAlert
-  /** 24h 趋势 */
   trends: DashboardTrends
   /** 厂商分布 */
   manufacturerDist: DashboardDistribution[]
-  /** 较 1h 前的差值（KPI 卡 +"-" 箭头用） */
-  compareHour: DashboardCompareHour
 }
 
 export interface DashboardGreeting {
@@ -53,6 +50,12 @@ export interface DashboardMediaServer {
   loadScore: number
   hostIp: string
   httpPort: number
+  /** 该节点上的国标点播/回放会话数 */
+  gbStream?: number
+  /** 该节点上的第三方推流数 */
+  pushStream?: number
+  /** 该节点上的拉流代理数 */
+  proxyStream?: number
 }
 
 export interface DashboardStream {
@@ -90,11 +93,4 @@ export interface DashboardTrendPoint {
 export interface DashboardDistribution {
   name: string
   value: number
-}
-
-export interface DashboardCompareHour {
-  /** 正数=增加，负数=减少；null=无 1h 前数据 */
-  deviceOnline: number | null
-  activeStream: number | null
-  alertCount: number | null
 }

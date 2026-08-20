@@ -122,7 +122,7 @@ function buildOption(data: DashboardDistribution[], colors: string[]): Record<st
 .donut-chart {
   position: relative;
   width: 100%;
-  height: 240px;
+  height: 140px;
 }
 
 .chart-host {
@@ -141,7 +141,7 @@ function buildOption(data: DashboardDistribution[], colors: string[]): Record<st
 }
 
 .center-value {
-  font-size: 28px;
+  font-size: 18px;
   font-weight: 600;
   color: var(--el-text-color-primary);
   line-height: 1.2;
@@ -149,9 +149,9 @@ function buildOption(data: DashboardDistribution[], colors: string[]): Record<st
 }
 
 .center-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--el-text-color-secondary);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .chart-empty {
