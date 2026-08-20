@@ -194,15 +194,21 @@ onMounted(fetchData)
         <el-table-column prop="name" label="设备名称" show-overflow-tooltip>
           <template #default="{ row }">{{ row.name || '—' }}</template>
         </el-table-column>
-        <el-table-column label="网络地址" width="180" show-overflow-tooltip>
+        <el-table-column label="网络地址" show-overflow-tooltip>
           <template #default="{ row }">{{ row.host }}:{{ row.port }}</template>
         </el-table-column>
-        <el-table-column label="设备状态" align="center" width="85">
+        <el-table-column prop="username" label="账号" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.username || '—' }}</template>
+        </el-table-column>
+        <el-table-column prop="password" label="密码" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.password || '—' }}</template>
+        </el-table-column>
+        <el-table-column label="设备状态" align="center" show-overflow-tooltip>
           <template #default="{ row }">
             <ListStatusBar :active="row.status === 1" />
           </template>
         </el-table-column>
-        <el-table-column prop="lastCheckTime" label="最近探测" width="160" show-overflow-tooltip>
+        <el-table-column prop="lastCheckTime" label="最近探测" show-overflow-tooltip>
           <template #default="{ row }">{{ row.lastCheckTime || '—' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
