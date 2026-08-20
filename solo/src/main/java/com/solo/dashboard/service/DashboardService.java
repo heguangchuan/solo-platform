@@ -4,9 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.utils.UserHolderUtils;
 import com.solo.dashboard.response.DashboardStatsResponse;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
-import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.media.entity.MediaServer;
@@ -24,7 +22,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -55,7 +52,6 @@ import java.util.stream.Collectors;
 public class DashboardService {
 
     private final GbDeviceMapper deviceMapper;
-    private final GbDeviceChannelMapper channelMapper;
     private final GbMediaServerMapper mediaServerMapper;
     private final SysMessageMapper messageMapper;
     private final MediaServerLoader mediaServerLoader;
@@ -68,7 +64,6 @@ public class DashboardService {
         DashboardStatsResponse out = new DashboardStatsResponse();
         out.setGreeting(buildGreeting());
         out.setDevice(buildDeviceStats());
-        out.setChannel(buildChannelStats());
         out.setMediaServer(buildMediaServerList());
         out.setStream(buildStreamStats());
         out.setAlert(buildAlert());
@@ -112,24 +107,6 @@ public class DashboardService {
             d.setOnlineRate(0d);
         }
         return d;
-    }
-
-    private DashboardStatsResponse.Channel buildChannelStats() {
-        DashboardStatsResponse.Channel c = new DashboardStatsResponse.Channel();
-        try {
-            long total = channelMapper.selectCount(
-                    new LambdaQueryWrapper<GbDeviceChannel>().eq(GbDeviceChannel::getParental, 0));
-            long online = channelMapper.selectCount(
-                    new LambdaQueryWrapper<GbDeviceChannel>()
-                            .eq(GbDeviceChannel::getParental, 0)
-                            .eq(GbDeviceChannel::getStatus, "ON"));
-            c.setTotal(total);
-            c.setOnline(online);
-        } catch (Exception e) {
-            log.warn("[仪表盘] 通道统计失败 err={}", e.getMessage());
-            c.setTotal(0L); c.setOnline(0L);
-        }
-        return c;
     }
 
     private List<DashboardStatsResponse.MediaServer> buildMediaServerList() {
@@ -207,35 +184,16 @@ public class DashboardService {
                             .eq(SysMessage::getReadFlag, 0));
             a.setUnreadCount(unread == null ? 0L : unread);
 
-            // 当天告警数（按 create_time 过滤）
+            // 当天消息数（按 create_time 过滤）
             LocalDateTime startOfDay = LocalDate.now().atStartOfDay();
             Long today = messageMapper.selectCount(
                     new LambdaQueryWrapper<SysMessage>()
                             .eq(SysMessage::getUsername, username)
                             .ge(SysMessage::getCreateTime, startOfDay));
             a.setTodayCount(today == null ? 0L : today);
-
-            // 最近 10 条
-            List<SysMessage> recent = messageMapper.selectList(
-                    new LambdaQueryWrapper<SysMessage>()
-                            .eq(SysMessage::getUsername, username)
-                            .orderByDesc(SysMessage::getCreateTime)
-                            .last("LIMIT 10"));
-            List<DashboardStatsResponse.Recent> recents = new ArrayList<>(recent.size());
-            for (SysMessage m : recent) {
-                DashboardStatsResponse.Recent r = new DashboardStatsResponse.Recent();
-                r.setId(m.getId());
-                r.setTitle(m.getTitle());
-                r.setLevel(m.getLevel());
-                r.setCreateTime(m.getCreateTime() == null ? null
-                        : m.getCreateTime().format(DateTimeFormatter.ofPattern("MM-dd HH:mm")));
-                r.setRoute(m.getRoute());
-                recents.add(r);
-            }
-            a.setRecent(recents);
         } catch (Exception e) {
-            log.warn("[仪表盘] 告警统计失败 err={}", e.getMessage());
-            a.setUnreadCount(0L); a.setTodayCount(0L); a.setRecent(Collections.emptyList());
+            log.warn("[仪表盘] 消息统计失败 err={}", e.getMessage());
+            a.setUnreadCount(0L); a.setTodayCount(0L);
         }
         return a;
     }

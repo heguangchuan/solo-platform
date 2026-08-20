@@ -9,13 +9,11 @@ export interface DashboardStats {
   greeting: DashboardGreeting
   /** 国标设备聚合 */
   device: DashboardDevice
-  /** 通道聚合 */
-  channel: DashboardChannel
   /** ZLM 节点列表 */
   mediaServer: DashboardMediaServer[]
   /** 流聚合 */
   stream: DashboardStream
-  /** 告警聚合 */
+  /** 消息中心聚合（未读 / 今日） */
   alert: DashboardAlert
   trends: DashboardTrends
   /** 厂商分布 */
@@ -35,11 +33,6 @@ export interface DashboardDevice {
   unregistered: number
   /** 0~1，前端可乘 100 渲染百分比 */
   onlineRate: number
-}
-
-export interface DashboardChannel {
-  total: number
-  online: number
 }
 
 export interface DashboardMediaServer {
@@ -67,16 +60,6 @@ export interface DashboardStream {
 export interface DashboardAlert {
   unreadCount: number
   todayCount: number
-  recent: DashboardAlertRecent[]
-}
-
-export interface DashboardAlertRecent {
-  id: number
-  title: string
-  level: 'INFO' | 'WARNING' | 'ERROR' | 'IMPORTANT' | string
-  /** 已格式化 "MM-dd HH:mm" */
-  createTime: string
-  route?: string | null
 }
 
 export interface DashboardTrends {
@@ -85,8 +68,6 @@ export interface DashboardTrends {
 }
 
 export interface DashboardTrendPoint {
-  /** "HH:00" */
-  hour: string
   value: number
 }
 
