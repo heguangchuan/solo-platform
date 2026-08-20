@@ -39,9 +39,6 @@ public class StreamProxy {
     /** RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播 */
     private Integer rtpType;
 
-    /** 业务启用开关 0禁用 1启用（禁用时不推给 ZLM） */
-    private Integer enabled;
-
     /** ZLM addStreamProxy 返回的 key，用于 delStreamProxy */
     private String proxyKey;
 
