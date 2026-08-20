@@ -47,16 +47,13 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     public Page<StreamPush> pageQuery(StreamPushPageRequest req) {
         LambdaQueryWrapper<StreamPush> w = new LambdaQueryWrapper<>();
         if (req.getApp() != null && !req.getApp().isBlank()) {
-            w.eq(StreamPush::getApp, req.getApp());
+            w.like(StreamPush::getApp, req.getApp());
         }
         if (req.getStream() != null && !req.getStream().isBlank()) {
             w.like(StreamPush::getStream, req.getStream());
         }
         if (req.getMediaServerId() != null && !req.getMediaServerId().isBlank()) {
             w.eq(StreamPush::getMediaServerId, req.getMediaServerId());
-        }
-        if (req.getPushing() != null) {
-            w.eq(StreamPush::getPushing, req.getPushing());
         }
         w.orderByDesc(StreamPush::getCreateTime);
         return page(new Page<>(req.getPage(), req.getPageSize()), w);
@@ -71,7 +68,7 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         StreamPushPlayUrlResponse vo = new StreamPushPlayUrlResponse();
         vo.setApp(p.getApp());
         vo.setStream(p.getStream());
-        if (p.getPushing() == null || p.getPushing() != 1 || p.getMediaServerId() == null) {
+        if (p.getMediaServerId() == null) {
             return vo;
         }
         MediaServer server = findServer(p.getMediaServerId());
@@ -94,16 +91,13 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         }
         MediaServer server = findServer(p.getMediaServerId());
         if (server == null) {
-            // 节点没了也把本地行标离线
-            p.setPushing(0);
-            updateById(p);
+            // 节点没了直接删本地行（ZLM 反正也管不到）
+            removeById(id);
             log.warn("[推流] forceStop 时节点已丢失 serverId={}", p.getMediaServerId());
             return;
         }
         zlmRestClient.closeStream(server, p.getApp(), p.getStream(), true);
-        // 是否真删由后续 on_stream_changed(regist=false) 兜底，这里先标离线避免用户以为没关
-        p.setPushing(0);
-        updateById(p);
+        // 真删由后续 on_stream_changed(regist=false) 兜底
         log.info("[推流] forceStop id={} app={} stream={}", id, p.getApp(), p.getStream());
     }
 
@@ -113,7 +107,10 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         if (p == null) {
             return;
         }
-        if (p.getPushing() != null && p.getPushing() == 1) {
+        // 删之前实时问 ZLM：行存在不代表流真活着，但流真活着就一定在 ZLM 上。
+        // 拿不到节点 / ZLM 探活失败时按"放行"处理，宁可让用户删错也不能挡死流程。
+        MediaServer server = findServer(p.getMediaServerId());
+        if (server != null && zlmRestClient.isMediaOnline(server, p.getApp(), p.getStream())) {
             throw new ServiceException("推流仍在推送，请先『强制中止』再删除");
         }
         removeById(id);
@@ -135,7 +132,7 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
     }
 
     @Override
-    public void onStreamRegist(String app, String stream, String mediaServerId, Map<String, Object> body) {
+    public void onStreamRegister(String app, String stream, String mediaServerId, Map<String, Object> body) {
         if (app == null || stream == null || mediaServerId == null) {
             return;
         }
@@ -154,7 +151,6 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         entity.setVhost(stringOf(body, "vhost"));
         entity.setStreamSchema(stringOf(body, "schema"));
         entity.setOriginType(originType);
-        entity.setPushing(1);
         entity.setAliveSecond(intOf(body, "aliveSecond"));
         // 反查 client_id 做溯源；未开启鉴权 or 找不到时为空
         String token = parseParam(stringOf(body, "params"), "token");

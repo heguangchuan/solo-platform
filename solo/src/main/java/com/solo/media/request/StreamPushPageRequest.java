@@ -19,7 +19,4 @@ public class StreamPushPageRequest {
 
     /** 节点 serverId 精确 */
     private String mediaServerId;
-
-    /** 是否在推：0=已断 1=推流中 */
-    private Integer pushing;
 }

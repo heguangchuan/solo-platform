@@ -21,11 +21,13 @@ public interface StreamPushService extends IService<StreamPush> {
     StreamPushPlayUrlResponse getPlayUrls(Long id);
 
     /**
-     * 强制中止：调 ZLM close_streams，本地行标 pushing=0（真删还是留由 hook 补齐）。
+     * 强制中止：调 ZLM close_streams，本地行删除由 hook on_stream_changed(regist=false) 兜底。
      */
     void forceStop(Long id);
 
-    /** 单条删除（前端手动清理离线记录用） */
+    /**
+     * 单条删除。删除前实时问 ZLM，流还活着就拒绝（要求用户先『强制中止』）。
+     */
     void deleteById(Long id);
 
     /** 批量删除 */
@@ -33,9 +35,8 @@ public interface StreamPushService extends IService<StreamPush> {
 
     /**
      * hook on_stream_changed(regist=true) 分发过来的注册事件，仅 originType∈PUSH 才会被调。
-     * <p>upsert：无则插入，有则更新 pushing/reader/alive/schemas/origin_*。</p>
      */
-    void onStreamRegist(String app, String stream, String mediaServerId, Map<String, Object> body);
+    void onStreamRegister(String app, String stream, String mediaServerId, Map<String, Object> body);
 
     /**
      * hook on_stream_changed(regist=false) 分发过来的注销事件。

@@ -199,7 +199,7 @@ public class ZlmHookService {
                     playService.onStreamReady(app, stream, mediaServerId);
                 }
                 // 推流入表：仅当 originType∈PUSH 时，StreamPushService 内部会再判一次
-                streamPushService.onStreamRegist(app, stream, mediaServerId, body);
+                streamPushService.onStreamRegister(app, stream, mediaServerId, body);
             } else {
                 if (isPlayback) {
                     playbackService.onStreamStopped(app, stream, mediaServerId);

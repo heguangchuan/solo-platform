@@ -210,7 +210,6 @@ CREATE TABLE stream_push
     vhost           varchar(100)          DEFAULT '__defaultVhost__' COMMENT 'ZLM vhost',
     stream_schema   varchar(100)          DEFAULT NULL COMMENT '推流协议（rtsp/rtmp/hls/ts/fmp4，通常只留 rtsp）',
     origin_type     varchar(20)           DEFAULT NULL COMMENT '推流类型：rtmp / rtsp / rtc',
-    pushing         tinyint      NOT NULL DEFAULT 0 COMMENT '当前是否在推流：0已断 1推流中',
     alive_second    int                   DEFAULT 0 COMMENT '存活秒数（快照，展示用）',
     push_time       datetime              DEFAULT NULL COMMENT '首次开始推流时间',
     client_id       varchar(64)           DEFAULT NULL COMMENT '推流方标识（关联 stream_push_client.client_id，未开启鉴权则为空）',
@@ -218,9 +217,8 @@ CREATE TABLE stream_push
     PRIMARY KEY (id),
     UNIQUE KEY uk_app_stream (app, stream),
     KEY             idx_media_server_id (media_server_id),
-    KEY             idx_pushing (pushing),
     KEY             idx_client_id (client_id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流记录表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='推流记录表（行存在即在推）';
 
 -- =====================================================
 -- 推流方鉴权表（stream_push_client）

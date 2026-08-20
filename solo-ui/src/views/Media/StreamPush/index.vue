@@ -24,7 +24,6 @@ import {
   resetStreamPushClientTokenApi,
   deleteStreamPushClientApi,
 } from '@/api/gb28181'
-import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 import StreamPushPlayDialog from './components/StreamPushPlayDialog.vue'
 
 const activeTab = ref('client')
@@ -354,20 +353,14 @@ onMounted(() => {
           <!-- 搜索区域直接放，用下边框分隔，不需要额外卡片 -->
           <el-form :model="searchForm" inline class="mb-4 pb-4 border-b">
             <el-form-item label="应用名称">
-              <el-input v-model="searchForm.app" placeholder="app 精确" clearable />
+              <el-input v-model="searchForm.app" placeholder="请输入应用名称" clearable />
             </el-form-item>
             <el-form-item label="流标识符">
-              <el-input v-model="searchForm.stream" placeholder="stream 模糊" clearable />
+              <el-input v-model="searchForm.stream" placeholder="请输入流标识符" clearable />
             </el-form-item>
             <el-form-item label="目标节点">
               <el-select v-model="searchForm.mediaServerId" placeholder="请选择" clearable style="width: 180px">
                 <el-option v-for="s in mediaServers" :key="s.serverId" :label="s.name || s.serverId" :value="s.serverId" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="推流状态">
-              <el-select v-model="searchForm.pushing" placeholder="请选择" clearable style="width: 120px">
-                <el-option label="推流中" :value="1" />
-                <el-option label="已断" :value="0" />
               </el-select>
             </el-form-item>
             <el-form-item>
@@ -396,23 +389,18 @@ onMounted(() => {
             max-height="calc(100vh - 360px)"
             @selection-change="handleSelectionChange"
           >
-            <el-table-column type="selection" width="55" align="center" />
-            <el-table-column prop="app" label="应用名称" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="stream" label="流名称" min-width="220" show-overflow-tooltip />
-            <el-table-column label="推流类型" width="120" align="center">
+            <el-table-column type="selection" width="50" align="center" />
+            <el-table-column prop="app" label="应用名称" min-width="120" show-overflow-tooltip />
+            <el-table-column prop="stream" label="流名称" min-width="200" show-overflow-tooltip />
+            <el-table-column label="推流类型" min-width="100" align="center">
               <template #default="{ row }">{{ originTypeText(row.originType) }}</template>
             </el-table-column>
-            <el-table-column prop="mediaServerId" label="目标节点" width="140" show-overflow-tooltip />
-            <el-table-column prop="clientId" label="推流方" width="140" show-overflow-tooltip>
+            <el-table-column prop="mediaServerId" label="目标节点" min-width="130" show-overflow-tooltip />
+            <el-table-column prop="clientId" label="推流方" min-width="130" show-overflow-tooltip>
               <template #default="{ row }">{{ row.clientId || '—' }}</template>
             </el-table-column>
-            <el-table-column label="推流状态" align="center" width="90">
-              <template #default="{ row }">
-                <ListStatusBar :active="row.pushing === 1" />
-              </template>
-            </el-table-column>
-            <el-table-column prop="pushTime" label="开始时间" width="170" />
-            <el-table-column label="操作" width="140" align="center" fixed="right">
+            <el-table-column prop="pushTime" label="开始时间" min-width="160" />
+            <el-table-column label="操作" width="180" align="center" fixed="right">
               <template #default="{ row }">
                 <div>
                   <el-tooltip content="播放">
@@ -421,7 +409,6 @@ onMounted(() => {
                       type="primary"
                       link
                       :icon="VideoCamera"
-                      :disabled="row.pushing !== 1"
                       @click="handlePlay(row)"
                     />
                   </el-tooltip>
@@ -431,7 +418,6 @@ onMounted(() => {
                       type="primary"
                       link
                       :icon="Link"
-                      :disabled="row.pushing !== 1"
                       @click="handleShowPlayUrls(row)"
                     />
                   </el-tooltip>
@@ -440,7 +426,6 @@ onMounted(() => {
                       type="warning"
                       link
                       :icon="CircleClose"
-                      :disabled="row.pushing !== 1"
                       @click="handleStop(row)"
                     />
                   </el-tooltip>
@@ -450,7 +435,6 @@ onMounted(() => {
                       type="danger"
                       link
                       :icon="Delete"
-                      :disabled="row.pushing === 1"
                       @click="handleDelete(row)"
                     />
                   </el-tooltip>
