@@ -43,9 +43,6 @@ public class StreamPush {
     /** 推流类型：rtmp / rtsp / rtc（ZLM originType 整数已映射为字符串再入库） */
     private String originType;
 
-    /** 当前是否在推流：0已断 1推流中 */
-    private Integer pushing;
-
     private Integer aliveSecond;
 
     /** 首次开始推流时间 */

@@ -4,7 +4,6 @@
  * <p>父组件 ref 调 {@code open(row)}。推流是持久流，只做"取地址 → 播放 → 关窗销毁"，不动 hook 记录。</p>
  */
 import { nextTick, ref } from 'vue'
-import { ElMessage } from 'element-plus'
 import type { StreamPush, StreamPushPlayUrl } from '@/types/api'
 import { getStreamPushPlayUrlsApi } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
@@ -19,10 +18,6 @@ const playUrls = ref<StreamPushPlayUrl | null>(null)
 const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 
 async function open(row: StreamPush) {
-  if (row.pushing !== 1) {
-    ElMessage.warning('该推流已断开，无法播放')
-    return
-  }
   titleText.value = `${row.app}/${row.stream}`
   visible.value = true
   errorText.value = ''

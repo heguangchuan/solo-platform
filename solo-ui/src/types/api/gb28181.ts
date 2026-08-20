@@ -431,11 +431,9 @@ export interface StreamPushPageRequest extends PageRequest {
   app?: string
   stream?: string
   mediaServerId?: string
-  /** 0 已断 1 推流中 */
-  pushing?: number
 }
 
-/** 推流 */
+/** 推流（行存在即在推，由 ZLM hook 驱动入 / 出表） */
 export interface StreamPush {
   id: string
   app: string
@@ -445,7 +443,6 @@ export interface StreamPush {
   streamSchema?: string
   /** 推流类型：rtmp / rtsp / rtc */
   originType?: string
-  pushing?: number
   aliveSecond?: number
   pushTime?: string
   clientId?: string
