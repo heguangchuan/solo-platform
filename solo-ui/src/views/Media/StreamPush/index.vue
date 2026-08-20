@@ -26,7 +26,7 @@ import {
 } from '@/api/gb28181'
 import StreamPushPlayDialog from './components/StreamPushPlayDialog.vue'
 
-const activeTab = ref('client')
+const activeTab = ref('push')
 
 // ==================== 推流列表相关 ====================
 const loading = ref(false)
@@ -285,70 +285,7 @@ onMounted(() => {
     <!-- 整个内容区放在同一个大卡片里，Tab在内部，背景完全统一 -->
     <el-card shadow="hover">
       <el-tabs v-model="activeTab">
-        <!-- 第一个Tab：授权管理 -->
-        <el-tab-pane label="授权管理" name="client">
-          <div class="table-toolbar">
-            <el-button
-              v-permission="'media:stream-push-client:add'"
-              type="primary"
-              :icon="Plus"
-              @click="handleClientAdd"
-            >
-              新增
-            </el-button>
-          </div>
-
-          <el-table :data="clientTableData" v-loading="clientLoading" border stripe max-height="calc(100vh - 260px)">
-            <el-table-column prop="clientId" label="推流方" min-width="180" show-overflow-tooltip />
-            <el-table-column label="Token" show-overflow-tooltip>
-              <template #default="{ row }">
-                <span style="font-family: monospace; font-size: 12px">{{ row.token }}</span>
-                <el-button link type="primary" :icon="CopyDocument" @click="copyClientToken(row.token)" />
-              </template>
-            </el-table-column>
-            <el-table-column label="启用" align="center" width="90">
-              <template #default="{ row }">
-                <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
-                  {{ row.enabled === 1 ? '启用' : '禁用' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="updateTime" label="更新时间" width="170" />
-            <el-table-column label="操作" width="130" align="center" fixed="right">
-              <template #default="{ row }">
-                <el-tooltip content="编辑">
-                  <el-button
-                    v-permission="'media:stream-push-client:edit'"
-                    type="primary"
-                    link
-                    :icon="Edit"
-                    @click="handleClientEdit(row)"
-                  />
-                </el-tooltip>
-                <el-tooltip content="重置 Token">
-                  <el-button
-                    v-permission="'media:stream-push-client:edit'"
-                    type="warning"
-                    link
-                    :icon="RefreshRight"
-                    @click="handleClientResetToken(row)"
-                  />
-                </el-tooltip>
-                <el-tooltip content="删除">
-                  <el-button
-                    v-permission="'media:stream-push-client:delete'"
-                    type="danger"
-                    link
-                    :icon="Delete"
-                    @click="handleClientDelete(row)"
-                  />
-                </el-tooltip>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
-
-        <!-- 第二个Tab：推流列表 -->
+        <!-- 第一个Tab：推流列表 -->
         <el-tab-pane label="推流列表" name="push">
           <!-- 搜索区域直接放，用下边框分隔，不需要额外卡片 -->
           <el-form :model="searchForm" inline class="mb-4 pb-4 border-b">
@@ -453,6 +390,69 @@ onMounted(() => {
             @current-change="handlePageChange"
             @size-change="handleSizeChange"
           />
+        </el-tab-pane>
+
+        <!-- 第二个Tab：授权管理 -->
+        <el-tab-pane label="授权管理" name="client">
+          <div class="table-toolbar">
+            <el-button
+              v-permission="'media:stream-push-client:add'"
+              type="primary"
+              :icon="Plus"
+              @click="handleClientAdd"
+            >
+              新增
+            </el-button>
+          </div>
+
+          <el-table :data="clientTableData" v-loading="clientLoading" border stripe max-height="calc(100vh - 260px)">
+            <el-table-column prop="clientId" label="推流方" min-width="180" show-overflow-tooltip />
+            <el-table-column label="Token" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span style="font-family: monospace; font-size: 12px">{{ row.token }}</span>
+                <el-button link type="primary" :icon="CopyDocument" @click="copyClientToken(row.token)" />
+              </template>
+            </el-table-column>
+            <el-table-column label="启用" align="center" width="90">
+              <template #default="{ row }">
+                <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
+                  {{ row.enabled === 1 ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="updateTime" label="更新时间" width="170" />
+            <el-table-column label="操作" width="130" align="center" fixed="right">
+              <template #default="{ row }">
+                <el-tooltip content="编辑">
+                  <el-button
+                    v-permission="'media:stream-push-client:edit'"
+                    type="primary"
+                    link
+                    :icon="Edit"
+                    @click="handleClientEdit(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="重置 Token">
+                  <el-button
+                    v-permission="'media:stream-push-client:edit'"
+                    type="warning"
+                    link
+                    :icon="RefreshRight"
+                    @click="handleClientResetToken(row)"
+                  />
+                </el-tooltip>
+                <el-tooltip content="删除">
+                  <el-button
+                    v-permission="'media:stream-push-client:delete'"
+                    type="danger"
+                    link
+                    :icon="Delete"
+                    @click="handleClientDelete(row)"
+                  />
+                </el-tooltip>
+              </template>
+            </el-table-column>
+          </el-table>
         </el-tab-pane>
       </el-tabs>
     </el-card>

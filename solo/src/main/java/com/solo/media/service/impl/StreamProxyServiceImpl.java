@@ -3,6 +3,7 @@ package com.solo.media.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;
@@ -18,7 +19,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 拉流代理服务实现
@@ -93,6 +96,17 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             return;
         }
         MediaServer server = pickServer(p);
+        // 对账器标离线时保留了 proxyKey；这里先尝试 del 旧条目清理 ZLM 残留
+        // （ZLM pull worker 重试期间 getMediaList 看不到，但 proxy 列表还在，会导致 addStreamProxy 报 "already exists"）
+        // del 失败无所谓（ZLM 已彻底回收旧 key 也可能），接着 add 即可
+        if (p.getProxyKey() != null) {
+            try {
+                zlmRestClient.delStreamProxy(server, p.getProxyKey());
+                log.info("[拉流代理] enable 前清理残留 proxyKey={}", p.getProxyKey());
+            } catch (Exception e) {
+                log.debug("[拉流代理] del 旧 key 失败（无所谓）err={}", e.getMessage());
+            }
+        }
         try {
             String key = zlmRestClient.addStreamProxy(
                     server,
@@ -108,7 +122,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             log.info("[拉流代理] enable ok id={} server={} key={}", id, server.getServerId(), key);
         } catch (Exception e) {
             p.setStatus(0);
-            p.setProxyKey(null);
             p.setLastError(shorten(e.getMessage()));
             updateById(p);
             log.warn("[拉流代理] enable 失败 id={} err={}", id, e.getMessage());
@@ -244,5 +257,44 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             return null;
         }
         return s.length() > 490 ? s.substring(0, 490) : s;
+    }
+
+    @Override
+    public void reconcileWithZlm(String mediaServerId) {
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, mediaServerId));
+        if (server == null) {
+            log.debug("[拉流代理对账] 节点未登记，跳过 serverId={}", mediaServerId);
+            return;
+        }
+        List<JsonNode> mediaList = zlmRestClient.getMediaList(server);
+        // ZLM 上现存的 (app|stream) 集合
+        Set<String> live = new HashSet<>();
+        for (JsonNode item : mediaList) {
+            String app = item.path("app").asText(null);
+            String stream = item.path("stream").asText(null);
+            if (app == null || stream == null) continue;
+            live.add(app + "|" + stream);
+        }
+
+        // 库里有 status=1 但 ZLM 已经没这条流的 → 标离线
+        // 注意：保留 proxyKey 不清——后面 enable() 要用旧 key 先 del 残留（ZLM pull worker 重试期间
+        // getMediaList 看不到但 proxy 列表还有，会导致 addStreamProxy 报 "already exists"）
+        List<StreamProxy> running = lambdaQuery()
+                .eq(StreamProxy::getMediaServerId, mediaServerId)
+                .eq(StreamProxy::getStatus, 1)
+                .list();
+        int cleaned = 0;
+        for (StreamProxy row : running) {
+            if (!live.contains(row.getApp() + "|" + row.getStream())) {
+                row.setStatus(0);
+                row.setLastError("源流已不可达");
+                updateById(row);
+                cleaned++;
+            }
+        }
+        // 每轮都打，方便确认任务在跑（包括"啥都没清"的情况）
+        log.info("[拉流代理对账] server={} zlm流数={} 库在推={} 标离线={}",
+                mediaServerId, live.size(), running.size(), cleaned);
     }
 }
