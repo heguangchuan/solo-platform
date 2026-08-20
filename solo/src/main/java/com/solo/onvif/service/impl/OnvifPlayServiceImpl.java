@@ -98,8 +98,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         String authorizedUrl = buildAuthorizedRtspUrl(device);
         String proxyKey;
         try {
-            proxyKey = zlmRestClient.addStreamProxy(server, APP, streamId, authorizedUrl,
-                    RTP_TYPE, true, false);
+            proxyKey = zlmRestClient.addStreamProxy(server, APP, streamId, authorizedUrl, RTP_TYPE);
         } catch (ServiceException e) {
             log.error("[ONVIF点播] addStreamProxy 失败 设备ID: {} 错误: {}", device.getId(), e.getMessage());
             throw e;

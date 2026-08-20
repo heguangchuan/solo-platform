@@ -171,15 +171,11 @@ DROP TABLE IF EXISTS stream_proxy;
 CREATE TABLE stream_proxy
 (
     id                         bigint        NOT NULL COMMENT '主键ID（雪花）',
-    name                       varchar(100)           DEFAULT NULL COMMENT '显示名（用户填）',
     app                        varchar(50)   NOT NULL DEFAULT 'proxy' COMMENT 'ZLM app 名',
     stream                     varchar(100)  NOT NULL COMMENT 'ZLM stream 名',
     src_url                    varchar(1000) NOT NULL COMMENT '源地址：rtsp:// rtmp:// http-flv/hls 等',
     media_server_id            varchar(64)            DEFAULT NULL COMMENT '目标 ZLM 节点 serverId（留空则启动时自动挑一个可用节点）',
     rtp_type                   tinyint       NOT NULL DEFAULT 1 COMMENT 'RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播',
-    enable_audio               tinyint       NOT NULL DEFAULT 1 COMMENT '是否拉音频 0否 1是',
-    enable_mp4                 tinyint       NOT NULL DEFAULT 0 COMMENT '是否录制 MP4 0否 1是',
-    enable_disable_none_reader tinyint       NOT NULL DEFAULT 0 COMMENT '无人观看时是否自动停用 0否 1是',
     enabled                    tinyint       NOT NULL DEFAULT 1 COMMENT '业务启用开关 0禁用 1启用（禁用时不推给 ZLM）',
     proxy_key                  varchar(100)           DEFAULT NULL COMMENT 'ZLM addStreamProxy 返回的 key，用于 delStreamProxy',
     status                     tinyint       NOT NULL DEFAULT 0 COMMENT '运行状态 0未启动/离线 1已推给 ZLM',

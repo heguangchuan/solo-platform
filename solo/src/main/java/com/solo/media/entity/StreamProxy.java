@@ -24,9 +24,6 @@ public class StreamProxy {
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
-    /** 显示名（用户填） */
-    private String name;
-
     /** ZLM app 名，默认 proxy（与国标 rtp、ONVIF rtsp 区分开） */
     private String app;
 
@@ -42,22 +39,13 @@ public class StreamProxy {
     /** RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播 */
     private Integer rtpType;
 
-    /** 是否拉音频 0否 1是 */
-    private Integer enableAudio;
-
-    /** 是否录制 MP4 0否 1是 */
-    private Integer enableMp4;
-
-    /** 无人观看时是否自动停用 0否 1是 */
-    private Integer enableDisableNoneReader;
-
     /** 业务启用开关 0禁用 1启用（禁用时不推给 ZLM） */
     private Integer enabled;
 
     /** ZLM addStreamProxy 返回的 key，用于 delStreamProxy */
     private String proxyKey;
 
-    /** 运行状态 0未启动/离线 1已推给 ZLM */
+    /** 运行状态 0未启动 1已启动 */
     private Integer status;
 
     /** 最近一次启动失败原因（仅用于展示） */

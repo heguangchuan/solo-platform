@@ -43,15 +43,11 @@ const form = ref<Partial<StreamProxy>>(makeEmpty())
 
 function makeEmpty(): Partial<StreamProxy> {
   return {
-    name: '',
     app: 'proxy',
     stream: '',
     srcUrl: '',
     mediaServerId: '',
     rtpType: 1,
-    enableAudio: 1,
-    enableMp4: 0,
-    enableDisableNoneReader: 0,
     enabled: 1,
     remark: '',
   }
@@ -141,7 +137,7 @@ async function handleConfirm() {
 // ---------------- 启停 ----------------
 async function handleEnable(row: StreamProxy) {
   await enableStreamProxyApi(row.id)
-  ElMessage.success('已推流到 ZLM')
+  ElMessage.success('已启动')
   fetchData()
 }
 
@@ -199,7 +195,7 @@ async function handleShowPlayUrls(row: StreamProxy) {
   const res = await getStreamProxyPlayUrlsApi(row.id)
   const d = res.data
   if (!d.wsFlvUrl && !d.flvUrl) {
-    ElMessage.warning('代理未在推流，无播放地址；请先启用')
+    ElMessage.warning('代理未运行，无播放地址；请先启用')
     return
   }
   ElMessageBox.alert(
@@ -226,22 +222,19 @@ onMounted(() => {
   <div>
     <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
-        <el-form-item label="代理名称">
-          <el-input v-model="searchForm.name" placeholder="名称模糊" clearable />
-        </el-form-item>
         <el-form-item label="流标识符">
-          <el-input v-model="searchForm.stream" placeholder="stream 模糊" clearable />
+          <el-input v-model="searchForm.stream" placeholder="请输入流标识符" clearable />
         </el-form-item>
         <el-form-item label="启用状态">
-          <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 120px">
+          <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 180px">
             <el-option label="启用" :value="1" />
             <el-option label="禁用" :value="0" />
           </el-select>
         </el-form-item>
-        <el-form-item label="推流状态">
-          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 120px">
-            <el-option label="已推流" :value="1" />
-            <el-option label="未推流" :value="0" />
+        <el-form-item label="代理状态">
+          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
+            <el-option label="运行中" :value="1" />
+            <el-option label="已停止" :value="0" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -273,18 +266,14 @@ onMounted(() => {
         max-height="calc(100vh - 360px)"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="55" align="center" />
-        <el-table-column prop="name" label="代理名称" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.name || '—' }}</template>
-        </el-table-column>
-        <el-table-column label="应用 / 流" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.app }} / {{ row.stream }}</template>
-        </el-table-column>
-        <el-table-column prop="srcUrl" label="流媒体源" show-overflow-tooltip min-width="240" />
-        <el-table-column prop="mediaServerId" label="目标节点" width="140" show-overflow-tooltip>
+        <el-table-column type="selection" width="50" align="center" />
+        <el-table-column prop="app" label="应用名称" min-width="100" show-overflow-tooltip />
+        <el-table-column prop="stream" label="流名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="srcUrl" label="流媒体源" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="mediaServerId" label="目标节点" min-width="130" show-overflow-tooltip>
           <template #default="{ row }">{{ row.mediaServerId || '自动' }}</template>
         </el-table-column>
-        <el-table-column label="推流状态" align="center" width="90">
+        <el-table-column label="代理状态" align="center" min-width="90">
           <template #default="{ row }">
             <el-tooltip v-if="row.status !== 1 && row.lastError" :content="row.lastError" placement="top">
               <ListStatusBar :active="false" />
@@ -292,14 +281,14 @@ onMounted(() => {
             <ListStatusBar v-else :active="row.status === 1" />
           </template>
         </el-table-column>
-        <el-table-column label="启用状态" align="center" width="90">
+        <el-table-column label="启用状态" align="center" min-width="90">
           <template #default="{ row }">
             <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
               {{ row.enabled === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updateTime" label="更新时间" width="170" />
+        <el-table-column prop="updateTime" label="更新时间" min-width="160" />
         <el-table-column label="操作" width="220" fixed="right">
           <template #default="{ row }">
             <div>
@@ -368,9 +357,6 @@ onMounted(() => {
 
     <el-dialog v-model="dialogVisible" :title="dialogTitle" width="680px" :close-on-click-modal="false" top="10vh">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="代理名称">
-          <el-input v-model="form.name" placeholder="显示名（可空）" />
-        </el-form-item>
         <el-form-item label="应用名称" prop="app">
           <el-input v-model="form.app" placeholder="ZLM app，默认 proxy" />
         </el-form-item>
@@ -403,18 +389,9 @@ onMounted(() => {
             <el-option label="组播" :value="3" />
           </el-select>
         </el-form-item>
-        <el-form-item label="启用音频">
-          <el-switch v-model="form.enableAudio" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-        <el-form-item label="录制视频">
-          <el-switch v-model="form.enableMp4" :active-value="1" :inactive-value="0" />
-        </el-form-item>
-        <el-form-item label="闲时自停">
-          <el-switch v-model="form.enableDisableNoneReader" :active-value="1" :inactive-value="0" />
-        </el-form-item>
         <el-form-item label="立即启用">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-          <span style="margin-left: 8px; color: #909399; font-size: 12px">保存后自动推流到 ZLM</span>
+          <span style="margin-left: 8px; color: #909399; font-size: 12px">保存后自动在 ZLM 启动</span>
         </el-form-item>
         <el-form-item label="备注信息">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注（可空）" />

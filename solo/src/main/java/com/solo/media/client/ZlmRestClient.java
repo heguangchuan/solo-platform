@@ -230,20 +230,15 @@ public class ZlmRestClient {
      * @param stream   stream 名（ONVIF 约定 {@code onvif_<deviceId>}）
      * @param url      源 URL（含账密）
      * @param rtpType  RTSP 传输：0=TCP+UDP 自适应，1=TCP，2=UDP，3=组播
-     * @param enableAudio 是否拉音频
-     * @param enableMp4   是否录制 MP4（由拉流代理表单的"录制视频"开关控制）
      * @return ZLM 分配的代理 key（addStreamProxy.data.key），用于 delStreamProxy
      */
-    public String addStreamProxy(MediaServer server, String app, String stream, String url,
-                                 int rtpType, boolean enableAudio, boolean enableMp4) {
+    public String addStreamProxy(MediaServer server, String app, String stream, String url, int rtpType) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vhost", "__defaultVhost__");
         params.put("app", app);
         params.put("stream", stream);
         params.put("url", url);
         params.put("rtp_type", String.valueOf(rtpType));
-        params.put("enable_audio", enableAudio ? "1" : "0");
-        params.put("enable_mp4", enableMp4 ? "1" : "0");
         JsonNode resp = post(server, "addStreamProxy", params);
         String key = resp.path("data").path("key").asText(null);
         if (key == null || key.isBlank()) {

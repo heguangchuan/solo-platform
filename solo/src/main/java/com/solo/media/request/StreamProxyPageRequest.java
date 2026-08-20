@@ -11,9 +11,6 @@ public class StreamProxyPageRequest {
     private Long page = 1L;
     private Long pageSize = 20L;
 
-    /** 名称模糊 */
-    private String name;
-
     /** app 精确 */
     private String app;
 
