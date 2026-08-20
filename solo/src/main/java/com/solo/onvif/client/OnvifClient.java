@@ -236,7 +236,7 @@ public class OnvifClient {
         } catch (DocumentException e) {
             throw new ServiceException("ONVIF 响应解析失败 " + action + ": " + e.getMessage());
         } catch (Exception e) {
-            log.debug("[ONVIF探测] SOAP 调用异常 url={} action={}", url, action, e);
+            log.debug("[ONVIF探测] SOAP 调用异常 地址: {} 操作: {}", url, action, e);
             String detail = e.getMessage();
             if (detail == null || detail.isBlank()) detail = e.getClass().getSimpleName();
             throw new ServiceException("ONVIF 调用异常 " + action + " @ " + url + " - " + detail);

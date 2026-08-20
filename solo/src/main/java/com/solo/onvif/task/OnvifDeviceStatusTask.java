@@ -40,7 +40,7 @@ public class OnvifDeviceStatusTask {
                 try {
                     deviceService.probeInternal(device);
                 } catch (Exception e) {
-                    log.warn("[ONVIF探测] 定时探测异常 id={} host={} err={}",
+                    log.warn("[ONVIF探测] 定时探测异常 id: {} 主机: {} 错误: {}",
                             device.getId(), device.getHost(), e.getMessage());
                 }
             });

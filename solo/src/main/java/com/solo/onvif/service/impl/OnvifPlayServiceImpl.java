@@ -82,11 +82,11 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
             String serverId = (String) exist.get("serverId");
             MediaServer server = findServer(serverId);
             if (server != null && zlmRestClient.isMediaOnline(server, APP, streamId)) {
-                log.info("[ONVIF点播] 复用活跃会话 stream={}", streamId);
+                log.info("[ONVIF点播] 复用活跃会话 流ID: {}", streamId);
                 return buildResult(server, streamId);
             }
             // Redis 有记录但流已断，先清掉再重新拉
-            log.info("[ONVIF点播] 残留会话已失效，清扫后重拉 stream={}", streamId);
+            log.info("[ONVIF点播] 残留会话已失效，清扫后重拉 流ID: {}", streamId);
             String proxyKey = (String) exist.get("proxyKey");
             if (server != null) {
                 zlmRestClient.delStreamProxy(server, proxyKey);
@@ -101,7 +101,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
             proxyKey = zlmRestClient.addStreamProxy(server, APP, streamId, authorizedUrl,
                     RTP_TYPE, true, false);
         } catch (ServiceException e) {
-            log.error("[ONVIF点播] addStreamProxy 失败 device={} err={}", device.getId(), e.getMessage());
+            log.error("[ONVIF点播] addStreamProxy 失败 设备ID: {} 错误: {}", device.getId(), e.getMessage());
             throw e;
         }
 
@@ -111,7 +111,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 "deviceId", String.valueOf(device.getId()),
                 "startTime", String.valueOf(System.currentTimeMillis())
         ));
-        log.info("[ONVIF点播] start ok device={} stream={} server={}",
+        log.info("[ONVIF点播] 启动成功 设备ID: {} 流ID: {} 服务器ID: {}",
                 device.getId(), streamId, server.getServerId());
         return buildResult(server, streamId);
     }
@@ -124,7 +124,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         String redisKey = REDIS_PREFIX + req.getStreamId();
         Map<Object, Object> exist = redisTemplate.opsForHash().entries(redisKey);
         if (exist.isEmpty()) {
-            log.info("[ONVIF点播] stop: {} 无对应会话（已清扫）", req.getStreamId());
+            log.info("[ONVIF点播] 停止: {} 无对应会话（已清扫）", req.getStreamId());
             return;
         }
         String serverId = (String) exist.get("serverId");
@@ -133,10 +133,10 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         if (server != null) {
             zlmRestClient.delStreamProxy(server, proxyKey);
         } else {
-            log.warn("[ONVIF点播] stop 时节点丢失 serverId={}", serverId);
+            log.warn("[ONVIF点播] 停止时节点丢失 服务器ID: {}", serverId);
         }
         redisTemplate.delete(redisKey);
-        log.info("[ONVIF点播] stop ok stream={}", req.getStreamId());
+        log.info("[ONVIF点播] 停止成功 流ID: {}", req.getStreamId());
     }
 
     // ============================================================
