@@ -29,7 +29,6 @@ const form = ref<Partial<StreamPushClient>>({})
 const rules = {
   clientId: [
     { required: true, message: '请输入推流方标识', trigger: 'blur' },
-    { pattern: /^[A-Za-z0-9_\-.]+$/, message: '只允许字母/数字/下划线/中划线/点', trigger: 'blur' },
   ],
 }
 
@@ -187,7 +186,7 @@ async function copyToken(token: string) {
     <el-dialog v-model="formVisible" :title="formTitle" width="480px" :close-on-click-modal="false" append-to-body>
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="推流方" prop="clientId">
-          <el-input v-model="form.clientId" placeholder="唯一标识，字母/数字/下划线" :disabled="isEdit" />
+          <el-input v-model="form.clientId" placeholder="唯一标识" :disabled="isEdit" />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
