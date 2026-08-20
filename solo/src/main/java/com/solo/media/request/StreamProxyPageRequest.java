@@ -17,9 +17,6 @@ public class StreamProxyPageRequest {
     /** stream 模糊 */
     private String stream;
 
-    /** 运行状态 0未启动 1已推给 ZLM */
+    /** 运行状态 0未启动 1已启动 */
     private Integer status;
-
-    /** 业务启用开关 0禁用 1启用 */
-    private Integer enabled;
 }

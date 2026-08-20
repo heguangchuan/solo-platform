@@ -47,8 +47,7 @@ function makeEmpty(): Partial<StreamProxy> {
     stream: '',
     srcUrl: '',
     mediaServerId: '',
-    rtpType: 1,
-    enabled: 1,
+    rtpType: 0,
     remark: '',
   }
 }
@@ -225,12 +224,6 @@ onMounted(() => {
         <el-form-item label="流标识符">
           <el-input v-model="searchForm.stream" placeholder="请输入流标识符" clearable />
         </el-form-item>
-        <el-form-item label="启用状态">
-          <el-select v-model="searchForm.enabled" placeholder="请选择" clearable style="width: 180px">
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
-          </el-select>
-        </el-form-item>
         <el-form-item label="代理状态">
           <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width: 180px">
             <el-option label="运行中" :value="1" />
@@ -279,13 +272,6 @@ onMounted(() => {
               <ListStatusBar :active="false" />
             </el-tooltip>
             <ListStatusBar v-else :active="row.status === 1" />
-          </template>
-        </el-table-column>
-        <el-table-column label="启用状态" align="center" min-width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.enabled === 1 ? 'success' : 'info'" size="small">
-              {{ row.enabled === 1 ? '启用' : '禁用' }}
-            </el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="updateTime" label="更新时间" min-width="160" />
@@ -380,18 +366,6 @@ onMounted(() => {
               :value="s.serverId"
             />
           </el-select>
-        </el-form-item>
-        <el-form-item label="传输方式">
-          <el-select v-model="form.rtpType" style="width: 100%">
-            <el-option label="TCP+UDP 自适应" :value="0" />
-            <el-option label="TCP" :value="1" />
-            <el-option label="UDP" :value="2" />
-            <el-option label="组播" :value="3" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="立即启用">
-          <el-switch v-model="form.enabled" :active-value="1" :inactive-value="0" />
-          <span style="margin-left: 8px; color: #909399; font-size: 12px">保存后自动在 ZLM 启动</span>
         </el-form-item>
         <el-form-item label="备注信息">
           <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="备注（可空）" />

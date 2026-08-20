@@ -55,9 +55,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         if (req.getStatus() != null) {
             w.eq(StreamProxy::getStatus, req.getStatus());
         }
-        if (req.getEnabled() != null) {
-            w.eq(StreamProxy::getEnabled, req.getEnabled());
-        }
         w.orderByDesc(StreamProxy::getUpdateTime);
         return page(new Page<>(req.getPage(), req.getPageSize()), w);
     }
@@ -68,27 +65,21 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         applyDefaults(proxy);
 
         StreamProxy old = proxy.getId() == null ? null : getById(proxy.getId());
-        // 编辑且原来已推流：先摘掉旧的
+        // 编辑且原来在推：先摘掉旧的，保证后续用最新 srcUrl/rtpType 重启
         if (old != null && old.getStatus() != null && old.getStatus() == 1) {
             tryDisableOnZlm(old);
-            proxy.setProxyKey(null);
-            proxy.setStatus(0);
-        } else if (old != null) {
-            // 保留原始运行态（未启用时全是 0）
-            proxy.setProxyKey(old.getProxyKey());
-            proxy.setStatus(old.getStatus());
-        } else {
-            proxy.setProxyKey(null);
-            proxy.setStatus(0);
         }
+        // 清运行时字段 + lastError，等 enable() 重写
+        proxy.setProxyKey(null);
+        proxy.setStatus(0);
         proxy.setLastError(null);
         saveOrUpdate(proxy);
-        log.info("[拉流代理] 保存 id={} app={} stream={} enabled={}",
-                proxy.getId(), proxy.getApp(), proxy.getStream(), proxy.getEnabled());
+        log.info("[拉流代理] 保存 id={} app={} stream={}",
+                proxy.getId(), proxy.getApp(), proxy.getStream());
 
-        if (proxy.getEnabled() != null && proxy.getEnabled() == 1) {
-            enable(proxy.getId());
-        }
+        // 保存即应用：自动尝试启动。enable() 失败时已在内部记 lastError 并抛 ServiceException，
+        // 配置仍然入库（status=0 + lastError），前端能正常刷出"未运行 + 错误原因"
+        enable(proxy.getId());
     }
 
     @Override
@@ -108,10 +99,9 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
                     p.getApp(),
                     p.getStream(),
                     p.getSrcUrl(),
-                    p.getRtpType() == null ? 1 : p.getRtpType());
+                    p.getRtpType() == null ? 0 : p.getRtpType());
             p.setProxyKey(key);
             p.setStatus(1);
-            p.setEnabled(1);
             p.setMediaServerId(server.getServerId());
             p.setLastError(null);
             updateById(p);
@@ -133,7 +123,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             throw new ServiceException("代理不存在: " + id);
         }
         tryDisableOnZlm(p);
-        p.setEnabled(0);
         p.setStatus(0);
         p.setProxyKey(null);
         p.setLastError(null);
@@ -217,10 +206,7 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
             p.setApp("proxy");
         }
         if (p.getRtpType() == null) {
-            p.setRtpType(1);
-        }
-        if (p.getEnabled() == null) {
-            p.setEnabled(1);
+            p.setRtpType(0);
         }
     }
 
