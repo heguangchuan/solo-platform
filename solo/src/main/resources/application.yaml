@@ -42,7 +42,7 @@ jwt:
   refresh-expiration: 604800000
 
 minio:
-  endpoint: http://localhost:9000
+  endpoint: http://192.168.1.200:9000
   access-key: minio
   secret-key: minio213
   bucket: solo
