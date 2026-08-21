@@ -1,4 +1,4 @@
-package com.solo.gb28181.event;
+package com.solo.gb28181.event.device;
 
 import lombok.Getter;
 import org.springframework.context.ApplicationEvent;

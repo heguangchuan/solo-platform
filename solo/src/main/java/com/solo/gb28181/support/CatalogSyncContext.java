@@ -1,7 +1,7 @@
 package com.solo.gb28181.support;
 
 import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.event.CatalogSyncProgressEvent;
+import com.solo.gb28181.event.catalog.CatalogSyncProgressEvent;
 
 import java.util.ArrayList;
 import java.util.HashSet;

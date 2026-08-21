@@ -33,8 +33,9 @@ import static com.solo.gb28181.processor.request.SubscribeResponseBuilder.buildT
  * <ul>
  *   <li>{@code Catalog}：登记订阅，回 OK。当前 NOTIFY 推送未实现，但订阅关系已入表，将来 catalog
  *       变更即可遍历订阅方推 NOTIFY。</li>
- *   <li>{@code MobilePosition}：200+接受（无 reason 拒收），订阅入表但永不主动推送——solo
- *       当前无 MobilePosition 业务（Sprint 5 未启动），先留接口。</li>
+ *   <li>{@code MobilePosition}：200+接受，订阅入表。当前 NOTIFY 推送未实现，先留订阅关系。</li>
+ *   <li>{@code Alarm}：200+接受，订阅入表。当前 NOTIFY 推送未实现，订阅关系入表为后续 ADR-030 推送打底
+ *       （Sprint 5 报警数据不落库，仅日志，订阅方仅登记）。</li>
  *   <li>其他：200 + 默认 30s Expires，不打 ERROR，避免 S5 启动前的告警噪音。</li>
  * </ul>
  *
@@ -73,6 +74,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
     /** MANSCDP+xml 响应 body 中事件名（与 CmdType 一致，全小写驼峰）。 */
     private static final String CMD_CATALOG = "Catalog";
     private static final String CMD_MOBILE_POSITION = "MobilePosition";
+    private static final String CMD_ALARM = "Alarm";
 
     private final SubscribeHolder subscribeHolder;
     private final GbParentPlatformService gbParentPlatformService;
@@ -142,7 +144,9 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         int expires = resolveExpires(request, root);
 
         // 分支
-        if (CMD_CATALOG.equalsIgnoreCase(cmd) || CMD_MOBILE_POSITION.equalsIgnoreCase(cmd)) {
+        if (CMD_CATALOG.equalsIgnoreCase(cmd)
+                || CMD_MOBILE_POSITION.equalsIgnoreCase(cmd)
+                || CMD_ALARM.equalsIgnoreCase(cmd)) {
             processSubscribe(request, platform, cmd, eventId, sn, deviceId, expires);
         } else {
             // 未知 CmdType：200 + 默认 30s，不入订阅表，避免污染
@@ -164,7 +168,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
     }
 
     /**
-     * 处理已识别的 SUBSCRIBE（Catalog / MobilePosition）：回 200 OK + 登记/续订/退订。
+     * 处理已识别的 SUBSCRIBE（Catalog / MobilePosition / Alarm）：回 200 OK + 登记/续订/退订。
      */
     private void processSubscribe(SIPRequest request, GbParentPlatform platform,
                                   String cmd, String eventId, String sn, String deviceId,

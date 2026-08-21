@@ -3,7 +3,7 @@ package com.solo.gb28181.task;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.constant.GbRedisKeys;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.event.DeviceOfflineEvent;
+import com.solo.gb28181.event.device.DeviceOfflineEvent;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
 import com.solo.gb28181.service.GbDeviceService;
 import lombok.RequiredArgsConstructor;

@@ -2,7 +2,7 @@ package com.solo.gb28181.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.event.CatalogSyncProgressEvent;
+import com.solo.gb28181.event.catalog.CatalogSyncProgressEvent;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
