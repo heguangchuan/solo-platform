@@ -27,6 +27,17 @@ function toPascalSegment(seg: string): string {
     .join('')
 }
 
+/** 获取菜单的第一个可跳转的子菜单url（递归查找） */
+function getFirstChildUrl(menu: any): string | null {
+  if (!menu.children || menu.children.length === 0) return null
+  for (const child of menu.children) {
+    if (child.url) return child.url
+    const childUrl = getFirstChildUrl(child)
+    if (childUrl) return childUrl
+  }
+  return null
+}
+
 /** 根据菜单 url 查找对应的 view 组件，找不到时落到 404 */
 function resolveViewComponent(url: string): () => Promise<unknown> {
   const segments = url.replace(/^\//, '').split('/').filter(Boolean).map(toPascalSegment)
@@ -49,36 +60,93 @@ function generateRouteName(path: string): string {
 
 function registerMenuRoutes(menus: any[]) {
   menus.forEach((menu: any) => {
+    // 先递归处理子菜单
+    if (menu.children?.length) {
+      registerMenuRoutes(menu.children)
+    }
+
     if (!menu.url) {
-      if (menu.children?.length) registerMenuRoutes(menu.children)
       return
     }
 
     const routePath = menu.url.replace(/^\//, '')
     const routeName = generateRouteName(routePath)
 
-    if (!router.hasRoute(routeName)) {
-      router.addRoute(mainRouteName, {
-        path: routePath,
-        name: routeName,
-        component: resolveViewComponent(menu.url),
-        meta: {
-          title: menu.permissionName,
-          icon: menu.icon,
-          parentId: menu.parentId,
-        },
-      })
+    if (router.hasRoute(routeName)) {
+      return
     }
 
-    if (menu.children?.length) registerMenuRoutes(menu.children)
+    // 如果是有子菜单的父菜单，优先检查是否有对应组件，没有的话重定向到第一个子菜单
+    if (menu.children?.length) {
+      const segments = menu.url.replace(/^\//, '').split('/').filter(Boolean).map(toPascalSegment)
+      const targetPath = `/src/views/${segments.join('/')}/index.vue`
+
+      // 如果存在对应组件，就注册为普通路由
+      if (viewModules[targetPath]) {
+        router.addRoute(mainRouteName, {
+          path: routePath,
+          name: routeName,
+          component: viewModules[targetPath],
+          meta: {
+            title: menu.permissionName,
+            icon: menu.icon,
+            parentId: menu.parentId,
+          },
+        })
+      } else {
+        // 不存在组件，尝试重定向到第一个子菜单
+        const firstChildUrl = getFirstChildUrl(menu)
+        if (firstChildUrl) {
+          router.addRoute(mainRouteName, {
+            path: routePath,
+            name: routeName,
+            redirect: firstChildUrl,
+            meta: {
+              title: menu.permissionName,
+              icon: menu.icon,
+              parentId: menu.parentId,
+            },
+          })
+        }
+      }
+      return
+    }
+
+    // 没有子菜单的普通菜单，加载组件
+    router.addRoute(mainRouteName, {
+      path: routePath,
+      name: routeName,
+      component: resolveViewComponent(menu.url),
+      meta: {
+        title: menu.permissionName,
+        icon: menu.icon,
+        parentId: menu.parentId,
+      },
+    })
   })
 }
 
 export const userMenus = ref<any[]>([])
 let isRoutesRegistered = false
+let isRefreshingRoutes = false // 路由刷新锁，防止并发调用
 
 export const dynamicRouteConfig = {
   registerAll(routes: any[]) {
+    // 如果正在刷新路由，等待刷新完成后再注册，最多等待30秒
+    if (isRefreshingRoutes) {
+      const startTime = Date.now()
+      const interval = setInterval(() => {
+        if (!isRefreshingRoutes) {
+          clearInterval(interval)
+          this.registerAll(routes)
+        } else if (Date.now() - startTime > 30000) {
+          clearInterval(interval)
+          console.error('路由注册超时')
+        }
+      }, 50)
+      return
+    }
+
     userMenus.value = routes
     registerMenuRoutes(routes)
     addNotFoundRoute()
@@ -87,28 +155,51 @@ export const dynamicRouteConfig = {
   clear() {
     userMenus.value = []
     isRoutesRegistered = false
+    isRefreshingRoutes = false
   },
   getMenus() {
     return userMenus.value
   },
   async refreshRoutes() {
     if (isRoutesRegistered) return
-    const [menuRes, permissionRes, profileRes] = await Promise.all([
-      getAuthMenusApi(),
-      getAuthPermissionsApi(),
-      getProfileApi(),
-    ])
-    const menus = menuRes.data
-    if (menus?.length) {
-      userMenus.value = menus
-      registerMenuRoutes(menus)
-      addNotFoundRoute()
-      isRoutesRegistered = true
+    if (isRefreshingRoutes) {
+      // 如果正在刷新，等待刷新完成，最多等待30秒
+      await new Promise((resolve, reject) => {
+        const startTime = Date.now()
+        const interval = setInterval(() => {
+          if (isRoutesRegistered) {
+            clearInterval(interval)
+            resolve(true)
+          } else if (Date.now() - startTime > 30000) {
+            clearInterval(interval)
+            reject(new Error('路由刷新超时'))
+          }
+        }, 50)
+      })
+      return
     }
-    const { useUserStore } = await import('@/stores/user')
-    const userStore = useUserStore()
-    userStore.setPermissions(permissionRes.data)
-    if (profileRes?.data) userStore.setUser(profileRes.data)
+
+    isRefreshingRoutes = true
+    try {
+      const [menuRes, permissionRes, profileRes] = await Promise.all([
+        getAuthMenusApi(),
+        getAuthPermissionsApi(),
+        getProfileApi(),
+      ])
+      const menus = menuRes.data
+      if (menus?.length) {
+        userMenus.value = menus
+        registerMenuRoutes(menus)
+        addNotFoundRoute()
+        isRoutesRegistered = true
+      }
+      const { useUserStore } = await import('@/stores/user')
+      const userStore = useUserStore()
+      userStore.setPermissions(permissionRes.data)
+      if (profileRes?.data) userStore.setUser(profileRes.data)
+    } finally {
+      isRefreshingRoutes = false
+    }
   },
 }
 
@@ -200,6 +291,7 @@ router.beforeEach(async (to, _from, next) => {
   if (!isRoutesRegistered) {
     try {
       await dynamicRouteConfig.refreshRoutes()
+      // 动态注册路由后，需要重新触发路由匹配，replace: true 避免重复历史记录
       next({ ...to, replace: true })
       return
     } catch {

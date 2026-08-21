@@ -8,7 +8,7 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 import VChart from 'vue-echarts'
 import App from './App.vue'
-import router from './router'
+import router, { dynamicRouteConfig } from './router'
 import { useUserStore } from './stores/user'
 import { setupPermissionDirective } from './directives/permission'
 // ECharts 按需注册（必须先于 VChart 使用，否则 vue-echarts 找不到 chart）
@@ -35,5 +35,12 @@ setupPermissionDirective(app)
 // 恢复 token（必须在 app.use(pinia) 之后）
 const userStore = useUserStore()
 userStore.initFromStorage()
+
+// 如果有 token，提前初始化路由，避免第一次跳转卡顿
+if (userStore.token) {
+  dynamicRouteConfig.refreshRoutes().catch(() => {
+    // 初始化失败，会在路由守卫中处理
+  })
+}
 
 app.mount('#app')
