@@ -4,10 +4,12 @@ import com.solo.common.ServiceException;
 import com.solo.config.MinioProperties;
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
+import io.minio.http.Method;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -28,6 +30,9 @@ import java.io.InputStream;
 @Component
 @RequiredArgsConstructor
 public class MinioFileStorage implements FileStorage {
+
+    /** 预签名 URL 默认有效期：1 小时 */
+    private static final int DEFAULT_PRESIGNED_EXPIRY_SEC = 3600;
 
     private final MinioClient minioClient;
     private final MinioProperties props;
@@ -71,6 +76,29 @@ public class MinioFileStorage implements FileStorage {
     }
 
     @Override
+    public String upload(InputStream in, long size, String contentType, String storageName) {
+        if (in == null) {
+            throw new ServiceException("上传流不能为空");
+        }
+        String bucket = bucket();
+        try {
+            minioClient.putObject(
+                    PutObjectArgs.builder()
+                            .bucket(bucket)
+                            .object(storageName)
+                            .stream(in, size, -1)
+                            .contentType(contentType == null || contentType.isBlank() ? "application/octet-stream" : contentType)
+                            .build()
+            );
+            log.info("[MinIO] 流式上传成功 bucket={} object={} size={}", bucket, storageName, size);
+        } catch (Exception e) {
+            log.error("[MinIO] 流式上传失败 bucket={} object={}", bucket, storageName, e);
+            throw new ServiceException("文件上传失败：" + e.getMessage());
+        }
+        return storageName;
+    }
+
+    @Override
     public InputStream openStream(String storageName) {
         try {
             return minioClient.getObject(
@@ -81,6 +109,28 @@ public class MinioFileStorage implements FileStorage {
             );
         } catch (Exception e) {
             throw new ServiceException("读取文件失败：" + e.getMessage());
+        }
+    }
+
+    @Override
+    public String presignedUrl(String storageName, int expirySeconds) {
+        if (storageName == null || storageName.isBlank()) {
+            throw new ServiceException("storageName 不能为空");
+        }
+        int expiry = expirySeconds > 0 ? expirySeconds : DEFAULT_PRESIGNED_EXPIRY_SEC;
+        try {
+            String url = minioClient.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Method.GET)
+                            .bucket(bucket())
+                            .object(storageName)
+                            .expiry(expiry)
+                            .build()
+            );
+            return url;
+        } catch (Exception e) {
+            log.error("[MinIO] 生成预签名 URL 失败 object={} err={}", storageName, e.getMessage());
+            throw new ServiceException("生成预签名 URL 失败：" + e.getMessage());
         }
     }
 

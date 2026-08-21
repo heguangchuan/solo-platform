@@ -16,15 +16,17 @@
  */
 import { nextTick, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VideoPlay, VideoPause } from '@element-plus/icons-vue'
+import { VideoPlay, VideoPause, Download } from '@element-plus/icons-vue'
 import type { RecordItemResponse, PlaybackResultVO } from '@/types/api'
 import {
   queryRecordInfoApi,
   playbackStartApi,
   playbackStopApi,
   playbackControlApi,
+  startDownloadApi,
 } from '@/api/gb28181'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
+import DownloadDialog from './DownloadDialog.vue'
 
 const visible = ref(false)
 const deviceIdRef = ref('')
@@ -82,6 +84,9 @@ const currentStream = ref('')
 
 /** 收流模式：默认 TCP-passive（与点播对齐；UDP 在很多 NVR 上回放会丢包 / 不通） */
 const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
+
+/** 录像下载任务弹窗 ref */
+const downloadDialogRef = ref<InstanceType<typeof DownloadDialog> | null>(null)
 
 function defaultRange(): [string, string] {
   const now = new Date()
@@ -324,6 +329,40 @@ async function onDialogClose() {
   resetPlayState()
 }
 
+/**
+ * 工具栏"下载本段"：与回放完全独立 —— 走 ZLM 录制模式（不是 INVITE 拉流），
+ * 设备把录像段按倍速推到 ZLM 落盘成 mp4，落盘后回调 /on_record_mp4，后端拉文件上 MinIO。
+ *
+ * <p>不轮询：弹窗打开后用户手动点"刷新状态"看进度，慢就慢。</p>
+ */
+async function handleDownload() {
+  if (!currentRecord.value) {
+    ElMessage.warning('请先在左侧选择一段录像')
+    return
+  }
+  try {
+    const res = await startDownloadApi({
+      deviceId: deviceIdRef.value,
+      channelId: channelIdRef.value,
+      startTime: fmtIso(currentRecord.value.startTime),
+      endTime: fmtIso(currentRecord.value.endTime),
+      transport: transport.value,
+      speed: 1,
+      streamNumber: currentStream.value,
+    })
+    const sid = res.data?.streamId
+    if (!sid) {
+      ElMessage.error('启动下载失败：未返回 streamId')
+      return
+    }
+    const rec = currentRecord.value
+    const label = `${channelNameRef.value || channelIdRef.value} ${recClock(rec.startTime)} ~ ${recClock(rec.endTime)}`
+    downloadDialogRef.value?.open(sid, label)
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : String(e))
+  }
+}
+
 defineExpose({ open })
 </script>
 
@@ -415,10 +454,20 @@ defineExpose({ open })
             <el-radio-group :model-value="speed" size="small" @change="handleSpeed">
               <el-radio-button v-for="s in speedOptions" :key="s" :value="s">{{ s }}x</el-radio-button>
             </el-radio-group>
+            <el-tooltip content="录像下载（不影响当前回放）">
+              <el-button
+                :icon="Download"
+                size="small"
+                :disabled="!currentRecord"
+                @click="handleDownload"
+              >下载本段</el-button>
+            </el-tooltip>
           </div>
         </div>
       </div>
     </div>
+
+    <DownloadDialog ref="downloadDialogRef" />
 
     <template #footer>
       <el-button @click="onDialogClose">关 闭</el-button>

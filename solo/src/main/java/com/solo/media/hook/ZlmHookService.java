@@ -3,6 +3,7 @@ package com.solo.media.hook;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbInviteSession;
+import com.solo.gb28181.service.GbDownloadService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
@@ -62,6 +63,7 @@ public class ZlmHookService {
     private final GbInviteSessionService inviteSessionService;
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
+    private final GbDownloadService downloadService;
     private final StreamPushService streamPushService;
     private final StreamProxyService streamProxyService;
     private final CascadeSendService cascadeSendService;
@@ -198,21 +200,25 @@ public class ZlmHookService {
         }
 
         try {
-            // 按 streamId 反查 session 判断是点播还是回放 — 两个 service 都收到 hook 但只处理自己的会话
-            boolean isPlayback = isPlaybackStream(stream);
+            // 按 streamId 反查 session.sessionType 路由到对应业务：
+            //  - DOWNLOAD → 录像下载（GbDownloadService）走 MP4 录制 + MinIO 落库
+            //  - PLAYBACK → 历史回放（GbPlaybackService）走流就绪补 URL
+            //  - PLAY     → 实时点播（GbPlayService）走流就绪补 URL
+            //  - null     → 找不到 session，按实时点播兜底（业务 service 内部再 get 一次也无副作用）
+            String sessionType = sessionTypeOf(stream);
             if (Boolean.TRUE.equals(regist)) {
-                if (isPlayback) {
-                    playbackService.onStreamReady(app, stream, mediaServerId);
-                } else {
-                    playService.onStreamReady(app, stream, mediaServerId);
+                switch (sessionType) {
+                    case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamReady(app, stream, mediaServerId);
+                    case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamReady(app, stream, mediaServerId);
+                    default -> playService.onStreamReady(app, stream, mediaServerId);
                 }
                 // 推流入表：仅当 originType∈PUSH 时，StreamPushService 内部会再判一次
                 streamPushService.onStreamRegister(app, stream, mediaServerId, body);
             } else {
-                if (isPlayback) {
-                    playbackService.onStreamStopped(app, stream, mediaServerId);
-                } else {
-                    playService.onStreamStopped(app, stream, mediaServerId);
+                switch (sessionType) {
+                    case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamStopped(app, stream, mediaServerId);
+                    case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamStopped(app, stream, mediaServerId);
+                    default -> playService.onStreamStopped(app, stream, mediaServerId);
                 }
                 streamPushService.onStreamCancel(app, stream, mediaServerId);
             }
@@ -241,10 +247,11 @@ public class ZlmHookService {
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
         try {
-            if (isPlaybackStream(streamId)) {
-                playbackService.onRtpServerTimeout(streamId);
-            } else {
-                playService.onRtpServerTimeout(streamId);
+            String sessionType = sessionTypeOf(streamId);
+            switch (sessionType) {
+                case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onRtpServerTimeout(streamId);
+                case GbInviteSession.TYPE_PLAYBACK -> playbackService.onRtpServerTimeout(streamId);
+                default -> playService.onRtpServerTimeout(streamId);
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_rtp_server_timeout 业务异常 stream_id={}", streamId, e);
@@ -253,20 +260,45 @@ public class ZlmHookService {
     }
 
     /**
-     * 按 streamId 反查 session.sessionType，判断是否为回放流（PLAYBACK / DOWNLOAD 都视为非实时）。
-     * 找不到 session 时按"非回放"处理：让 play service 兜底（回放 service 自己 get session 也会拿 null，无副作用）。
+     * 按 streamId 反查 session.sessionType。
+     * <p>路由依据：</p>
+     * <ul>
+     *   <li>{@code "PLAY"} — 实时点播（GbPlayService）</li>
+     *   <li>{@code "PLAYBACK"} — 历史回放（GbPlaybackService）</li>
+     *   <li>{@code "DOWNLOAD"} — 录像下载（GbDownloadService）</li>
+     *   <li>{@code null} — 找不到 session（流已被清扫 / 外部推流），按"实时点播"兜底；
+     *       业务 service 内部若再 get 不到会无副作用返回</li>
+     * </ul>
      */
-    private boolean isPlaybackStream(String streamId) {
-        if (streamId == null) return false;
+    private String sessionTypeOf(String streamId) {
+        if (streamId == null) return null;
         GbInviteSession s = inviteSessionService.getByStreamId(streamId);
-        if (s == null) return false;
-        return GbInviteSession.TYPE_PLAYBACK.equals(s.getSessionType())
-                || GbInviteSession.TYPE_DOWNLOAD.equals(s.getSessionType());
+        return s == null ? null : s.getSessionType();
     }
 
     public HookResult onRecordMp4(Map<String, Object> body) {
-        log.info("[ZLM 回调] on_record_mp4 {}", body);
-        // S4 录像功能再接入
+        String app = stringOf(body, "app");
+        String stream = stringOf(body, "stream");
+        String url = stringOf(body, "url");
+        long fileSize = longOf(body, "file_size");
+        double duration = doubleOf(body, "time_len");
+        log.info("[ZLM 回调] on_record_mp4 app={} stream={} url={} fileSize={} duration={}s",
+                app, stream, url, fileSize, duration);
+        if (stream == null) {
+            return HookResult.ok();
+        }
+        // 路由判定：只有 DOWNLOAD sessionType 才走下载业务；
+        // 若该 stream 找不到 session（已被清理 / 兜底走 playback），记日志放过即可
+        GbInviteSession session = inviteSessionService.getByStreamId(stream);
+        if (session == null || !GbInviteSession.TYPE_DOWNLOAD.equals(session.getSessionType())) {
+            log.info("[ZLM 回调] on_record_mp4 非下载流/无 session，跳过 stream={}", stream);
+            return HookResult.ok();
+        }
+        try {
+            downloadService.onRecordMp4(app, stream, url, fileSize, duration);
+        } catch (Exception e) {
+            log.error("[ZLM 回调] on_record_mp4 业务异常 stream={}", stream, e);
+        }
         return HookResult.ok();
     }
 
@@ -311,6 +343,20 @@ public class ZlmHookService {
         if (v == null) return null;
         if (v instanceof Boolean b) return b;
         return Boolean.parseBoolean(v.toString());
+    }
+
+    private static long longOf(Map<String, Object> body, String key) {
+        Object v = body == null ? null : body.get(key);
+        if (v == null) return 0L;
+        if (v instanceof Number n) return n.longValue();
+        try { return Long.parseLong(v.toString().trim()); } catch (NumberFormatException e) { return 0L; }
+    }
+
+    private static double doubleOf(Map<String, Object> body, String key) {
+        Object v = body == null ? null : body.get(key);
+        if (v == null) return 0d;
+        if (v instanceof Number n) return n.doubleValue();
+        try { return Double.parseDouble(v.toString().trim()); } catch (NumberFormatException e) { return 0d; }
     }
 
     /**

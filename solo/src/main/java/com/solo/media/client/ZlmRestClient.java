@@ -357,9 +357,80 @@ public class ZlmRestClient {
                     server.getServerId(), app, stream, ssrc);
             return true;
         } catch (ServiceException e) {
-            log.warn("[流媒体] stopSendRtp 失败（忽略） server={} app={} stream={} err={}",
+            log.warn("[流媒体] stopSendRtp 失败（忽略） server={} app={} stream={} 错误:{}",
                     server.getServerId(), app, stream, e.getMessage());
             return false;
+        }
+    }
+
+    // ---------------- 录像（S3 录像下载） ----------------
+
+    /**
+     * 触发 ZLM 把当前活跃流录成 MP4。
+     * <p>对应 ZLM {@code /index/api/startRecord} 接口。<b>语义是"开启录制能力"</b>而非"开始录"：
+     * 触发后 ZLM 在流存在期间按 {@code period=日期} 切片写成 MP4 文件，流消失时本段文件落盘并触发
+     * {@code on_record_mp4} hook。录像下载场景调用时机：DOWNLOAD INVITE 流就绪后立即调一次，
+     * 设备发完时间段流 BYE 后 ZLM 自动完成该段 MP4。</p>
+     *
+     * @param server    节点
+     * @param app       应用名（国标配 rtp）
+     * @param stream    流名（&lt;deviceId&gt;_&lt;channelId&gt;_&lt;起&gt;_&lt;止&gt;）
+     * @param period    按日期切片，格式 yyyy-MM-dd
+     * @param maxSecond 单文件最大时长（秒），0=不限
+     * @return true=ZLM 接受（code=0）；false=ZLM 拒绝或异常
+     */
+    public boolean startRecord(MediaServer server, String app, String stream, String period, int maxSecond) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("type", "mp4");
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("period", period);
+        params.put("max_second", String.valueOf(maxSecond));
+        try {
+            post(server, "startRecord", params);
+            log.info("[流媒体] startRecord ok 节点:{} 应用:{} 流:{} 周期:{} 最长:{}s",
+                    server.getServerId(), app, stream, period, maxSecond);
+            return true;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] startRecord 失败 节点:{} 应用:{} 流:{} 原因:{}",
+                    server.getServerId(), app, stream, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 列出某段时间对应的 MP4 录制文件。
+     * <p>对应 ZLM {@code /index/api/getMp4Record} 接口。{@code on_record_mp4} hook 回调里读
+     * {@code path} 字段取到的是<b>单段</b>文件，本方法用于按 (应用, 流, 周期) 维度
+     * 拉全量列表（兜底：hook 漏报时也能补拉）。</p>
+     *
+     * @return 文件路径列表（可能为空）；ZLM 拒绝时返回空列表（不抛异常，调用方按"未找到"处理）
+     */
+    public List<String> getMp4Record(MediaServer server, String app, String stream, String period) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("period", period);
+        try {
+            JsonNode resp = post(server, "getMp4Record", params);
+            JsonNode arr = resp.path("data");
+            if (arr == null || !arr.isArray()) {
+                return List.of();
+            }
+            List<String> paths = new ArrayList<>(arr.size());
+            for (JsonNode item : arr) {
+                String path = item.path("path").asText(null);
+                if (path != null && !path.isBlank()) {
+                    paths.add(path);
+                }
+            }
+            return paths;
+        } catch (ServiceException e) {
+            log.warn("[流媒体] getMp4Record 失败 节点:{} 应用:{} 流:{} 周期:{} 原因:{}",
+                    server.getServerId(), app, stream, period, e.getMessage());
+            return List.of();
         }
     }
 

@@ -25,6 +25,8 @@ import type {
   PlaybackStopRequest,
   PlaybackControlRequest,
   PlaybackResultVO,
+  DownloadStartRequest,
+  DownloadResultVO,
   StreamProxy,
   StreamProxyPageRequest,
   StreamProxyPlayUrl,
@@ -381,6 +383,27 @@ export function playbackStopApi(data: PlaybackStopRequest) {
  */
 export function playbackControlApi(data: PlaybackControlRequest) {
   return post<void>('/api/gb28181/playback/control', data)
+}
+
+/**
+ * 发起录像下载（异步，立即返 streamId + status）
+ */
+export function startDownloadApi(data: DownloadStartRequest) {
+  return post<DownloadResultVO>('/api/gb28181/download/start', data)
+}
+
+/**
+ * 查录像下载任务状态（手动刷新用，不轮询）
+ */
+export function getDownloadStatusApi(streamId: string) {
+  return get<DownloadResultVO>(`/api/gb28181/download/${streamId}`)
+}
+
+/**
+ * 主动停止录像下载
+ */
+export function stopDownloadApi(streamId: string) {
+  return post<void>(`/api/gb28181/download/${streamId}/stop`)
 }
 
 /**

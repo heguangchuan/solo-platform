@@ -381,6 +381,37 @@ export interface PlaybackResultVO extends PlayResultVO {
   durationSec?: number
 }
 
+/** 录像下载请求（与回放同构，加 speed 字段） */
+export interface DownloadStartRequest {
+  deviceId: string
+  channelId: string
+  /** yyyy-MM-dd HH:mm:ss */
+  startTime: string
+  endTime: string
+  /** 收流模式，默认 TCP-passive */
+  transport?: 'UDP' | 'TCP-passive' | 'TCP-active'
+  /** 下载倍速：1 / 2 / 4 / 8，默认 1 */
+  speed?: 1 | 2 | 4 | 8
+  /** 码流 token：空/不传主码流 */
+  streamNumber?: string
+}
+
+/**
+ * 录像下载响应 / 任务快照
+ * 状态机：INVITING → RECORDING → READY / FAILED / TIMEOUT / NOT_FOUND
+ */
+export interface DownloadResultVO {
+  streamId?: string
+  /** INVITING / RECORDING / READY / FAILED / TIMEOUT / NOT_FOUND */
+  status?: string
+  startEpochSec?: number
+  endEpochSec?: number
+  durationSec?: number
+  /** READY 状态有值，MinIO 1h 预签名 URL */
+  downloadUrl?: string
+  errorMsg?: string
+}
+
 /** 拉流代理分页查询参数 */
 export interface StreamProxyPageRequest extends PageRequest {
   app?: string
