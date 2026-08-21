@@ -83,7 +83,7 @@ CREATE TABLE gb_device_channel
     longitude double DEFAULT NULL COMMENT '经度（仅通道）',
     latitude double DEFAULT NULL COMMENT '纬度（仅通道）',
     ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3固定枪机 4遥控枪机（仅通道）',
-    parent_id    varchar(20)  NOT NULL COMMENT '父 catalog item 的 20 位国标码：通道→所属设备 device_id / 父分组 channel_id；分组→父分组 channel_id 或所属设备 device_id。仅供级联 XML ParentID 与共享树建层级使用，不回前端展示',
+    parent_id    varchar(20) NOT NULL COMMENT '父 catalog item 的 20 位国标码：通道→所属设备 device_id / 父分组 channel_id；分组→父分组 channel_id 或所属设备 device_id。仅供级联 XML ParentID 与共享树建层级使用，不回前端展示',
     source       tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源：1系统新增 2表格导入 3设备注册',
     create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -103,14 +103,14 @@ CREATE TABLE gb_device_channel
 DROP TABLE IF EXISTS gb_ptz_preset;
 CREATE TABLE gb_ptz_preset
 (
-    id               bigint       NOT NULL COMMENT '主键ID（雪花）',
-    channel_db_id    bigint       NOT NULL COMMENT '通道数据库主键（gb_device_channel.id）',
-    preset_id        int          NOT NULL COMMENT '预置位编号（设备侧编号，1~N）',
-    name             varchar(100) NOT NULL COMMENT '预置位名称（如"大门入口"）',
-    create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    id            bigint       NOT NULL COMMENT '主键ID（雪花）',
+    channel_db_id bigint       NOT NULL COMMENT '通道数据库主键（gb_device_channel.id）',
+    preset_id     int          NOT NULL COMMENT '预置位编号（设备侧编号，1~N）',
+    name          varchar(100) NOT NULL COMMENT '预置位名称（如"大门入口"）',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
-    KEY             idx_channel (channel_db_id)
+    KEY           idx_channel (channel_db_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台预置位表';
 
 -- =====================================================
@@ -122,12 +122,12 @@ CREATE TABLE gb_ptz_preset
 DROP TABLE IF EXISTS gb_platform;
 CREATE TABLE gb_platform
 (
-    id          bigint       NOT NULL COMMENT '主键ID（雪花）',
-    platform_id varchar(20)  NOT NULL COMMENT '被禁用的国标ID（20位，设备或下级平台通用）',
-    name        varchar(255)          DEFAULT NULL COMMENT '备注名（可空；仅便于运维辨识，不参与业务）',
-    enabled     tinyint      NOT NULL DEFAULT 0 COMMENT '禁用开关：0禁用（拒绝注册，默认）1临时放行（保留记录但不拦截）',
-    create_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    id          bigint      NOT NULL COMMENT '主键ID（雪花）',
+    platform_id varchar(20) NOT NULL COMMENT '被禁用的国标ID（20位，设备或下级平台通用）',
+    name        varchar(255)         DEFAULT NULL COMMENT '备注名（可空；仅便于运维辨识，不参与业务）',
+    enabled     tinyint     NOT NULL DEFAULT 0 COMMENT '禁用开关：0禁用（拒绝注册，默认）1临时放行（保留记录但不拦截）',
+    create_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_platform_id (platform_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='国标接入禁用名单（黑名单）：设备/下级平台默认自由注册，仅本表登记的 ID 被拒绝';
@@ -170,23 +170,22 @@ CREATE TABLE media_server
 DROP TABLE IF EXISTS stream_proxy;
 CREATE TABLE stream_proxy
 (
-    id                         bigint        NOT NULL COMMENT '主键ID（雪花）',
-    app                        varchar(50)   NOT NULL DEFAULT 'proxy' COMMENT 'ZLM app 名',
-    stream                     varchar(100)  NOT NULL COMMENT 'ZLM stream 名',
-    src_url                    varchar(1000) NOT NULL COMMENT '源地址：rtsp:// rtmp:// http-flv/hls 等',
-    media_server_id            varchar(64)            DEFAULT NULL COMMENT '目标 ZLM 节点 serverId（留空则启动时自动挑一个可用节点）',
-    rtp_type                   tinyint       NOT NULL DEFAULT 0 COMMENT 'RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播',
-    proxy_key                  varchar(100)           DEFAULT NULL COMMENT 'ZLM addStreamProxy 返回的 key，用于 delStreamProxy',
-    status                     tinyint       NOT NULL DEFAULT 0 COMMENT '运行状态 0未启动 1已启动',
-    last_error                 varchar(500)           DEFAULT NULL COMMENT '最近一次启动失败原因（仅用于展示）',
-    remark                     varchar(255)           DEFAULT NULL COMMENT '备注',
-    create_time                datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time                datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    id              bigint        NOT NULL COMMENT '主键ID（雪花）',
+    app             varchar(50)   NOT NULL DEFAULT 'proxy' COMMENT 'ZLM app 名',
+    stream          varchar(100)  NOT NULL COMMENT 'ZLM stream 名',
+    src_url         varchar(1000) NOT NULL COMMENT '源地址：rtsp:// rtmp:// http-flv/hls 等',
+    media_server_id varchar(64)            DEFAULT NULL COMMENT '目标 ZLM 节点 serverId（留空则启动时自动挑一个可用节点）',
+    rtp_type        tinyint       NOT NULL DEFAULT 0 COMMENT 'RTSP 拉流方式：0=TCP+UDP 自适应 1=TCP 2=UDP 3=组播',
+    proxy_key       varchar(100)           DEFAULT NULL COMMENT 'ZLM addStreamProxy 返回的 key，用于 delStreamProxy',
+    status          tinyint       NOT NULL DEFAULT 0 COMMENT '运行状态 0未启动 1已启动',
+    last_error      varchar(500)           DEFAULT NULL COMMENT '最近一次启动失败原因（仅用于展示）',
+    remark          varchar(255)           DEFAULT NULL COMMENT '备注',
+    create_time     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
     UNIQUE KEY uk_app_stream (app, stream),
-    KEY                        idx_media_server_id (media_server_id),
-    KEY                        idx_status (status),
-    KEY                        idx_enabled (enabled)
+    KEY             idx_media_server_id (media_server_id),
+    KEY             idx_status (status)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='拉流代理表';
 
 -- =====================================================
@@ -303,12 +302,12 @@ CREATE TABLE gb_platform_group
 DROP TABLE IF EXISTS gb_platform_share;
 CREATE TABLE gb_platform_share
 (
-    id           bigint      NOT NULL COMMENT '主键ID（雪花）',
-    platform_id  bigint      NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
-    group_id     bigint      NOT NULL COMMENT '所属推送分组（gb_platform_group.id，UI 强制先选组才能挂载）',
-    resource_id  bigint      NOT NULL COMMENT '通道主键（gb_device_channel.id，parental=0）',
-    exposed_code varchar(20) DEFAULT NULL COMMENT '对上级暴露的唯一国标码（撞码时分配，平台内唯一；不撞码时 NULL 表示透传 channel_id）',
-    create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    id           bigint   NOT NULL COMMENT '主键ID（雪花）',
+    platform_id  bigint   NOT NULL COMMENT '上级平台主键（gb_parent_platform.id）',
+    group_id     bigint   NOT NULL COMMENT '所属推送分组（gb_platform_group.id，UI 强制先选组才能挂载）',
+    resource_id  bigint   NOT NULL COMMENT '通道主键（gb_device_channel.id，parental=0）',
+    exposed_code varchar(20)       DEFAULT NULL COMMENT '对上级暴露的唯一国标码（撞码时分配，平台内唯一；不撞码时 NULL 表示透传 channel_id）',
+    create_time  datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id),
     UNIQUE KEY uk_platform_resource (platform_id, resource_id),
     UNIQUE KEY uk_platform_exposed_code (platform_id, exposed_code),

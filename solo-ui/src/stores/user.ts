@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { UserInfoVO } from '@/types/api'
+import router, { dynamicRouteConfig } from '@/router'
 
 const TOKEN_KEY = 'solo-token'
 const REFRESH_TOKEN_KEY = 'solo-refresh-token'
@@ -77,6 +78,10 @@ export const useUserStore = defineStore('user', () => {
       const messageStore = useMessageStore()
       messageStore.clear()
     })
+    // 清空路由状态
+    dynamicRouteConfig.clear()
+    // 清空路由历史，跳转到登录页
+    router.replace('/login')
     resetAll()
   }
 
