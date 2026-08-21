@@ -85,6 +85,58 @@ utils/         SipUtils、XmlUtils（含海康 `&` 和 `<Address` 兼容）、Di
 
 `application.yaml` 是运行时配置的唯一源：`gb28181.*` 段管 SIP 身份 / 计时器，`media.*` 段管 ZLM 节点 / 点播超时 / SSRC。
 
+## 日志打印规范
+
+全工程所有 Java 日志（`com.solo.*` 各域）统一遵循。**只约束未来新增**，存量历史代码不动；触碰到的文件顺手改写即可。
+
+### 1. 业务事件前缀
+
+每条日志一条业务事件前缀（中文方括号），按业务语义命名，不用类名。完整前缀表见 `gb28181.md` §4，跨域新增时同步维护。
+
+例：`[设备注册]` / `[设备心跳]` / `[设备上线]` / `[设备离线]` / `[通道目录]` / `[实时点播]` / `[历史回放]` / `[云台控制]` / `[级联注册]` / `[级联订阅]` / `[级联目录]` / `[级联点播]` / `[协议栈]` / `[消息分发]`
+
+### 2. 字段 key
+
+- **业务字段用中文**：`设备:xxx`、`通道:xxx`、`平台:xxx`、`优先级:xxx`、`时间:xxx`、`原因:xxx`、`错误:xxx`
+- **SIP 协议字段保留英文**（业界一致，便于对照报文）：`Call-ID:xxx`、`CSeq:1 INVITE`、`From:<sip:...>`、`To:<sip:...>`、`Via:SIP/2.0/UDP ...`；SIP method 名（`INVITE` / `REGISTER` / `MESSAGE` / `BYE` / `SUBSCRIBE` / `ACK` / `CANCEL` / `NOTIFY` / `INFO`）保英文
+- 通用字段用中文：`来源` / `目标` / `结果` / `原因` / `耗时` / `错误` / `首次`
+
+### 3. 分隔符
+
+字段 `key:值` 一律用半角冒号 `:` 不用等号 `=`，跟 GB/T 28181 报文 / SIP 头分隔符一致。
+
+### 4. 占位符
+
+必须用 SLF4J `{}` 占位符，不拼字符串 —— 占位符在日志级别关闭时跳过 `toString()`，性能可控；字符串拼接永远执行。
+
+### 5. 异常
+
+异常对象作为最后一个参数，框架自动打堆栈；错误摘要用 `错误:{}` 单独取 `e.getMessage()` 便于 grep。**严禁** `e.printStackTrace()` —— 不走 SLF4J 框架，无法被级别控制、不带业务前缀。
+
+### 6. 正反例
+
+```java
+// ✅ 规范
+log.info("[设备上线] 触发同步 设备:{} 首次:{}", deviceId, firstTime);
+log.info("[级联注册] 接受订阅 平台:{} 事件:catalog SN:{} 有效期:{}s",
+        platformId, sn, expires);
+log.error("[设备心跳] 处理异常 设备:{} 错误:{}", deviceId, e.getMessage(), e);
+
+// ❌ 反例
+log.info("[设备上线] deviceId={} firstTime={}", deviceId, firstTime);  // 英文 key
+log.info("[设备注册] 设备={}", deviceId);                              // 中文 key 但用 =
+log.info("[设备注册] 设备:" + deviceId);                               // 拼字符串
+e.printStackTrace();                                                  // 不走框架
+log.info("[SipLayer] 启动成功");                                       // 类名作前缀
+```
+
+### 7. 严禁
+
+- 拼字符串日志 + `e.printStackTrace()` + `System.out.println` 调试
+- 日志里贴 SIP 报文 / XML 全文 —— 排查走 tcpdump / wireshark
+- 类名作为日志前缀（`[SipLayer]` `[SipCommander]` 全部换业务语义）
+- 同一行日志混用中文 key + 英文 key（`设备:{} streamId={}` 不允许）
+
 ## 前端要点
 
 - Element Plus + 自动导入（`unplugin-auto-import` / `unplugin-vue-components`），`ElButton` 之类不用手写 import。`components.d.ts` 和 `auto-imports.d.ts` 是生成物，不要手改。
@@ -98,3 +150,4 @@ utils/         SipUtils、XmlUtils（含海康 `&` 和 `<Address` 兼容）、Di
 - 后端包结构领域优先：新功能通常展开为 `com.solo.<domain>/{controller,service,mapper,entity,request,response}`。
 - 当前开发阶段，SQL 直接在 `sql/solo_db.sql` 或 `sql/gb28181.sql` 里改；**不要**建增量迁移脚本（ADR-010）。
 - 数据权限走 SQL / Service 内部处理——没有部门 / 岗位模型，也没有独立的登录日志功能（记忆 `admin-feature-scope`）。
+- 后续所有接口开发严格遵循smart-doc规范，保证代码与接口文档同步一致。

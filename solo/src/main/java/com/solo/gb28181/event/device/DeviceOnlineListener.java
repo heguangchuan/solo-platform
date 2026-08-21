@@ -1,4 +1,4 @@
-package com.solo.gb28181.event;
+package com.solo.gb28181.event.device;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
