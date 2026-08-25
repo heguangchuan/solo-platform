@@ -60,6 +60,21 @@ public class GbDevice implements Serializable {
     private String firmware;
 
     /**
+     * 设备归属（DeviceInfo 响应回填）
+     */
+    private String owner;
+
+    /**
+     * 行政区划编码（DeviceInfo 响应回填）
+     */
+    private String civilCode;
+
+    /**
+     * 安装地址（DeviceInfo 响应回填）
+     */
+    private String address;
+
+    /**
      * 设备最后注册来源 IP
      */
     private String ip;
