@@ -100,7 +100,7 @@ public class CatalogSyncSupport {
             // 队列中、运行前的窗口：cancel 可能在这一刻发生，再 check 一次
             // 同上：final flush 不受 done 拦截
             if (!isFinalFlush && ctx.done) {
-                log.info("[通道目录] flush 被取消（运行前） deviceId={} sn={}", ctx.deviceId, ctx.sn);
+                log.info("[通道目录] 分片落库取消 设备:{} SN:{} 原因:运行前", ctx.deviceId, ctx.sn);
                 return;
             }
             long start = System.currentTimeMillis();
@@ -109,11 +109,11 @@ public class CatalogSyncSupport {
                 long cost = System.currentTimeMillis() - start;
                 totalFlushCount.incrementAndGet();
                 totalFlushedItems.addAndGet(items.size());
-                log.info("[通道目录] flush 完成 deviceId={} sn={} items={} final={} costMs={} (累计 flush={} items={})",
+                log.info("[通道目录] 分片落库完成 设备:{} SN:{} 条目:{} 是否终片:{} 耗时:{}ms 累计分片:{} 累计条目:{}",
                         ctx.deviceId, ctx.sn, items.size(), isFinalFlush, cost,
                         totalFlushCount.get(), totalFlushedItems.get());
             } catch (Exception e) {
-                log.error("[通道目录] flush 失败 deviceId={} sn={} final={} err={}",
+                log.error("[通道目录] 分片落库失败 设备:{} SN:{} 是否终片:{} 错误:{}",
                         ctx.deviceId, ctx.sn, isFinalFlush, e.getMessage(), e);
             }
         });

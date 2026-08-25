@@ -140,7 +140,7 @@ public class GbPlayServiceImpl implements GbPlayService {
 
         String rawToken = rawStreamNumber(req.getStreamNumber());
         String streamNumber = normalizeStreamNumber(req.getStreamNumber());
-        log.info("[实时点播] 收到点播请求 device={} channel={} 码流={}",
+        log.info("[实时点播] 收到点播请求 设备:{} 通道:{} 码流:{}",
                 req.getDeviceId(), req.getChannelId(), streamLabel(streamNumber));
         String streamId = buildStreamId(req.getDeviceId(), req.getChannelId(), streamNumber);
 
@@ -148,12 +148,12 @@ public class GbPlayServiceImpl implements GbPlayService {
         GbInviteSession existing = inviteSessionService.getByStreamId(streamId);
         if (existing != null) {
             if (GbInviteSession.STATUS_READY.equals(existing.getStatus())) {
-                log.info("[实时点播] 复用已就绪会话 stream={} 码流={}", streamId, streamLabel(streamNumber));
+                log.info("[实时点播] 复用已就绪会话 流ID:{} 码流:{}", streamId, streamLabel(streamNumber));
                 return toResult(existing);
             }
             if (GbInviteSession.STATUS_INVITING.equals(existing.getStatus())) {
                 // 同通道同码流正在邀请中，告诉前端稍候，不要重复发起 INVITE 导致重复流
-                log.warn("[实时点播] 该通道该码流正在点播邀请中，请稍后重试 stream={}", streamId);
+                log.warn("[实时点播] 该通道该码流正在点播邀请中 流ID:{} 原因:请稍后重试", streamId);
                 throw new ServiceException("该通道正在请求点播，请稍后重试");
             }
         }
@@ -208,7 +208,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             long inviteTimeoutMs = Math.max(5_000L, mediaProperties.getInviteTimeoutSeconds() * 1000L);
 
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, rtpPort, callIdHeader, fromTag,
-                    okEv -> log.debug("[实时点播] 收到 INVITE 2xx stream={}", streamId),
+                    okEv -> log.debug("[实时点播] 收到 INVITE 2xx 流ID:{}", streamId),
                     errEv -> {
                         int code = errEv == null || errEv.getResponse() == null
                                 ? -1 : errEv.getResponse().getStatusCode();
@@ -254,7 +254,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(req.getStreamId());
         if (session == null) {
-            log.info("[实时点播] stop: stream={} 无对应会话（已清扫）", req.getStreamId());
+            log.info("[实时点播] stop 流ID:{} 无对应会话 原因:已清扫", req.getStreamId());
             return;
         }
         if (GbInviteSession.STATUS_STOPPED.equals(session.getStatus())
@@ -268,7 +268,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (device != null && session.getCallId() != null && session.getFromTag() != null && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         } else {
-            log.warn("[实时点播] stop 时设备/Dialog 信息不全，跳过 BYE stream={}", session.getStreamId());
+            log.warn("[实时点播] stop 时设备/Dialog 信息不全 流ID:{} 原因:跳过 BYE", session.getStreamId());
         }
 
         inviteCleanup.cleanupZlm(session);
@@ -278,7 +278,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException("会话已停止"));
         }
-        log.info("[实时点播] stop ok stream={}", session.getStreamId());
+        log.info("[实时点播] stop 结果:成功 流ID:{}", session.getStreamId());
     }
 
     // ============================================================
@@ -292,7 +292,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         GbInviteSession session = inviteSessionService.getByCallId(callId);
         if (session == null) {
-            log.warn("[实时点播] onInviteOk 无对应会话 callId={}", callId);
+            log.warn("[实时点播] onInviteOk 无对应会话 Call-ID:{}", callId);
             return;
         }
         // 设备与下级平台不再区分（gb_platform 已翻转为黑名单，source 统一 REGISTER），
@@ -308,7 +308,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         ssrcFactory.release(session.getServerId(), oldSsrc);
         session.setSsrc(remoteSsrc);
         inviteSessionService.update(session);
-        log.info("[{}] 下级自定义 SSRC {} -> {} stream={}", tag, oldSsrc, remoteSsrc, session.getStreamId());
+        log.info("[{}] 下级自定义 SSRC {} -> {} 流ID:{}", tag, oldSsrc, remoteSsrc, session.getStreamId());
     }
 
 
@@ -319,7 +319,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(stream);
         if (session == null) {
-            log.warn("[实时点播] on_stream_changed 找不到会话 stream={}", stream);
+            log.warn("[实时点播] on_stream_changed 找不到会话 流ID:{}", stream);
             return;
         }
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
@@ -328,7 +328,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         MediaServer server = mediaServerMapper.selectOne(
                 new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
         if (server == null) {
-            log.error("[实时点播] on_stream_changed 节点丢失 serverId={}", session.getServerId());
+            log.error("[实时点播] on_stream_changed 节点丢失 节点ID:{}", session.getServerId());
             return;
         }
 
@@ -341,7 +341,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         session.setRtcUrl(urlBuilder.buildRtc(server, APP, stream));
         inviteSessionService.update(session);
 
-        log.info("[实时点播] 流就绪 stream={} 码流={} wsFlv={}",
+        log.info("[实时点播] 流就绪 流ID:{} 码流:{} WS-FLV:{}",
                 stream, streamLabel(session.getStreamNumber()), session.getWsFlvUrl());
 
         // 唤醒等待中的 future
@@ -373,7 +373,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
-        log.info("[实时点播] 流断开清扫完成 stream={}", stream);
+        log.info("[实时点播] 流断开清扫完成 流ID:{}", stream);
     }
 
     @Override
@@ -402,7 +402,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         if (f != null && !f.isDone()) {
             f.completeExceptionally(new ServiceException("RTP 端口长时间无数据"));
         }
-        log.warn("[实时点播] RTP 端口超时清扫完成 stream={}", streamId);
+        log.warn("[实时点播] RTP 端口超时清扫完成 流ID:{}", streamId);
     }
 
     @Override
@@ -516,9 +516,10 @@ public class GbPlayServiceImpl implements GbPlayService {
                 // 使用默认传输，由 GB 设备决定
                 req.setTransport(null);
                 this.start(req);
-                log.info("[按需拉流] autoApplyPlay 自动发起点播 device={} channel={}", deviceId, channelId);
+                log.info("[按需拉流] autoApplyPlay 自动发起点播 设备:{} 通道:{}", deviceId, channelId);
             } catch (Exception e) {
-                log.error("[按需拉流] autoApplyPlay 失败 device={} channel={}", deviceId, channelId, e);
+                log.error("[按需拉流] autoApplyPlay 失败 设备:{} 通道:{} 错误:{}",
+                        deviceId, channelId, e.getMessage(), e);
             }
         });
     }

@@ -77,7 +77,7 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
     public void failSession(GbInviteSession session, String logTag, String reason) {
         cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
-        log.warn("[{}] 会话失败 stream={} reason={}", logTag, session.getStreamId(), reason);
+        log.warn("[{}] 会话失败 流ID:{} 原因:{}", logTag, session.getStreamId(), reason);
     }
 
     @Override
@@ -85,7 +85,7 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
         sendByeIfDialogEstablished(session);
         cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
-        log.warn("[{}] 会话被动放弃 stream={} reason={}", logTag, session.getStreamId(), reason);
+        log.warn("[{}] 会话被动放弃 流ID:{} 原因:{}", logTag, session.getStreamId(), reason);
     }
 
     @Override
@@ -93,7 +93,7 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
         cleanupZlm(session);
         sendByeIfDialogEstablished(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
-        log.warn("[{}] 会话超时 stream={} reason={}", logTag, session.getStreamId(), reason);
+        log.warn("[{}] 会话超时 流ID:{} 原因:{}", logTag, session.getStreamId(), reason);
     }
 
     /**

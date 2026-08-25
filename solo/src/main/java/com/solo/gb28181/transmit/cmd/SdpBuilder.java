@@ -10,15 +10,13 @@ package com.solo.gb28181.transmit.cmd;
  * v=0
  * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;
  * s=Play / Playback / Download
- * u=&lt;platformId&gt;:0
  * c=IN IP4 &lt;sdpIp&gt;
- * t=&lt;startEpoch&gt; &lt;endEpoch&gt;            (Playback/Download 时填回放/下载时段；Play 时 0 0)
+ * t=&lt;startEpoch&gt; &lt;endEpoch&gt;            (Unix 秒数；Play 时 0 0)
  * m=video &lt;rtpPort&gt; {RTP/AVP|TCP/RTP/AVP} 96 97 98 99
  * a=recvonly
  * a=rtpmap:96 PS/90000
  * a=rtpmap:97 MPEG4/90000
  * a=rtpmap:98 H264/90000
- * a=fmtp:98 profile-level-id=42e01e
  * a=rtpmap:99 H265/90000
  * [a=setup:passive\na=connection:new]    -- TCP-passive 时
  * [a=setup:active\na=connection:new]     -- TCP-active 时
@@ -27,12 +25,15 @@ package com.solo.gb28181.transmit.cmd;
  * y=&lt;ssrc&gt;
  * </pre>
  *
- * <h3>为什么 m=video 多了 97 MPEG4、a=fmtp:98 profile-level-id、u= 行</h3>
+ * <h3>为什么 m=video 多了 97 MPEG4；不写 a=fmtp:98 profile-level-id 也不写 u= 行</h3>
  * <p>多厂商 / 老固件 SDP 兼容性补丁：</p>
  * <ul>
- *   <li>海康/大华等设备看到 H264 没带 profile-level-id 会回 SDP 重协商，多 1-2 轮 SIP 往返（体感"慢"）
  *   <li>部分老固件不识别 m=video 只列 96/98/99 三档 → 加 97 MPEG4 给一个备选（不支持的设备按 SDP 规范忽略）
- *   <li>{@code u=} 会话 URI 多数设备忽略，但少了部分老固件会回 488 Not Acceptable
+ *   <li><b>不写</b> {@code a=fmtp:98 profile-level-id}：参考 wvp-pro 默认实现。
+ *       1927622 commit 加的"profile 必带减少重协商"实践在实测中不成立——某厂商级联设备（50030000002000000120）
+ *       认为平台声明的 profile 与设备实际编码不一致时回 400 Bad Request。去掉这行，跨厂商更稳。
+ *   <li><b>不写</b> {@code u=} 会话 URI：1927622 commit 加的"防止 488"实践在实测中也不成立——
+ *       同一设备对 {@code u=<platformId>:0} 的 ufrag 不接受，回 400。wvp-pro 默认不带，跨厂商更稳。
  * </ul>
  */
 public final class SdpBuilder {
@@ -90,6 +91,8 @@ public final class SdpBuilder {
      * 构造录像下载 SDP body（{@code s=Download}, {@code t=<startEpoch> <endEpoch>}, {@code a=downloadspeed:N}）
      * <p>S3 暂不调用，预留给 S3.2 / S4 下载阶段。</p>
      *
+     * @param startEpochSec 起始 Unix 秒
+     * @param endEpochSec   结束 Unix 秒
      * @param downloadSpeed 下载倍速（1/2/4/8）
      */
     public static String buildDownload(String platformId, String sdpIp, int rtpPort, String ssrc,
@@ -109,9 +112,14 @@ public final class SdpBuilder {
         sb.append("v=0\r\n");
         sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
         sb.append("s=").append(sessionName).append("\r\n");
-        // u= 行：会话 URI。多数设备忽略，但少了部分老固件会回 488 重协商。
-        sb.append("u=").append(platformId).append(":0\r\n");
+        // u= 行：1927622 commit 加上（备注"少了部分老固件会回 488"）。
+        // 实测某厂商级联设备（50030000002000000120）认为本平台声明的 u= ufrag 不合法 → 400 Bad Request。
+        // wvp-pro 默认不带 u=，跨厂商更稳。暂对齐 wvp-pro，回滚到 1927622 之前的形态。
+        // sb.append("u=").append(platformId).append(":0\r\n");
         sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
+        // t= 行直接写 Unix epoch 秒数（主流实现 wvp-pro / 海康 / 大华 / 宇视 都这么发）。
+        // RFC 4566 §5.9 / GB/T 28181-2016 附录 G 规定用 NTP（1900 起点），实际设备不严格校验，
+        // 几乎全兼容 Unix。0 0 是实时播放哨兵值，原样透传。
         sb.append("t=").append(startEpoch).append(' ').append(endEpoch).append("\r\n");
         // m=video PT 列表：96 PS / 97 MPEG4 / 98 H264 / 99 H265。多了 97 让老固件多一个备选，
         // 不支持的设备按 SDP 规范忽略、不影响主流程。
@@ -122,8 +130,10 @@ public final class SdpBuilder {
         sb.append("a=rtpmap:96 PS/90000\r\n");
         sb.append("a=rtpmap:97 MPEG4/90000\r\n");
         sb.append("a=rtpmap:98 H264/90000\r\n");
-        // H264 profile-level-id：海康/大华等设备必备，缺失会触发 SDP 重协商（多 1-2 轮 SIP 往返）
-        sb.append("a=fmtp:98 profile-level-id=42e01e\r\n");
+        // H264 profile-level-id：1927622 commit 加上（参考海康/大华"profile 必带减少重协商"实践）。
+        // 但实测某厂商级联设备（设备 ID 50030000002000000120）认为本平台声明的 profile 与设备实际编码
+        // profile 不一致时回 400 Bad Request；wvp-pro 默认不写这行，跨厂商更稳。暂对齐 wvp-pro。
+        // sb.append("a=fmtp:98 profile-level-id=42e01e\r\n");
         sb.append("a=rtpmap:99 H265/90000\r\n");
         if (tcp) {
             sb.append("a=setup:").append(tcpActive ? "active" : "passive").append("\r\n");

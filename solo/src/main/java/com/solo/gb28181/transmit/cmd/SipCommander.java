@@ -70,9 +70,9 @@ public class SipCommander {
             CallIdHeader callId = headerProvider.newCallId(device);
             Request request = headerProvider.buildMessageRequest(device, xml, callId);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, onTimeout, timeoutMs);
-            log.info("[设备检测] DeviceInfo 探测 → deviceId={} sn={} timeoutMs={}", device.getDeviceId(), sn, timeoutMs);
+            log.info("[设备检测] DeviceInfo 探测 → 设备:{} SN:{} 超时:{}ms", device.getDeviceId(), sn, timeoutMs);
         } catch (Exception e) {
-            log.error("[设备检测] DeviceInfo 探测发送失败 deviceId={}", device.getDeviceId(), e);
+            log.error("[设备检测] DeviceInfo 探测发送失败 设备:{} 错误:{}", device.getDeviceId(), e.getMessage(), e);
             if (onError != null) {
                 try { onError.accept(null); } catch (Exception ignore) {}
             }
@@ -130,11 +130,11 @@ public class SipCommander {
         try {
             Request request = headerProvider.buildInviteRequest(device, channelId, sdpBody, ssrc, callId, fromTag);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, timeoutMs);
-            log.info("[实时点播] INVITE → 设备:{} 通道:{} ssrc:{} 收流端口:{} callId:{}",
+            log.info("[实时点播] INVITE → 设备:{} 通道:{} SSRC:{} 收流端口:{} Call-ID:{}",
                     device.getDeviceId(), channelId, ssrc, rtpPort, callId.getCallId());
         } catch (Exception e) {
-            log.error("[实时点播] INVITE 发送失败 deviceId={} channelId={}",
-                    device.getDeviceId(), channelId, e);
+            log.error("[实时点播] INVITE 发送失败 设备:{} 通道:{} 错误:{}",
+                    device.getDeviceId(), channelId, e.getMessage(), e);
             if (onError != null) {
                 try { onError.accept(null); } catch (Exception ignore) {}
             }
@@ -148,11 +148,11 @@ public class SipCommander {
         try {
             Request request = headerProvider.buildByeRequest(device, session);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
-            log.info("[实时点播] BYE → deviceId={} channelId={} stream={}",
+            log.info("[实时点播] BYE → 设备:{} 通道:{} 流ID:{}",
                     device.getDeviceId(), session.getChannelId(), session.getStreamId());
         } catch (Exception e) {
-            log.error("[实时点播] BYE 发送失败 deviceId={} stream={}",
-                    device.getDeviceId(), session.getStreamId(), e);
+            log.error("[实时点播] BYE 发送失败 设备:{} 流ID:{} 错误:{}",
+                    device.getDeviceId(), session.getStreamId(), e.getMessage(), e);
         }
     }
 
@@ -166,10 +166,10 @@ public class SipCommander {
         try {
             Request request = headerProvider.buildInfoRequest(device, session, rtspBody);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
-            log.info("[回放控制] INFO → deviceId={} stream={}", device.getDeviceId(), session.getStreamId());
+            log.info("[回放控制] INFO → 设备:{} 流ID:{}", device.getDeviceId(), session.getStreamId());
         } catch (Exception e) {
-            log.error("[回放控制] INFO 发送失败 deviceId={} stream={}",
-                    device.getDeviceId(), session.getStreamId(), e);
+            log.error("[回放控制] INFO 发送失败 设备:{} 流ID:{} 错误:{}",
+                    device.getDeviceId(), session.getStreamId(), e.getMessage(), e);
         }
     }
 
@@ -189,9 +189,9 @@ public class SipCommander {
             CallIdHeader callId = headerProvider.newCallId(device);
             Request request = headerProvider.buildMessageRequest(device, xml, callId);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
-            log.info("[云台控制] PTZ → deviceId={} channelId={} cmd={}", device.getDeviceId(), channelId, ptzCmd);
+            log.info("[云台控制] PTZ → 设备:{} 通道:{} 命令:{}", device.getDeviceId(), channelId, ptzCmd);
         } catch (Exception e) {
-            log.error("[云台控制] PTZ 发送失败 deviceId={} channelId={}", device.getDeviceId(), channelId, e);
+            log.error("[云台控制] PTZ 发送失败 设备:{} 通道:{} 错误:{}", device.getDeviceId(), channelId, e.getMessage(), e);
         }
     }
 
@@ -200,9 +200,9 @@ public class SipCommander {
             CallIdHeader callId = headerProvider.newCallId(device);
             Request request = headerProvider.buildMessageRequest(device, xml, callId);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
-            log.info("[消息发送] {} 查询 → deviceId={} sn={}", cmdType, device.getDeviceId(), sn);
+            log.info("[消息发送] {} 查询 → 设备:{} SN:{}", cmdType, device.getDeviceId(), sn);
         } catch (Exception e) {
-            log.error("[消息发送] {} 查询失败 deviceId={}", cmdType, device.getDeviceId(), e);
+            log.error("[消息发送] {} 查询失败 设备:{} 错误:{}", cmdType, device.getDeviceId(), e.getMessage(), e);
         }
     }
 

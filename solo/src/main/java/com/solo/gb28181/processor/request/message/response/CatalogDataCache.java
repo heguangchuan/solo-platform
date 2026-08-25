@@ -165,7 +165,7 @@ public class CatalogDataCache {
             boolean countHit = (total - lastTotal) >= ctx.flushThreshold;
             boolean timeHit = ctx.flushIntervalMs > 0 && (now - lastMs) >= ctx.flushIntervalMs;
             if (firstLog || countHit || timeHit) {
-                log.info("[通道目录] 分片累积 deviceId={} sn={} +{} → total={}/{} buffered={}",
+                log.info("[通道目录] 分片累积 设备:{} SN:{} 新增:{} 总数:{}/{} 已缓冲:{}",
                         ctx.deviceId, ctx.sn, total - lastTotal,
                         total, ctx.sumNum,
                         ctx.itemBuffer.size());

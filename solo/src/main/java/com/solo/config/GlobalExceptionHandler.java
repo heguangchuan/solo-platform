@@ -26,7 +26,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(ServiceException.class)
     public ResponseEntity<Result<Void>> handleServiceException(ServiceException e) {
-        log.warn("业务异常: code={}, message={}", e.getCode(), e.getMessage());
+        log.warn("[全局异常] 业务异常 编码:{} 错误:{}", e.getCode(), e.getMessage());
         Result<Void> body = Result.error(e.getCode(), e.getMessage());
         return switch (e.getCode()) {
             case SystemConstants.HTTP_BAD_REQUEST,
