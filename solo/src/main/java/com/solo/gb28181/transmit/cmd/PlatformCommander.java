@@ -4,6 +4,8 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
+import com.solo.gb28181.event.alarm.DeviceAlarm;
+import com.solo.gb28181.event.position.DevicePosition;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.utils.SipUtils;
@@ -17,6 +19,7 @@ import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.Request;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
@@ -277,5 +280,110 @@ public class PlatformCommander {
                         label, platform.getServerGbId(), sn, e.getMessage(), e);
             }
         });
+    }
+
+    // ==================== NOTIFY 推送（ADR-030） ====================
+
+    /**
+     * 推送 Catalog NOTIFY（设备上下线 / 通道变更）给单个上级平台。
+     * <p>fire-and-forget——NOTIFY 是事件流，不等上级回 200；失败仅日志，由订阅方的
+     * 重 SUBSCRIBE 兜底（按 SIP 标准做法，GB/T 28181 也未要求 NOTIFY 可靠送达）。</p>
+     *
+     * @param platform 上级平台
+     * @param device   事件源设备（仅用于 DeviceID/Item 字段）
+     * @param sn       业务 SN（通常取订阅时收到的 SN 让上级对账）
+     */
+    public void sendNotifyCatalogItem(GbParentPlatform platform, GbDevice device, String sn) {
+        gb28181BizExecutor.execute(() -> {
+            String localIp = headerProvider.localIp();
+            String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+            try {
+                String xml = PlatformNotifyXml.buildCatalogItem(platform,
+                        headerProvider.deviceGbId(), device, sn);
+                CallIdHeader callId = sipSender.newCallId(localIp, transport);
+                Request request = headerProvider.createNotifyRequest(platform, "catalog", xml, callId);
+                sipSender.send(localIp, request);
+                log.info("[级联订阅] Catalog NOTIFY 推送 上级平台:{} 设备:{} 状态:{} SN:{}",
+                        platform.getServerGbId(), device.getDeviceId(),
+                        device.getStatus() != null && device.getStatus() == 1 ? "ON" : "OFF", sn);
+            } catch (Exception e) {
+                log.warn("[级联订阅] Catalog NOTIFY 失败 上级平台:{} 设备:{} 错误:{}",
+                        platform.getServerGbId(), device.getDeviceId(), e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 推送多通道 Catalog NOTIFY 给单个上级平台——通道目录同步完成后批量上报
+     */
+    public void sendNotifyCatalogList(GbParentPlatform platform, String deviceId,
+                                      List<GbDeviceChannel> channels, String sn) {
+        if (channels == null || channels.isEmpty()) {
+            return;
+        }
+        gb28181BizExecutor.execute(() -> {
+            String localIp = headerProvider.localIp();
+            String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+            try {
+                String xml = PlatformNotifyXml.buildCatalogList(platform,
+                        headerProvider.deviceGbId(), deviceId, channels, sn);
+                CallIdHeader callId = sipSender.newCallId(localIp, transport);
+                Request request = headerProvider.createNotifyRequest(platform, "catalog", xml, callId);
+                sipSender.send(localIp, request);
+                log.info("[级联订阅] Catalog NOTIFY 推送 上级平台:{} 设备:{} 通道:{} SN:{}",
+                        platform.getServerGbId(), deviceId, channels.size(), sn);
+            } catch (Exception e) {
+                log.warn("[级联订阅] Catalog NOTIFY 失败 上级平台:{} 设备:{} 错误:{}",
+                        platform.getServerGbId(), deviceId, e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 推送 MobilePosition NOTIFY 给单个上级平台
+     */
+    public void sendNotifyMobilePosition(GbParentPlatform platform, DevicePosition pos, String sn) {
+        gb28181BizExecutor.execute(() -> {
+            String localIp = headerProvider.localIp();
+            String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+            try {
+                String xml = PlatformNotifyXml.buildMobilePosition(platform, pos, sn);
+                CallIdHeader callId = sipSender.newCallId(localIp, transport);
+                Request request = headerProvider.createNotifyRequest(platform, "mobilePosition", xml, callId);
+                sipSender.send(localIp, request);
+                log.debug("[级联订阅] MobilePosition NOTIFY 推送 上级平台:{} 设备:{} SN:{}",
+                        platform.getServerGbId(), pos.getDeviceId(), sn);
+            } catch (Exception e) {
+                log.warn("[级联订阅] MobilePosition NOTIFY 失败 上级平台:{} 设备:{} 错误:{}",
+                        platform.getServerGbId(), pos.getDeviceId(), e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 推送 Alarm NOTIFY 给单个上级平台
+     */
+    public void sendNotifyAlarm(GbParentPlatform platform, DeviceAlarm alarm, String sn) {
+        gb28181BizExecutor.execute(() -> {
+            String localIp = headerProvider.localIp();
+            String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
+            try {
+                String xml = PlatformNotifyXml.buildAlarm(platform, alarm, sn);
+                CallIdHeader callId = sipSender.newCallId(localIp, transport);
+                Request request = headerProvider.createNotifyRequest(platform, "alarm", xml, callId);
+                sipSender.send(localIp, request);
+                log.info("[级联订阅] Alarm NOTIFY 推送 上级平台:{} 设备:{} 通道:{} 优先级:{} SN:{}",
+                        platform.getServerGbId(), alarm.getDeviceId(), alarm.getChannelId(),
+                        alarm.getAlarmPriority(), sn);
+            } catch (Exception e) {
+                log.warn("[级联订阅] Alarm NOTIFY 失败 上级平台:{} 设备:{} 错误:{}",
+                        platform.getServerGbId(), alarm.getDeviceId(), e.getMessage(), e);
+            }
+        });
+    }
+
+    /** 业务 SN（10w-99w，与 SubscribeRequestProcessor / keepalive 同分布） */
+    public static int nextSn() {
+        return ThreadLocalRandom.current().nextInt(100_000, 999_999);
     }
 }
