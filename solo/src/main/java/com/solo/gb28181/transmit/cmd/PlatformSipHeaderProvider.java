@@ -22,6 +22,7 @@ import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
 import javax.sip.header.ContentTypeHeader;
+import javax.sip.header.EventHeader;
 import javax.sip.header.ExpiresHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.HeaderFactory;
@@ -354,5 +355,58 @@ public class PlatformSipHeaderProvider {
             response.setReasonPhrase(reason);
         }
         return response;
+    }
+
+    /**
+     * 构造发往上级的 NOTIFY 请求（ADR-030 订阅推送）。
+     * <p>NOTIFY 必须带 {@code Event} 头（RFC 6665）+ {@code Subscription-State} 头标识当前订阅仍 active；
+     * body 是 MANSCDP+xml，与发往设备的 MESSAGE body 同套字符集规则。</p>
+     *
+     * @param p         上级平台配置
+     * @param eventType 事件类型小写驼峰：catalog / mobilePosition / alarm
+     * @param xmlBody   MANSCDP+xml 报文体（{@link PlatformNotifyXml} 构造）
+     * @param callId    调用方持有的 Call-Id
+     */
+    public Request createNotifyRequest(GbParentPlatform p, String eventType, String xmlBody, CallIdHeader callId)
+            throws ParseException, InvalidArgumentException {
+        String localIp = localIp();
+        String transport = transport(p);
+        String serverHost = p.getServerIp() + ":" + p.getServerPort();
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), SipUtils.newFromTag());
+
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(ADDRESS_FACTORY.createAddress(toUri), null);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.NOTIFY);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.NOTIFY, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        // Event 头：必填，事件类型（catalog / mobilePosition / alarm）
+        EventHeader eventHeader = HEADER_FACTORY.createEventHeader(eventType);
+        request.addHeader(eventHeader);
+        // Subscription-State：active 表示订阅仍有效；reason 无需填
+        request.addHeader(HEADER_FACTORY.createHeader("Subscription-State", "active"));
+
+        // Contact：与 REGISTER / MESSAGE 一致
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri));
+        request.addHeader(contact);
+
+        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSCDP+xml");
+        // 按平台声明字符集编码（与 createMessageRequest 同链路，见 ADR-009）
+        java.nio.charset.Charset charset = resolveCharset(p.getCharacterSet());
+        request.setContent(xmlBody.getBytes(charset), ct);
+        return request;
     }
 }
