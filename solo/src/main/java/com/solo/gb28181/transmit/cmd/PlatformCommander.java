@@ -52,11 +52,11 @@ public class PlatformCommander {
             Request request = headerProvider.createRegisterRequest(p, callId, fromTag, expires, null);
             registerState.markRegistering(callId.getCallId(), p.getServerGbId(), expires > 0);
             sipSender.send(localIp, request);
-            log.info("[级联注册] 发送 {} expires={} -> {}({}:{})",
+            log.info("[级联注册] 发送 {} 有效期:{}s → 上级平台:{} 地址:{}:{}",
                     expires > 0 ? "REGISTER" : "UNREGISTER", expires,
                     p.getServerGbId(), p.getServerIp(), p.getServerPort());
         } catch (Exception e) {
-            log.error("[级联注册] 发送 REGISTER 失败 -> {}: {}", p.getServerGbId(), e.getMessage());
+            log.error("[级联注册] 发送 REGISTER 失败 上级平台:{} 错误:{}", p.getServerGbId(), e.getMessage(), e);
         }
     }
 
@@ -70,10 +70,10 @@ public class PlatformCommander {
             Request request = headerProvider.createRegisterRequest(p, callId, fromTag, expires, www);
             registerState.markRegistering(callId.getCallId(), p.getServerGbId(), expires > 0);
             sipSender.send(localIp, request);
-            log.info("[级联注册] 带认证重发 {} expires={} -> {}",
+            log.info("[级联注册] 带认证重发 {} 有效期:{}s → 上级平台:{}",
                     expires > 0 ? "REGISTER" : "UNREGISTER", expires, p.getServerGbId());
         } catch (Exception e) {
-            log.error("[级联注册] 带认证重发 REGISTER 失败 -> {}: {}", p.getServerGbId(), e.getMessage());
+            log.error("[级联注册] 带认证重发 REGISTER 失败 上级平台:{} 错误:{}", p.getServerGbId(), e.getMessage(), e);
         }
     }
 
@@ -100,7 +100,7 @@ public class PlatformCommander {
             Runnable timeout = () -> { if (onFail != null) onFail.run(); };
             sipSender.send(localIp, request, ok, err, timeout, 5_000L);
         } catch (Exception e) {
-            log.error("[级联心跳] 发送失败 -> {}: {}", p.getServerGbId(), e.getMessage());
+            log.error("[级联心跳] 发送失败 上级平台:{} 错误:{}", p.getServerGbId(), e.getMessage(), e);
             if (onFail != null) onFail.run();
         }
     }
@@ -152,7 +152,7 @@ public class PlatformCommander {
         if (v == 1 || v == 2 || v == 4 || v == 8) {
             return v;
         }
-        log.warn("[级联目录] 平台 {} catalogGroup={} 越界（只允许 1/2/4/8），回落全局默认={}",
+        log.warn("[级联目录] 上级平台:{} catalogGroup:{} 越界 原因:只允许 1/2/4/8 默认:{}",
                 platform.getServerGbId(), v, globalDefault);
         return globalDefault;
     }
@@ -179,7 +179,7 @@ public class PlatformCommander {
             String xml = PlatformCatalogXml.buildResponse(platform, properties.getId(), sn, sumNum, pageItems);
             CallIdHeader callId = sipSender.newCallId(localIp, transport);
             Request request = headerProvider.createMessageRequest(platform, xml, callId);
-            log.info("[级联目录] 响应 Catalog 查询 platform={} SN={} sumNum={} page={}/{} items={}",
+            log.info("[级联目录] 响应 Catalog 查询 上级平台:{} SN:{} sumNum:{} 分片:{}/{} 条目:{}",
                     platform.getServerGbId(), sn, sumNum, pageIdx, totalPages, pageItems.size());
 
             // 下一片只在还有剩余时才有意义
@@ -187,7 +187,7 @@ public class PlatformCommander {
             boolean hasNext = nextIdx <= totalPages;
 
             Consumer<ResponseEvent> onOk = e -> {
-                log.debug("[级联目录] ACK 到达 platform={} SN={} page={}",
+                log.debug("[级联目录] ACK 到达 上级平台:{} SN:{} 分片:{}",
                         platform.getServerGbId(), sn, pageIdx);
                 if (hasNext) {
                     gb28181BizExecutor.execute(() -> sendPage(platform, sn, sumNum, allItems, nextIdx, totalPages, pageSize));
@@ -195,13 +195,13 @@ public class PlatformCommander {
             };
             Consumer<ResponseEvent> onError = e -> {
                 int status = e.getResponse() != null ? e.getResponse().getStatusCode() : -1;
-                log.warn("[级联目录] ACK 失败 platform={} SN={} page={}/{} status={}，停止后续分片",
+                log.warn("[级联目录] ACK 失败 上级平台:{} SN:{} 分片:{}/{} 状态码:{} 原因:停止后续分片",
                         platform.getServerGbId(), sn, pageIdx, totalPages, status);
                 // 4xx/5xx 视为对端已拒收，继续推大概率会重复被拒，整条链停下
             };
             Runnable onTimeout = () -> {
                 long fallbackMs = Math.max(0, properties.getCascade().getCatalogPageIntervalMs());
-                log.warn("[级联目录] ACK 超时 platform={} SN={} page={}/{}，{}ms 后 fallback 继续",
+                log.warn("[级联目录] ACK 超时 上级平台:{} SN:{} 分片:{}/{} 延迟:{}ms 原因:fallback 继续",
                         platform.getServerGbId(), sn, pageIdx, totalPages, fallbackMs);
                 if (hasNext) {
                     if (fallbackMs > 0) {
@@ -222,8 +222,8 @@ public class PlatformCommander {
 
             sipSender.send(localIp, request, onOk, onError, onTimeout, ackTimeoutMs);
         } catch (Exception e) {
-            log.warn("[级联目录] 分片发送失败 platform={} SN={} page={}/{}: {}",
-                    platform.getServerGbId(), sn, pageIdx, totalPages, e.getMessage());
+            log.warn("[级联目录] 分片发送失败 上级平台:{} SN:{} 分片:{}/{} 错误:{}",
+                    platform.getServerGbId(), sn, pageIdx, totalPages, e.getMessage(), e);
         }
     }
 
@@ -271,10 +271,10 @@ public class PlatformCommander {
                 CallIdHeader callId = sipSender.newCallId(localIp, transport);
                 Request request = headerProvider.createMessageRequest(platform, xml, callId);
                 sipSender.send(localIp, request);
-                log.info("[级联{}] 响应 platform={} SN={}", label, platform.getServerGbId(), sn);
+                log.info("[级联{}] 响应 上级平台:{} SN:{}", label, platform.getServerGbId(), sn);
             } catch (Exception e) {
-                log.warn("[级联{}] 发送失败 platform={} SN={}: {}",
-                        label, platform.getServerGbId(), sn, e.getMessage());
+                log.warn("[级联{}] 发送失败 上级平台:{} SN:{} 错误:{}",
+                        label, platform.getServerGbId(), sn, e.getMessage(), e);
             }
         });
     }

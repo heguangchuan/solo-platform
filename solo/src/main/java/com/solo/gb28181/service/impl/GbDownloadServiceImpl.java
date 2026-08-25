@@ -165,7 +165,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         // 已存在任务：直接返回当前状态（避免重复发 INVITE）
         DownloadTask exist = taskRegistry.get(streamId);
         if (exist != null) {
-            log.info("[{}] 复用已有任务 stream={} 状态:{}", LOG_TAG, streamId, exist.getStatus());
+            log.info("[{}] 复用已有任务 流ID:{} 状态:{}", LOG_TAG, streamId, exist.getStatus());
             return toResult(exist);
         }
 
@@ -236,17 +236,20 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, rtpPort, callIdHeader, fromTag,
                     okEv -> {
                         // INVITE 2xx 到达：不阻塞 start()，仅日志；流就绪由 on_stream_changed 钩子推
-                        log.info("[{}] INVITE 2xx 到达 stream={}", LOG_TAG, streamId);
+                        log.info("[{}] INVITE 2xx 到达 流ID:{}", LOG_TAG, streamId);
                     },
                     errEv -> {
                         int code = errEv == null || errEv.getResponse() == null
                                 ? -1 : errEv.getResponse().getStatusCode();
-                        String reason = "INVITE 失败 status=" + code;
-                        log.warn("[{}] INVITE 失败 stream={} status={}", LOG_TAG, streamId, code);
+                        String reason = (errEv == null || errEv.getResponse() == null)
+                                ? "" : errEv.getResponse().getReasonPhrase();
+                        String detail = reason == null || reason.isBlank() ? "" : " " + reason;
+                        log.warn("[{}] INVITE 拒绝 流ID:{} 状态码:{}{}", LOG_TAG, streamId, code, detail);
+                        String failReason = "INVITE 失败 status=" + code + detail;
                         // 失败清扫：标 FAILED，清 ZLM 端口、释放 SSRC、删会话
                         DownloadTask t = taskRegistry.get(streamId);
                         if (t != null) {
-                            taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED, reason);
+                            taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED, failReason);
                         }
                         inviteSessionService.removeByStreamId(streamId);
                         try {
@@ -261,7 +264,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             throw new ServiceException("INVITE 异常: " + e.getMessage());
         }
 
-        log.info("[{}] 已发起下载 stream={} speed={}x 时段:{} ~ {}",
+        log.info("[{}] 已发起下载 流ID:{} 倍速:{}x 时段:{} ~ {}",
                 LOG_TAG, streamId, task.getSpeed(), startDt, endDt);
         return toResult(task);
     }
@@ -284,7 +287,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (streamId == null) return;
         DownloadTask t = taskRegistry.get(streamId);
         if (t == null) {
-            log.info("[{}] stop: stream={} 无对应任务（已结束或过期）", LOG_TAG, streamId);
+            log.info("[{}] stop 流ID:{} 无对应任务 原因:已结束或过期", LOG_TAG, streamId);
             return;
         }
         // 优先 BYE（如果对端有 Dialog）
@@ -309,7 +312,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
                 ssrcFactory.release(t.getMediaServer().getServerId(), t.getSsrc());
             }
         }
-        log.info("[{}] stop ok stream={}", LOG_TAG, streamId);
+        log.info("[{}] stop 结果:成功 流ID:{}", LOG_TAG, streamId);
     }
 
     // ============================================================
@@ -321,7 +324,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (!APP.equals(app)) return;
         DownloadTask t = taskRegistry.get(stream);
         if (t == null) {
-            log.warn("[{}] on_stream_changed 找不到任务 stream={}", LOG_TAG, stream);
+            log.warn("[{}] on_stream_changed 找不到任务 流ID:{}", LOG_TAG, stream);
             return;
         }
         if (DownloadResultResponse.STATUS_RECORDING.equals(t.getStatus())) {
@@ -341,13 +344,13 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         boolean ok = zlmRestClient.startRecord(t.getMediaServer(), APP, stream, period, maxSecond);
         if (!ok) {
             // 录制启动失败：标 FAILED，清资源
-            log.warn("[{}] ZLM startRecord 失败 stream={} period={}", LOG_TAG, stream, period);
+            log.warn("[{}] ZLM startRecord 失败 流ID:{} 周期:{}", LOG_TAG, stream, period);
             taskRegistry.markStatus(stream, DownloadResultResponse.STATUS_FAILED, "ZLM 启动录制失败");
             cleanupForTask(t, false);
             return;
         }
         taskRegistry.markStatus(stream, DownloadResultResponse.STATUS_RECORDING, null);
-        log.info("[{}] 流就绪，已开 MP4 录制 stream={} period={} 最长:{}s",
+        log.info("[{}] 流就绪，已开 MP4 录制 流ID:{} 周期:{} 最长:{}s",
                 LOG_TAG, stream, period, maxSecond);
     }
 
@@ -358,7 +361,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (t == null) return;
         // 流已断：通常是设备发完时间段 BYE 引起，ZLM 会完成本段 MP4 切片并触发 on_record_mp4 钩子
         // 这里只观察，不主动标 FAILED；让 onRecordMp4 自然走 READY；超时由 registry 兜底
-        log.info("[{}] 流断开 stream={} 等待 on_record_mp4 回调", LOG_TAG, stream);
+        log.info("[{}] 流断开 流ID:{} 等待 on_record_mp4 回调", LOG_TAG, stream);
     }
 
     @Override
@@ -366,12 +369,12 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (!APP.equals(app)) return;
         DownloadTask t = taskRegistry.get(stream);
         if (t == null) {
-            log.warn("[{}] on_record_mp4 找不到任务 stream={} url={}", LOG_TAG, stream, url);
+            log.warn("[{}] on_record_mp4 找不到任务 流ID:{} URL:{}", LOG_TAG, stream, url);
             return;
         }
         if (url == null || url.isBlank()) {
             // ZLM 钩子没给 url：无法下载，标 FAILED
-            log.warn("[{}] on_record_mp4 无 url stream={} fileSize={} duration={}s",
+            log.warn("[{}] on_record_mp4 无 URL 流ID:{} 文件大小:{}B 时长:{}s",
                     LOG_TAG, stream, fileSize, duration);
             taskRegistry.markStatus(stream, DownloadResultResponse.STATUS_FAILED, "ZLM 未提供文件 URL");
             cleanupForTask(t, true);
@@ -382,7 +385,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         }
         // 异步执行 HTTP 下载 + MinIO 上传，不阻塞 ZLM 回调线程（避免 ZLM 重试）
         gb28181BizExecutor.execute(() -> downloadAndUpload(t, url, fileSize));
-        log.info("[{}] on_record_mp4 触发下载 stream={} url={} size={} duration={}s",
+        log.info("[{}] on_record_mp4 触发下载 流ID:{} URL:{} 大小:{}B 时长:{}s",
                 LOG_TAG, stream, url, fileSize, duration);
     }
 
@@ -391,7 +394,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (streamId == null || streamId.isBlank()) return;
         DownloadTask t = taskRegistry.get(streamId);
         if (t == null) return;
-        log.warn("[{}] RTP 端口超时 stream={}", LOG_TAG, streamId);
+        log.warn("[{}] RTP 端口超时 流ID:{}", LOG_TAG, streamId);
         taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED, "RTP 端口长时间无数据");
         cleanupForTask(t, true);
     }
@@ -403,7 +406,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (t == null) return;
         // 设备主动 BYE：流已断，等待 ZLM 落 MP4 + on_record_mp4 钩子
         // 不立刻标 FAILED；只有超时或显式 stop 才标
-        log.info("[{}] 设备 BYE stream={} 等待 MP4 切片完成", LOG_TAG, session.getStreamId());
+        log.info("[{}] 设备 BYE 流ID:{} 等待 MP4 切片完成", LOG_TAG, session.getStreamId());
     }
 
     /**
@@ -419,7 +422,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (streamId == null) return;
         DownloadTask t = taskRegistry.get(streamId);
         if (t == null) return;
-        log.warn("[{}] 任务超时清扫 stream={}", LOG_TAG, streamId);
+        log.warn("[{}] 任务超时清扫 流ID:{}", LOG_TAG, streamId);
         // 资源已在 markStatus 时序里被标记；这里只做 ZLM + SSRC + 会话清理
         cleanupForTask(t, true);
     }
@@ -443,7 +446,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
                     .build();
             HttpResponse<InputStream> resp = downloadHttpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
             if (resp.statusCode() != 200) {
-                log.warn("[{}] ZLM 文件下载失败 stream={} status={} url={}",
+                log.warn("[{}] ZLM 文件下载失败 流ID:{} 状态码:{} URL:{}",
                         LOG_TAG, streamId, resp.statusCode(), zlmUrl);
                 taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED,
                         "ZLM 返回 " + resp.statusCode());
@@ -453,7 +456,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             tmpFile = Files.createTempFile("gb-dl-", ".mp4");
             try (InputStream in = resp.body()) {
                 long bytes = Files.copy(in, tmpFile, StandardCopyOption.REPLACE_EXISTING);
-                log.info("[{}] ZLM MP4 已拉取到临时文件 stream={} 大小:{}B url={}",
+                log.info("[{}] ZLM MP4 已拉取到临时文件 流ID:{} 大小:{}B URL:{}",
                         LOG_TAG, streamId, bytes, zlmUrl);
             }
             // 真实大小（用 Files.size，不信 ZLM 回调给的）
@@ -468,12 +471,12 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             t.setMinioObjectName(objectName);
             t.setDownloadUrl(presigned);
             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_READY, null);
-            log.info("[{}] MP4 已落 MinIO stream={} object={} 大小:{}B URL 有效期:{}s",
+            log.info("[{}] MP4 已落 MinIO 流ID:{} 对象:{} 大小:{}B URL有效期:{}s",
                     LOG_TAG, streamId, objectName, realSize, PRESIGNED_EXPIRY_SEC);
             // 资源清扫：会话记录 + SSRC + ZLM 端口都释放，文件本身已落 MinIO
             cleanupForTask(t, true);
         } catch (Exception e) {
-            log.error("[{}] 下载/上传失败 stream={} url={} err={}",
+            log.error("[{}] 下载/上传失败 流ID:{} URL:{} 错误:{}",
                     LOG_TAG, streamId, zlmUrl, e.getMessage(), e);
             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED,
                     "下载/上传失败: " + e.getMessage());

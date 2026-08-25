@@ -144,7 +144,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             String startIso = toIso(req.getStartTime());
             String endIso = toIso(req.getEndTime());
             sipCommander.queryRecordInfo(device, req.getChannelId(), sn, startIso, endIso);
-            log.info("[{}] 查询录像 deviceId={} channelId={} sn={} {} ~ {}",
+            log.info("[{}] 查询录像 设备:{} 通道:{} SN:{} {} ~ {}",
                     LOG_TAG, req.getDeviceId(), req.getChannelId(), sn, startIso, endIso);
         } catch (Exception e) {
             pendingQuery.remove(pendingKey);
@@ -157,7 +157,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             pendingQuery.remove(pendingKey);
             // 设备超时未回 Response：多数是设备无录像能力 / 不支持 RecordInfo（不回任何报文）。
             // 返回空列表而非抛错——前端展示"无录像"即可，避免误导成"系统故障"。
-            log.warn("[{}] 录像查询超时（设备未响应，按无录像处理）deviceId={} sn={}",
+            log.warn("[{}] 录像查询超时 设备:{} SN:{} 原因:设备未响应，按无录像处理",
                     LOG_TAG, req.getDeviceId(), sn);
             return Collections.emptyList();
         } catch (InterruptedException e) {
@@ -229,11 +229,11 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         GbInviteSession exist = inviteSessionService.getByStreamId(streamId);
         if (exist != null) {
             if (GbInviteSession.STATUS_READY.equals(exist.getStatus())) {
-                log.info("[{}] 复用已就绪会话 stream={}", LOG_TAG, streamId);
+                log.info("[{}] 复用已就绪会话 流ID:{}", LOG_TAG, streamId);
                 return toResult(exist, startEpoch, endEpoch);
             }
             if (GbInviteSession.STATUS_INVITING.equals(exist.getStatus())) {
-                log.warn("[{}] 发现残留 INVITING 会话 stream={}，强制清扫后重新点播", LOG_TAG, streamId);
+                log.warn("[{}] 发现残留 INVITING 会话 流ID:{} 原因:强制清扫后重新点播", LOG_TAG, streamId);
                 forceCleanup(exist);
             }
         }
@@ -286,11 +286,15 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
             long inviteTimeoutMs = Math.max(5_000L, mediaProperties.getPlaybackTimeoutSeconds() * 1000L);
 
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, rtpPort, callIdHeader, fromTag,
-                    okEv -> log.debug("[{}] 收到 INVITE 2xx stream={}", LOG_TAG, streamId),
+                    okEv -> log.debug("[{}] 收到 INVITE 2xx 流ID:{}", LOG_TAG, streamId),
                     errEv -> {
                         int code = errEv == null || errEv.getResponse() == null
                                 ? -1 : errEv.getResponse().getStatusCode();
-                        inviteCleanup.failSession(session, LOG_TAG, "INVITE 失败 status=" + code);
+                        String reason = (errEv == null || errEv.getResponse() == null)
+                                ? "" : errEv.getResponse().getReasonPhrase();
+                        String detail = reason == null || reason.isBlank() ? "" : " " + reason;
+                        log.warn("[{}] INVITE 拒绝 流ID:{} 状态码:{}{}", LOG_TAG, streamId, code, detail);
+                        inviteCleanup.failSession(session, LOG_TAG, "INVITE 失败 status=" + code + detail);
                         failPending(streamId, "INVITE 失败 status=" + code);
                     },
                     inviteTimeoutMs);
@@ -328,7 +332,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(req.getStreamId());
         if (session == null) {
-            log.info("[{}] stop: stream={} 无对应会话（已清扫）", LOG_TAG, req.getStreamId());
+            log.info("[{}] stop 流ID:{} 无对应会话 原因:已清扫", LOG_TAG, req.getStreamId());
             return;
         }
         GbDevice device = deviceMapper.selectOne(
@@ -337,12 +341,12 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
                 && session.getToTag() != null) {
             sipCommander.sendBye(device, session);
         } else {
-            log.warn("[{}] stop 时设备/Dialog 信息不全，跳过 BYE stream={}", LOG_TAG, session.getStreamId());
+            log.warn("[{}] stop 设备/Dialog 信息不全 流ID:{} 原因:跳过 BYE", LOG_TAG, session.getStreamId());
         }
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
         failPending(session.getStreamId(), "会话已停止");
-        log.info("[{}] stop ok stream={}", LOG_TAG, session.getStreamId());
+        log.info("[{}] stop 结果:成功 流ID:{}", LOG_TAG, session.getStreamId());
     }
 
     // ============================================================
@@ -405,12 +409,12 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
                     zlmRestClient.resumeRtpServer(server, session.getStreamId());
                 }
             } else {
-                log.warn("[回放控制] 节点已不在表内，跳过 ZLM 收流开关 stream={} serverId={}",
+                log.warn("[回放控制] 节点已不在表内 流ID:{} 节点ID:{} 原因:跳过 ZLM 收流开关",
                         session.getStreamId(), session.getServerId());
             }
         }
         sipCommander.sendInfo(device, session, body);
-        log.info("[回放控制] action={} param={} stream={}", req.getAction(), req.getParam(), req.getStreamId());
+        log.info("[回放控制] 动作:{} 参数:{} 流ID:{}", req.getAction(), req.getParam(), req.getStreamId());
     }
 
     // ============================================================
@@ -429,7 +433,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         ssrcFactory.release(session.getServerId(), oldSsrc);
         session.setSsrc(remoteSsrc);
         inviteSessionService.update(session);
-        log.info("[{}] 下级自定义 SSRC {} → {} stream={}", LOG_TAG, oldSsrc, remoteSsrc, session.getStreamId());
+        log.info("[{}] 下级自定义 SSRC {} → {} 流ID:{}", LOG_TAG, oldSsrc, remoteSsrc, session.getStreamId());
     }
 
     @Override
@@ -437,7 +441,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         if (!APP.equals(app)) return;
         GbInviteSession session = inviteSessionService.getByStreamId(stream);
         if (session == null) {
-            log.warn("[{}] on_stream_changed 找不到会话 stream={}", LOG_TAG, stream);
+            log.warn("[{}] on_stream_changed 找不到会话 流ID:{}", LOG_TAG, stream);
             return;
         }
         if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
@@ -446,7 +450,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         MediaServer server = mediaServerMapper.selectOne(
                 new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
         if (server == null) {
-            log.error("[{}] on_stream_changed 节点丢失 serverId={}", LOG_TAG, session.getServerId());
+            log.error("[{}] on_stream_changed 节点丢失 节点ID:{}", LOG_TAG, session.getServerId());
             return;
         }
         session.setStatus(GbInviteSession.STATUS_READY);
@@ -457,7 +461,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         session.setRtcUrl(urlBuilder.buildRtc(server, APP, stream));
         inviteSessionService.update(session);
 
-        log.info("[{}] 流就绪 stream={} wsFlv={}", LOG_TAG, stream, session.getWsFlvUrl());
+        log.info("[{}] 流就绪 流ID:{} WS-FLV:{}", LOG_TAG, stream, session.getWsFlvUrl());
         CompletableFuture<PlaybackResultResponse> f = pendingPlay.remove(stream);
         if (f != null) {
             long start = parseLong(session.getStartTimeStr(), 0);
@@ -479,7 +483,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         }
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
-        log.info("[{}] 流断开清扫完成 stream={}", LOG_TAG, stream);
+        log.info("[{}] 流断开清扫完成 流ID:{}", LOG_TAG, stream);
     }
 
     @Override
@@ -504,7 +508,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         ssrcFactory.release(session.getServerId(), session.getSsrc());
         inviteSessionService.removeByStreamId(streamId);
         failPending(streamId, "RTP 端口长时间无数据");
-        log.warn("[{}] RTP 端口超时清扫完成 stream={}", LOG_TAG, streamId);
+        log.warn("[{}] RTP 端口超时清扫完成 流ID:{}", LOG_TAG, streamId);
     }
 
     // ============================================================

@@ -112,7 +112,7 @@ public class MediaServerHealthDetector {
                     offline++;
                 }
             }
-            log.info("[流媒体健康探测] 本轮完成 online={} offline={} instanceId={}",
+            log.info("[流媒体健康探测] 本轮完成 在线:{} 离线:{} 实例:{}",
                     online, offline, instanceId);
         } finally {
             releaseLock();

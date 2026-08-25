@@ -204,21 +204,31 @@ public class ZlmHookService {
             //  - DOWNLOAD → 录像下载（GbDownloadService）走 MP4 录制 + MinIO 落库
             //  - PLAYBACK → 历史回放（GbPlaybackService）走流就绪补 URL
             //  - PLAY     → 实时点播（GbPlayService）走流就绪补 URL
-            //  - null     → 找不到 session，按实时点播兜底（业务 service 内部再 get 一次也无副作用）
+            //  - null     → 找不到 session（流已被清扫 / 外部推流），按实时点播兜底；
+            //               业务 service 内部若再 get 不到会无副作用返回。
+            //               switch 对 null 会 String.hashCode() 抛 NPE，所以必须先判空。
             String sessionType = sessionTypeOf(stream);
             if (Boolean.TRUE.equals(regist)) {
-                switch (sessionType) {
-                    case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamReady(app, stream, mediaServerId);
-                    case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamReady(app, stream, mediaServerId);
-                    default -> playService.onStreamReady(app, stream, mediaServerId);
+                if (sessionType == null) {
+                    playService.onStreamReady(app, stream, mediaServerId);
+                } else {
+                    switch (sessionType) {
+                        case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamReady(app, stream, mediaServerId);
+                        case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamReady(app, stream, mediaServerId);
+                        default -> playService.onStreamReady(app, stream, mediaServerId);
+                    }
                 }
                 // 推流入表：仅当 originType∈PUSH 时，StreamPushService 内部会再判一次
                 streamPushService.onStreamRegister(app, stream, mediaServerId, body);
             } else {
-                switch (sessionType) {
-                    case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamStopped(app, stream, mediaServerId);
-                    case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamStopped(app, stream, mediaServerId);
-                    default -> playService.onStreamStopped(app, stream, mediaServerId);
+                if (sessionType == null) {
+                    playService.onStreamStopped(app, stream, mediaServerId);
+                } else {
+                    switch (sessionType) {
+                        case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamStopped(app, stream, mediaServerId);
+                        case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamStopped(app, stream, mediaServerId);
+                        default -> playService.onStreamStopped(app, stream, mediaServerId);
+                    }
                 }
                 streamPushService.onStreamCancel(app, stream, mediaServerId);
             }
@@ -247,11 +257,16 @@ public class ZlmHookService {
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
         try {
+            // 找不到 session 时直接走实时点播兜底，避免 switch(null) 触发 String.hashCode() NPE
             String sessionType = sessionTypeOf(streamId);
-            switch (sessionType) {
-                case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onRtpServerTimeout(streamId);
-                case GbInviteSession.TYPE_PLAYBACK -> playbackService.onRtpServerTimeout(streamId);
-                default -> playService.onRtpServerTimeout(streamId);
+            if (sessionType == null) {
+                playService.onRtpServerTimeout(streamId);
+            } else {
+                switch (sessionType) {
+                    case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onRtpServerTimeout(streamId);
+                    case GbInviteSession.TYPE_PLAYBACK -> playbackService.onRtpServerTimeout(streamId);
+                    default -> playService.onRtpServerTimeout(streamId);
+                }
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_rtp_server_timeout 业务异常 stream_id={}", streamId, e);
