@@ -34,6 +34,9 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
         String manufacturer = XmlUtils.childText(root, "Manufacturer");
         String model = XmlUtils.childText(root, "Model");
         String firmware = XmlUtils.childText(root, "Firmware");
+        String owner = XmlUtils.childText(root, "Owner");
+        String civilCode = XmlUtils.childText(root, "CivilCode");
+        String address = XmlUtils.childText(root, "Address");
         String channelStr = XmlUtils.childText(root, "Channel");
 
         boolean dirty = false;
@@ -50,10 +53,15 @@ public class DeviceInfoResponseMessageHandler implements MessageHandler {
         if (notBlank(manufacturer) && !manufacturer.equals(device.getManufacturer())) { device.setManufacturer(manufacturer); dirty = true; }
         if (notBlank(model) && !model.equals(device.getModel())) { device.setModel(model); dirty = true; }
         if (notBlank(firmware) && !firmware.equals(device.getFirmware())) { device.setFirmware(firmware); dirty = true; }
+        // Owner / CivilCode / Address：GB/T 28181 DeviceInfo 标准字段；存库给级联 NOTIFY 用
+        // （与 GbDeviceChannel 字段同名同义，但属于设备级；ADR-030 设备级 NOTIFY 推送需要）
+        if (notBlank(owner) && !owner.equals(device.getOwner())) { device.setOwner(owner); dirty = true; }
+        if (notBlank(civilCode) && !civilCode.equals(device.getCivilCode())) { device.setCivilCode(civilCode); dirty = true; }
+        if (notBlank(address) && !address.equals(device.getAddress())) { device.setAddress(address); dirty = true; }
         if (dirty) {
             deviceService.updateById(device);
-            log.info("[设备信息] 回填 deviceId={} reportName={} manufacturer={} model={} firmware={}",
-                    device.getDeviceId(), name, manufacturer, model, firmware);
+            log.info("[设备信息] 回填 deviceId={} reportName={} manufacturer={} model={} firmware={} owner={} civilCode={} address={}",
+                    device.getDeviceId(), name, manufacturer, model, firmware, owner, civilCode, address);
         }
     }
 

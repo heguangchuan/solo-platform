@@ -52,13 +52,16 @@ public final class PlatformNotifyXml {
         sb.append("<Name>").append(escape(device.getName())).append("</Name>\r\n");
         sb.append("<Manufacturer>").append(escape(device.getManufacturer())).append("</Manufacturer>\r\n");
         sb.append("<Model>").append(escape(device.getModel())).append("</Model>\r\n");
+        // Owner / CivilCode / Address：DeviceInfo 响应回填，存于 GbDevice；DeviceInfo 还没到
+        // 设备级 NOTIFY 时为空是正常的（设备首次注册后 SIP 异步发 DeviceInfo Query）。
         sb.append("<Owner>").append(escape(device.getOwner())).append("</Owner>\r\n");
         sb.append("<CivilCode>").append(escape(device.getCivilCode())).append("</CivilCode>\r\n");
         sb.append("<Address>").append(escape(device.getAddress())).append("</Address>\r\n");
         sb.append("<Parental>0</Parental>\r\n");
         sb.append("<ParentID>").append(nullSafe(parentDeviceGbId)).append("</ParentID>\r\n");
         sb.append("<SafetyWay>0</SafetyWay>\r\n");
-        sb.append("<RegisterWay>").append(device.getExpires() == null ? 1 : 1).append("</RegisterWay>\r\n");
+        // RegisterWay 固定 1（标准 SIP REGISTER 注册；GbDevice 无此字段）
+        sb.append("<RegisterWay>1</RegisterWay>\r\n");
         sb.append("<Secrecy>0</Secrecy>\r\n");
         sb.append("<Status>").append(online ? "ON" : "OFF").append("</Status>\r\n");
         sb.append("</Item>\r\n");
