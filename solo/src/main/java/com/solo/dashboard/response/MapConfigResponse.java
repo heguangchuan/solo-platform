@@ -54,4 +54,12 @@ public class MapConfigResponse {
      * </ol>
      */
     private String coordSystem;
+
+    /**
+     * 瓦片模式：offline / online（默认 offline）
+     *
+     * <p>纯 UI 元数据，<b>前端不应拿这个字段去拼 tileUrl</b>（{@link #tileUrl} 字段已经够用）。
+     * 这里只给前端一个角标/提示用——比如离线模式下显示「⚠️ 离线模式，部分区域可能没瓦片」之类的提示。</p>
+     */
+    private String tileMode;
 }

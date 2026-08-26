@@ -24,6 +24,10 @@ export const mapConfig = {
   markerLimit: 5000,
   // 兜底坐标系：GCJ-02（高德瓦片）
   coordSystem: 'GCJ02',
+  // 兜底瓦片模式：offline
+  tileMode: 'offline',
+  // 兜底瓦片 fallback 图（瓦片缺失时填这张图）
+  tileErrorUrl: '/noTiles.png',
 }
 
 export type MapConfig = typeof mapConfig
