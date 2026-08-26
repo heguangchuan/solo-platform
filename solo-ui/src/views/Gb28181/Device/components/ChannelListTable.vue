@@ -20,6 +20,7 @@ import PlayDialog from '@/views/Gb28181/Play/components/PlayDialog.vue'
 import PlaybackDialog from '@/views/Gb28181/Playback/components/PlaybackDialog.vue'
 import ChannelDetailDialog from '@/views/Gb28181/DeviceChannel/components/ChannelDetailDialog.vue'
 import PtzPresetDialog from '@/views/Gb28181/DeviceChannel/components/PtzPresetDialog.vue'
+import MapPickerDialog from '@/views/Gb28181/DeviceChannel/components/MapPickerDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 interface Props {
@@ -258,6 +259,18 @@ function handleDetail(row: GbDeviceChannelVO) {
   detailDialogRef.value?.open(row)
 }
 
+// ---------------- 地图取点 ----------------
+const mapPickerVisible = ref(false)
+
+function openMapPicker() {
+  mapPickerVisible.value = true
+}
+
+function onMapPicked(payload: { longitude: number; latitude: number }) {
+  form.value.longitude = payload.longitude
+  form.value.latitude = payload.latitude
+}
+
 watch(
   () => props.deviceId,
   (v) => {
@@ -457,6 +470,9 @@ defineExpose({ fetchData })
         <el-form-item label="纬度坐标">
           <el-input-number v-model="form.latitude" :precision="6" :step="0.000001" :controls="false" style="width: 100%" />
         </el-form-item>
+        <el-form-item label=" ">
+          <el-button :icon="Location" @click="openMapPicker">地图取点</el-button>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取 消</el-button>
@@ -468,6 +484,12 @@ defineExpose({ fetchData })
     <PlaybackDialog ref="playbackDialogRef" />
     <ChannelDetailDialog ref="detailDialogRef" />
     <PtzPresetDialog ref="ptzPresetDialogRef" />
+    <MapPickerDialog
+      v-model:visible="mapPickerVisible"
+      :longitude="form.longitude"
+      :latitude="form.latitude"
+      @select="onMapPicked"
+    />
   </div>
 </template>
 
