@@ -56,6 +56,7 @@ const cfg = reactive({
   fetchDebounceMs: staticDefault.fetchDebounceMs,
   markerLimit: staticDefault.markerLimit,
   coordSystem: staticDefault.coordSystem,  // WGS84 / GCJ02 / BD09，与瓦片源对齐
+  tileMode: undefined as string | undefined,        // offline / online，后端会覆盖
 })
 
 /**
@@ -73,6 +74,7 @@ function applyServerConfig(server: MapConfig) {
   if (server.fetchDebounceMs != null) cfg.fetchDebounceMs = server.fetchDebounceMs
   if (server.markerLimit != null) cfg.markerLimit = server.markerLimit
   if (server.coordSystem) cfg.coordSystem = server.coordSystem
+  if (server.tileMode) cfg.tileMode = server.tileMode
   configLoaded.value = true
 
   // 关键修复：后端配置覆盖完 cfg 后，必须把地图视图切到新中心/缩放，
@@ -237,6 +239,7 @@ function initMap() {
     subdomains: cfg.tileSubdomains,
     maxZoom: cfg.maxZoom,
     minZoom: cfg.minZoom,
+    errorTileUrl: staticDefault.tileErrorUrl,  // 瓦片缺失时 fallback，前端写死 /noTiles.png
   })
     .on('tileerror', (e: any) => {
       // 瓦片 4xx/5xx/网络错误时触发；同一瓦片可能多次触发，按 URL 维度去重
@@ -314,6 +317,7 @@ function reloadTiles() {
     subdomains: cfg.tileSubdomains,
     maxZoom: cfg.maxZoom,
     minZoom: cfg.minZoom,
+    errorTileUrl: staticDefault.tileErrorUrl,
   })
     .on('tileerror', (e: any) => {
       const url = e?.tile?.src || ''
@@ -386,7 +390,11 @@ onBeforeUnmount(() => {
     <div v-if="tileError" class="map-tile-error">
       ⚠️ {{ tileError }}
       <br />
-      <small>大概率是瓦片源在当前网络不可达（OSM / 高德公开 URL 在国内常被墙），切天地图或自建 tileserver。</small>
+      <small v-if="cfg.tileMode">
+        当前 <b>tile-mode: {{ cfg.tileMode }}</b>：
+        <span v-if="cfg.tileMode === 'offline'">检查 <code>public/tiles/{{ '{z}/{x}/{y}' }}.png</code> 是否存在 + 是否覆盖当前视口（瓦片不存在的 zoom/区域会空白）</span>
+        <span v-else>检查 <code>tile-url-online</code> 在 application.yaml 配置 + 客户端能否访问（高德/百度公开 URL 在国内常被墙）</span>
+      </small>
       <br />
       <button class="map-reload-btn" @click="reloadTiles">重新加载瓦片</button>
     </div>
