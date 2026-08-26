@@ -62,7 +62,7 @@ map:
   disable-clustering-at-zoom: 16      # 缩放到此级别及以上不再聚合，看单点
   fetch-debounce-ms: 300              # 视口变化 → 拉新 marker 的 debounce 延迟
   marker-limit: 5000                  # 单次请求 marker 上限（与 SQL LIMIT 保持一致）
-  # 坐标系：WGS84 / GCJ02 / BD09。DB 始终存 WGS-84（设备原始），queryMapMarkers 出口按这个值转换
+  # 坐标系：WGS84 / GCJ02 / BD09。DB 主列 longitude/latitude 存 WGS-84，副本列 longitude_gcj02/latitude_gcj02 和 longitude_bd09/latitude_bd09 由 WGS-84 算出冗余存，queryMapMarkers 按 target 选对应列零转换
   coord-system: GCJ02
 
 minio:

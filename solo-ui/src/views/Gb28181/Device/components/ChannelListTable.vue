@@ -90,6 +90,7 @@ function makeEmpty(): Partial<GbDeviceChannel> {
     ptzType: 0,
     longitude: undefined,
     latitude: undefined,
+    coordSystem: undefined,  // 入参坐标系：picker 选中时由 picker 写入（GCJ02/BD09/WGS84），未选时 undefined 后端按 WGS84 处理
   }
 }
 
@@ -266,9 +267,12 @@ function openMapPicker() {
   mapPickerVisible.value = true
 }
 
-function onMapPicked(payload: { longitude: number; latitude: number }) {
+function onMapPicked(payload: { longitude: number; latitude: number; coordSystem: string }) {
+  // picker 端发来瓦片系原始坐标 + coordSystem，存到表单上
+  // 提交时由后端 convertToWgs84InPlace 转 WGS-84 写三套副本
   form.value.longitude = payload.longitude
   form.value.latitude = payload.latitude
+  form.value.coordSystem = payload.coordSystem
 }
 
 watch(

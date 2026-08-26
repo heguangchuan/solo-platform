@@ -18,6 +18,7 @@
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
+import { wgs84ToTarget } from '@/utils/coordTransform'
 import { mapConfig as staticDefault } from '@/config/map'
 
 const props = defineProps<{
@@ -28,7 +29,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'update:visible', v: boolean): void
-  (e: 'select', payload: { longitude: number; latitude: number }): void
+  (e: 'select', payload: { longitude: number; latitude: number; coordSystem: string }): void
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -36,6 +37,8 @@ const mapRef = ref<L.Map | null>(null)
 const markerRef = ref<L.Marker | null>(null)
 const currentLng = ref<number | null>(null)
 const currentLat = ref<number | null>(null)
+// 瓦片坐标系（与 map-config 接口的 coordSystem 同步）：决定选点提交 / 编辑反显的转换方向
+const coordSystemRef = ref<string>(staticDefault.coordSystem)
 
 /**
  * 初始化地图：拉后端 map-config 覆盖本地默认，没拉到的字段用 staticDefault 兜底。
@@ -50,6 +53,7 @@ async function initMap() {
     maxZoom: staticDefault.maxZoom,
     tileUrl: staticDefault.tileUrl,
     tileSubdomains: staticDefault.subdomains,
+    coordSystem: staticDefault.coordSystem,  // WGS84 / GCJ02 / BD09，决定选点转换方向
   }
   try {
     const { data } = await getDashboardMapConfigApi()
@@ -78,12 +82,13 @@ async function initMap() {
 
   mapRef.value = map
 
-  // 已有经纬度 → 居中 + 回显 marker，缩放等级用 cfg.zoom（来自 map-config 接口，
-  // 即 application.yaml 的 map.default-zoom；不要在这里强制放大到 16 ——
-  // 配置说多少就是多少，改配置就能改取点时的默认视图）
+  // 已有经纬度 → 居中 + 回显 marker
+  // props.longitude/latitude 是 WGS-84（后端 DB canonical），瓦片系是 coordSystemRef
+  // 反显前要 WGS-84 → 瓦片系，否则 marker 会落在瓦片上 ~50-100m 偏移的位置
   if (props.longitude != null && props.latitude != null) {
-    setMarker(props.longitude, props.latitude)
-    map.setView([props.latitude, props.longitude], cfg.zoom)
+    const [tileLng, tileLat] = wgs84ToTarget(props.longitude, props.latitude, coordSystemRef.value)
+    setMarker(tileLng, tileLat)
+    map.setView([tileLat, tileLng], cfg.zoom)
   }
 }
 
@@ -94,6 +99,7 @@ function applyServerCfg(server: MapConfig, cfg: {
   maxZoom: number
   tileUrl: string
   tileSubdomains: string
+  coordSystem: string
 }) {
   if (server.centerLng != null) cfg.center[0] = server.centerLng
   if (server.centerLat != null) cfg.center[1] = server.centerLat
@@ -102,6 +108,8 @@ function applyServerCfg(server: MapConfig, cfg: {
   if (server.maxZoom != null) cfg.maxZoom = server.maxZoom
   if (server.tileUrl) cfg.tileUrl = server.tileUrl
   if (server.tileSubdomains) cfg.tileSubdomains = server.tileSubdomains
+  if (server.coordSystem) cfg.coordSystem = server.coordSystem
+  if (server.coordSystem) coordSystemRef.value = server.coordSystem
 }
 
 function setMarker(lng: number, lat: number) {
@@ -124,7 +132,13 @@ function setMarker(lng: number, lat: number) {
 
 function handleConfirm() {
   if (currentLng.value == null || currentLat.value == null) return
-  emit('select', { longitude: currentLng.value, latitude: currentLat.value })
+  // 把瓦片系原始坐标 + coordSystem 发出去，后端负责转 WGS-84 存三套
+  // （前端不再做转换，picker 怎么看到就怎么发）
+  emit('select', {
+    longitude: currentLng.value,
+    latitude: currentLat.value,
+    coordSystem: coordSystemRef.value,
+  })
   emit('update:visible', false)
 }
 
@@ -151,7 +165,9 @@ watch(
         // dialog 关闭后重开：容器尺寸可能变了，强制重算
         mapRef.value.invalidateSize()
         if (props.longitude != null && props.latitude != null) {
-          setMarker(props.longitude, props.latitude)
+          // props 是 WGS-84，瓦片系是 coordSystemRef，反显要按当前瓦片系转换
+          const [tileLng, tileLat] = wgs84ToTarget(props.longitude, props.latitude, coordSystemRef.value)
+          setMarker(tileLng, tileLat)
         }
       }
     }

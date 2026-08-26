@@ -100,8 +100,43 @@ public class GbDeviceChannel {
     /** 在线状态 ON/OFF/UNREGISTERED（仅由 SIP 交互改变；仅通道） */
     private String status;
 
+    /**
+     * 经度（瓦片系原始值，由 picker / device 上报，看 {@link #coordSystem} 决定系）
+     * <p>注意：这是入参侧的「原始坐标」。保存前 service 会按 {@link #coordSystem} 转成
+     * WGS-84 写回本字段（canonical），再算 GCJ-02 / BD-09 副本存到下面三列。
+     * 本字段在保存后等价于 WGS-84（即便入参是 GCJ-02 也被转了）。</p>
+     */
     private Double longitude;
+    /**
+     * 纬度（瓦片系原始值），约定同 longitude
+     */
     private Double latitude;
+
+    /**
+     * GCJ-02 经度副本，由 longitude/latitude (WGS-84) 算出来存。
+     * queryMapMarkers 按瓦片系直接 SELECT 此列，零转换。
+     */
+    private Double longitudeGcj02;
+    /**
+     * GCJ-02 纬度副本，同 longitudeGcj02
+     */
+    private Double latitudeGcj02;
+
+    /**
+     * BD-09 经度副本（百度瓦片用），由 longitude/latitude 算出来存
+     */
+    private Double longitudeBd09;
+    /**
+     * BD-09 纬度副本，同 longitudeBd09
+     */
+    private Double latitudeBd09;
+
+    /**
+     * 入参坐标系（不入库）。WGS84 / GCJ02 / BD09，告诉 service 怎么把 longitude/latitude
+     * 转成 WGS-84 canonical。null 或 WGS84 表示入参已经是 WGS-84，service 不做转换。
+     */
+    @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+    private String coordSystem;
 
     /** 云台类型：0 未知 1 球机 2 半球 3 固定枪机 4 遥控枪机（仅通道） */
     private Integer ptzType;
