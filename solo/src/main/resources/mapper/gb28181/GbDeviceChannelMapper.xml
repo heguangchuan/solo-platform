@@ -65,4 +65,39 @@
             ptz_type     = VALUES(ptz_type)
     </insert>
 
+    <!--
+      首页地图打点
+      ─────────────────────────────────
+      配合 GbDeviceChannelMapper#selectForMap 使用。
+
+      性能：暂不加空间索引——B-tree 复合 (longitude, latitude) 对"两个维度同时 BETWEEN"帮助有限，
+      真要优化得用 SPATIAL INDEX（MySQL 8，且列要 NOT NULL）或迁到 PostGIS。当前几万通道全表扫
+      也在毫秒级，先不加索引拖复杂度；如未来百万级发现慢再加。
+
+      输出字段名压成 c/d/n/x/y/s，单条 ~50B，5000 条 ~250KB，gzip 后 ~50KB。
+
+      注意：本表没有 deleted 列（gb_device_channel 是按 parental 区分通道/分组，无逻辑删除），
+      所以 SQL 里不写 AND deleted = 0。
+    -->
+    <select id="selectForMap" resultType="com.solo.gb28181.response.MapMarker">
+        SELECT
+            channel_id  AS c,
+            device_id   AS d,
+            name        AS n,
+            longitude   AS x,
+            latitude    AS y,
+            CASE status
+                WHEN 'ON'           THEN  1
+                WHEN 'UNREGISTERED' THEN -1
+                ELSE                     0
+            END AS s
+        FROM gb_device_channel
+        WHERE parental = 0
+          AND longitude IS NOT NULL AND latitude IS NOT NULL
+          AND longitude != 0        AND latitude  != 0
+          AND longitude BETWEEN #{minLng} AND #{maxLng}
+          AND latitude  BETWEEN #{minLat} AND #{maxLat}
+        LIMIT 5000
+    </select>
+
 </mapper>

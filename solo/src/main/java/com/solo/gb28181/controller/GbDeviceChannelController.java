@@ -9,6 +9,7 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelBatchDeleteRequest;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
+import com.solo.gb28181.response.MapMarkerResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -51,6 +53,20 @@ public class GbDeviceChannelController {
                 .orderByAsc(GbDeviceChannel::getChannelId)
                 .list();
         return Result.success(list);
+    }
+
+    /**
+     * 首页地图打点：按当前视口矩形范围返回该范围内有坐标的通道 marker 列表，
+     * 同时返回数据库里有坐标的通道总数（不受视口限制）。
+     * <p>单次最多 5000 条，超出在 SQL 内截断。前端按需提示用户放大以查看更多。</p>
+     */
+    @GetMapping("/map-markers")
+    @RequirePermission({"gb28181:device-channel:list"})
+    public Result<MapMarkerResponse> mapMarkers(@RequestParam double minLng,
+                                                @RequestParam double minLat,
+                                                @RequestParam double maxLng,
+                                                @RequestParam double maxLat) {
+        return Result.success(channelService.queryMapMarkers(minLng, minLat, maxLng, maxLat));
     }
 
     /** 手动新增通道。状态与来源由后端强制设定，忽略入参。 */

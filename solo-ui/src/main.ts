@@ -13,6 +13,10 @@ import { useUserStore } from './stores/user'
 import { setupPermissionDirective } from './directives/permission'
 // ECharts 按需注册（必须先于 VChart 使用，否则 vue-echarts 找不到 chart）
 import './views/Dashboard/echarts-setup'
+// Leaflet + 聚合插件样式（地图打点用，dashboard 引入）
+import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 const app = createApp(App)
 const pinia = createPinia()

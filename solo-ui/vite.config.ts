@@ -29,6 +29,14 @@ export default defineConfig({
         changeOrigin: true,
         ws: true, // 支持 WebSocket 代理
       },
+      // 地图瓦片代理：高德公开瓦片 URL 没有 CORS 头，浏览器同源策略下 Leaflet 加载失败。
+      // 把瓦片请求代理到本地，再由 Vite 转发到高德，等同源请求，绕开 CORS。
+      // 生产部署用 nginx 配同样的 location 转发即可。
+      '/tiles': {
+        target: 'http://webrd01.is.autonavi.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/tiles/, ''),
+      },
     },
   },
 })
