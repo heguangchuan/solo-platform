@@ -97,17 +97,37 @@ const centerMarkerRef = shallowRef<L.Marker | null>(null)
 
 let debounceTimer: number | null = null
 
-const ONLINE_COLOR = '#67C23A'
-const OFFLINE_COLOR = '#909399'
-const UNREG_COLOR = '#E6A23C'
+// SVG 文件内容缓存：fetch + 去 DOCTYPE 后 inline 渲染（最稳）
+// key = status (1/0/-1)，value = 清洗后的 SVG 字符串
+const svgCache: Record<number, string> = {}
+
+async function preloadSvgs() {
+  const items: Array<[number, string]> = [
+    [1, '/assets/online.svg'],
+    [0, '/assets/offline.svg'],
+    [-1, '/assets/not-detected.svg'],
+  ]
+  await Promise.all(items.map(async ([status, url]) => {
+    try {
+      const res = await fetch(url)
+      let text = await res.text()
+      // 去 xml 声明和 DOCTYPE：浏览器把 SVG 当 HTML 渲染时，xml 头会触发解析错误
+      text = text.replace(/<\?xml[^?]*\?>/, '').replace(/<!DOCTYPE[^>]*>/, '')
+      svgCache[status] = text
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.error('[地图] 预加载 SVG 失败', url, e)
+    }
+  }))
+}
 
 function iconFor(status: 1 | 0 | -1): L.DivIcon {
-  const color = status === 1 ? ONLINE_COLOR : status === 0 ? OFFLINE_COLOR : UNREG_COLOR
+  const svg = svgCache[status] || ''
   return L.divIcon({
     className: 'map-marker',
-    html: `<div class="map-marker-dot" style="background:${color}"></div>`,
-    iconSize: [12, 12],
-    iconAnchor: [6, 6],
+    html: `<div class="map-marker-svg">${svg}</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   })
 }
 
@@ -340,8 +360,8 @@ onMounted(async () => {
   // Leaflet 用偏小的高度算 tile pane，导致上半部分露出 panel 的灰色背景。
   await nextTick()
   mapRef.value?.invalidateSize()
-  // 拉后端配置；响应到了会调 setView 切到后端的中心/缩放、invalidateSize 重算尺寸
-  await loadConfig()
+  // 拉后端配置 + 预加载三个 SVG；都 await，确保第一个 marker 渲染时缓存就绪
+  await Promise.all([loadConfig(), preloadSvgs()])
 })
 
 onBeforeUnmount(() => {
@@ -371,9 +391,9 @@ onBeforeUnmount(() => {
       <button class="map-reload-btn" @click="reloadTiles">重新加载瓦片</button>
     </div>
     <div class="map-legend">
-      <span class="legend-item"><i class="legend-dot" style="background:#67C23A" />在线</span>
-      <span class="legend-item"><i class="legend-dot" style="background:#909399" />离线</span>
-      <span class="legend-item"><i class="legend-dot" style="background:#E6A23C" />未注册</span>
+      <span class="legend-item"><i class="legend-dot" style="background:#162ee9" />在线</span>
+      <span class="legend-item"><i class="legend-dot" style="background:#d81e06" />离线</span>
+      <span class="legend-item"><i class="legend-dot" style="background:#f6ef37" />未注册</span>
     </div>
     <div class="map-zoom">缩放等级：{{ currentZoom }}</div>
   </div>
@@ -516,12 +536,16 @@ onBeforeUnmount(() => {
   background: transparent;
   border: none;
 }
-.map-marker-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+.map-marker-svg {
+  display: block;
+  width: 32px;
+  height: 32px;
+  pointer-events: auto;
+}
+.map-marker-svg svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .map-popup-name {
   font-weight: 600;

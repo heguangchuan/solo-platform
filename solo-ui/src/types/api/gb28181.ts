@@ -231,6 +231,12 @@ export interface GbDeviceChannel {
   status?: string
   longitude?: number
   latitude?: number
+  /**
+   * 入参坐标系（仅写时用，DB 不存）：WGS84 / GCJ02 / BD09。
+   * picker 选中时由 picker 写入，告诉后端怎么把 longitude/latitude 转成 WGS-84 canonical。
+   * 不传则按 WGS84 处理。
+   */
+  coordSystem?: string
   ptzType?: number
   /** 父 catalog item 20 位国标码（指向同表 channel_id）；"0"=根 */
   parentId?: string
