@@ -312,6 +312,31 @@ export function batchDeleteGbDeviceChannelApi(ids: string[]) {
 }
 
 /**
+ * 首页地图打点：按视口矩形范围返回该范围内的通道 marker 列表 + 有坐标的通道总数。
+ * <p>字段名刻意压成单字符（c/d/n/x/y/s）以最小化 JSON 体积。
+ * 单次最多 5000 条，超出后端 SQL 截断，需放大以查看更多。</p>
+ */
+export function getChannelMapMarkersApi(params: {
+  minLng: number
+  minLat: number
+  maxLng: number
+  maxLat: number
+}) {
+  return get<{
+    count: number
+    totalWithCoord: number
+    markers: Array<{
+      c: string  // channelId
+      d: string  // deviceId
+      n: string  // name
+      x: number  // longitude
+      y: number  // latitude
+      s: 1 | 0 | -1  // 1=ON, 0=OFF, -1=UNREGISTERED
+    }>
+  }>('/api/gb28181/device-channel/map-markers', { params })
+}
+
+/**
  * 设备/通道相关 API 在此之前/之后
  */
 

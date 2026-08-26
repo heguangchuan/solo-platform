@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.common.utils.CoordinateUtil;
+import com.solo.config.MapProperties;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
@@ -13,6 +15,8 @@ import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
+import com.solo.gb28181.response.MapMarkerResponse;
+import com.solo.gb28181.response.MapMarker;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
 
     private final GbDeviceMapper deviceMapper;
     private final Gb28181Properties properties;
+    private final MapProperties mapProperties;
 
     @Override
     public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
@@ -210,6 +215,90 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // 批量删除
         removeByIds(ids);
         log.info("[通道批量删除] 删除 {} 条通道", ids.size());
+    }
+
+    @Override
+    public MapMarkerResponse queryMapMarkers(double minLng, double minLat, double maxLng, double maxLat) {
+        // bounds 是前端按瓦片系送过来的（application.yaml 的 map.coord-system 决定），
+        // 这里按目标系做合法范围校验。转换交给 CoordinateUtil。
+        if (minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90) {
+            throw new ServiceException("经纬度超出合法范围");
+        }
+        if (minLng >= maxLng) {
+            throw new ServiceException("minLng 必须小于 maxLng");
+        }
+        if (minLat >= maxLat) {
+            throw new ServiceException("minLat 必须小于 maxLat");
+        }
+
+        // 三元一次性赋值，保持 target 是 effectively final（lambda 引用要求）
+        String rawTarget = mapProperties.getCoordSystem();
+        final String target = (rawTarget == null || rawTarget.isBlank()) ? "WGS84" : rawTarget;
+        // bounds: 目标系 → WGS-84（DB 存的 WGS-84），用于 SQL BETWEEN
+        double[] wgsMin = toWgs84(target, minLng, minLat);
+        double[] wgsMax = toWgs84(target, maxLng, maxLat);
+        double wMinLng = Math.min(wgsMin[0], wgsMax[0]);
+        double wMaxLng = Math.max(wgsMin[0], wgsMax[0]);
+        double wMinLat = Math.min(wgsMin[1], wgsMax[1]);
+        double wMaxLat = Math.max(wgsMin[1], wgsMax[1]);
+
+        // 数据库里有坐标的通道总数（不受视口限制，侧栏 KPI 展示用）
+        LambdaQueryWrapper<GbDeviceChannel> countWrapper = new LambdaQueryWrapper<>();
+        countWrapper.eq(GbDeviceChannel::getParental, 0)
+                .isNotNull(GbDeviceChannel::getLongitude)
+                .isNotNull(GbDeviceChannel::getLatitude)
+                .ne(GbDeviceChannel::getLongitude, 0)
+                .ne(GbDeviceChannel::getLatitude, 0);
+        int totalWithCoord = Math.toIntExact(count(countWrapper));
+
+        // 当前视口范围内的 marker（SQL LIMIT 5000 截断）— 入参用 WGS-84 bounds
+        List<MapMarker> wgsMarkers = baseMapper.selectForMap(wMinLng, wMinLat, wMaxLng, wMaxLat);
+
+        // marker: WGS-84 → 目标系，按瓦片系对齐
+        List<MapMarker> markers = wgsMarkers.stream()
+                .map(m -> convertMarker(m, target))
+                .collect(Collectors.toCollection(ArrayList::new));
+
+        MapMarkerResponse resp = new MapMarkerResponse();
+        resp.setCount(markers.size());
+        resp.setTotalWithCoord(totalWithCoord);
+        resp.setMarkers(markers);
+        return resp;
+    }
+
+    /**
+     * 把 {@code [lng, lat]} 从源系转到 WGS-84。
+     * 同系直接原值返回（省去计算）。
+     */
+    private static double[] toWgs84(String source, double lng, double lat) {
+        return switch (source.toUpperCase()) {
+            case "BD09" -> CoordinateUtil.bd09ToWgs84(lng, lat);
+            case "GCJ02" -> CoordinateUtil.gcj02ToWgs84(lng, lat);
+            default -> new double[]{lng, lat};
+        };
+    }
+
+    /**
+     * marker：WGS-84 → 目标系。
+     * 同系直接原值返回（省去计算，也保证全表 WGS-84 时性能）。
+     */
+    private static MapMarker convertMarker(MapMarker m, String target) {
+        String t = target.toUpperCase();
+        if ("WGS84".equals(t)) {
+            return m;
+        }
+        double[] out = "BD09".equals(t)
+                ? CoordinateUtil.wgs84ToBd09(m.getX(), m.getY())
+                : CoordinateUtil.wgs84ToGcj02(m.getX(), m.getY());
+        // MapMarker 是不可变 DTO（field final via Lombok @Data），复制一份再改
+        MapMarker r = new MapMarker();
+        r.setC(m.getC());
+        r.setD(m.getD());
+        r.setN(m.getN());
+        r.setX(out[0]);
+        r.setY(out[1]);
+        r.setS(m.getS());
+        return r;
     }
 
 }
