@@ -25,9 +25,10 @@
  *   <li>marker JSON 字段名压成单字符（c/d/n/x/y/s）</li>
  * </ul>
  */
-import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick, h, render } from 'vue'
 import L from 'leaflet'
 import 'leaflet.markercluster'
+import { Location } from '@element-plus/icons-vue'
 import { getChannelMapMarkersApi } from '@/api/gb28181'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
 
@@ -133,37 +134,22 @@ const centerMarkerRef = shallowRef<L.Marker | null>(null)
 
 let debounceTimer: number | null = null
 
-// SVG 文件内容缓存：fetch + 去 DOCTYPE 后 inline 渲染（最稳）
-// key = status (1/0/-1)，value = 清洗后的 SVG 字符串
-const svgCache: Record<number, string> = {}
+// Element Plus 的 Location 水滴 pin 图标（Google Maps / 高德那种经典打点形态），
+// render 一次复用：path 走 currentColor，外层 div 用 CSS color 控制着色（在线/离线/未注册 三色）。
+// 模块加载时立即渲染，避免在 5000 个 marker 渲染路径上做重复工作。
+const PIN_SVG = (() => {
+  const container = document.createElement('div')
+  render(h(Location, { size: '36', color: 'currentColor' }), container)
+  return (container.firstElementChild as SVGElement)?.outerHTML ?? ''
+})()
 
-async function preloadSvgs() {
-  const items: Array<[number, string]> = [
-    [1, '/assets/online.svg'],
-    [0, '/assets/offline.svg'],
-    [-1, '/assets/not-detected.svg'],
-  ]
-  await Promise.all(items.map(async ([status, url]) => {
-    try {
-      const res = await fetch(url)
-      let text = await res.text()
-      // 去 xml 声明和 DOCTYPE：浏览器把 SVG 当 HTML 渲染时，xml 头会触发解析错误
-      text = text.replace(/<\?xml[^?]*\?>/, '').replace(/<!DOCTYPE[^>]*>/, '')
-      svgCache[status] = text
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.error('[地图] 预加载 SVG 失败', url, e)
-    }
-  }))
-}
-
-function iconFor(status: 1 | 0 | -1): L.DivIcon {
-  const svg = svgCache[status] || ''
+function iconFor(status: string): L.DivIcon {
+  const st = statusMeta(status)
   return L.divIcon({
     className: 'map-marker',
-    html: `<div class="map-marker-svg">${svg}</div>`,
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    html: `<div class="map-marker-pin" style="color:${st.color}">${PIN_SVG}</div>`,
+    iconSize: [36, 48],
+    iconAnchor: [18, 44],  // pin 底部尖端（viewBox 内右下角的留白由 SVG 自带）
   })
 }
 
@@ -216,12 +202,14 @@ async function fetchAndRender() {
 }
 
 /**
- * 状态文案 + 颜色（popup 标签条用）
+ * 状态文案 + 颜色（popup 标签条用 + marker pin 着色用 + legend 用）
+ * 颜色对齐 Element Plus 的 success / warning / danger，跟项目其它地方
+ * （MessageCenter / Tag / 表单校验）保持一致——前端不用记多套色值。
  */
 function statusMeta(status: string): { label: string; color: string; code: 1 | 0 | -1 } {
-  if (status === 'ON') return { label: '在线', color: '#162ee9', code: 1 }
-  if (status === 'UNREGISTERED') return { label: '未注册', color: '#f6ef37', code: -1 }
-  return { label: '离线', color: '#d81e06', code: 0 }
+  if (status === 'ON') return { label: '在线', color: '#67C23A', code: 1 }  // Element Plus success
+  if (status === 'UNREGISTERED') return { label: '未注册', color: '#E6A23C', code: -1 }  // Element Plus warning
+  return { label: '离线', color: '#F56C6C', code: 0 }  // Element Plus danger
 }
 
 /**
@@ -273,7 +261,7 @@ function renderMarkers(
           `<div class="map-popup-coord-row"><span class="map-popup-coord-label">BD-09</span><span>${fmtCoord(m.longitudeBd09)}, ${fmtCoord(m.latitudeBd09)}</span></div>` +
         `</div>` +
       `</div>`
-    const marker = L.marker([m.latitude, m.longitude], { icon: iconFor(st.code) })
+    const marker = L.marker([m.latitude, m.longitude], { icon: iconFor(m.status) })
       .bindPopup(popupHtml)
     layers.push(marker)
   }
@@ -341,6 +329,10 @@ function initMap() {
 
   tileLayerRef.value = tileLayer
 
+  // 聚合 marker：用 Leaflet 默认 cluster 样式（按数量自动小/中/大、三色），
+  // 不传 iconCreateFunction。颜色靠 leaflet.markercluster.css 默认的
+  // marker-cluster-small/medium-large 三色；通过下面的全局 CSS 加白边 + 强阴影
+  // 让它跟地图底色拉开。
   const cluster = (L as any).markerClusterGroup({
     chunkedLoading: true,
     chunkInterval: 50,
@@ -444,8 +436,8 @@ function reloadTiles() {
 // （旧版本有这段 watch 是因为"本地默认先 init → 后端响应慢慢覆盖"的二段流程，新流程下永远不会触发。）
 
 onMounted(async () => {
-  // 拉后端配置 + 预加载三个 SVG；都 await，确保配置就绪后第一个 marker 渲染时缓存就绪
-  await Promise.all([loadConfig(), preloadSvgs()])
+  // 拉后端配置；水滴 pin 图标在模块加载时已预渲染完（PIN_SVG），不需要再 await
+  await loadConfig()
   // 后端配置校验通过才初始化地图，否则显示错误提示
   if (configLoaded.value) {
     // 容器必须有确定尺寸，否则 Leaflet 算不出 bounds
@@ -496,9 +488,9 @@ onBeforeUnmount(() => {
       <button class="map-reload-btn" @click="reloadTiles">重新加载瓦片</button>
     </div>
     <div class="map-legend">
-      <span class="legend-item"><i class="legend-dot" style="background:#162ee9" />在线</span>
-      <span class="legend-item"><i class="legend-dot" style="background:#d81e06" />离线</span>
-      <span class="legend-item"><i class="legend-dot" style="background:#f6ef37" />未注册</span>
+      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('ON').color }" />在线</span>
+      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('OFF').color }" />离线</span>
+      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('UNREGISTERED').color }" />未注册</span>
     </div>
     <div class="map-zoom">缩放等级：{{ currentZoom }}</div>
   </div>
@@ -656,17 +648,61 @@ onBeforeUnmount(() => {
   background: transparent;
   border: none;
 }
-.map-marker-svg {
+/* 水滴 pin marker：path 走 currentColor，颜色由 .map-marker-pin 的内联 style.color 控制。
+   多层 drop-shadow 叠出"白边+暗影"组合——
+   - 两层 0 0 1.5px white 叠出 ~2px 的白边（比单层 3px 模糊更紧凑）
+   - 底层黑色阴影撑出立体感
+   跟地图底色（水域/公园/灰地块）都能拉开，一眼可辨。 */
+.map-marker-pin {
   display: block;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 48px;
   pointer-events: auto;
+  filter:
+    drop-shadow(0 0 1.5px #fff)
+    drop-shadow(0 0 1.5px #fff)
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
 }
-.map-marker-svg svg {
+.map-marker-pin svg {
   display: block;
   width: 100%;
   height: 100%;
 }
+
+/* Leaflet 默认 cluster 样式：保留三色（small/medium-large）+ 加 2px 白边 + 强阴影
+   让浅绿色/浅黄色/浅红色在地图底色上更显眼，不会跟水域 / 公园 / 浅色地块撞色 */
+.marker-cluster {
+  background-clip: padding-box;
+  border-radius: 24px;
+  border: 2px solid #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+}
+.marker-cluster div {
+  border-radius: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
+  color: #fff;
+}
+.marker-cluster-small {
+  background-color: rgba(110, 204, 57, 0.7);
+}
+.marker-cluster-small div {
+  background-color: rgba(75, 165, 27, 0.8);
+}
+.marker-cluster-medium {
+  background-color: rgba(240, 194, 12, 0.7);
+}
+.marker-cluster-medium div {
+  background-color: rgba(199, 159, 0, 0.8);
+}
+.marker-cluster-large {
+  background-color: rgba(229, 77, 66, 0.7);
+}
+.marker-cluster-large div {
+  background-color: rgba(189, 33, 22, 0.85);
+}
+
 .map-popup-header {
   display: flex;
   align-items: center;
