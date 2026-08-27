@@ -12,8 +12,8 @@ export function getDashboardStatsApi() {
 /**
  * 地图配置（首页 Leaflet 地图初始化用）。
  *
- * <p>字段从后端 {@code application.yaml} 的 {@code map.*} 段读出。前端只在挂载时拉一次，
- * 任意字段为 null 时由前端用本地 {@code src/config/map.ts} 兜底（不阻塞渲染）。</p>
+ * <p>字段从后端 {@code application.yaml} 的 {@code map.*} 段读出。<b>唯一配置源</b>，
+ * 任何字段为 null 都会让前端判定配置不完整、地图不渲染（fail-fast）。</p>
  */
 export interface MapConfig {
   centerLng: number | null
