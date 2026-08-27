@@ -12,9 +12,9 @@
  *
  * <h3>配置加载</h3>
  * <ul>
- *   <li>挂载时拉 {@code GET /api/dashboard/map-config}，后端值覆盖前端本地默认</li>
- *   <li>API 失败 / 字段为 null 时回退到 {@code src/config/map.ts} 的硬编码默认（保证地图一定能渲染）</li>
- *   <li>拉取期间显示 loading，不阻塞地图初始化（用本地默认先 init）</li>
+ *   <li>挂载时拉 {@code GET /api/dashboard/map-config}，<b>唯一配置源</b></li>
+ *   <li>API 失败 / 关键字段为 null → 显示错误提示，<b>不</b>渲染地图（避免静默用本地默认）</li>
+ *   <li>用户提供「重试」按钮，配置恢复后自动初始化</li>
  * </ul>
  *
  * <h3>性能</h3>
@@ -25,12 +25,15 @@
  *   <li>marker JSON 字段名压成单字符（c/d/n/x/y/s）</li>
  * </ul>
  */
-import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, watch, nextTick } from 'vue'
+import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet.markercluster'
 import { getChannelMapMarkersApi } from '@/api/gb28181'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
-import { mapConfig as staticDefault } from '@/config/map'
+
+// 瓦片缺失时的 fallback 图：UI 静态资源（不是地图业务配置），留前端硬编码
+// 真正的地图配置（瓦片源 / 中心点 / 缩放 / 坐标系）完全由后端 application.yaml 的 map.* 段下发
+const TILE_ERROR_URL = '/noTiles.png'
 
 const emit = defineEmits<{
   (e: 'update', payload: { count: number; totalWithCoord: number; online: number; offline: number; unregistered: number }): void
@@ -40,55 +43,86 @@ const containerRef = ref<HTMLDivElement | null>(null)
 const loading = ref(false)
 const hitLimit = ref(false)
 const configLoaded = ref(false)
+const configError = ref<string | null>(null)  // 后端配置拉取 / 校验失败时的错误信息
 const tileError = ref<string | null>(null)  // 瓦片拉不到时给用户提示
 const lastErrorUrl = ref('')  // 上一次报错的 URL，用于去重（不同 URL 替换显示）
-const currentZoom = ref(staticDefault.zoom)  // 当前缩放等级，跟随地图 zoom 事件更新
+const currentZoom = ref(0)  // 跟地图 zoom 事件绑定，initMap 后才有意义
 
-// 当前生效的地图配置（先用静态默认，后端响应到来后覆盖）
+// 当前生效的地图配置——全部由后端填充，前端不再提供兜底默认
+// 字段类型保留非 nullable（让既有调用点不报错），loadConfig 校验通过后才视为有效
 const cfg = reactive({
-  center: [...staticDefault.center] as [number, number],
-  zoom: staticDefault.zoom,
-  minZoom: staticDefault.minZoom,
-  maxZoom: staticDefault.maxZoom,
-  tileUrl: staticDefault.tileUrl,
-  tileSubdomains: staticDefault.subdomains,
-  disableClusteringAtZoom: staticDefault.disableClusteringAtZoom,
-  fetchDebounceMs: staticDefault.fetchDebounceMs,
-  markerLimit: staticDefault.markerLimit,
-  coordSystem: staticDefault.coordSystem,  // WGS84 / GCJ02 / BD09，与瓦片源对齐
-  tileMode: undefined as string | undefined,        // offline / online，后端会覆盖
+  center: [0, 0] as [number, number],
+  zoom: 0,
+  minZoom: 0,
+  maxZoom: 0,
+  tileUrl: '',
+  tileSubdomains: '',
+  disableClusteringAtZoom: 0,
+  fetchDebounceMs: 0,
+  markerLimit: 0,
+  coordSystem: '',  // WGS84 / GCJ02 / BD09，与瓦片源对齐
+  tileMode: undefined as string | undefined,  // offline / online
 })
 
 /**
- * 把后端响应合并到当前 cfg：后端有值才覆盖，null 保留静态默认
+ * 校验后端配置是否完整：所有关键字段都非 null 才视为可用。
+ * 任何关键字段缺失就 reject，让前端显示错误而不是用部分配置渲染。
  */
-function applyServerConfig(server: MapConfig) {
-  if (server.centerLng != null) cfg.center[0] = server.centerLng
-  if (server.centerLat != null) cfg.center[1] = server.centerLat
-  if (server.zoom != null) cfg.zoom = server.zoom
-  if (server.minZoom != null) cfg.minZoom = server.minZoom
-  if (server.maxZoom != null) cfg.maxZoom = server.maxZoom
-  if (server.tileUrl) cfg.tileUrl = server.tileUrl
-  if (server.tileSubdomains) cfg.tileSubdomains = server.tileSubdomains
-  if (server.disableClusteringAtZoom != null) cfg.disableClusteringAtZoom = server.disableClusteringAtZoom
-  if (server.fetchDebounceMs != null) cfg.fetchDebounceMs = server.fetchDebounceMs
-  if (server.markerLimit != null) cfg.markerLimit = server.markerLimit
-  if (server.coordSystem) cfg.coordSystem = server.coordSystem
-  if (server.tileMode) cfg.tileMode = server.tileMode
-  configLoaded.value = true
+function isValidConfig(c: MapConfig | null | undefined): c is MapConfig & {
+  centerLng: number
+  centerLat: number
+  zoom: number
+  minZoom: number
+  maxZoom: number
+  tileUrl: string
+  coordSystem: string
+  markerLimit: number
+  fetchDebounceMs: number
+  disableClusteringAtZoom: number
+} {
+  if (!c) return false
+  return c.centerLng != null
+    && c.centerLat != null
+    && c.zoom != null
+    && c.minZoom != null
+    && c.maxZoom != null
+    && c.tileUrl != null
+    && c.coordSystem != null
+    && c.markerLimit != null
+    && c.fetchDebounceMs != null
+    && c.disableClusteringAtZoom != null
+}
 
-  // 关键修复：后端配置覆盖完 cfg 后，必须把地图视图切到新中心/缩放，
-  // 否则地图会一直停在 initMap() 时用的静态默认（map.ts 兜底），
-  // 看上去"中心点不在设置的区域"。
-  // cfg.center 是 [lng, lat]，Leaflet setView 要 [lat, lng]，swap。
-  // 顺便 invalidateSize 一下，处理 dashboard 父容器在 initMap 时高度未稳定的情况。
-  const map = mapRef.value
-  if (map) {
-    map.setView([cfg.center[1], cfg.center[0]], cfg.zoom)
-    map.invalidateSize()
-    // 中心点可能变了，把标识挪到新坐标（marker 已存在就走 setLatLng 复用）
-    addOrUpdateCenterMarker()
-  }
+/**
+ * 用后端配置覆盖 cfg：必须 isValidConfig 通过才调用。
+ * 删了"后端有值才覆盖 / null 保留"那段——既然走 strict 策略，缺一不可。
+ */
+function applyServerConfig(server: MapConfig & {
+  centerLng: number
+  centerLat: number
+  zoom: number
+  minZoom: number
+  maxZoom: number
+  tileUrl: string
+  coordSystem: string
+  markerLimit: number
+  fetchDebounceMs: number
+  disableClusteringAtZoom: number
+}) {
+  cfg.center = [server.centerLng, server.centerLat]
+  cfg.zoom = server.zoom
+  cfg.minZoom = server.minZoom
+  cfg.maxZoom = server.maxZoom
+  cfg.tileUrl = server.tileUrl
+  cfg.tileSubdomains = server.tileSubdomains ?? ''
+  cfg.disableClusteringAtZoom = server.disableClusteringAtZoom
+  cfg.fetchDebounceMs = server.fetchDebounceMs
+  cfg.markerLimit = server.markerLimit
+  cfg.coordSystem = server.coordSystem
+  cfg.tileMode = server.tileMode ?? undefined
+  configLoaded.value = true
+  // 原"后端响应到来后重新 setView + invalidateSize"的逻辑不再需要——
+  // 新流程是 loadConfig 完成才 initMap，cfg 从一开始就是后端值。
 }
 
 // 用 shallowRef 防止 Leaflet 内部对象被 Vue 深度代理（性能+正确性）
@@ -225,7 +259,8 @@ function onMoveEnd() {
 
 function initMap() {
   if (!containerRef.value) return
-  // cfg.center 是 [lng, lat]（与 map.ts 静态默认、application.yaml、Java MapProperties 一致），
+  if (!configLoaded.value) return  // 严格走 API：后端配置没到位就不渲染地图
+  // cfg.center 是 [lng, lat]（与后端 application.yaml、Java MapProperties 一致），
   // Leaflet 的 setView 要的是 [lat, lng]，所以这里要 swap 一下。
   const map = L.map(containerRef.value, {
     preferCanvas: true,
@@ -239,7 +274,7 @@ function initMap() {
     subdomains: cfg.tileSubdomains,
     maxZoom: cfg.maxZoom,
     minZoom: cfg.minZoom,
-    errorTileUrl: staticDefault.tileErrorUrl,  // 瓦片缺失时 fallback，前端写死 /noTiles.png
+    errorTileUrl: TILE_ERROR_URL,  // 瓦片缺失时 fallback，UI 静态资源
   })
     .on('tileerror', (e: any) => {
       // 瓦片 4xx/5xx/网络错误时触发；同一瓦片可能多次触发，按 URL 维度去重
@@ -291,13 +326,34 @@ function initMap() {
 }
 
 async function loadConfig() {
+  configError.value = null
   try {
     const { data } = await getDashboardMapConfigApi()
+    if (!isValidConfig(data)) {
+      configError.value = '后端地图配置不完整（关键字段缺失）'
+      // eslint-disable-next-line no-console
+      console.error('[地图] 后端配置不完整', data)
+      return
+    }
     applyServerConfig(data)
   } catch (e) {
-    // 拉取失败用静态默认，不阻塞地图
+    configError.value = '后端地图配置不可达'
     // eslint-disable-next-line no-console
-    console.warn('[地图] 拉取后端配置失败，使用本地默认', e)
+    console.error('[地图] 后端配置拉取失败', e)
+  }
+}
+
+/**
+ * 重试入口：用户点"重新加载配置"按钮触发。
+ * 拉取成功后，若地图还没初始化就补一次 initMap。
+ */
+async function retryLoadConfig() {
+  await loadConfig()
+  if (configLoaded.value && !mapRef.value) {
+    initMap()
+    // 跟 onMounted 一样，等父容器布局稳定再 invalidateSize
+    await nextTick()
+    mapRef.value?.invalidateSize()
   }
 }
 
@@ -317,7 +373,7 @@ function reloadTiles() {
     subdomains: cfg.tileSubdomains,
     maxZoom: cfg.maxZoom,
     minZoom: cfg.minZoom,
-    errorTileUrl: staticDefault.tileErrorUrl,
+    errorTileUrl: TILE_ERROR_URL,
   })
     .on('tileerror', (e: any) => {
       const url = e?.tile?.src || ''
@@ -339,33 +395,23 @@ function reloadTiles() {
   console.info('[地图] 已强制重建 tile layer，URL=', cfg.tileUrl)
 }
 
-// 关键修复：后端配置异步回来后，cfg.tileUrl 可能跟 initMap() 时用的不同
-// （比如静态默认是 OSM，API 返回的是 geoq.cn）。必须把已创建的 tile layer
-// 的 URL 切到新值，否则瓦片请求一直走旧 URL，永远拉不到新源。
-watch(
-  () => [cfg.tileUrl, cfg.tileSubdomains, cfg.minZoom, cfg.maxZoom],
-  ([newUrl, newSub], [oldUrl]) => {
-    const layer = tileLayerRef.value
-    if (!layer || newUrl === oldUrl) return
-    // eslint-disable-next-line no-console
-    console.info('[地图] 切换瓦片源', oldUrl, '->', newUrl)
-    layer.setUrl(newUrl as string)
-    // 切源后清空错误，让用户能立刻看到新源是否能拉通
-    tileError.value = null
-    lastErrorUrl.value = ''
-  },
-)
+// 关键修复：后端配置在 initMap 之前就完整（loadConfig 校验通过才 init），
+// tile layer URL 一开始就是后端值，不需要再监听 cfg.tileUrl 异步切源。
+// （旧版本有这段 watch 是因为"本地默认先 init → 后端响应慢慢覆盖"的二段流程，新流程下永远不会触发。）
 
 onMounted(async () => {
-  // 容器必须有确定尺寸，否则 Leaflet 算不出 bounds
-  initMap()
-  // 关键修复：flex 父容器首屏布局完成后，强制 Leaflet 重算容器尺寸。
-  // 解决"上面是灰色、拉倒下面才有地图"——initMap 时容器高度还没稳定，
-  // Leaflet 用偏小的高度算 tile pane，导致上半部分露出 panel 的灰色背景。
-  await nextTick()
-  mapRef.value?.invalidateSize()
-  // 拉后端配置 + 预加载三个 SVG；都 await，确保第一个 marker 渲染时缓存就绪
+  // 拉后端配置 + 预加载三个 SVG；都 await，确保配置就绪后第一个 marker 渲染时缓存就绪
   await Promise.all([loadConfig(), preloadSvgs()])
+  // 后端配置校验通过才初始化地图，否则显示错误提示
+  if (configLoaded.value) {
+    // 容器必须有确定尺寸，否则 Leaflet 算不出 bounds
+    initMap()
+    // 关键修复：flex 父容器首屏布局完成后，强制 Leaflet 重算容器尺寸。
+    // 解决"上面是灰色、拉倒下面才有地图"——initMap 时容器高度还没稳定，
+    // Leaflet 用偏小的高度算 tile pane，导致上半部分露出 panel 的灰色背景。
+    await nextTick()
+    mapRef.value?.invalidateSize()
+  }
 })
 
 onBeforeUnmount(() => {
@@ -384,8 +430,15 @@ onBeforeUnmount(() => {
 <template>
   <div class="map-panel">
     <div ref="containerRef" class="map-container" />
-    <div v-if="loading" class="map-loading">加载中…</div>
-    <div v-if="!configLoaded" class="map-config-tip">使用本地默认配置（后端 map.* 未拉到）</div>
+    <div v-if="configError" class="map-config-error">
+      ⚠️ {{ configError }}
+      <br />
+      <small>后端地图配置是唯一来源，请确认 application.yaml 的 <code>map.*</code> 段已配置且服务可达</small>
+      <br />
+      <button class="map-reload-btn" @click="retryLoadConfig">重新加载配置</button>
+    </div>
+    <div v-else-if="!configLoaded" class="map-loading">加载地图配置…</div>
+    <div v-else-if="loading" class="map-loading">加载中…</div>
     <div v-if="hitLimit" class="map-tip">当前可视范围内通道超过 {{ cfg.markerLimit }}，请放大查看更多</div>
     <div v-if="tileError" class="map-tile-error">
       ⚠️ {{ tileError }}
@@ -423,8 +476,7 @@ onBeforeUnmount(() => {
   inset: 0;
 }
 
-.map-loading,
-.map-config-tip {
+.map-loading {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -437,11 +489,27 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.map-config-tip {
-  right: auto;
-  left: 12px;
-  color: var(--el-color-warning);
-  background: rgba(255, 247, 230, 0.95);
+.map-config-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid var(--el-color-danger);
+  color: var(--el-text-color-primary);
+  padding: 14px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  z-index: 1000;
+  max-width: 80%;
+  text-align: left;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+}
+.map-config-error small {
+  color: var(--el-text-color-secondary);
+  font-size: 11px;
+  display: block;
+  margin-top: 4px;
 }
 
 .map-tip {
