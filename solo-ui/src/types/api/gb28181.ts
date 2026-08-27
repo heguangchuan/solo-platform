@@ -232,6 +232,18 @@ export interface GbDeviceChannel {
   longitude?: number
   latitude?: number
   /**
+   * GCJ-02 副本（高德瓦片用）：由 WGS-84 canonical 算出来冗余存。
+   * 回显用：picker 按当前瓦片系挑对应那对，避免前端再做 WGS-84 → 瓦片系二次转换。
+   * 历史数据可能为 null。
+   */
+  longitudeGcj02?: number | null
+  latitudeGcj02?: number | null
+  /**
+   * BD-09 副本（百度瓦片用），同 longitudeGcj02
+   */
+  longitudeBd09?: number | null
+  latitudeBd09?: number | null
+  /**
    * 入参坐标系（仅写时用，DB 不存）：WGS84 / GCJ02 / BD09。
    * picker 选中时由 picker 写入，告诉后端怎么把 longitude/latitude 转成 WGS-84 canonical。
    * 不传则按 WGS84 处理。

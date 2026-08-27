@@ -89,31 +89,34 @@
       真要优化得用 SPATIAL INDEX（MySQL 8，且列要 NOT NULL）或迁到 PostGIS。当前几万通道全表扫
       也在毫秒级，先不加索引拖复杂度；如未来百万级发现慢再加。
 
-      输出字段名压成 c/d/n/x/y/s，单条 ~50B，5000 条 ~250KB，gzip 后 ~50KB。
+      输出字段跟 GbDeviceChannel 命名一致（channelId/deviceId/name + longitude/latitude 三套变体 + status），
+      前端无脑对接，跟通道管理列表的字段口径一致。
 
       注意：本表没有 deleted 列（gb_device_channel 是按 parental 区分通道/分组，无逻辑删除），
       所以 SQL 里不写 AND deleted = 0。
     -->
     <select id="selectForMap" resultType="com.solo.gb28181.response.MapMarker">
         SELECT
-            channel_id  AS c,
-            device_id   AS d,
-            name        AS n,
+            channel_id     AS channelId,
+            device_id      AS deviceId,
+            name           AS name,
             CASE #{target}
                 WHEN 'GCJ02' THEN longitude_gcj02
                 WHEN 'BD09'  THEN longitude_bd09
                 ELSE longitude
-            END AS x,
+            END AS longitude,
             CASE #{target}
                 WHEN 'GCJ02' THEN latitude_gcj02
                 WHEN 'BD09'  THEN latitude_bd09
                 ELSE latitude
-            END AS y,
-            CASE status
-                WHEN 'ON'           THEN  1
-                WHEN 'UNREGISTERED' THEN -1
-                ELSE                     0
-            END AS s
+            END AS latitude,
+            longitude       AS longitudeWgs84,
+            latitude        AS latitudeWgs84,
+            longitude_gcj02 AS longitudeGcj02,
+            latitude_gcj02  AS latitudeGcj02,
+            longitude_bd09  AS longitudeBd09,
+            latitude_bd09   AS latitudeBd09,
+            status          AS status
         FROM gb_device_channel
         WHERE parental = 0
           AND longitude IS NOT NULL AND latitude IS NOT NULL
