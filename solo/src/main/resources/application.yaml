@@ -53,7 +53,7 @@ map:
   default-center-lat: 29.57           # 初始视图中心纬度
   default-zoom: 14                   # 初始缩放（全国 4-5 / 省级 7-8 / 市级 10-12 / 园区 14-16 / 小区 16-18）
   min-zoom: 3
-  max-zoom: 18
+  max-zoom: 21
   # 瓦片模式：offline / online 二选一（不要混合）
   # - offline：瓦片走 solo-ui/public/tiles/...（Vite dev 静态服务 / nginx prod 配 root）
   # - online：瓦片走 tile-url-online 配置的外网地址（客户端直接拉，绕开 Vite/nginx）
