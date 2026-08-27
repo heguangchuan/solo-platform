@@ -11,6 +11,10 @@
  *     v-model:visible="pickerVisible"
  *     :longitude="form.longitude"
  *     :latitude="form.latitude"
+ *     :coord-system="form.coordSystem"
+ *     :wgs84-coord="[form.longitude, form.latitude]"
+ *     :gcj02-coord="[form.longitudeGcj02, form.latitudeGcj02]"
+ *     :bd09-coord="[form.longitudeBd09, form.latitudeBd09]"
  *     @select="onPick"
  *   /&gt;
  * </pre>
@@ -18,12 +22,26 @@
 import { ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import L from 'leaflet'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
-import { wgs84ToTarget } from '@/utils/coordTransform'
 
 const props = defineProps<{
   visible: boolean
   longitude?: number
   latitude?: number
+  /**
+   * 入参坐标系（与 longitude/latitude 对应）：WGS84 / GCJ02 / BD09。
+   * - undefined / 'WGS84'：按 WGS-84 处理（DB 读出来就是 WGS-84 canonical）
+   * - 'GCJ02' / 'BD09'：按瓦片系处理（说明入参是上一次 picker 选过但还没保存的点）
+   * 跟当前瓦片系相同时跳过转换，避免上次未保存的瓦片系坐标被二次转换造成 ~50-100m 偏移。
+   */
+  coordSystem?: string
+  /**
+   * DB 冗余存的三套坐标变体（由后端从 WGS-84 canonical 算出来）。
+   * 回显用：picker 按当前瓦片系挑对应那对，避免前端再走 WGS-84 → 瓦片系的 ~1m 反算误差。
+   * 历史数据可能为 null（picker 退化为从 longitude/latitude 转换）。
+   */
+  wgs84Coord?: [number, number] | null  // [lng, lat]
+  gcj02Coord?: [number, number] | null
+  bd09Coord?: [number, number] | null
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +59,27 @@ const currentLat = ref<number | null>(null)
 const coordSystemRef = ref<string>('')
 // 后端配置拉取 / 校验失败时的错误信息
 const configError = ref<string | null>(null)
+
+/**
+ * 决定回显 marker 用哪对坐标：
+ * 1. in-progress edit（form.coordSystem 跟瓦片系一致）→ 直接用 form 的 lng/lat
+ * 2. DB 加载（form.coordSystem 是 WGS-84 / undefined）→ 拿 props 里对应瓦片系那对预存变体
+ *    （DB 写入时已经按 populateCoordVariants 算过三套，前端无脑用，零转换、零误差）
+ */
+function resolveDisplayCoord(): [number, number] | null {
+  if (props.longitude == null || props.latitude == null) return null
+  const sourceSystem = (props.coordSystem || 'WGS84').toUpperCase()
+  const tileSystem = coordSystemRef.value.toUpperCase()
+  if (sourceSystem === tileSystem) {
+    return [props.longitude, props.latitude]
+  }
+  // DB 一定存了三套变体（populateCoordVariants 在 createByManual / updateByManual /
+  // saveOrUpdateBatch 三条写入路径上都会调），没拿到说明 props 传漏了，直接返回 null 让 UI 不显示 marker
+  if (tileSystem === 'WGS84' && props.wgs84Coord) return props.wgs84Coord
+  if (tileSystem === 'GCJ02' && props.gcj02Coord) return props.gcj02Coord
+  if (tileSystem === 'BD09' && props.bd09Coord) return props.bd09Coord
+  return null
+}
 
 /**
  * 校验后端配置是否完整：所有关键字段都非 null 才视为可用。
@@ -125,10 +164,11 @@ async function initMap() {
   mapRef.value = map
 
   // 已有经纬度 → 居中 + 回显 marker
-  // props.longitude/latitude 是 WGS-84（后端 DB canonical），瓦片系是 coordSystemRef
-  // 反显前要 WGS-84 → 瓦片系，否则 marker 会落在瓦片上 ~50-100m 偏移的位置
-  if (props.longitude != null && props.latitude != null) {
-    const [tileLng, tileLat] = wgs84ToTarget(props.longitude, props.latitude, coordSystemRef.value)
+  // 优先拿 form 当前选中（in-progress edit 跟瓦片系一致时）；否则按瓦片系挑 DB 预存变体；
+  // 历史数据无变体时退化为 WGS-84 → 瓦片系。避免前端二次转换引入的 ~1m 误差。
+  const display = resolveDisplayCoord()
+  if (display) {
+    const [tileLng, tileLat] = display
     setMarker(tileLng, tileLat)
     map.setView([tileLat, tileLng], cfg.zoom)
   }
@@ -150,6 +190,19 @@ function setMarker(lng: number, lat: number) {
     marker.addTo(mapRef.value)
     markerRef.value = marker
   }
+}
+
+/**
+ * 清掉地图上的 marker 和回显的经纬度。
+ * 用于：当前通道没有传入经纬度时，避免上一个通道选点残留。
+ */
+function clearMarker() {
+  if (markerRef.value && mapRef.value) {
+    mapRef.value.removeLayer(markerRef.value)
+  }
+  markerRef.value = null
+  currentLng.value = null
+  currentLat.value = null
 }
 
 function handleConfirm() {
@@ -186,10 +239,15 @@ watch(
       } else {
         // dialog 关闭后重开：容器尺寸可能变了，强制重算
         mapRef.value.invalidateSize()
-        if (props.longitude != null && props.latitude != null) {
-          // props 是 WGS-84，瓦片系是 coordSystemRef，反显要按当前瓦片系转换
-          const [tileLng, tileLat] = wgs84ToTarget(props.longitude, props.latitude, coordSystemRef.value)
+        const display = resolveDisplayCoord()
+        if (display) {
+          // 跟 initMap 同步：in-progress edit 走 form 当前值；DB 加载走预存变体；变体缺失才走 WGS-84 → 瓦片系
+          const [tileLng, tileLat] = display
           setMarker(tileLng, tileLat)
+        } else {
+          // 当前通道没经纬度（新增 / 尚未取点）—— 清掉上一个通道遗留的 marker 和回显
+          // 避免上一次的点"带"到当前通道
+          clearMarker()
         }
       }
     }

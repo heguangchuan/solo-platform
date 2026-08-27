@@ -313,7 +313,8 @@ export function batchDeleteGbDeviceChannelApi(ids: string[]) {
 
 /**
  * 首页地图打点：按视口矩形范围返回该范围内的通道 marker 列表 + 有坐标的通道总数。
- * <p>字段名刻意压成单字符（c/d/n/x/y/s）以最小化 JSON 体积。
+ * <p>字段跟 {@link GbDeviceChannel} 命名一致——longitude/latitude 是 target 系（瓦片源），
+ * 后面三套冗余变体（WGS-84 / GCJ-02 / BD-09）跟通道管理列表对齐，popup 一次性显示给运维。
  * 单次最多 5000 条，超出后端 SQL 截断，需放大以查看更多。</p>
  */
 export function getChannelMapMarkersApi(params: {
@@ -326,12 +327,19 @@ export function getChannelMapMarkersApi(params: {
     count: number
     totalWithCoord: number
     markers: Array<{
-      c: string  // channelId
-      d: string  // deviceId
-      n: string  // name
-      x: number  // longitude
-      y: number  // latitude
-      s: 1 | 0 | -1  // 1=ON, 0=OFF, -1=UNREGISTERED
+      channelId: string
+      deviceId: string
+      name: string
+      longitude: number
+      latitude: number
+      longitudeWgs84: number
+      latitudeWgs84: number
+      longitudeGcj02: number | null
+      latitudeGcj02: number | null
+      longitudeBd09: number | null
+      latitudeBd09: number | null
+      /** 状态：ON 在线 / OFF 离线 / UNREGISTERED 未注册 */
+      status: string
     }>
   }>('/api/gb28181/device-channel/map-markers', { params })
 }

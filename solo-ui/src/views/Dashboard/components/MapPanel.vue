@@ -215,8 +215,38 @@ async function fetchAndRender() {
   }
 }
 
+/**
+ * 状态文案 + 颜色（popup 标签条用）
+ */
+function statusMeta(status: string): { label: string; color: string; code: 1 | 0 | -1 } {
+  if (status === 'ON') return { label: '在线', color: '#162ee9', code: 1 }
+  if (status === 'UNREGISTERED') return { label: '未注册', color: '#f6ef37', code: -1 }
+  return { label: '离线', color: '#d81e06', code: 0 }
+}
+
+/**
+ * 把数字按 6 位小数输出（lng/lat 精度到厘米级够用），null/0 显示 ——
+ */
+function fmtCoord(v: number | null | undefined): string {
+  if (v == null || v === 0) return '—'
+  return v.toFixed(6)
+}
+
 function renderMarkers(
-  markers: Array<{ c: string; d: string; n: string; x: number; y: number; s: 1 | 0 | -1 }>,
+  markers: Array<{
+    channelId: string
+    deviceId: string
+    name: string
+    longitude: number
+    latitude: number
+    longitudeWgs84: number
+    latitudeWgs84: number
+    longitudeGcj02: number | null
+    latitudeGcj02: number | null
+    longitudeBd09: number | null
+    latitudeBd09: number | null
+    status: string
+  }>,
   count: number,
   totalWithCoord: number,
 ) {
@@ -226,11 +256,25 @@ function renderMarkers(
   const layers: L.Marker[] = []
   let online = 0, offline = 0, unreg = 0
   for (const m of markers) {
-    if (m.s === 1) online++
-    else if (m.s === -1) unreg++
+    const st = statusMeta(m.status)
+    if (st.code === 1) online++
+    else if (st.code === -1) unreg++
     else offline++
-    const marker = L.marker([m.y, m.x], { icon: iconFor(m.s) })
-      .bindPopup(`<div class="map-popup"><div class="map-popup-name">${escapeHtml(m.n || m.c)}</div><div class="map-popup-id">${escapeHtml(m.c)}</div></div>`)
+    const popupHtml =
+      `<div class="map-popup">` +
+        `<div class="map-popup-header">` +
+          `<span class="map-popup-name">${escapeHtml(m.name || m.channelId)}</span>` +
+          `<span class="map-popup-status" style="background:${st.color}">${st.label}</span>` +
+        `</div>` +
+        `<div class="map-popup-id">${escapeHtml(m.channelId)}</div>` +
+        `<div class="map-popup-coords">` +
+          `<div class="map-popup-coord-row"><span class="map-popup-coord-label">WGS-84</span><span>${fmtCoord(m.longitudeWgs84)}, ${fmtCoord(m.latitudeWgs84)}</span></div>` +
+          `<div class="map-popup-coord-row"><span class="map-popup-coord-label">GCJ-02</span><span>${fmtCoord(m.longitudeGcj02)}, ${fmtCoord(m.latitudeGcj02)}</span></div>` +
+          `<div class="map-popup-coord-row"><span class="map-popup-coord-label">BD-09</span><span>${fmtCoord(m.longitudeBd09)}, ${fmtCoord(m.latitudeBd09)}</span></div>` +
+        `</div>` +
+      `</div>`
+    const marker = L.marker([m.latitude, m.longitude], { icon: iconFor(st.code) })
+      .bindPopup(popupHtml)
     layers.push(marker)
   }
   cluster.addLayers(layers)
@@ -623,16 +667,52 @@ onBeforeUnmount(() => {
   width: 100%;
   height: 100%;
 }
+.map-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
 .map-popup-name {
   font-weight: 600;
   font-size: 13px;
   color: #303133;
-  margin-bottom: 2px;
+}
+.map-popup-status {
+  display: inline-block;
+  font-size: 11px;
+  color: #fff;
+  padding: 1px 6px;
+  border-radius: 8px;
+  line-height: 1.4;
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.25);  /* 黄色背景配深字阴影，确保可读 */
 }
 .map-popup-id {
   font-size: 11px;
   color: #909399;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  margin-bottom: 6px;
+}
+.map-popup-coords {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  color: #606266;
+  border-top: 1px dashed #ebeef5;
+  padding-top: 4px;
+}
+.map-popup-coord-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+.map-popup-coord-label {
+  display: inline-block;
+  min-width: 56px;
+  color: #909399;
+  font-weight: 600;
 }
 
 /* 中心点标识：14px 红点 + 白边，不参与交互（点击穿透到下面的通道 marker） */

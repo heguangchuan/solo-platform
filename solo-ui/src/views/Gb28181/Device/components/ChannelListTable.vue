@@ -492,6 +492,10 @@ defineExpose({ fetchData })
       v-model:visible="mapPickerVisible"
       :longitude="form.longitude"
       :latitude="form.latitude"
+      :coord-system="form.coordSystem"
+      :wgs84-coord="form.coordSystem == null && form.longitude != null && form.latitude != null ? [form.longitude, form.latitude] : null"
+      :gcj02-coord="form.longitudeGcj02 != null && form.latitudeGcj02 != null ? [form.longitudeGcj02, form.latitudeGcj02] : null"
+      :bd09-coord="form.longitudeBd09 != null && form.latitudeBd09 != null ? [form.longitudeBd09, form.latitudeBd09] : null"
       @select="onMapPicked"
     />
   </div>
