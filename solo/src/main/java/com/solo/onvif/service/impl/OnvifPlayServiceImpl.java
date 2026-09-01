@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -36,27 +37,44 @@ import java.util.Set;
  *   <li>幂等：Redis 中已存在同 streamId → 直接返回原播放 URL</li>
  *   <li>拼装带账密的 RTSP URL（URLEncoder 转账密特殊字符）</li>
  *   <li>{@link ZlmRestClient#addStreamProxy} 让 ZLM 拉流，rtp_type=1（TCP）</li>
+ *   <li>写 Redis 记账 + 24h TTL 兜底（防 stop / hook 双双漏调时的僵尸）</li>
  *   <li>拼装 flv/wsFlv/hls/rtc 播放地址返回</li>
  * </ol>
  *
  * <p>与国标 {@code GbPlayServiceImpl} 相比省掉了 SIP INVITE、SSRC 分配、on_stream_changed 等待、
  * 超时清扫等一大堆流程，因为 ZLM 自己负责与源建立 RTSP 连接。</p>
  *
- * <p><b>会话记账走 Redis</b>：Key {@code onvif:play:<streamId>} 存 hash
- * {@code {serverId, proxyKey, deviceId, startTime}}，无 TTL（stop 时删）。
- * 跟国标 GbInviteSession 迁 Redis 的路径一致。</p>
+ * <h3>生命周期清理</h3>
+ * <p>Redis 记账（Key {@code onvif:play:<streamId>}）有三道清理路径，<b>缺一不可</b>：</p>
+ * <ol>
+ *   <li><b>用户主动 stop</b> → {@link #stop} 显式删 key + 调 {@code delStreamProxy}（正常路径）</li>
+ *   <li><b>无人观看</b> → ZLM {@code on_stream_none_reader} 钩子（{@link com.solo.media.hook.ZlmHookService#onStreamNoneReader}）
+ *       检测到 ONVIF 流时回 {@code close: true}，ZLM 内部关流；{@code on_stream_changed(regist=false)}
+ *       再调 {@link #cleanupByStreamId} 清 Redis（无人观看主路径）</li>
+ *   <li><b>RTSP 源异常断开</b>（设备掉电 / ZLM 重启 / 网络中断）→ {@code on_stream_changed(regist=false)}
+ *       同样调 {@link #cleanupByStreamId} 清 Redis（非正常路径）</li>
+ * </ol>
+ * <p>24h TTL 是兜底——以上三道全部漏调时 Redis 自己回收，避免永久僵尸。</p>
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OnvifPlayServiceImpl implements OnvifPlayService {
 
-    /** ZLM app 名（与国标 rtp 区分） */
-    private static final String APP = "rtsp";
-    /** Redis Key 前缀 */
+    /** Redis Key 前缀（与接口常量 STREAM_ID_PREFIX 拼出完整 key） */
     private static final String REDIS_PREFIX = "onvif:play:";
     /** 拉流 rtp_type: 1=TCP */
     private static final int RTP_TYPE = 1;
+    /**
+     * Redis 记账硬上限 TTL。stop / hook 双双漏调时 Redis 自己回收，避免永久僵尸。
+     * 选 24h 是因为 ONVIF 点播正常单次观看时长远小于此，仅作兜底。
+     */
+    private static final Duration SESSION_TTL = Duration.ofHours(24);
+
+    @Override
+    public boolean isOnvifStream(String app, String stream) {
+        return APP.equalsIgnoreCase(app) && stream != null && stream.startsWith(STREAM_ID_PREFIX);
+    }
 
     private final OnvifDeviceMapper deviceMapper;
     private final MediaServerSelector mediaServerSelector;
@@ -78,7 +96,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
             throw new ServiceException("设备尚未探测出 RTSP 地址，请先点『探测』");
         }
 
-        String streamId = "onvif_" + device.getId();
+        String streamId = STREAM_ID_PREFIX + device.getId();
         String redisKey = REDIS_PREFIX + streamId;
 
         // 幂等：已有活跃会话直接复用
@@ -115,6 +133,9 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 "deviceId", String.valueOf(device.getId()),
                 "startTime", String.valueOf(System.currentTimeMillis())
         ));
+        // 兜底 TTL：stop / hook 三道清理路径全部漏调时 Redis 自己回收，避免永久僵尸。
+        // putAll 不会重置 TTL，所以这里必须显式 set（之前可能残留过 TTL 也无副作用）。
+        redisTemplate.expire(redisKey, SESSION_TTL);
         log.info("[ONVIF点播] 启动成功 设备ID: {} 流ID: {} 服务器ID: {}",
                 device.getId(), streamId, server.getServerId());
         return buildResult(server, streamId);
@@ -141,6 +162,21 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         }
         redisTemplate.delete(redisKey);
         log.info("[ONVIF点播] 停止成功 流ID: {}", req.getStreamId());
+    }
+
+    @Override
+    public void cleanupByStreamId(String streamId) {
+        if (streamId == null || streamId.isBlank()) {
+            return;
+        }
+        String redisKey = REDIS_PREFIX + streamId;
+        Boolean removed = redisTemplate.delete(redisKey);
+        if (Boolean.TRUE.equals(removed)) {
+            log.info("[ONVIF点播] 钩子清扫 流ID: {}", streamId);
+        }
+        // 不调 delStreamProxy：走到这一路时 ZLM 要么已主动断开（on_stream_none_reader
+        // 回的 close=true），要么本来就是异常断开（on_stream_changed regist=false），
+        // 代理早就没了。重复调用反而会 404。
     }
 
     @Override

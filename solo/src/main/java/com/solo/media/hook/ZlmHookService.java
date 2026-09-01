@@ -16,6 +16,7 @@ import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.StreamProxyService;
 import com.solo.media.service.StreamPushService;
+import com.solo.onvif.service.OnvifPlayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -67,6 +68,7 @@ public class ZlmHookService {
     private final StreamPushService streamPushService;
     private final StreamProxyService streamProxyService;
     private final CascadeSendService cascadeSendService;
+    private final OnvifPlayService onvifPlayService;
 
     // ============ 服务级 ============
 
@@ -197,6 +199,16 @@ public class ZlmHookService {
             loadIndex.onStreamArrival(mediaServerId);
         } else if (Boolean.FALSE.equals(regist)) {
             loadIndex.onStreamDeparture(mediaServerId);
+            // ONVIF 流自然结束（无人观看主路径 / RTSP 源异常断开非正常路径）→ 清 Redis 记账。
+            // 无人观看主路径下 ZLM 已经内部 delStreamProxy；非正常路径下代理早就没了，都不需要
+            // 再调 delStreamProxy，只删 key 即可。
+            if (onvifPlayService.isOnvifStream(app, stream)) {
+                try {
+                    onvifPlayService.cleanupByStreamId(stream);
+                } catch (Exception e) {
+                    log.warn("[ZLM 回调] ONVIF 钩子清扫失败 stream={} err={}", stream, e.getMessage());
+                }
+            }
         }
 
         try {
@@ -239,17 +251,24 @@ public class ZlmHookService {
     }
 
     public HookResult onStreamNoneReader(Map<String, Object> body) {
+        String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
         String originTypeStr = stringOf(body, "originTypeStr");
-        // close=false：前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟；刷新 / 切码流 / 网络抖动也会造成
+        boolean isOnvif = onvifPlayService.isOnvifStream(app, stream);
+        // close=false：GB 前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟；刷新 / 切码流 / 网络抖动也会造成
         // 短暂无人观看的空窗，若此时立刻关流，用户重连要重新走一遍 INVITE。故这里不立即关，
         // 流的回收统一靠业务侧：stop API（用户主动关闭）+ on_rtp_server_timeout（RTP 端口长时间无数据兜底）。
         // 注：ZLM 的 on_stream_none_reader 回调不带 originTypeStr（实测为 null），故不以它做判据，仅记录。
-        boolean close = false;
+        //
+        // ONVIF 例外：用户关闭 ONVIF 播放弹窗 / 浏览器 = 真正不想看了，没有"切码流"语义，
+        // 没有"重连"成本（重新点播是另一路 addStreamProxy，几百 ms 起步可接受），
+        // 应当立即关掉 ZLM 拉流，避免 RTSP 源被空挂。
+        // 关流后 ZLM 内部会发 on_stream_changed(regist=false)，再由那里的 ONVIF 兜底清 Redis。
+        boolean close = isOnvif;
         boolean known = inviteSessionService.getByStreamId(stream) != null;
 
-        log.info("[ZLM 回调] on_stream_none_reader stream={} originType={} 会话在册={} -> close={}",
-                stream, originTypeStr, known, close);
+        log.info("[ZLM 回调] on_stream_none_reader app={} stream={} originType={} 会话在册={} onvif={} -> close={}",
+                app, stream, originTypeStr, known, isOnvif, close);
         return HookResult.ok().put("close", close);
     }
 
