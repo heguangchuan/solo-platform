@@ -1,13 +1,4 @@
 import { get } from '@/utils/request'
-import type { DashboardStats } from '@/types/api'
-
-/**
- * 首页聚合统计
- * <p>一次 GET 拉完全部首页数据，避免瀑布请求。</p>
- */
-export function getDashboardStatsApi() {
-  return get<DashboardStats>('/api/dashboard/stats')
-}
 
 /**
  * 地图配置（首页 Leaflet 地图初始化用）。
@@ -21,8 +12,8 @@ export interface MapConfig {
   zoom: number | null
   minZoom: number | null
   maxZoom: number | null
-  tileUrl: string | null
-  tileSubdomains: string | null
+  tileUrl: number | null
+  tileSubdomains: number | null
   disableClusteringAtZoom: number | null
   fetchDebounceMs: number | null
   markerLimit: number | null

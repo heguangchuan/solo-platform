@@ -8,6 +8,7 @@ import com.solo.media.entity.MediaServer;
 import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.service.MediaServerSelector;
 import com.solo.onvif.entity.OnvifDevice;
+import com.solo.onvif.entity.OnvifSession;
 import com.solo.onvif.mapper.OnvifDeviceMapper;
 import com.solo.onvif.request.OnvifPlayStartRequest;
 import com.solo.onvif.request.OnvifPlayStopRequest;
@@ -20,7 +21,11 @@ import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * ONVIF 实时点播服务实现
@@ -136,6 +141,51 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         }
         redisTemplate.delete(redisKey);
         log.info("[ONVIF点播] 停止成功 流ID: {}", req.getStreamId());
+    }
+
+    @Override
+    public List<OnvifSession> listAllActive() {
+        Set<String> keys = redisTemplate.keys(REDIS_PREFIX + "*");
+        if (keys == null || keys.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<OnvifSession> out = new ArrayList<>(keys.size());
+        for (String key : keys) {
+            try {
+                Map<Object, Object> hash = redisTemplate.opsForHash().entries(key);
+                if (hash == null || hash.isEmpty()) {
+                    continue;
+                }
+                OnvifSession s = new OnvifSession();
+                // key 形如 "onvif:play:onvif_42" → 截最后一段作 streamId
+                int idx = key.lastIndexOf(':');
+                s.setStreamId(idx >= 0 ? key.substring(idx + 1) : key);
+                s.setServerId((String) hash.get("serverId"));
+                Object deviceIdRaw = hash.get("deviceId");
+                if (deviceIdRaw != null) {
+                    try {
+                        s.setDeviceId(Long.parseLong(deviceIdRaw.toString()));
+                    } catch (NumberFormatException ignore) {
+                        // 历史脏数据：deviceId 字段不是数字时跳过
+                    }
+                }
+                s.setProxyKey((String) hash.get("proxyKey"));
+                Object startMs = hash.get("startTime");
+                if (startMs != null) {
+                    try {
+                        s.setStartTime(java.time.Instant.ofEpochMilli(Long.parseLong(startMs.toString()))
+                                .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
+                    } catch (NumberFormatException ignore) {
+                        // 历史脏数据忽略
+                    }
+                }
+                out.add(s);
+            } catch (Exception e) {
+                // 单条失败不阻塞整体——脏数据 / 网络抖动
+                log.warn("[ONVIF点播] 会话解析失败 key={} err={}", key, e.getMessage());
+            }
+        }
+        return out;
     }
 
     // ============================================================

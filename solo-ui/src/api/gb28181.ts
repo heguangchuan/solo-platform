@@ -38,6 +38,8 @@ import type {
   GbSyncStatus,
   GbSyncTriggerResponse,
   AddShareRequest,
+  GbInviteSession,
+  MediaServerStreamStats,
 } from '@/types/api'
 import { get, post, put, del } from '@/utils/request'
 
@@ -374,6 +376,15 @@ export function saveGbMediaServerApi(data: Partial<GbMediaServer>) {
  */
 export function deleteGbMediaServerApi(id: string) {
   return del<void>(`/api/media-server/${id}`)
+}
+
+/**
+ * 节点流统计详情（弹窗下钻用）
+ * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats}。
+ * 返回 KPI 总数 + 三类会话明细（国标点播/回放 / 第三方推流 / 拉流代理）。</p>
+ */
+export function getMediaServerStreamStatsApi(serverId: string) {
+  return get<MediaServerStreamStats>(`/api/media-server/${serverId}/stream-stats`)
 }
 
 /**

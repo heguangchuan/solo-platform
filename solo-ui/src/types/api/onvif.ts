@@ -44,3 +44,16 @@ export interface OnvifPlayResultVO {
   hlsUrl?: string
   rtcUrl?: string
 }
+
+/**
+ * ONVIF 实时点播会话（Redis 主存，纯运行时状态）
+ * <p>对应后端 {@code com.solo.onvif.entity.OnvifSession}，节点流统计弹窗"ONVIF 会话"
+ * Tab 用这个类型。streamId 形如 {@code onvif_<deviceId>}。</p>
+ */
+export interface OnvifSession {
+  streamId: string
+  serverId: string
+  deviceId: number
+  proxyKey?: string
+  startTime?: string
+}
