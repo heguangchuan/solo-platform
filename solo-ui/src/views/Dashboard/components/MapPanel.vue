@@ -7,7 +7,7 @@
  *   <li>Leaflet + 瓦片底图（瓦片源由后端 application.yaml 控制）</li>
  *   <li>视口过滤 + debounce 拉后端拿 marker</li>
  *   <li>客户端 markercluster 聚合（zoom ≥ 阈值自动散开）</li>
- *   <li>在线绿 / 离线灰 / 未注册橙三色 divIcon，无图片依赖</li>
+ *   <li>三色 CCTV 枪机图（外白环 + 状态色屏面 + 白色镜头），适配暗色底图，识别度比平涂色块高一档</li>
  * </ul>
  *
  * <h3>配置加载</h3>
@@ -25,16 +25,29 @@
  *   <li>marker JSON 字段名压成单字符（c/d/n/x/y/s）</li>
  * </ul>
  */
-import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick, h, render } from 'vue'
+import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet.markercluster'
-import { Location } from '@element-plus/icons-vue'
 import { getChannelMapMarkersApi } from '@/api/gb28181'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
 
 // 瓦片缺失时的 fallback 图：UI 静态资源（不是地图业务配置），留前端硬编码
 // 真正的地图配置（瓦片源 / 中心点 / 缩放 / 坐标系）完全由后端 application.yaml 的 map.* 段下发
 const TILE_ERROR_URL = '/noTiles.png'
+
+// 通道 marker 图标：CCTV 枪机形 SVG（public/monitor/ 下三张静态资源）
+// 设计要点：
+//   1. 双层结构：外圈白环（halo）把 marker 从暗色底图上"抬"出来，避免跟暗路/深建筑撞色
+//   2. 屏面=状态色：在线翠绿 / 离线冷灰 / 未注册亮红，三色互不混淆
+//   3. 镜头是状态色挖空：在白色机身上"看穿"镜头，识别度比纯色块高一档
+//   4. 底部底座+横杆是 CCTV 标志性细节，比 CRT 显示器形少一层"以为是工位屏"的认知负担
+const ICON_ON = '/monitor/green.svg'
+const ICON_OFF = '/monitor/gray.svg'
+const ICON_UNREGISTERED = '/monitor/red.svg'
+// viewBox 100×100，圆形外环 cx=50 cy=50 r=46（占 4~96 宽高），底部基座 y=76.5；
+// 显示 40×40；anchor 落在底座正下方（与旧版同值，因为底座 y 位置接近）
+const ICON_SIZE: [number, number] = [40, 40]
+const ICON_ANCHOR: [number, number] = [20, 30]
 
 const emit = defineEmits<{
   (e: 'update', payload: { count: number; totalWithCoord: number; online: number; offline: number; unregistered: number }): void
@@ -134,22 +147,61 @@ const centerMarkerRef = shallowRef<L.Marker | null>(null)
 
 let debounceTimer: number | null = null
 
-// Element Plus 的 Location 水滴 pin 图标（Google Maps / 高德那种经典打点形态），
-// render 一次复用：path 走 currentColor，外层 div 用 CSS color 控制着色（在线/离线/未注册 三色）。
-// 模块加载时立即渲染，避免在 5000 个 marker 渲染路径上做重复工作。
-const PIN_SVG = (() => {
-  const container = document.createElement('div')
-  render(h(Location, { size: '36', color: 'currentColor' }), container)
-  return (container.firstElementChild as SVGElement)?.outerHTML ?? ''
-})()
+// clusterclick 触发的 zoom 不应该让 onMoveEnd 重新拉 API（会被新视口过滤掉大量 marker）
+// 设 true 后下一次 moveend 跳过 fetch，保留现有 marker
+let skipNextFetchAfterClusterClick = false
+let skipResetTimer: number | null = null
 
-function iconFor(status: string): L.DivIcon {
-  const st = statusMeta(status)
+function iconFor(status: string): L.Icon {
+  // 三种状态分别用实物 CCTV 枪机图，外圈白环 + 状态色屏面在暗色底图上一眼可辨
+  let url = ICON_OFF
+  if (status === 'ON') url = ICON_ON
+  else if (status === 'UNREGISTERED') url = ICON_UNREGISTERED
+  return L.icon({
+    iconUrl: url,
+    iconSize: ICON_SIZE,
+    iconAnchor: ICON_ANCHOR,
+  })
+}
+
+/**
+ * 聚合气泡的 iconCreateFunction：单个 mini 枪机 + 右下角数量徽章
+ * ───────────────────────────────────────────────
+ * 跟单个 marker 完全同形态（都是枪机 SVG），只是多了个"未读消息"风格的数量角标
+ * 颜色策略：集群内取"主导状态"——未注册 > 离线 > 在线（未注册最该被关注，优先级最高）
+ * 99+ 上限：避免徽章被三位数撑变形
+ */
+function clusterIconCreate(cluster: L.MarkerCluster): L.DivIcon {
+  const childMarkers = cluster.getAllChildMarkers()
+  const count = childMarkers.length
+
+  let online = 0
+  let offline = 0
+  let unreg = 0
+  for (const m of childMarkers) {
+    const status = (m as any).status || 'ON'
+    if (status === 'ON') online++
+    else if (status === 'UNREGISTERED') unreg++
+    else offline++
+  }
+
+  // 状态优先级：未注册（异常，最该被看见）> 离线 > 在线
+  let dominant: 'ON' | 'OFF' | 'UNREGISTERED' = 'ON'
+  if (unreg > 0) dominant = 'UNREGISTERED'
+  else if (offline > online) dominant = 'OFF'
+
+  const camFile = dominant === 'ON' ? 'green' : dominant === 'OFF' ? 'gray' : 'red'
+  const displayCount = count > 99 ? '99+' : String(count)
+
   return L.divIcon({
-    className: 'map-marker',
-    html: `<div class="map-marker-pin" style="color:${st.color}">${PIN_SVG}</div>`,
-    iconSize: [36, 48],
-    iconAnchor: [18, 44],  // pin 底部尖端（viewBox 内右下角的留白由 SVG 自带）
+    className: 'cluster-icon',
+    html:
+      `<div class="cluster-bubble">` +
+        `<div class="cluster-cam" style="background-image:url('/monitor/${camFile}.svg')"></div>` +
+        `<div class="cluster-count">${displayCount}</div>` +
+      `</div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 30],  // 跟单个 marker 同 anchor（[20,30] 是枪机底座位置），集群散开时单点不会"跳"
   })
 }
 
@@ -202,14 +254,14 @@ async function fetchAndRender() {
 }
 
 /**
- * 状态文案 + 颜色（popup 标签条用 + marker pin 着色用 + legend 用）
- * 颜色对齐 Element Plus 的 success / warning / danger，跟项目其它地方
- * （MessageCenter / Tag / 表单校验）保持一致——前端不用记多套色值。
+ * 状态文案 + 颜色（popup 标签条用 + 图例 dot 着色用 + cctv 图标屏面色）
+ * 绿=在线 / 红=离线 / 更亮的红=未注册——绿/红两色分在线/非在线，红的两档分紧急程度
+ * 离线比未注册暗一档（#F44336 vs #FF5252）：未注册是"该有但没注册"更"警"，用更亮红
  */
 function statusMeta(status: string): { label: string; color: string; code: 1 | 0 | -1 } {
-  if (status === 'ON') return { label: '在线', color: '#67C23A', code: 1 }  // Element Plus success
-  if (status === 'UNREGISTERED') return { label: '未注册', color: '#E6A23C', code: -1 }  // Element Plus warning
-  return { label: '离线', color: '#F56C6C', code: 0 }  // Element Plus danger
+  if (status === 'ON') return { label: '在线', color: '#00E676', code: 1 }  // 翠绿
+  if (status === 'UNREGISTERED') return { label: '未注册', color: '#FF5252', code: -1 }  // 亮红（更"警"）
+  return { label: '离线', color: '#F44336', code: 0 }  // 中红（次一档）
 }
 
 /**
@@ -262,7 +314,9 @@ function renderMarkers(
         `</div>` +
       `</div>`
     const marker = L.marker([m.latitude, m.longitude], { icon: iconFor(m.status) })
-      .bindPopup(popupHtml)
+    // 自定义属性挂 status：markercluster 聚合时不带业务字段，靠这个读出来生成聚合 icon
+    ;(marker as any).status = m.status
+    marker.bindPopup(popupHtml)
     layers.push(marker)
   }
   cluster.addLayers(layers)
@@ -277,6 +331,11 @@ function escapeHtml(s: string): string {
 function onMoveEnd() {
   if (debounceTimer) window.clearTimeout(debounceTimer)
   debounceTimer = window.setTimeout(async () => {
+    // clusterclick 触发的 zoom 不重拉：保留地图上现有 marker，让 cluster 自己散开
+    if (skipNextFetchAfterClusterClick) {
+      skipNextFetchAfterClusterClick = false
+      return
+    }
     loading.value = true
     try {
       await fetchAndRender()
@@ -301,6 +360,9 @@ function initMap() {
     zoomControl: true,
     attributionControl: false,
   }).setView([cfg.center[1], cfg.center[0]], cfg.zoom)
+  // 首屏同步：Leaflet 的 zoom 事件只在用户缩放时触发，setView 不触发，
+  // 不主动同步会导致缩放等级显示一直停在初值 0，直到用户滚轮缩放一次才刷新。
+  currentZoom.value = map.getZoom()
 
   const tileLayer = L.tileLayer(cfg.tileUrl, {
     subdomains: cfg.tileSubdomains,
@@ -329,10 +391,19 @@ function initMap() {
 
   tileLayerRef.value = tileLayer
 
-  // 聚合 marker：用 Leaflet 默认 cluster 样式（按数量自动小/中/大、三色），
-  // 不传 iconCreateFunction。颜色靠 leaflet.markercluster.css 默认的
-  // marker-cluster-small/medium-large 三色；通过下面的全局 CSS 加白边 + 强阴影
-  // 让它跟地图底色拉开。
+  // 蓝系大屏色覆盖：tiles 之上、markers 之下塞一个蓝色渐变 div
+  // 只靠 .leaflet-tile-pane 的 invert+hue-rotate 偏 15° 推不动"真蓝色"——加一层半透蓝渐变才像大屏
+  // 用 map.createPane 创建独立 pane，z-index 450 卡在 tilePane (200) 和 markerPane (600) 之间
+  // （shadowPane 500 在它上面，marker 的 drop-shadow 还能透下来，不影响相机识别度）
+  const tintPane = map.createPane('tint-pane')
+  tintPane.style.zIndex = '450'
+  tintPane.style.pointerEvents = 'none'
+  L.DomUtil.create('div', 'map-blue-tint', tintPane)
+
+  // 聚合 marker：用 clusterIconCreate 自定义 iconCreateFunction，
+  // 单个 mini 枪机 + 右下角数量徽章，跟单个 marker（枪机）形态对齐——不再用默认"圆+数字"
+  // spiderfyOnMaxZoom: true —— max zoom（disableClusteringAtZoom=21）时点 cluster 改扇形展开所有 marker，
+  //   避免"同点位挤一堆"（如 82 个摄像头都在同一栋楼）点开后只看到 1 个
   const cluster = (L as any).markerClusterGroup({
     chunkedLoading: true,
     chunkInterval: 50,
@@ -340,14 +411,28 @@ function initMap() {
     disableClusteringAtZoom: cfg.disableClusteringAtZoom,
     maxClusterRadius: 60,
     showCoverageOnHover: false,
-    spiderfyOnMaxZoom: false,
+    spiderfyOnMaxZoom: true,
+    iconCreateFunction: clusterIconCreate,
   }) as L.MarkerClusterGroup
+
+  // 关键修复：点 cluster 触发的 zoom 不让 onMoveEnd 重新拉 API
+  // 原因：fetchAndRender 拿新视口去查后端，后端按视口过滤 marker，82 个里有 81 个被当成"出框"过滤掉
+  // 解决：跳过这一次 fetch，让现有 82 个 marker 留在地图上，cluster 自然散开
+  cluster.on('clusterclick', () => {
+    skipNextFetchAfterClusterClick = true
+    if (skipResetTimer) window.clearTimeout(skipResetTimer)
+    // 兜底：1 秒内没 moveend（例如 max zoom 时被 spiderfy 替代，map 没动），
+    // 主动重置 flag，避免影响用户后续手动 pan/zoom
+    skipResetTimer = window.setTimeout(() => {
+      skipNextFetchAfterClusterClick = false
+    }, 1000)
+  })
   map.addLayer(cluster)
 
   mapRef.value = map
   clusterRef.value = cluster
 
-  // 中心点标识（红色叉丝），跟随 cfg.center 变化
+  // 中心点标识（黄色锚点），跟随 cfg.center 变化
   addOrUpdateCenterMarker()
 
   map.on('moveend', onMoveEnd)
@@ -504,7 +589,7 @@ onBeforeUnmount(() => {
   min-height: 480px;
   border-radius: 8px;
   overflow: hidden;
-  background: #f5f7fa;
+  background: #0A1929;  /* 深海蓝（主流大屏底色），瓦片加载前的兜底色 */
 }
 
 .map-container {
@@ -516,11 +601,11 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(10, 25, 41, 0.88);
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-regular);
   z-index: 1000;
   pointer-events: none;
 }
@@ -530,16 +615,16 @@ onBeforeUnmount(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.97);
+  background: rgba(20, 26, 38, 0.95);
   border: 1px solid var(--el-color-danger);
-  color: var(--el-text-color-primary);
+  color: var(--el-text-color-regular);
   padding: 14px 20px;
   border-radius: 6px;
   font-size: 13px;
   z-index: 1000;
   max-width: 80%;
   text-align: left;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
 }
 .map-config-error small {
   color: var(--el-text-color-secondary);
@@ -567,16 +652,16 @@ onBeforeUnmount(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(255, 255, 255, 0.97);
-  border: 1px solid var(--el-color-danger);
-  color: var(--el-text-color-primary);
+  background: rgba(10, 25, 41, 0.95);
+  border: 1px solid rgba(0, 188, 212, 0.3);  /* 电光蓝描边 */
+  color: var(--el-text-color-regular);
   padding: 14px 20px;
   border-radius: 6px;
   font-size: 13px;
   z-index: 1000;
   max-width: 80%;
   text-align: left;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.5);
 }
 .map-tile-error small {
   color: var(--el-text-color-secondary);
@@ -602,7 +687,8 @@ onBeforeUnmount(() => {
   position: absolute;
   bottom: 12px;
   right: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(10, 25, 41, 0.88);
+  border: 1px solid rgba(0, 188, 212, 0.2);  /* 电光蓝描边 */
   padding: 8px 12px;
   border-radius: 4px;
   display: flex;
@@ -610,7 +696,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   color: var(--el-text-color-regular);
   z-index: 1000;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.06);
 }
 
 .legend-item {
@@ -624,83 +710,135 @@ onBeforeUnmount(() => {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  border: 2px solid #fff;
-  box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+  border: 2px solid #00E5FF;  /* 电光蓝描边 */
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.4);  /* 电光蓝微光晕 */
 }
 
 .map-zoom {
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(10, 25, 41, 0.88);
+  border: 1px solid rgba(0, 188, 212, 0.2);
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
   color: var(--el-text-color-regular);
   z-index: 1000;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.06);
 }
 </style>
 
 <style>
 /* 地图 marker 全局样式（不 scoped，因为 divIcon 渲染到 leaflet pane 内） */
-.map-marker {
-  background: transparent;
-  border: none;
-}
-/* 水滴 pin marker：path 走 currentColor，颜色由 .map-marker-pin 的内联 style.color 控制。
-   多层 drop-shadow 叠出"白边+暗影"组合——
-   - 两层 0 0 1.5px white 叠出 ~2px 的白边（比单层 3px 模糊更紧凑）
-   - 底层黑色阴影撑出立体感
-   跟地图底色（水域/公园/灰地块）都能拉开，一眼可辨。 */
-.map-marker-pin {
-  display: block;
-  width: 36px;
-  height: 48px;
-  pointer-events: auto;
-  filter:
-    drop-shadow(0 0 1.5px #fff)
-    drop-shadow(0 0 1.5px #fff)
-    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.4));
-}
-.map-marker-pin svg {
-  display: block;
-  width: 100%;
-  height: 100%;
+
+/* AMap style=8 浅色瓦片 → 暗色大屏底图：
+   - invert(1) 把白底翻成黑底
+   - hue-rotate(180deg) 标准反相（190° 那种会偏色，让水域/公园/建筑统一往蓝偏）
+   - brightness(0.9) contrast(0.95) 微调
+   只套 .leaflet-tile-pane，marker / popup / 控件不被波及（颜色独立保留）
+   蓝色调主要由下面 .map-blue-tint 半透渐变提供 */
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95);
 }
 
-/* Leaflet 默认 cluster 样式：保留三色（small/medium-large）+ 加 2px 白边 + 强阴影
-   让浅绿色/浅黄色/浅红色在地图底色上更显眼，不会跟水域 / 公园 / 浅色地块撞色 */
-.marker-cluster {
-  background-clip: padding-box;
-  border-radius: 24px;
-  border: 2px solid #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+/* 蓝系大屏色覆盖：tiles 之上 markers 之下塞一个蓝色渐变 div
+   只靠 tile filter 的 hue-rotate 推不动"真蓝色"——加一层半透蓝渐变才像大屏
+   渐变方向：上浅下深（"天 → 深蓝"），呼应主流监控大屏的纵向色阶
+   强度可调：0.18 / 0.40 是中等强度，再大就开始遮瓦片了 */
+.map-blue-tint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 130, 230, 0.18) 0%, rgba(0, 40, 120, 0.40) 100%);
+  pointer-events: none;
 }
-.marker-cluster div {
-  border-radius: 20px;
-  border: 2px solid rgba(255, 255, 255, 0.7);
+
+/* Leaflet 缩放控件（默认白底）→ 深海蓝面板 + 电光蓝描边，跟大屏统一 */
+.leaflet-control-zoom {
+  border: 1px solid rgba(0, 188, 212, 0.3) !important;
+  background: rgba(10, 25, 41, 0.92) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.08) !important;
+}
+.leaflet-control-zoom a {
+  background: transparent !important;
+  color: #E0F7FA !important;
+  border-bottom: 1px solid rgba(0, 188, 212, 0.2) !important;
+}
+.leaflet-control-zoom a:last-child {
+  border-bottom: none !important;
+}
+.leaflet-control-zoom a:hover {
+  background: rgba(0, 188, 212, 0.15) !important;  /* hover 时电光蓝高亮 */
+}
+
+/* CCTV 枪机 marker：外圈白环已在 SVG 内部实现，这里只加暗色 drop-shadow
+   撑出立体感即可（删掉旧版两层白色 drop-shadow——白环在白底图上才有意义，
+   暗色底图上反而会让 marker 边缘糊掉） */
+.leaflet-marker-icon {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+/* 聚合气泡：单个 mini 枪机 + 右下角数量徽章
+   ───────────────────────────────────────────────
+   跟单个 marker 完全同形态（都是 40x40 枪机 SVG），只多了个"未读消息"风格的数量角标
+   为什么不再用 leaflet.markercluster 默认的"圆+数字"：
+     - 圆气泡跟单 marker 形态脱钩，一眼看不出是"摄像头集群"
+     - 数字没有视觉锚点，不知道指的是什么
+   设计：
+     - 容器 40x40，iconAnchor [20,30]（同单 marker，集群散开时单点不"跳"）
+     - mini 枪机：复用 public/monitor/*.svg 作 background-image，状态色由集群主导状态决定
+     - 数量徽章：右下角"未读消息"风格（电光蓝底 + 深海蓝字 + 微光晕），99+ 上限 */
+.cluster-icon {
+  background: transparent !important;
+  border: none !important;
+}
+.cluster-bubble {
+  position: relative;
+  width: 40px;
+  height: 40px;
+}
+.cluster-cam {
+  width: 40px;
+  height: 40px;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.cluster-count {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  background: #00E5FF;
+  color: #0A1929;
+  border: 1.5px solid #0A1929;
+  border-radius: 10px;
+  padding: 0 5px;
+  font-size: 10px;
   font-weight: 700;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.4);
-  color: #fff;
+  line-height: 14px;
+  min-width: 16px;
+  text-align: center;
+  box-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+  white-space: nowrap;
 }
-.marker-cluster-small {
-  background-color: rgba(110, 204, 57, 0.7);
+
+/* Leaflet popup 弹窗：深海蓝面板 + 电光蓝描边 + 冷白字，跟大屏统一 */
+.leaflet-popup-content-wrapper {
+  background: #0A1929;
+  color: #E0F7FA;
+  border: 1px solid rgba(0, 188, 212, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 188, 212, 0.1);
+  border-radius: 6px;
 }
-.marker-cluster-small div {
-  background-color: rgba(75, 165, 27, 0.8);
+.leaflet-popup-tip {
+  background: #0A1929;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
-.marker-cluster-medium {
-  background-color: rgba(240, 194, 12, 0.7);
+.leaflet-popup-close-button {
+  color: #80DEEA;
 }
-.marker-cluster-medium div {
-  background-color: rgba(199, 159, 0, 0.8);
-}
-.marker-cluster-large {
-  background-color: rgba(229, 77, 66, 0.7);
-}
-.marker-cluster-large div {
-  background-color: rgba(189, 33, 22, 0.85);
+.leaflet-popup-close-button:hover {
+  color: #00E5FF;
 }
 
 .map-popup-header {
@@ -712,7 +850,7 @@ onBeforeUnmount(() => {
 .map-popup-name {
   font-weight: 600;
   font-size: 13px;
-  color: #303133;
+  color: #E0F7FA;  /* 冷白 */
 }
 .map-popup-status {
   display: inline-block;
@@ -721,11 +859,11 @@ onBeforeUnmount(() => {
   padding: 1px 6px;
   border-radius: 8px;
   line-height: 1.4;
-  text-shadow: 0 0 2px rgba(0, 0, 0, 0.25);  /* 黄色背景配深字阴影，确保可读 */
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);  /* 状态色都是高饱和实色，加强阴影让白字在 #00E676 / #FF5252 / #F44336 上都清晰可读 */
 }
 .map-popup-id {
   font-size: 11px;
-  color: #909399;
+  color: #80DEEA;  /* 浅电光蓝，channelId 走数据点视觉 */
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   margin-bottom: 6px;
 }
@@ -735,8 +873,8 @@ onBeforeUnmount(() => {
   gap: 2px;
   font-size: 11px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  color: #606266;
-  border-top: 1px dashed #ebeef5;
+  color: #B2EBF2;
+  border-top: 1px dashed rgba(0, 188, 212, 0.3);  /* 电光蓝虚线分隔 */
   padding-top: 4px;
 }
 .map-popup-coord-row {
@@ -747,11 +885,13 @@ onBeforeUnmount(() => {
 .map-popup-coord-label {
   display: inline-block;
   min-width: 56px;
-  color: #909399;
+  color: #4DD0E1;  /* 强电光蓝，坐标系标签 */
   font-weight: 600;
 }
 
-/* 中心点标识：14px 红点 + 白边，不参与交互（点击穿透到下面的通道 marker） */
+/* 中心点标识：14px 电光蓝锚点 + 白边 + 微光晕
+   用电光蓝而不用红/绿/蓝灰/黄：跟"在线/离线/未注册"状态色全错开，
+   语义上"锚点"独立；同时跟大屏底色形成强对比（深蓝底上电光蓝最跳） */
 .cm-icon {
   background: transparent;
   border: none;
@@ -760,9 +900,9 @@ onBeforeUnmount(() => {
   display: block;
   width: 14px;
   height: 14px;
-  background: #f56c6c;
+  background: #00E5FF;
   border: 2px solid #fff;
   border-radius: 50%;
-  box-shadow: 0 0 0 1px #f56c6c;
+  box-shadow: 0 0 0 1px #00E5FF, 0 0 8px rgba(0, 229, 255, 0.6);  /* 外圈电光蓝 + 微光晕 */
 }
 </style>

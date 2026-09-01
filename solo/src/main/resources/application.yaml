@@ -63,15 +63,28 @@ map:
   # nginx prod：location /tiles/ { root /var/www/tiles; } 静态服务
   tile-url-offline: /tiles/{z}/{x}/{y}.png
   # 在线模式的瓦片 URL——外网瓦片源完整 URL
-  # 高德：https://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8
-  # 百度：https://maponline0.map.bdimg.com/tile/?qt=vtile&x={x}&y={y}&z={z}&styles=pl
-  # 天地图：https://t0.tianditu.gov.cn/vec_w/wmts?...
+  # ─────────────────────────────────────────────────────────────
+  # 当前默认：高德 style=8（标准地图）+ 前端 CSS filter（invert + hue-rotate），
+  # 把浅色瓦片染成深色达到"暗色大屏"效果。
+  # 为什么不直接用 CartoDB Dark Matter：basemaps.cartocdn.com 在国内
+  #   - 偶发返回 "apikey required"（CDN 节点策略收紧）
+  #   - 慢/被墙概率高
+  #   - 即便能拉，运维兜底（前置反代）成本不值
+  # CSS filter 方案优势：
+  #   - 瓦片还是 AMap，国内最稳
+  #   - 前端一行 filter 把它"染"成深色
+  #   - 暗色效果由前端控制，不绑死瓦片源；将来想换源不动 CSS 就行
+  # 备选瓦片源（如果以后想换）：
+  #  百度：https://maponline0.map.bdimg.com/tile/?qt=vtile&x={x}&y={y}&z={z}&styles=pl
+  #  天地图：https://t0.tianditu.gov.cn/vec_w/wmts?...
+  #  CartoDB Dark Matter：https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png（国内不稳）
   tile-url-online: https://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8
-  tile-subdomains: ''                 # 走代理后不需要子域了，单域名足够
-  disable-clustering-at-zoom: 16      # 缩放到此级别及以上不再聚合，看单点
+  tile-subdomains: ''                 # AMap 单域名，不需要子域
+  disable-clustering-at-zoom: 21      # 缩放到此级别及以上不再聚合，看单点
   fetch-debounce-ms: 300              # 视口变化 → 拉新 marker 的 debounce 延迟
   marker-limit: 5000                  # 单次请求 marker 上限（与 SQL LIMIT 保持一致）
-  # 坐标系：WGS84 / GCJ02 / BD09。DB 主列 longitude/latitude 存 WGS-84，副本列 longitude_gcj02/latitude_gcj02 和 longitude_bd09/latitude_bd09 由 WGS-84 算出冗余存，queryMapMarkers 按 target 选对应列零转换
+  # 坐标系：WGS84 / GCJ02 / BD09。AMap style=8 走 GCJ02（中国偏移坐标系），
+  # 跟数据副本列 longitude_gcj02/latitude_gcj02 对齐，marker 才能落在正确位置
   coord-system: GCJ02
 
 minio:
