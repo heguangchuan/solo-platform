@@ -15,7 +15,7 @@
  * <h3>为什么"加载更多"用节点而不是按钮</h3>
  * <ul>
  *   <li>el-tree 没法在某个父节点的 children 末尾插一个自定义按钮</li>
- *   <li>用 isLeaf: true 的伪节点 + @node-click 触发，updateKeyChildren 替换子节点
+ *   <li>用 isLeaf: true 的伪节点 + @click.stop 触发，updateKeyChildren 替换子节点
  *       保持节点形态统一（不需要切自定义组件）</li>
  * </ul>
  */
@@ -72,7 +72,7 @@ const treeProps = {
  * el-tree 懒加载回调
  * level 0: root → 拉设备列表
  * device 节点: → 拉前 50 个通道 + "加载更多"节点
- * loadMore 节点: 不会到这里（isLeaf: true），由 @node-click 走 handleNodeClick
+ * loadMore 节点: 不会到这里（isLeaf: true），由 span 上的 @click.stop 直接调 loadMoreChannels</li>
  */
 async function loadNode(node: any, resolve: (data: TreeNode[]) => void) {
   try {
@@ -137,17 +137,17 @@ function buildDeviceChildren(deviceId: string | number, channels: GbDeviceChanne
 }
 
 /**
- * 点节点：通道 → emit，loadMore → 拉下一批替换设备子节点
- * 设备节点不响应（点 chevron 展开，避免误触）
+ * 通道点击：手动调 tree.setCurrentKey 加 .is-current class
+ * 原因：span 上的 @click.stop 阻断了 el-tree 内部 click handler，
+ *  el-tree 不会自动给点击节点加 .is-current class，需要手动设
+ * 配套的 CSS：.el-tree-node.is-current > .el-tree-node__content .node-row { color: #00E5FF }
  */
-async function handleNodeClick(node: any) {
-  const data = node.data
-  if (!data) return
-  if (data.type === 'channel') {
-    emit('channel-click', data.data)
-  } else if (data.type === 'loadMore') {
-    await loadMoreChannels(data.deviceId, data)
+function handleChannelClick(channel: GbDeviceChannelVO, nodeKey: string) {
+  const tree = treeRef.value
+  if (tree) {
+    tree.setCurrentKey(nodeKey)
   }
+  emit('channel-click', channel)
 }
 
 async function loadMoreChannels(deviceId: string | number, _oldLoadMoreNode: any) {
@@ -270,16 +270,20 @@ watch(() => props.visible, (v) => {
           lazy
           node-key="id"
           :expand-on-click-node="false"
-          @node-click="handleNodeClick"
         >
           <template #default="{ data }">
             <span v-if="data.type === 'device'" class="node-row">
               <el-icon class="node-icon"><Monitor /></el-icon>
               <span class="node-label">{{ data.label }}</span>
             </span>
-            <!-- 通道：文字和图标按 status 着色，跟地图 marker 屏面色一致
-                 (绿=在线/中红=离线/亮红=未注册)，让用户在树里一眼看出"哪些通道异常" -->
-            <span v-else-if="data.type === 'channel'" class="node-row" :class="`node-channel-${(data.data?.status || 'OFF').toLowerCase()}`">
+            <!-- 通道：@click.stop 直接 emit，绕开 el-tree 的 @node-click（对 isLeaf:true 不可靠，
+                 跟之前"加载更多"同样的问题）；文字和图标按 status 着色（绿=在线/中红=离线/亮红=未注册） -->
+            <span
+              v-else-if="data.type === 'channel'"
+              class="node-row"
+              :class="`node-channel-${(data.data?.status || 'OFF').toLowerCase()}`"
+              @click.stop="handleChannelClick(data.data, data.id)"
+            >
               <el-icon class="node-icon"><VideoCamera /></el-icon>
               <span class="node-label">{{ data.label }}</span>
             </span>
@@ -402,10 +406,10 @@ watch(() => props.visible, (v) => {
   color: #00E676;        /* 在线：翠绿 */
 }
 .node-channel-off .node-icon {
-  color: #F44336;        /* 离线：中红 */
+  color: #FF5252;        /* 离线：亮红（连不上，是通讯故障） */
 }
 .node-channel-unregistered .node-icon {
-  color: #FF5252;        /* 未注册：亮红（更"警"） */
+  color: #FFC107;        /* 未注册：琥珀（状态缺失，不是故障） */
 }
 .node-loadmore {
   color: #00E5FF;
