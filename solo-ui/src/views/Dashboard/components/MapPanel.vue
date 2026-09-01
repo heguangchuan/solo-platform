@@ -145,6 +145,10 @@ const tileLayerRef = shallowRef<L.TileLayer | null>(null)
 const clusterRef = shallowRef<L.MarkerClusterGroup | null>(null)
 const centerMarkerRef = shallowRef<L.Marker | null>(null)
 
+// 左侧设备树点通道时用：channelId → marker 索引
+// 给 marker 暴露查找入口，locateToChannel 才能 openPopup
+const channelMarkers = new Map<string, L.Marker>()
+
 let debounceTimer: number | null = null
 
 // clusterclick 触发的 zoom 不应该让 onMoveEnd 重新拉 API（会被新视口过滤掉大量 marker）
@@ -317,6 +321,11 @@ function renderMarkers(
     // 自定义属性挂 status：markercluster 聚合时不带业务字段，靠这个读出来生成聚合 icon
     ;(marker as any).status = m.status
     marker.bindPopup(popupHtml)
+    // 给左侧设备树点通道时 openPopup 用：channelId → marker 索引
+    // 注意 marker 创建用的是 m.latitude（DB 主列 WGS-84），地图是 GCJ02 瓦片，
+    // 这块是靠 Leaflet 的 L.CRS.EPSG3857 + 后端 map.* 的 coord-system=GCJ02 兼容的——
+    // 见 application.yaml:75 注释。locateToChannel 也要用 GCJ02 坐标。
+    channelMarkers.set(m.channelId, marker)
     layers.push(marker)
   }
   cluster.addLayers(layers)
@@ -357,7 +366,9 @@ function initMap() {
     preferCanvas: true,
     minZoom: cfg.minZoom,
     maxZoom: cfg.maxZoom,
-    zoomControl: true,
+    // 缩放控件默认在左上角，跟左侧设备/通道树抽屉的位置冲突（挡住树边缘）
+    // 鼠标滚轮 + 双击 + 移动端双指照样能缩放，不影响操作
+    zoomControl: false,
     attributionControl: false,
   }).setView([cfg.center[1], cfg.center[0]], cfg.zoom)
   // 首屏同步：Leaflet 的 zoom 事件只在用户缩放时触发，setView 不触发，
@@ -520,6 +531,39 @@ function reloadTiles() {
 // tile layer URL 一开始就是后端值，不需要再监听 cfg.tileUrl 异步切源。
 // （旧版本有这段 watch 是因为"本地默认先 init → 后端响应慢慢覆盖"的二段流程，新流程下永远不会触发。）
 
+/**
+ * 左侧设备树点通道时调用：flyTo + openPopup
+ * 注意：地图用的是 GCJ02 瓦片（application.yaml coord-system: GCJ02），
+ * 所以定位用 channel.latitudeGcj02 / longitudeGcj02（后端冗余存的副本列，零转换）
+ * 退化兜底：如果 GCJ02 副本列是 null（极端缺数据），用 WGS-84 主列 + 后端零转换逻辑，
+ * 但 flyTo 会有偏移，业务上应该不会出现这种缺数据情况
+ */
+function locateToChannel(channel: {
+  channelId: string
+  latitude?: number | null
+  longitude?: number | null
+  latitudeGcj02?: number | null
+  longitudeGcj02?: number | null
+}) {
+  const map = mapRef.value
+  if (!map) return
+  const lat = channel.latitudeGcj02 ?? channel.latitude
+  const lng = channel.longitudeGcj02 ?? channel.longitude
+  if (lat == null || lng == null) return
+  // zoom 18 = 建筑级：单点相机应该够看清楚
+  map.flyTo([lat, lng], 18, { animate: true, duration: 0.8 })
+  // flyTo 之后再开 popup：标记如果不在当前视口，flyTo 触发 onMoveEnd 重新拉 API 拿新 marker，
+  // 等 1 秒后查找 + 打开（如果还没拉回来就找不到，user 手动点 marker 也能看 popup）
+  setTimeout(() => {
+    const marker = channelMarkers.get(channel.channelId)
+    if (marker) {
+      marker.openPopup()
+    }
+  }, 1000)
+}
+
+defineExpose({ locateToChannel })
+
 onMounted(async () => {
   // 拉后端配置；水滴 pin 图标在模块加载时已预渲染完（PIN_SVG），不需要再 await
   await loadConfig()
@@ -537,6 +581,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   if (debounceTimer) window.clearTimeout(debounceTimer)
+  channelMarkers.clear()
   const map = mapRef.value
   if (map) {
     map.off()
@@ -571,11 +616,6 @@ onBeforeUnmount(() => {
       </small>
       <br />
       <button class="map-reload-btn" @click="reloadTiles">重新加载瓦片</button>
-    </div>
-    <div class="map-legend">
-      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('ON').color }" />在线</span>
-      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('OFF').color }" />离线</span>
-      <span class="legend-item"><i class="legend-dot" :style="{ background: statusMeta('UNREGISTERED').color }" />未注册</span>
     </div>
     <div class="map-zoom">缩放等级：{{ currentZoom }}</div>
   </div>
@@ -683,41 +723,10 @@ onBeforeUnmount(() => {
   background: #f78989;
 }
 
-.map-legend {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
-  background: rgba(10, 25, 41, 0.88);
-  border: 1px solid rgba(0, 188, 212, 0.2);  /* 电光蓝描边 */
-  padding: 8px 12px;
-  border-radius: 4px;
-  display: flex;
-  gap: 12px;
-  font-size: 12px;
-  color: var(--el-text-color-regular);
-  z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.06);
-}
-
-.legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 2px solid #00E5FF;  /* 电光蓝描边 */
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.4);  /* 电光蓝微光晕 */
-}
-
 .map-zoom {
   position: absolute;
   bottom: 12px;
-  left: 12px;
+  right: 12px;  /* 左侧让给设备/通道树，缩放等级挪到右下角 */
   background: rgba(10, 25, 41, 0.88);
   border: 1px solid rgba(0, 188, 212, 0.2);
   padding: 6px 10px;
@@ -751,24 +760,6 @@ onBeforeUnmount(() => {
   inset: 0;
   background: linear-gradient(180deg, rgba(0, 130, 230, 0.18) 0%, rgba(0, 40, 120, 0.40) 100%);
   pointer-events: none;
-}
-
-/* Leaflet 缩放控件（默认白底）→ 深海蓝面板 + 电光蓝描边，跟大屏统一 */
-.leaflet-control-zoom {
-  border: 1px solid rgba(0, 188, 212, 0.3) !important;
-  background: rgba(10, 25, 41, 0.92) !important;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.08) !important;
-}
-.leaflet-control-zoom a {
-  background: transparent !important;
-  color: #E0F7FA !important;
-  border-bottom: 1px solid rgba(0, 188, 212, 0.2) !important;
-}
-.leaflet-control-zoom a:last-child {
-  border-bottom: none !important;
-}
-.leaflet-control-zoom a:hover {
-  background: rgba(0, 188, 212, 0.15) !important;  /* hover 时电光蓝高亮 */
 }
 
 /* CCTV 枪机 marker：外圈白环已在 SVG 内部实现，这里只加暗色 drop-shadow
