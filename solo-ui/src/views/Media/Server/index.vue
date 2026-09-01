@@ -4,7 +4,7 @@ export default { name: 'MediaServer' }
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, View, Edit, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, View, Edit, Delete, DataLine } from '@element-plus/icons-vue'
 import type { GbMediaServer, GbMediaServerPageRequest } from '@/types/api'
 import {
   getGbMediaServerPageApi,
@@ -12,6 +12,7 @@ import {
   deleteGbMediaServerApi,
 } from '@/api/gb28181'
 import MediaServerDetailDialog from './components/MediaServerDetailDialog.vue'
+import MediaServerStreamStatsDialog from './components/MediaServerStreamStatsDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 const loading = ref(false)
@@ -123,6 +124,12 @@ function handleDetail(row: GbMediaServer) {
   detailDialogRef.value?.open(row)
 }
 
+const streamStatsDialogRef = ref<InstanceType<typeof MediaServerStreamStatsDialog> | null>(null)
+
+function handleStreamStats(row: GbMediaServer) {
+  streamStatsDialogRef.value?.open(row)
+}
+
 onMounted(() => {
   fetchData()
 })
@@ -153,7 +160,13 @@ onMounted(() => {
         <el-button v-permission="'media:server:save'" type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" border stripe max-height="calc(100vh - 360px)">
+      <el-table
+        :data="tableData"
+        v-loading="loading"
+        border
+        stripe
+        max-height="calc(100vh - 360px)"
+      >
         <el-table-column prop="serverId" label="节点标识" />
         <el-table-column prop="name" label="节点名称" />
         <el-table-column prop="hostIp" label="管理地址" />
@@ -168,9 +181,18 @@ onMounted(() => {
         </el-table-column>
         <el-table-column prop="hookAliveTime" label="最近心跳" />
         <el-table-column prop="updateTime" label="更新时间" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
             <div>
+              <el-tooltip content="流统计">
+                <el-button
+                  v-permission="'media:server:list'"
+                  type="success"
+                  link
+                  :icon="DataLine"
+                  @click="handleStreamStats(row)"
+                />
+              </el-tooltip>
               <el-tooltip content="详情">
                 <el-button
                   v-permission="'media:server:list'"
@@ -248,6 +270,7 @@ onMounted(() => {
     </el-dialog>
 
     <MediaServerDetailDialog ref="detailDialogRef" />
+    <MediaServerStreamStatsDialog ref="streamStatsDialogRef" />
   </div>
 </template>
 

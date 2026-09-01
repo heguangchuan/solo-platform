@@ -1,8 +1,11 @@
 package com.solo.onvif.service;
 
+import com.solo.onvif.entity.OnvifSession;
 import com.solo.onvif.request.OnvifPlayStartRequest;
 import com.solo.onvif.request.OnvifPlayStopRequest;
 import com.solo.onvif.response.OnvifPlayResultResponse;
+
+import java.util.List;
 
 /**
  * ONVIF 实时点播服务
@@ -17,4 +20,13 @@ public interface OnvifPlayService {
 
     /** 停止点播 */
     void stop(OnvifPlayStopRequest req);
+
+    /**
+     * 列出全部活跃会话（启动清扫 / 跨模块统计用）。
+     *
+     * <p>与 {@code GbInviteSessionService.listAllActive()} 同形态：从 Redis 拉所有
+     * {@code onvif:play:*} 键，反序列化 hash 为 {@link OnvifSession}，任一单条读失败
+     * 跳过该条不抛——避免脏数据让上游整体失败。返回的列表允许为空。</p>
+     */
+    List<OnvifSession> listAllActive();
 }

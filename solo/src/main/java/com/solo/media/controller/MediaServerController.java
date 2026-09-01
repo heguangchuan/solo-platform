@@ -7,6 +7,7 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.request.GbMediaServerPageRequest;
+import com.solo.media.response.MediaServerStreamStatsResponse;
 import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -37,6 +38,17 @@ public class MediaServerController {
     public Result<PageResult<MediaServer>> page(@RequestBody GbMediaServerPageRequest request) {
         Page<MediaServer> page = mediaServerService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 节点流统计详情（弹窗下钻用）
+     * <p>聚合该节点上的国标点播/回放会话、第三方推流、拉流代理三类会话的总数与明细。
+     * 入口在节点列表的"流统计"操作按钮。</p>
+     */
+    @GetMapping("/{serverId}/stream-stats")
+    @RequirePermission({"media:server:list"})
+    public Result<MediaServerStreamStatsResponse> streamStats(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStats(serverId));
     }
 
     /**

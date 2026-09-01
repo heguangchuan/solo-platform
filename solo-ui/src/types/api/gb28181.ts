@@ -1,5 +1,6 @@
 /** GB/T 28181 国标模块相关类型 */
 import type { PageRequest } from './common'
+import type { OnvifSession } from './onvif'
 
 /** Catalog 同步进度（来自 GET /sync-status） */
 export interface GbSyncStatus {
@@ -499,6 +500,68 @@ export interface StreamPushPlayUrl {
   wsFlvUrl?: string
   hlsUrl?: string
   rtcUrl?: string
+}
+
+/**
+ * 国标点播 / 回放 / 下载会话（运行时状态，Redis 主存）
+ * <p>与后端 {@code com.solo.gb28181.entity.GbInviteSession} 字段一一对应。
+ * 节点流统计弹窗的"国标会话"Tab 用这个类型。</p>
+ */
+export interface GbInviteSession {
+  /** 业务主键：<deviceId>_<channelId>（回放再附时间段后缀） */
+  streamId: string
+  serverId: string
+  deviceId: string
+  channelId: string
+  ssrc?: string
+  rtpPort?: number
+  transport?: string
+  streamNumber?: string
+  callId?: string
+  fromTag?: string
+  toTag?: string
+  /** PLAY / PLAYBACK / DOWNLOAD */
+  sessionType?: string
+  startTimeStr?: string
+  endTimeStr?: string
+  /** INVITING / READY / STOPPED / TIMEOUT / FAILED */
+  status?: string
+  flvUrl?: string
+  wsFlvUrl?: string
+  hlsUrl?: string
+  rtcUrl?: string
+  startTime?: string
+  readyTime?: string
+  stopTime?: string
+  failReason?: string
+}
+
+/**
+ * 节点流统计详情（弹窗下钻用）
+ * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats}。
+ * 四类会话总数 + 各自明细列表，前端弹窗顶部放 KPI，下方分 Tab 列明细。</p>
+ */
+export interface MediaServerStreamStats {
+  serverId: string
+  serverName?: string
+  hostIp: string
+  httpPort: number
+  /** 0 离线 1 在线 */
+  status: number
+  gbStreamCount: number
+  pushStreamCount: number
+  proxyStreamCount: number
+  onvifStreamCount: number
+  /**
+   * 该节点上的活跃流总数（ZLM on_stream_changed hook → Redis ZSet 维护）
+   * <p>与四类累加之和不一定相等——前者是 ZLM 视角的权威值，理论上覆盖所有来源；
+   * 后者只覆盖四类已建模会话，未来新增来源时差值会先于 total 反映出来。</p>
+   */
+  total: number
+  gbSessions: GbInviteSession[]
+  pushes: StreamPush[]
+  proxies: StreamProxy[]
+  onvifSessions: OnvifSession[]
 }
 
 /** 推流方鉴权 */
