@@ -28,6 +28,7 @@
 import { onMounted, onBeforeUnmount, ref, shallowRef, reactive, nextTick } from 'vue'
 import L from 'leaflet'
 import 'leaflet.markercluster'
+import { ElMessage } from 'element-plus'
 import { getChannelMapMarkersApi } from '@/api/gb28181'
 import { getDashboardMapConfigApi, type MapConfig } from '@/api/dashboard'
 
@@ -259,13 +260,17 @@ async function fetchAndRender() {
 
 /**
  * 状态文案 + 颜色（popup 标签条用 + 图例 dot 着色用 + cctv 图标屏面色）
- * 绿=在线 / 红=离线 / 更亮的红=未注册——绿/红两色分在线/非在线，红的两档分紧急程度
- * 离线比未注册暗一档（#F44336 vs #FF5252）：未注册是"该有但没注册"更"警"，用更亮红
+ * 业务语义（不是按"严重度"排，是按"是不是真出问题"排）：
+ *   离线 (OFF)：设备在册但连不上 → 亮红（"通讯故障"，是问题）
+ *   未注册 (UNREGISTERED)：该有但没注册 → 琥珀（"状态缺失"，不是故障，只是没建档）
+ *   在线 (ON)：正常 → 翠绿
+ * 之前红/琥珀两档按"严重度"排（红=未注册更严重），但用户视角是"是否要处理"：
+ *   连不上的摄像头必须排查，没注册的只是补录档案。优先级倒过来更符合实际运维。
  */
 function statusMeta(status: string): { label: string; color: string; code: 1 | 0 | -1 } {
   if (status === 'ON') return { label: '在线', color: '#00E676', code: 1 }  // 翠绿
-  if (status === 'UNREGISTERED') return { label: '未注册', color: '#FF5252', code: -1 }  // 亮红（更"警"）
-  return { label: '离线', color: '#F44336', code: 0 }  // 中红（次一档）
+  if (status === 'UNREGISTERED') return { label: '未注册', color: '#FFC107', code: -1 }  // 琥珀（没建档，状态缺失非故障）
+  return { label: '离线', color: '#FF5252', code: 0 }  // 亮红（连不上，必须排查）
 }
 
 /**
@@ -533,10 +538,10 @@ function reloadTiles() {
 
 /**
  * 左侧设备树点通道时调用：flyTo + openPopup
- * 注意：地图用的是 GCJ02 瓦片（application.yaml coord-system: GCJ02），
- * 所以定位用 channel.latitudeGcj02 / longitudeGcj02（后端冗余存的副本列，零转换）
- * 退化兜底：如果 GCJ02 副本列是 null（极端缺数据），用 WGS-84 主列 + 后端零转换逻辑，
- * 但 flyTo 会有偏移，业务上应该不会出现这种缺数据情况
+ * 地图瓦片是 GCJ-02（application.yaml coord-system: GCJ02），所以定位优先用 GCJ-02 副本列
+ * 退化链：GCJ02 → BD09 → WGS84（最差情况）
+ * 兜底：以上都缺失时，去 cluster 里找已加载的 marker 用它的位置（如果通道在当前视口内）
+ * 终极兜底：还是找不到就提示用户"通道暂无位置信息"
  */
 function locateToChannel(channel: {
   channelId: string
@@ -544,12 +549,37 @@ function locateToChannel(channel: {
   longitude?: number | null
   latitudeGcj02?: number | null
   longitudeGcj02?: number | null
+  latitudeBd09?: number | null
+  longitudeBd09?: number | null
 }) {
   const map = mapRef.value
   if (!map) return
-  const lat = channel.latitudeGcj02 ?? channel.latitude
-  const lng = channel.longitudeGcj02 ?? channel.longitude
-  if (lat == null || lng == null) return
+
+  // 1) 优先用 GCJ02（地图瓦片系），其次 BD09，最后 WGS-84
+  let lat: number | null | undefined = channel.latitudeGcj02 ?? channel.latitudeBd09 ?? channel.latitude
+  let lng: number | null | undefined = channel.longitudeGcj02 ?? channel.longitudeBd09 ?? channel.longitude
+
+  // 2) 都没有：去 cluster 里找（通道可能在当前视口内，已经有 marker 了）
+  if (lat == null || lng == null) {
+    const marker = channelMarkers.get(channel.channelId)
+    if (marker) {
+      const ll = marker.getLatLng()
+      lat = ll.lat
+      lng = ll.lng
+    }
+  }
+
+  // 3) 还是没有：通道没有位置信息（picker 没设 / 设备没上报 / 数据缺）
+  if (lat == null || lng == null) {
+    // eslint-disable-next-line no-console
+    console.warn('[地图定位] 通道无位置信息，跳过 flyTo', channel)
+    ElMessage.warning(`通道 ${(channel as any).name ?? channel.channelId} 暂无位置信息，无法定位`)
+    return
+  }
+
+  // eslint-disable-next-line no-console
+  console.info('[地图定位] flyTo', { channelId: channel.channelId, lat, lng })
+
   // zoom 18 = 建筑级：单点相机应该够看清楚
   map.flyTo([lat, lng], 18, { animate: true, duration: 0.8 })
   // flyTo 之后再开 popup：标记如果不在当前视口，flyTo 触发 onMoveEnd 重新拉 API 拿新 marker，
@@ -850,7 +880,7 @@ onBeforeUnmount(() => {
   padding: 1px 6px;
   border-radius: 8px;
   line-height: 1.4;
-  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);  /* 状态色都是高饱和实色，加强阴影让白字在 #00E676 / #FF5252 / #F44336 上都清晰可读 */
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.5);  /* 状态色都是高饱和实色，加强阴影让白字在 #00E676 / #FF5252 / #FFC107 上都清晰可读 */
 }
 .map-popup-id {
   font-size: 11px;
