@@ -19,23 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 动态定时任务接口
- *
- * <p>对系统内可调度的定时任务做 CRUD + 启停 + 立即执行 + 执行日志查询。
- * 任务由后端以 cron 调度执行，<b>不返回 taskId 之类的句柄</b>——前端按主键 ID 操作即可。
- * 执行进度看 {@code /api/task/log/page} 任务执行日志。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST   /api/task/page} — 分页查询任务</li>
- *   <li>{@code POST   /api/task} — 新增任务</li>
- *   <li>{@code PUT    /api/task/{id}} — 修改任务</li>
- *   <li>{@code DELETE /api/task/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/task/{id}} — 删除单个</li>
- *   <li>{@code PUT    /api/task/{id}/switch/{status}} — 启停任务（{@code 0/1}）</li>
- *   <li>{@code POST   /api/task/{id}/run} — 立即执行一次（不等 cron）</li>
- *   <li>{@code POST   /api/task/log/page} — 分页查询任务执行日志</li>
- * </ul>
+ * 动态定时任务管理
  */
 @RestController
 @RequestMapping("/api/task")
@@ -47,8 +31,6 @@ public class TaskController {
 
     /**
      * 分页查询任务
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code taskName} / {@code taskCode} / {@code status} 过滤。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"task:manage:list"})
@@ -59,9 +41,6 @@ public class TaskController {
 
     /**
      * 新增任务
-     *
-     * <p>{@code cron} 7 位 Quartz 风格；{@code handlerName} 必须是后端注册过的执行器标识，
-     * 列表里能让用户选；{@code taskParams} 为 JSON 字符串，透传给执行器。</p>
      */
     @PostMapping
     @RequirePermission({"task:manage:add"})
@@ -74,7 +53,7 @@ public class TaskController {
     /**
      * 修改任务
      *
-     * <p>{@code {id}} 是任务主键 ID。</p>
+     * @param id 任务主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"task:manage:edit"})
@@ -97,6 +76,8 @@ public class TaskController {
 
     /**
      * 删除单个任务
+     *
+     * @param id 任务主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"task:manage:delete"})
@@ -109,7 +90,8 @@ public class TaskController {
     /**
      * 启停任务
      *
-     * <p>{@code status}：{@code 0=停用}、{@code 1=启用}；停用后即使 cron 到点也不会触发。</p>
+     * @param id 任务主键 ID
+     * @param status `0=停用`、`1=启用`；停用后即使 cron 到点也不会触发
      */
     @PutMapping("/{id}/switch/{status}")
     @RequirePermission({"task:manage:switch"})
@@ -120,10 +102,9 @@ public class TaskController {
     }
 
     /**
-     * 立即执行一次任务（不等 cron）
+     * 立即执行一次任务
      *
-     * <p>同步返回即表示"已派发"，不保证此时已执行完成；执行结果在
-     * {@code /api/task/log/page} 按 {@code taskId} 过滤查看。</p>
+     * @param id 任务主键 ID
      */
     @PostMapping("/{id}/run")
     @RequirePermission({"task:manage:run"})
@@ -135,8 +116,6 @@ public class TaskController {
 
     /**
      * 分页查询任务执行日志
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code taskId} / {@code taskName} / {@code taskCode} / {@code resultStatus}（{@code 0=失败}、{@code 1=成功}）过滤。</p>
      */
     @PostMapping("/log/page")
     @RequirePermission({"task:log:list"})

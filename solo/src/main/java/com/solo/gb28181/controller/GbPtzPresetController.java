@@ -11,19 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 云台预置位控制器
- *
- * <p>提供预置位列表查询、新增/编辑/删除预置位、以及调预置位（{@code call}）。
- * 调预置位通过国标 SIP 信令把设备预置位指令下发到通道。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code GET /list/{channelDbId}} — 按通道主键 ID 列出预置位</li>
- *   <li>{@code POST /save} — 新增预置位</li>
- *   <li>{@code POST /update} — 编辑预置位</li>
- *   <li>{@code DELETE /delete/{id}} — 删除预置位</li>
- *   <li>{@code POST /call/{id}} — 调预置位（让设备云台转到指定位置）</li>
- * </ul>
+ * 云台预置位管理
  */
 @Slf4j
 @RestController
@@ -34,7 +22,8 @@ public class GbPtzPresetController {
 
     /**
      * 按通道主键 ID 列出预置位
-     * @param channelDbId 通道主键 ID（数据库自增 ID，非国标 channelId）
+     *
+     * @param channelDbId 通道主键 ID
      */
     @GetMapping("/list/{channelDbId}")
     @RequirePermission({"gb28181:ptz:preset"})
@@ -64,6 +53,7 @@ public class GbPtzPresetController {
 
     /**
      * 删除预置位
+     *
      * @param id 预置位主键 ID
      */
     @DeleteMapping("/delete/{id}")
@@ -75,7 +65,6 @@ public class GbPtzPresetController {
 
     /**
      * 调预置位：让设备云台转到指定预置位
-     * <p>前端弹窗"调预置位"按钮触发，云台会自动转到该位置（设备端能力）。</p>
      *
      * @param id 预置位主键 ID
      */

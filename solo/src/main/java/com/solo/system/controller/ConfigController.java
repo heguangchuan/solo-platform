@@ -22,21 +22,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 系统参数管理接口
- *
- * <p>维护 key-value 型运行期参数（{@code configKey} / {@code configValue}），
- * 供业务侧按 {@code configKey} 读取，常用于阈值、开关、第三方接口配置等。
- * 管理端支持分页 + 批量删除 + Excel 导出。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /api/config/page} — 分页查询参数列表</li>
- *   <li>{@code POST /api/config/export} — 导出参数为 Excel（流式输出）</li>
- *   <li>{@code POST /api/config} — 新增参数</li>
- *   <li>{@code PUT  /api/config/{id}} — 修改参数</li>
- *   <li>{@code DELETE /api/config/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/config/{id}} — 删除单个</li>
- * </ul>
+ * 系统参数管理
  */
 @RestController
 @RequestMapping("/api/config")
@@ -49,8 +35,6 @@ public class ConfigController {
 
     /**
      * 分页查询参数列表
-     *
-     * <p>返回 {@code { total, rows }} 形式，{@code page} 从 1 开始，{@code pageSize} 默认 20。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"setting:config:list"})
@@ -61,9 +45,6 @@ public class ConfigController {
 
     /**
      * 导出参数为 Excel
-     *
-     * <p>响应为二进制流（{@code Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet}），
-     * 浏览器直接触发文件下载。{@code ids} 非空时按 ID 集合导出，否则按分页条件全量导出。</p>
      */
     @PostMapping("/export")
     @RequirePermission({"setting:config:export"})
@@ -96,8 +77,6 @@ public class ConfigController {
 
     /**
      * 新增参数
-     *
-     * <p>{@code configKey} 全局唯一，必填；{@code configValue} 为字符串，业务侧按需解析。</p>
      */
     @PostMapping
     @RequirePermission({"setting:config:add"})
@@ -110,7 +89,7 @@ public class ConfigController {
     /**
      * 修改参数
      *
-     * <p>{@code {id}} 是参数主键 ID；{@code configKey} 修改后会影响业务侧取值，请谨慎。</p>
+     * @param id 参数主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"setting:config:edit"})
@@ -122,8 +101,6 @@ public class ConfigController {
 
     /**
      * 批量删除参数
-     *
-     * <p>请求体是 ID 数组；返回 200 即删除完成（部分失败会以业务异常形式整体回滚）。</p>
      */
     @DeleteMapping("/batch")
     @RequirePermission({"setting:config:delete"})
@@ -136,7 +113,7 @@ public class ConfigController {
     /**
      * 删除单个参数
      *
-     * <p>{@code {id}} 是参数主键 ID；不存在时返回 404。</p>
+     * @param id 参数主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"setting:config:delete"})

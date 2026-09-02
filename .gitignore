@@ -52,3 +52,6 @@ Thumbs.db
 uploads
 upload
 .claude
+
+# smart-doc 生成的 API 文档（已进版本控制）
+# 实际路径：solo/src/main/resources/static/sdoc/AllInOne.md

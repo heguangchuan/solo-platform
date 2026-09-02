@@ -23,27 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 用户管理接口
- *
- * <p>维护系统用户，提供分页、CRUD、导出、启停、用户授权（{@code r2u}）。
- * 一个用户可挂多组角色；{@code /r2u} 系列接口用于分配/查询该用户下挂的角色 ID。</p>
- *
- * <h3>密码维护</h3>
- * <p>本接口不含密码字段。新增用户的默认密码规则见 {@code username@123456}（按用户名生成）；
- * 修改密码走 {@link AuthController} 的 {@code /api/auth/password} 或首次登录强制改密流程。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST   /api/user/page} — 分页查询用户</li>
- *   <li>{@code POST   /api/user/export} — 导出用户为 Excel</li>
- *   <li>{@code POST   /api/user} — 新增用户</li>
- *   <li>{@code PUT    /api/user/{id}} — 修改用户</li>
- *   <li>{@code PUT    /api/user/{id}/status/{status}} — 切换用户状态</li>
- *   <li>{@code DELETE /api/user/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/user/{id}} — 删除单个</li>
- *   <li>{@code GET    /api/user/r2u/{userId}} — 查询用户已分配的角色 ID</li>
- *   <li>{@code POST   /api/user/r2u} — 给用户分配角色</li>
- * </ul>
+ * 用户管理
  */
 @RestController
 @RequestMapping("/api/user")
@@ -56,8 +36,6 @@ public class UserController {
 
     /**
      * 分页查询用户列表
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code username} / {@code nickname} / {@code status} 过滤。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"system:user:list"})
@@ -68,9 +46,6 @@ public class UserController {
 
     /**
      * 导出用户为 Excel
-     *
-     * <p>响应为二进制流；{@code ids} 非空时按 ID 集合导出，否则按分页条件全量导出。
-     * <b>不会</b>导出密码字段。</p>
      */
     @PostMapping("/export")
     @RequirePermission({"system:user:export"})
@@ -104,9 +79,6 @@ public class UserController {
 
     /**
      * 新增用户
-     *
-     * <p>{@code username} 全局唯一，新增后不可修改；密码由后端按 {@code username@123456} 默认值初始化，
-     * 强制改密流程会在用户首次登录时拦下。</p>
      */
     @PostMapping
     @RequirePermission({"system:user:add"})
@@ -119,8 +91,7 @@ public class UserController {
     /**
      * 修改用户信息
      *
-     * <p>{@code {id}} 是用户主键 ID；{@code username} 编辑时不可修改。
-     * 不含密码字段——改密见 {@code POST /api/auth/password}。</p>
+     * @param id 用户主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:user:edit"})
@@ -133,7 +104,8 @@ public class UserController {
     /**
      * 切换用户状态
      *
-     * <p>{@code status}：{@code 0=禁用}、{@code 1=启用}；禁用后该用户无法登录，已登录的会被踢出。</p>
+     * @param id 用户主键 ID
+     * @param status `0=禁用`、`1=启用`；禁用后该用户无法登录，已登录的会被踢出
      */
     @PutMapping("/{id}/status/{status}")
     @RequirePermission({"system:user:switch"})
@@ -156,6 +128,8 @@ public class UserController {
 
     /**
      * 删除单个用户
+     *
+     * @param id 用户主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:user:delete"})
@@ -168,7 +142,7 @@ public class UserController {
     /**
      * 查询用户已分配的角色 ID 列表
      *
-     * <p>ID 序列化为字符串返回，与角色列表节点 ID 类型一致，前端可直接绑定到多选控件。</p>
+     * @param userId 用户主键 ID
      */
     @GetMapping("/r2u/{userId}")
     @RequirePermission({"system:user:r2u"})
@@ -182,8 +156,6 @@ public class UserController {
 
     /**
      * 给用户分配角色
-     *
-     * <p>全量替换该用户已有角色集：传入的 {@code roleIds} 即为最新全量，不在其中的会被取消。</p>
      */
     @PostMapping("/r2u")
     @RequirePermission({"system:user:r2u"})

@@ -11,15 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 云台控制（PTZ）
- *
- * <p>接收前端方向/缩放指令，转成 GB28181 PTZ 8 字节控制码发往设备。</p>
- * <p>PTZ 使用"按住→松开"模型：前端 mousedown 发 start（带速度），mouseup 发 stop（速度=0）。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /control/{deviceId}/{channelId}} — PTZ 控制（方向/缩放/停止）</li>
- * </ul>
+ * 云台控制管理
  */
 @Slf4j
 @RestController
@@ -35,18 +27,9 @@ public class GbPtzController {
      *
      * @param deviceId  设备国标 20 位 ID
      * @param channelId 通道国标 20 位 ID
-     * @param command   方向/动作：{@code left} / {@code right} / {@code up} / {@code down} /
-     *                  {@code upleft} / {@code upright} / {@code downleft} / {@code downright} /
-     *                  {@code zoomin} / {@code zoomout} / {@code stop}；非法值返回 400
-     * @param speed     移动速度 0-255（{@code stop} 时忽略），默认 100
-     * @param zoomSpeed 缩放速度 0-15（非缩放指令时忽略），默认 5
-     *
-     * <h4>错误</h4>
-     * <ul>
-     *   <li>设备不存在 → 400</li>
-     *   <li>设备离线 → 400</li>
-     *   <li>command 非法 → 400</li>
-     * </ul>
+     * @param command   方向/动作：`left` / `right` / `up` / `down` /
+     * @param speed     移动速度 0-255，默认 100
+     * @param zoomSpeed 缩放速度 0-15，默认 5
      */
     @PostMapping("/control/{deviceId}/{channelId}")
     public Result<Void> control(@PathVariable String deviceId,

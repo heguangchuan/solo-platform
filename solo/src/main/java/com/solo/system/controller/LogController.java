@@ -19,20 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 操作日志接口
- *
- * <p>审计页用：分页查询、删除、Excel 导出操作日志。
- * 仅查询/删除/导出，<b>不写日志</b>——避免对日志表自身的删除/导出再产生日志噪声。</p>
- *
- * <p>支持按操作人、模块、业务类型、响应状态、客户来源、时间范围过滤。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /api/log/page} — 分页查询操作日志</li>
- *   <li>{@code POST /api/log/export} — 导出日志为 Excel（流式输出）</li>
- *   <li>{@code DELETE /api/log/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/log/{id}} — 删除单条</li>
- * </ul>
+ * 操作日志管理
  */
 @RestController
 @RequestMapping("/api/log")
@@ -45,10 +32,6 @@ public class LogController {
 
     /**
      * 分页查询操作日志
-     *
-     * <p>返回 {@code { total, rows }}；{@code responseStatus}：{@code 0=失败}、{@code 1=成功}；
-     * {@code clientSource} 形如 {@code web} / {@code app}。
-     * {@code startTime} / {@code endTime} 按 {@code yyyy-MM-dd HH:mm:ss}（GMT+8）解析。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"system:log:list"})
@@ -59,9 +42,6 @@ public class LogController {
 
     /**
      * 导出日志为 Excel
-     *
-     * <p>响应为二进制流（{@code Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet}），
-     * 浏览器直接触发文件下载。导出范围与分页条件一致；{@code responseStatus} 在 Excel 中以"成功"/"失败"文本呈现。</p>
      */
     @PostMapping("/export")
     @RequirePermission({"system:log:export"})
@@ -83,6 +63,8 @@ public class LogController {
 
     /**
      * 删除单条日志
+     *
+     * @param id 日志主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:log:delete"})

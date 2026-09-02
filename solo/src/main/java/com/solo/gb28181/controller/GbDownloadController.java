@@ -13,18 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 录像下载控制器
- *
- * <p>仅做权限校验和入参收口，所有业务编排都在服务层。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /start} — 发起下载；立即返回带 streamId 的 INVITING 状态，
- *       业务是异步的，前端按 {@code GET /{streamId}} 轮询到 READY 取下载链接</li>
- *   <li>{@code GET /{streamId}} — 查任务状态；
- *       streamId 不存在/已清理时返回 {@code status=NOT_FOUND}</li>
- *   <li>{@code POST /{streamId}/stop} — 主动停止；服务端发 SIP 停止信令并关闭资源</li>
- * </ul>
+ * 录像下载管理
  */
 @RestController
 @RequestMapping("/api/gb28181/download")
@@ -34,9 +23,7 @@ public class GbDownloadController {
     private final GbDownloadService downloadService;
 
     /**
-     * 发起录像下载（异步，立即返回当前状态）
-     * <p>提交后立即返回 taskId（即 {@code streamId}），
-     * 前端轮询 {@code GET /{streamId}} 查进度，{@code READY} 状态可取下载链接。</p>
+     * 发起录像下载
      */
     @PostMapping("/start")
     public Result<DownloadResultResponse> start(@RequestBody DownloadStartRequest req) {
@@ -45,7 +32,8 @@ public class GbDownloadController {
 
     /**
      * 查任务状态
-     * @param streamId 任务 ID（点播 start 响应中返回的 streamId）
+     *
+     * @param streamId 任务 ID
      */
     @GetMapping("/{streamId}")
     public Result<DownloadResultResponse> status(@PathVariable String streamId) {
@@ -54,6 +42,7 @@ public class GbDownloadController {
 
     /**
      * 主动停止下载
+     *
      * @param streamId 任务 ID
      */
     @PostMapping("/{streamId}/stop")
