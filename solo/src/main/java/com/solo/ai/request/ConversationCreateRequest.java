@@ -1,5 +1,6 @@
 package com.solo.ai.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -12,12 +13,15 @@ import lombok.Data;
  *   <li>{@code TASK} — 任务型会话（保留类型，当前未启用，预留扩展位）</li>
  * </ul>
  */
+@Schema(description = "创建会话请求体")
 @Data
 public class ConversationCreateRequest {
 
     /** 可选；会话标题（前端可在第一次对话后回写更新标题） */
+    @Schema(description = "会话标题")
     private String title;
 
     /** 必填；会话类型：{@code CHAT} 普通对话 / {@code CREATION} 创作会话 / {@code TASK} 任务型（保留） */
+    @Schema(description = "会话类型：CHAT 普通对话 / CREATION 创作会话 / TASK 任务型（保留）")
     private String conversationType;
 }

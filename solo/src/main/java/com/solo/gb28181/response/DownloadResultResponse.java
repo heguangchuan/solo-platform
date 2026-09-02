@@ -1,5 +1,6 @@
 package com.solo.gb28181.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -18,6 +19,7 @@ import lombok.Data;
  *
  * <p>任务仅在内存中按 streamId 索引，不入库——重启即丢，前端只能拿当前返回的状态，不能查历史。</p>
  */
+@Schema(description = "录像下载响应")
 @Data
 public class DownloadResultResponse {
 
@@ -27,24 +29,24 @@ public class DownloadResultResponse {
     public static final String STATUS_FAILED = "FAILED";
     public static final String STATUS_TIMEOUT = "TIMEOUT";
 
-    /** 流 ID（与 start 响应的 streamId 一致；前端 GET /status 用它查任务） */
+    @Schema(description = "流 ID（与 start 响应的 streamId 一致；前端 GET /status 用它查任务）")
     private String streamId;
 
-    /** 当前任务状态（取 {@link #STATUS_INVITING} / {@link #STATUS_RECORDING} / {@link #STATUS_READY} / {@link #STATUS_FAILED} / {@link #STATUS_TIMEOUT}） */
+    @Schema(description = "当前任务状态（INVITING/RECORDING/READY/FAILED/TIMEOUT）")
     private String status;
 
-    /** 起始时间（Unix 秒） */
+    @Schema(description = "起始时间（Unix 秒）")
     private Long startEpochSec;
 
-    /** 结束时间（Unix 秒） */
+    @Schema(description = "结束时间（Unix 秒）")
     private Long endEpochSec;
 
-    /** 时段总长（秒） = end - start */
+    @Schema(description = "时段总长（秒） = end - start")
     private Long durationSec;
 
-    /** 文件就绪后的下载 URL（仅 {@link #STATUS_READY} 状态有值；其他状态为空字符串） */
+    @Schema(description = "文件就绪后的下载 URL（仅 READY 状态有值；其他为空字符串）")
     private String downloadUrl;
 
-    /** 失败原因（仅 {@link #STATUS_FAILED} / {@link #STATUS_TIMEOUT} 状态有值） */
+    @Schema(description = "失败原因（仅 FAILED/TIMEOUT 状态有值）")
     private String errorMsg;
 }

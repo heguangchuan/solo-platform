@@ -1,5 +1,6 @@
 package com.solo.media.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -20,27 +21,28 @@ import lombok.Data;
  *       节点未配置 rtcPort 时返回空字符串，UI 需隐藏 RTC 选项</li>
  * </ul>
  */
+@Schema(description = "拉流代理播放地址响应")
 @Data
 public class StreamProxyPlayUrlResponse {
 
-    /** ZLM 应用名（默认 {@code proxy}） */
+    @Schema(description = "ZLM 应用名（默认 proxy）")
     private String app;
 
-    /** ZLM 流名（一般同源 stream） */
+    @Schema(description = "ZLM 流名（一般同源 stream）")
     private String stream;
 
-    /** ZLM 节点 serverId，标识该流在哪个节点 */
+    @Schema(description = "ZLM 节点 serverId，标识该流在哪个节点")
     private String mediaServerId;
 
-    /** HTTP-FLV 播放地址 */
+    @Schema(description = "HTTP-FLV 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String flvUrl;
 
-    /** WebSocket-FLV 播放地址 */
+    @Schema(description = "WS-FLV 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String wsFlvUrl;
 
-    /** HLS m3u8 地址 */
+    @Schema(description = "HLS 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String hlsUrl;
 
-    /** WebRTC 播放地址（节点未配置 rtcPort 时为空） */
+    @Schema(description = "WebRTC 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String rtcUrl;
 }

@@ -14,6 +14,10 @@ import com.solo.system.request.RoleRequest;
 import com.solo.system.response.RoleExcelResponse;
 import com.solo.system.service.SysRoleService;
 import com.solo.common.utils.ExcelUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +29,7 @@ import java.util.List;
 /**
  * 角色管理
  */
+@Tag(name = "角色管理", description = "角色管理")
 @RestController
 @RequestMapping("/api/role")
 @RequiredArgsConstructor
@@ -37,6 +42,7 @@ public class RoleController {
     /**
      * 分页查询角色列表
      */
+    @Operation(summary = "分页查询角色列表")
     @PostMapping("/page")
     @RequirePermission({"system:role:list"})
     public Result<PageResult<SysRole>> getPage(@RequestBody RolePageRequest req) {
@@ -47,6 +53,7 @@ public class RoleController {
     /**
      * 导出角色为 Excel
      */
+    @Operation(summary = "导出角色为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:role:export"})
     @OperationLog(module = "角色管理", type = BusinessType.EXPORT, description = "导出角色")
@@ -79,6 +86,7 @@ public class RoleController {
     /**
      * 新增角色
      */
+    @Operation(summary = "新增角色")
     @PostMapping
     @RequirePermission({"system:role:add"})
     @OperationLog(module = "角色管理", type = BusinessType.ADD, description = "新增角色")
@@ -92,6 +100,8 @@ public class RoleController {
      *
      * @param id 角色主键 ID
      */
+    @Operation(summary = "修改角色信息")
+    @Parameter(name = "id", description = "角色主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"system:role:edit"})
     @OperationLog(module = "角色管理", type = BusinessType.EDIT, description = "修改角色")
@@ -103,6 +113,7 @@ public class RoleController {
     /**
      * 批量删除角色
      */
+    @Operation(summary = "批量删除角色")
     @DeleteMapping("/batch")
     @RequirePermission({"system:role:delete"})
     @OperationLog(module = "角色管理", type = BusinessType.DELETE, description = "批量删除角色")
@@ -114,6 +125,7 @@ public class RoleController {
     /**
      * 全量启用角色列表
      */
+    @Operation(summary = "全量启用角色列表")
     @GetMapping("/list")
     @RequirePermission({"system:role:list"})
     public Result<List<SysRole>> list() {
@@ -129,6 +141,8 @@ public class RoleController {
      *
      * @param id 角色主键 ID
      */
+    @Operation(summary = "删除单个角色")
+    @Parameter(name = "id", description = "角色主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:role:delete"})
     @OperationLog(module = "角色管理", type = BusinessType.DELETE, description = "删除角色")
@@ -142,6 +156,8 @@ public class RoleController {
      *
      * @param roleId 角色主键 ID
      */
+    @Operation(summary = "查询角色已分配的权限 ID 列表")
+    @Parameter(name = "roleId", description = "角色主键 ID", in = ParameterIn.PATH)
     @GetMapping("/p2r/{roleId}")
     @RequirePermission({"system:role:p2r"})
     public Result<List<String>> listAssignedPermissions(@PathVariable Long roleId) {
@@ -156,6 +172,7 @@ public class RoleController {
     /**
      * 给角色分配权限
      */
+    @Operation(summary = "给角色分配权限")
     @PostMapping("/p2r")
     @RequirePermission({"system:role:p2r"})
     @OperationLog(module = "角色管理", type = BusinessType.EDIT, description = "角色授权")

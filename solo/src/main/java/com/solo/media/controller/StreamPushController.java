@@ -10,6 +10,10 @@ import com.solo.media.request.StreamPushBatchDeleteRequest;
 import com.solo.media.request.StreamPushPageRequest;
 import com.solo.media.response.StreamPushPlayUrlResponse;
 import com.solo.media.service.StreamPushService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 推流管理
  */
+@Tag(name = "推流管理", description = "推流管理")
 @RestController
 @RequestMapping("/api/stream-push")
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class StreamPushController {
     /**
      * 推流分页查询
      */
+    @Operation(summary = "推流分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:stream-push:list"})
     public Result<PageResult<StreamPush>> page(@RequestBody StreamPushPageRequest request) {
@@ -45,6 +51,8 @@ public class StreamPushController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "推流详情")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
     @RequirePermission({"media:stream-push:list"})
     public Result<StreamPush> detail(@PathVariable Long id) {
@@ -60,6 +68,8 @@ public class StreamPushController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "播放地址")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/play-urls")
     public Result<StreamPushPlayUrlResponse> playUrls(@PathVariable Long id) {
         return Result.success(streamPushService.getPlayUrls(id));
@@ -70,6 +80,8 @@ public class StreamPushController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "强制中止")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/stop")
     public Result<Void> stop(@PathVariable Long id) {
         streamPushService.forceStop(id);
@@ -81,6 +93,8 @@ public class StreamPushController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "单条删除")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:stream-push:delete"})
     public Result<Void> delete(@PathVariable Long id) {
@@ -91,6 +105,7 @@ public class StreamPushController {
     /**
      * 批量删除
      */
+    @Operation(summary = "批量删除")
     @PostMapping("/batch/delete")
     @RequirePermission({"media:stream-push:delete"})
     @Transactional

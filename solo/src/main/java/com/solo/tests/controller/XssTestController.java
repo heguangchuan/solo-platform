@@ -1,6 +1,10 @@
 package com.solo.tests.controller;
 
 import com.solo.common.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -8,7 +12,10 @@ import java.util.Map;
 
 /**
  * XSS 过滤测试管理
+ * <p>
+ * <b>警告：本组接口仅供开发 / 测试环境使用</b>
  */
+@Tag(name = "XSS 过滤测试管理", description = "XSS 过滤测试管理")
 @RestController
 @RequestMapping("/api/test/xss")
 public class XssTestController {
@@ -16,6 +23,7 @@ public class XssTestController {
     /**
      * Body 体 XSS 过滤测试
      */
+    @Operation(summary = "Body 体 XSS 过滤测试")
     @PostMapping("/body")
     public Result<Map<String, Object>> body(@RequestBody XssTestRequest request) {
         Map<String, Object> data = new HashMap<>();
@@ -33,6 +41,9 @@ public class XssTestController {
      * @param keyword 查询关键词
      * @param remark 备注
      */
+    @Operation(summary = "查询参数 XSS 过滤测试")
+    @Parameter(name = "keyword", description = "查询关键词", in = ParameterIn.QUERY)
+    @Parameter(name = "remark", description = "备注", in = ParameterIn.QUERY)
     @GetMapping("/param")
     public Result<Map<String, Object>> param(@RequestParam(defaultValue = "") String keyword,
                                              @RequestParam(defaultValue = "") String remark) {

@@ -1,6 +1,7 @@
 package com.solo.gb28181.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -18,6 +19,7 @@ import java.time.LocalDateTime;
  * <p>业务主键 {@link #sendStreamId}；callId / srcStream 也建反查索引
  * （见 {@link com.solo.gb28181.service.impl.CascadeSendSessionServiceImpl}）。</p>
  */
+@Schema(description = "级联推流会话（Redis 主存）")
 @Data
 public class CascadeSendSession {
 
@@ -29,60 +31,84 @@ public class CascadeSendSession {
     public static final String STATUS_STOPPED = "STOPPED";
 
     /** 业务主键：本推流会话唯一标识（{@code send_<callId hash>} 或直接用上级 callId 归一） */
+    @Schema(description = "推流会话唯一标识")
     private String sendStreamId;
 
     /** ZLM 节点 ID（源流所在节点，也是发流节点） */
+    @Schema(description = "ZLM 节点 ID")
     private String serverId;
 
     /** 上级平台主键（gb_parent_platform.id） */
+    @Schema(description = "上级平台数据库主键")
     private Long platformDbId;
 
     /** 上级平台国标编号（server_gb_id，= 上级 INVITE 的 From-user） */
+    @Schema(description = "上级平台国标编号")
     private String platformServerGbId;
 
     /** 本平台对该上级使用的国标编号（device_gb_id，写回复 SDP o= 行 / To-user） */
+    @Schema(description = "本平台对该上级使用的国标编号")
     private String localGbId;
 
     /** 被点播的通道国标编号（20 位，= 上级点播用的 exposed_code，写回复 SDP / 上级信令交互用） */
+    @Schema(description = "被点播的通道国标编号")
     private String channelId;
 
     /** 本平台真实通道国标编号（排查日志用；取流走 deviceId + 此码，不是 exposed_code） */
+    @Schema(description = "本平台真实通道国标编号")
     private String localChannelId;
 
     /** 该通道所属真实设备国标 ID（取流用） */
+    @Schema(description = "所属设备国标 ID")
     private String deviceId;
 
     /** 源流 app（固定 rtp） */
+    @Schema(description = "源流 app")
     private String srcApp;
 
     /** 源流 stream 名（= 取流会话 GbInviteSession.streamId，通常 deviceId_channelId） */
+    @Schema(description = "源流 stream 名")
     private String srcStream;
 
     /** 上级收流 IP（上级 SDP c= 行） */
+    @Schema(description = "上级收流 IP")
     private String dstIp;
 
     /** 上级收流端口（上级 SDP m= 行） */
+    @Schema(description = "上级收流端口")
     private Integer dstPort;
 
     /** 最终 SSRC（取上级 SDP y= 值），用于 startSendRtp 与回复 SDP y= 行 */
+    @Schema(description = "SSRC")
     private String ssrc;
 
     /** 本地发送端口（UDP/TCP 主动去连时分配；TCP 被动时为 ZLM 监听端口） */
+    @Schema(description = "本地发送端口")
     private Integer localSendPort;
 
     /** 传输语义（站在上级视角）：UDP / TCP-passive(上级等本平台去连) / TCP-active(上级来连本平台) */
+    @Schema(description = "传输模式")
     private String transport;
 
     /** 上级 INVITE 的 Call-Id / from-tag / to-tag（本平台在回 200 时生成 to-tag） */
+    @Schema(description = "SIP Call-ID")
     private String callId;
+
+    @Schema(description = "SIP From-tag")
     private String fromTag;
+
+    @Schema(description = "SIP To-tag")
     private String toTag;
 
     /** WAIT_ACK / SENDING / STOPPED */
+    @Schema(description = "会话状态 WAIT_ACK/SENDING/STOPPED")
     private String status;
 
+    @Schema(description = "创建时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
+
+    @Schema(description = "开始推流时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime sendTime;
 

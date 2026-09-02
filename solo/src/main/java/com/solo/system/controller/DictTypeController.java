@@ -10,6 +10,10 @@ import com.solo.system.entity.SysDictType;
 import com.solo.system.request.DictTypePageRequest;
 import com.solo.system.request.DictTypeRequest;
 import com.solo.system.service.SysDictTypeService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,6 +22,7 @@ import java.util.List;
 /**
  * 字典类型管理
  */
+@Tag(name = "字典类型管理", description = "字典类型管理")
 @RestController
 @RequestMapping("/api/dict/type")
 @RequiredArgsConstructor
@@ -28,6 +33,7 @@ public class DictTypeController {
     /**
      * 分页查询字典类型
      */
+    @Operation(summary = "分页查询字典类型")
     @PostMapping("/page")
     @RequirePermission({"setting:dict:type:list"})
     public Result<PageResult<SysDictType>> getPage(@RequestBody DictTypePageRequest req) {
@@ -38,6 +44,7 @@ public class DictTypeController {
     /**
      * 全量启用类型列表
      */
+    @Operation(summary = "全量启用类型列表")
     @GetMapping("/list")
     @RequirePermission({"setting:dict:type:list"})
     public Result<List<SysDictType>> list() {
@@ -51,6 +58,7 @@ public class DictTypeController {
     /**
      * 新增字典类型
      */
+    @Operation(summary = "新增字典类型")
     @PostMapping
     @RequirePermission({"setting:dict:type:add"})
     @OperationLog(module = "字典类型", type = BusinessType.ADD, description = "新增字典类型")
@@ -64,6 +72,8 @@ public class DictTypeController {
      *
      * @param id 字典类型主键 ID
      */
+    @Operation(summary = "修改字典类型")
+    @Parameter(name = "id", description = "字典类型主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"setting:dict:type:edit"})
     @OperationLog(module = "字典类型", type = BusinessType.EDIT, description = "修改字典类型")
@@ -75,6 +85,7 @@ public class DictTypeController {
     /**
      * 批量删除字典类型
      */
+    @Operation(summary = "批量删除字典类型")
     @DeleteMapping("/batch")
     @RequirePermission({"setting:dict:type:delete"})
     @OperationLog(module = "字典类型", type = BusinessType.DELETE, description = "批量删除字典类型")
@@ -88,6 +99,8 @@ public class DictTypeController {
      *
      * @param id 字典类型主键 ID
      */
+    @Operation(summary = "删除单个字典类型")
+    @Parameter(name = "id", description = "字典类型主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"setting:dict:type:delete"})
     @OperationLog(module = "字典类型", type = BusinessType.DELETE, description = "删除字典类型")

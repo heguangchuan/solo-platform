@@ -14,6 +14,11 @@ import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.CatalogSyncStatusService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 国标设备管理
  */
+@Tag(name = "国标设备管理", description = "国标设备管理")
 @RestController
 @RequestMapping("/api/gb28181/device")
 @RequiredArgsConstructor
@@ -33,6 +39,7 @@ public class GbDeviceController {
     /**
      * 分页查询设备
      */
+    @Operation(summary = "分页查询设备")
     @PostMapping("/page")
     @RequirePermission({"gb28181:device:list"})
     public Result<PageResult<GbDevice>> page(@RequestBody GbDevicePageRequest request) {
@@ -45,6 +52,8 @@ public class GbDeviceController {
      *
      * @param deviceId 设备国标 20 位 ID
      */
+    @Operation(summary = "设备详情")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:list"})
     public Result<GbDevice> detail(@PathVariable String deviceId) {
@@ -58,6 +67,7 @@ public class GbDeviceController {
     /**
      * 手动新增设备，同时可新增多条通道
      */
+    @Operation(summary = "手动新增设备")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device:add"})
     public Result<Void> save(@RequestBody GbDeviceCreateWithChannelsRequest request) {
@@ -68,6 +78,7 @@ public class GbDeviceController {
     /**
      * 手动编辑设备资料
      */
+    @Operation(summary = "手动编辑设备资料")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device:edit"})
     public Result<Void> update(@RequestBody GbDevice device) {
@@ -83,6 +94,8 @@ public class GbDeviceController {
      *
      * @param deviceId 设备国标 20 位 ID
      */
+    @Operation(summary = "手动触发设备信息 + 通道目录同步")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @PostMapping("/{deviceId}/sync")
     @RequirePermission({"gb28181:device:sync"})
     public Result<SyncTriggerResponse> sync(@PathVariable String deviceId) {
@@ -112,6 +125,8 @@ public class GbDeviceController {
      *
      * @param deviceId 设备国标 20 位 ID
      */
+    @Operation(summary = "拉取当前设备同步进度")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}/sync-status")
     @RequirePermission({"gb28181:device:sync"})
     public Result<String> syncStatus(@PathVariable String deviceId) {
@@ -126,6 +141,7 @@ public class GbDeviceController {
     /**
      * 批量探测设备存活
      */
+    @Operation(summary = "批量探测设备存活")
     @PostMapping("/detect")
     @RequirePermission({"gb28181:device:sync"})
     public Result<GbDeviceDetectResponse> detect(@RequestBody GbDeviceDetectRequest request) {
@@ -137,6 +153,8 @@ public class GbDeviceController {
      *
      * @param deviceId 设备国标 20 位 ID
      */
+    @Operation(summary = "删除设备记录，连同其名下所有通道")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:delete"})
     @Transactional
@@ -152,6 +170,7 @@ public class GbDeviceController {
     /**
      * 批量删除设备记录，连同每台设备名下所有通道
      */
+    @Operation(summary = "批量删除设备记录，连同每台设备名下所有通道")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:device:delete"})
     @Transactional
@@ -163,17 +182,21 @@ public class GbDeviceController {
     /**
      * 同步触发响应。
      */
+    @Schema(description = "同步触发响应")
     public record SyncTriggerResponse(
             /**
              * 触发结果：`TRIGGERED` / `ALREADY_RUNNING`
              */
+            @Schema(description = "触发结果：TRIGGERED / ALREADY_RUNNING")
             String result,
             /**
              * 设备国标 20 位 ID
              */
+            @Schema(description = "设备国标 20 位 ID")
             String deviceId,
             /**
              * 当前同步进度 JSON 字符串
              */
+            @Schema(description = "当前同步进度 JSON 字符串")
             String status) {}
 }

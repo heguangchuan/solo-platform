@@ -10,6 +10,10 @@ import com.solo.gb28181.request.GbPlatformBatchDeleteRequest;
 import com.solo.gb28181.request.GbPlatformPageRequest;
 import com.solo.gb28181.response.GbPlatformVO;
 import com.solo.gb28181.service.GbPlatformService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +21,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 国标接入禁用名单管理
  */
+@Tag(name = "国标接入禁用名单管理", description = "国标接入禁用名单管理")
 @RestController
 @RequestMapping("/api/gb28181/platform")
 @RequiredArgsConstructor
@@ -27,6 +32,7 @@ public class GbPlatformController {
     /**
      * 分页查询禁用名单，关联设备表回填在线状态
      */
+    @Operation(summary = "分页查询禁用名单")
     @PostMapping("/page")
     @RequirePermission({"gb28181:platform:list"})
     public Result<PageResult<GbPlatformVO>> page(@RequestBody GbPlatformPageRequest request) {
@@ -37,6 +43,7 @@ public class GbPlatformController {
     /**
      * 新增禁用项
      */
+    @Operation(summary = "新增禁用项")
     @PostMapping("/save")
     @RequirePermission({"gb28181:platform:add"})
     public Result<Void> save(@RequestBody GbPlatform platform) {
@@ -47,6 +54,7 @@ public class GbPlatformController {
     /**
      * 编辑禁用项
      */
+    @Operation(summary = "编辑禁用项")
     @PostMapping("/update")
     @RequirePermission({"gb28181:platform:edit"})
     public Result<Void> update(@RequestBody GbPlatform platform) {
@@ -62,6 +70,8 @@ public class GbPlatformController {
      *
      * @param id 禁用项主键 ID
      */
+    @Operation(summary = "移出禁用名单")
+    @Parameter(name = "id", description = "禁用项主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:platform:delete"})
     public Result<Void> delete(@PathVariable Long id) {
@@ -72,6 +82,7 @@ public class GbPlatformController {
     /**
      * 批量移出禁用名单
      */
+    @Operation(summary = "批量移出禁用名单")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:platform:delete"})
     @Transactional

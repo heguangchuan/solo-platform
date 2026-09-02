@@ -1,5 +1,6 @@
 package com.solo.gb28181.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -9,33 +10,28 @@ import lombok.Data;
  *
  * <p>下载字段集与历史回放一致，唯一差异是 {@link #speed}（下载倍速）。</p>
  */
+@Schema(description = "开始录像下载请求")
 @Data
 public class DownloadStartRequest {
 
-    /** 设备国标 20 位 ID（必填） */
+    @Schema(description = "设备国标 20 位 ID")
     private String deviceId;
 
-    /** 通道国标 20 位 ID（必填） */
+    @Schema(description = "通道国标 20 位 ID")
     private String channelId;
 
-    /** 起始时间 {@code yyyy-MM-dd HH:mm:ss}（必填） */
+    @Schema(description = "起始时间 yyyy-MM-dd HH:mm:ss")
     private String startTime;
 
-    /** 结束时间 {@code yyyy-MM-dd HH:mm:ss}（必填） */
+    @Schema(description = "结束时间 yyyy-MM-dd HH:mm:ss")
     private String endTime;
 
-    /** 收流模式：{@code UDP} / {@code TCP-passive} / {@code TCP-active}；默认 {@code TCP-passive} */
+    @Schema(description = "收流模式：UDP / TCP-passive / TCP-active")
     private String transport = "TCP-passive";
 
-    /**
-     * 下载倍速：{@code 1} / {@code 2} / {@code 4} / {@code 8}，默认 {@code 1}（原速）。
-     * 部分设备不支持倍速会忽略该参数，按原速下载。
-     */
+    @Schema(description = "下载倍速：1 / 2 / 4 / 8")
     private Integer speed = 1;
 
-    /**
-     * 码流 token：空 / 不传 = 主码流，非空 = 子码流。
-     * 与点播 / 回放共用一套写法。
-     */
+    @Schema(description = "码流 token：空 = 主码流，非空 = 子码流")
     private String streamNumber;
 }

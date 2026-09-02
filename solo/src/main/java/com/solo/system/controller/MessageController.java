@@ -7,6 +7,10 @@ import com.solo.system.request.SendMessageRequest;
 import com.solo.system.service.impl.SysMessageService;
 import com.solo.common.utils.UserHolderUtils;
 import com.solo.websocket.SystemMessageWebSocket;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,6 +19,7 @@ import java.util.List;
 /**
  * 站内消息管理
  */
+@Tag(name = "站内消息管理", description = "站内消息管理")
 @RestController
 @RequestMapping("/api/message")
 @RequiredArgsConstructor
@@ -27,6 +32,8 @@ public class MessageController {
      *
      * @param limit 最多返回条数
      */
+    @Operation(summary = "获取当前用户消息列表")
+    @Parameter(name = "limit", description = "最多返回条数", in = ParameterIn.QUERY)
     @GetMapping("/list")
     public Result<List<SysMessage>> list(@RequestParam(defaultValue = "50") int limit) {
         String username = UserHolderUtils.getCurrentUsername();
@@ -37,6 +44,7 @@ public class MessageController {
     /**
      * 获取未读消息数
      */
+    @Operation(summary = "获取未读消息数")
     @GetMapping("/unread-count")
     public Result<Long> unreadCount() {
         String username = UserHolderUtils.getCurrentUsername();
@@ -49,6 +57,8 @@ public class MessageController {
      *
      * @param id 消息主键 ID
      */
+    @Operation(summary = "标记单条消息为已读")
+    @Parameter(name = "id", description = "消息主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/read")
     public Result<Void> markRead(@PathVariable Long id) {
         String username = UserHolderUtils.getCurrentUsername();
@@ -59,6 +69,7 @@ public class MessageController {
     /**
      * 标记所有消息为已读
      */
+    @Operation(summary = "标记所有消息为已读")
     @PostMapping("/read-all")
     public Result<Void> markAllRead() {
         String username = UserHolderUtils.getCurrentUsername();
@@ -69,6 +80,7 @@ public class MessageController {
     /**
      * 后台：发送消息给指定用户
      */
+    @Operation(summary = "后台：发送消息给指定用户")
     @PostMapping("/send")
     public Result<Void> sendMessage(@RequestBody SendMessageRequest request) {
         messageService.sendMessage(
@@ -85,6 +97,7 @@ public class MessageController {
     /**
      * 后台：广播消息给所有在线用户
      */
+    @Operation(summary = "后台：广播消息给所有在线用户")
     @PostMapping("/broadcast")
     public Result<Integer> broadcast(@RequestBody BroadcastMessageRequest request) {
         int count = messageService.broadcast(request.getTitle(), request.getContent(), request.getLevel());
@@ -94,6 +107,7 @@ public class MessageController {
     /**
      * 获取 WebSocket 当前在线用户数
      */
+    @Operation(summary = "获取 WebSocket 当前在线用户数")
     @GetMapping("/online-count")
     public Result<Integer> onlineCount() {
         return Result.success(SystemMessageWebSocket.getOnlineCount());

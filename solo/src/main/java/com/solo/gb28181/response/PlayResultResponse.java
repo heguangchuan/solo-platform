@@ -1,5 +1,6 @@
 package com.solo.gb28181.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -9,41 +10,40 @@ import lombok.Data;
  * <p>同时提供 {@code wsFlv} / {@code flv} / {@code hls} / {@code rtc} 多协议播放地址，前端按 player 能力挑一个用。
  * 截图功能由 jessibuca 播放器自带，不走后端。</p>
  */
+@Schema(description = "点播开始响应")
 @Data
 public class PlayResultResponse {
 
-    /**
-     * 流 ID（约定 {@code <deviceId>_<channelId>}，停止点播时回传）
-     */
+    @Schema(description = "流 ID（约定 <deviceId>_<channelId>，停止点播时回传）")
     private String streamId;
 
-    /** 流应用名，固定 {@code rtp} */
+    @Schema(description = "流应用名，固定 rtp")
     private String app;
 
-    /** 流媒体节点 ID */
+    @Schema(description = "流媒体节点 ID")
     private String mediaServerId;
 
-    /** 10 位 SSRC（同步源标识） */
+    @Schema(description = "RTP SSRC（10 位数字）")
     private String ssrc;
 
-    /** 流媒体实际占用的 RTP 端口 */
+    @Schema(description = "RTP 收流端口")
     private Integer rtpPort;
 
-    /** 收流模式：{@code UDP} / {@code TCP-passive} */
+    @Schema(description = "收流模式：UDP / TCP-passive")
     private String transport;
 
-    /** 码流 token：空 = 主码流，非空 = 子码流。前端切换后据此回显当前档位。 */
+    @Schema(description = "码流 token：空 = 主码流，非空 = 子码流")
     private String streamNumber;
 
-    /** HTTP-FLV 播放地址 */
+    @Schema(description = "HTTP-FLV 播放地址")
     private String flvUrl;
 
-    /** WebSocket-FLV 播放地址（jessibuca 默认使用） */
+    @Schema(description = "WebSocket-FLV 播放地址（jessibuca 默认使用）")
     private String wsFlvUrl;
 
-    /** HLS（m3u8）播放地址 */
+    @Schema(description = "HLS（m3u8）播放地址")
     private String hlsUrl;
 
-    /** WebRTC 播放地址（节点未配置 rtcPort 时为空字符串） */
+    @Schema(description = "WebRTC 播放地址（节点未配置 rtcPort 时为空字符串）")
     private String rtcUrl;
 }

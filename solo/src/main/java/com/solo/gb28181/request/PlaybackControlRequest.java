@@ -1,5 +1,6 @@
 package com.solo.gb28181.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -14,15 +15,16 @@ import lombok.Data;
  *   <li>{@code speed} — param 为倍速（{@code "0.5"}/{@code "1"}/{@code "2"}/{@code "4"}）</li>
  * </ul>
  */
+@Schema(description = "回放控制请求")
 @Data
 public class PlaybackControlRequest {
 
-    /** 流 ID（回放 start 响应中返回） */
+    @Schema(description = "流 ID（回放 start 响应中返回）")
     private String streamId;
 
-    /** 动作类型：{@code pause} / {@code resume} / {@code seek} / {@code speed} */
+    @Schema(description = "动作类型：pause / resume / seek / speed")
     private String action;
 
-    /** 按 action 不同含义不同；{@code pause}/{@code resume} 时可省 */
+    @Schema(description = "按 action 不同含义不同；pause/resume 时可省")
     private String param;
 }

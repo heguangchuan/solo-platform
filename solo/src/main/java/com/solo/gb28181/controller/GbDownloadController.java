@@ -4,6 +4,10 @@ import com.solo.common.Result;
 import com.solo.gb28181.request.DownloadStartRequest;
 import com.solo.gb28181.response.DownloadResultResponse;
 import com.solo.gb28181.service.GbDownloadService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 录像下载管理
  */
+@Tag(name = "录像下载管理", description = "录像下载管理")
 @RestController
 @RequestMapping("/api/gb28181/download")
 @RequiredArgsConstructor
@@ -25,6 +30,7 @@ public class GbDownloadController {
     /**
      * 发起录像下载
      */
+    @Operation(summary = "发起录像下载")
     @PostMapping("/start")
     public Result<DownloadResultResponse> start(@RequestBody DownloadStartRequest req) {
         return Result.success(downloadService.start(req));
@@ -35,6 +41,8 @@ public class GbDownloadController {
      *
      * @param streamId 任务 ID
      */
+    @Operation(summary = "查任务状态")
+    @Parameter(name = "streamId", description = "任务 ID", in = ParameterIn.PATH)
     @GetMapping("/{streamId}")
     public Result<DownloadResultResponse> status(@PathVariable String streamId) {
         return Result.success(downloadService.getStatus(streamId));
@@ -45,6 +53,8 @@ public class GbDownloadController {
      *
      * @param streamId 任务 ID
      */
+    @Operation(summary = "主动停止下载")
+    @Parameter(name = "streamId", description = "任务 ID", in = ParameterIn.PATH)
     @PostMapping("/{streamId}/stop")
     public Result<Void> stop(@PathVariable String streamId) {
         downloadService.stop(streamId);

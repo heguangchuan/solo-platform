@@ -8,6 +8,8 @@ import com.solo.gb28181.request.RecordInfoQueryRequest;
 import com.solo.gb28181.response.PlaybackResultResponse;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -19,6 +21,7 @@ import java.util.List;
 /**
  * 历史回放管理
  */
+@Tag(name = "历史回放管理", description = "历史回放管理")
 @RestController
 @RequestMapping("/api/gb28181/playback")
 @RequiredArgsConstructor
@@ -29,6 +32,7 @@ public class GbPlaybackController {
     /**
      * 录像查询
      */
+    @Operation(summary = "录像查询")
     @PostMapping("/query")
     public Result<List<RecordItemResponse>> query(@RequestBody RecordInfoQueryRequest req) {
         return Result.success(playbackService.queryRecordInfo(req));
@@ -37,6 +41,7 @@ public class GbPlaybackController {
     /**
      * 开始回放
      */
+    @Operation(summary = "开始回放")
     @PostMapping("/start")
     public Result<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req) {
         return Result.success(playbackService.start(req));
@@ -45,6 +50,7 @@ public class GbPlaybackController {
     /**
      * 停止回放
      */
+    @Operation(summary = "停止回放")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody PlaybackStopRequest req) {
         playbackService.stop(req);
@@ -54,6 +60,7 @@ public class GbPlaybackController {
     /**
      * 回放控制
      */
+    @Operation(summary = "回放控制")
     @PostMapping("/control")
     public Result<Void> control(@RequestBody PlaybackControlRequest req) {
         playbackService.control(req);

@@ -1,5 +1,6 @@
 package com.solo.gb28181.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.List;
@@ -11,11 +12,10 @@ import java.util.List;
  * 与单条 {@code DELETE /{deviceId}} 行为一致：删除设备同时连同其名下所有通道。
  * 仅删本平台数据库记录，不影响实际设备本身。</p>
  */
+@Schema(description = "批量删除设备请求")
 @Data
 public class GbDeviceBatchDeleteRequest {
 
-    /**
-     * 要删除的设备主键 ID 列表（数据库自增 ID，非国标 deviceId）
-     */
+    @Schema(description = "要删除的设备主键 ID 列表")
     private List<Long> ids;
 }

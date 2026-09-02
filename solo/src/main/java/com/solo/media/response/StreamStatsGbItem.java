@@ -1,6 +1,7 @@
 package com.solo.media.response;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -26,25 +27,26 @@ import java.time.LocalDateTime;
  *   <li>{@code STOPPED} / {@code TIMEOUT} / {@code FAILED} — 终态，列表里一般已清理</li>
  * </ul>
  */
+@Schema(description = "节点流统计 - 国标会话明细项")
 @Data
 public class StreamStatsGbItem {
 
-    /** 业务主键：{@code <deviceId>_<channelId>}（回放再附时间段后缀），可用于断流接口的入参 */
+    @Schema(description = "业务主键：<deviceId>_<channelId>（回放再附时间段后缀），可用于断流接口的入参")
     private String streamId;
 
-    /** 设备国标 ID（20 位数字） */
+    @Schema(description = "设备国标 ID（20 位数字）")
     private String deviceId;
 
-    /** 通道国标 ID（20 位数字） */
+    @Schema(description = "通道国标 ID（20 位数字）")
     private String channelId;
 
-    /** 会话类型：{@code PLAY}（实时） / {@code PLAYBACK}（回放） / {@code DOWNLOAD}（下载） */
+    @Schema(description = "会话类型：PLAY（实时） / PLAYBACK（回放） / DOWNLOAD（下载）")
     private String sessionType;
 
-    /** 会话状态：{@code INVITING} / {@code READY} / {@code STOPPED} / {@code TIMEOUT} / {@code FAILED} */
+    @Schema(description = "会话状态：INVITING / READY / STOPPED / TIMEOUT / FAILED")
     private String status;
 
-    /** 会话开始时间，{@code yyyy-MM-dd HH:mm:ss} 格式，表格直接展示 */
+    @Schema(description = "会话开始时间，yyyy-MM-dd HH:mm:ss 格式，表格直接展示")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;
 }

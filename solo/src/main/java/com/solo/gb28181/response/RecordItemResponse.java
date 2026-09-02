@@ -1,5 +1,6 @@
 package com.solo.gb28181.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -15,36 +16,37 @@ import lombok.Data;
  *   <li>{@link #secrecy} — 保密属性，{@code 0} 不限、{@code 1} 涉密</li>
  * </ul>
  */
+@Schema(description = "录像段信息项")
 @Data
 public class RecordItemResponse {
 
-    /** 通道国标 ID */
+    @Schema(description = "通道国标 ID")
     private String channelId;
 
-    /** 录像文件名（设备给的，未必有意义） */
+    @Schema(description = "录像文件名（设备给的，未必有意义）")
     private String name;
 
-    /** 录像文件路径（设备本地路径，下载用） */
+    @Schema(description = "录像文件路径（设备本地路径，下载用）")
     private String filePath;
 
-    /** 录像地址 */
+    @Schema(description = "录像地址")
     private String address;
 
-    /** 起始时间 ISO-8601（如 {@code 2026-06-30T08:00:00}） */
+    @Schema(description = "起始时间 ISO-8601（如 2026-06-30T08:00:00）")
     private String startTime;
 
-    /** 结束时间 ISO-8601 */
+    @Schema(description = "结束时间 ISO-8601")
     private String endTime;
 
-    /** 文件大小（字节），设备未提供时为 0 */
+    @Schema(description = "文件大小（字节），设备未提供时为 0")
     private Long fileSize;
 
-    /** 录像类型：{@code time} 计划 / {@code alarm} 报警 / {@code manual} 手动 */
+    @Schema(description = "录像类型：time 计划 / alarm 报警 / manual 手动")
     private String type;
 
-    /** 录像设备 ID（NVR 等录像聚合设备，可为空） */
+    @Schema(description = "录像设备 ID（NVR 等录像聚合设备，可为空）")
     private String recorderId;
 
-    /** 保密属性：{@code 0} 不限、{@code 1} 涉密 */
+    @Schema(description = "保密属性：0 不限、1 涉密")
     private Integer secrecy;
 }

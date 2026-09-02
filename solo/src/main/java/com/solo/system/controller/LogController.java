@@ -10,6 +10,10 @@ import com.solo.system.request.LogPageRequest;
 import com.solo.system.response.LogExcelResponse;
 import com.solo.system.service.SysLogService;
 import com.solo.common.utils.ExcelUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -21,6 +25,7 @@ import java.util.List;
 /**
  * 操作日志管理
  */
+@Tag(name = "操作日志管理", description = "操作日志管理")
 @RestController
 @RequestMapping("/api/log")
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class LogController {
     /**
      * 分页查询操作日志
      */
+    @Operation(summary = "分页查询操作日志")
     @PostMapping("/page")
     @RequirePermission({"system:log:list"})
     public Result<PageResult<SysLog>> getPage(@RequestBody LogPageRequest req) {
@@ -43,6 +49,7 @@ public class LogController {
     /**
      * 导出日志为 Excel
      */
+    @Operation(summary = "导出日志为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:log:export"})
     public void export(@RequestBody LogExportRequest request, HttpServletResponse response) throws IOException {
@@ -54,6 +61,7 @@ public class LogController {
     /**
      * 批量删除日志
      */
+    @Operation(summary = "批量删除日志")
     @DeleteMapping("/batch")
     @RequirePermission({"system:log:delete"})
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
@@ -66,6 +74,8 @@ public class LogController {
      *
      * @param id 日志主键 ID
      */
+    @Operation(summary = "删除单条日志")
+    @Parameter(name = "id", description = "日志主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:log:delete"})
     public Result<Void> delete(@PathVariable Long id) {

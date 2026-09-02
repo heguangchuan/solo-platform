@@ -6,6 +6,10 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.utils.SipUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -13,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 /**
  * 云台控制管理
  */
+@Tag(name = "云台控制管理", description = "云台控制管理")
 @Slf4j
 @RestController
 @RequestMapping("/api/gb28181/ptz")
@@ -31,6 +36,12 @@ public class GbPtzController {
      * @param speed     移动速度 0-255，默认 100
      * @param zoomSpeed 缩放速度 0-15，默认 5
      */
+    @Operation(summary = "PTZ 控制")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "command", description = "PTZ 指令：left/right/up/down/upleft/upright/downleft/downright/zoomin/zoomout/stop")
+    @Parameter(name = "speed", description = "PTZ 移动速度（0-255）")
+    @Parameter(name = "zoomSpeed", description = "PTZ 缩放速度（0-15）")
     @PostMapping("/control/{deviceId}/{channelId}")
     public Result<Void> control(@PathVariable String deviceId,
                                 @PathVariable String channelId,

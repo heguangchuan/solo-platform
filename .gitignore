@@ -53,5 +53,5 @@ uploads
 upload
 .claude
 
-# smart-doc 生成的 API 文档（已进版本控制）
-# 实际路径：solo/src/main/resources/static/sdoc/AllInOne.md
+# knife4j 运行时临时文件（schema 缓存等）
+solo/META-INF/

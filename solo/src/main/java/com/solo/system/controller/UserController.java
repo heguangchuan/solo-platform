@@ -14,6 +14,10 @@ import com.solo.system.request.UserRoleAssignRequest;
 import com.solo.system.response.UserExcelResponse;
 import com.solo.system.service.SysUserService;
 import com.solo.common.utils.ExcelUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +29,7 @@ import java.util.List;
 /**
  * 用户管理
  */
+@Tag(name = "用户管理", description = "用户管理")
 @RestController
 @RequestMapping("/api/user")
 @RequiredArgsConstructor
@@ -37,6 +42,7 @@ public class UserController {
     /**
      * 分页查询用户列表
      */
+    @Operation(summary = "分页查询用户列表")
     @PostMapping("/page")
     @RequirePermission({"system:user:list"})
     public Result<PageResult<SysUser>> getPage(@RequestBody UserPageRequest req) {
@@ -47,6 +53,7 @@ public class UserController {
     /**
      * 导出用户为 Excel
      */
+    @Operation(summary = "导出用户为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:user:export"})
     @OperationLog(module = "用户管理", type = BusinessType.EXPORT, description = "导出用户")
@@ -80,6 +87,7 @@ public class UserController {
     /**
      * 新增用户
      */
+    @Operation(summary = "新增用户")
     @PostMapping
     @RequirePermission({"system:user:add"})
     @OperationLog(module = "用户管理", type = BusinessType.ADD, description = "新增用户")
@@ -93,6 +101,8 @@ public class UserController {
      *
      * @param id 用户主键 ID
      */
+    @Operation(summary = "修改用户信息")
+    @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"system:user:edit"})
     @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "修改用户")
@@ -107,6 +117,9 @@ public class UserController {
      * @param id 用户主键 ID
      * @param status `0=禁用`、`1=启用`；禁用后该用户无法登录，已登录的会被踢出
      */
+    @Operation(summary = "切换用户状态")
+    @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "status", description = "0=禁用、1=启用；禁用后该用户无法登录，已登录的会被踢出", in = ParameterIn.PATH)
     @PutMapping("/{id}/status/{status}")
     @RequirePermission({"system:user:switch"})
     @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "切换用户状态")
@@ -118,6 +131,7 @@ public class UserController {
     /**
      * 批量删除用户
      */
+    @Operation(summary = "批量删除用户")
     @DeleteMapping("/batch")
     @RequirePermission({"system:user:delete"})
     @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "批量删除用户")
@@ -131,6 +145,8 @@ public class UserController {
      *
      * @param id 用户主键 ID
      */
+    @Operation(summary = "删除单个用户")
+    @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:user:delete"})
     @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "删除用户")
@@ -144,6 +160,8 @@ public class UserController {
      *
      * @param userId 用户主键 ID
      */
+    @Operation(summary = "查询用户已分配的角色 ID 列表")
+    @Parameter(name = "userId", description = "用户主键 ID", in = ParameterIn.PATH)
     @GetMapping("/r2u/{userId}")
     @RequirePermission({"system:user:r2u"})
     public Result<List<String>> listAssignedRoles(@PathVariable Long userId) {
@@ -157,6 +175,7 @@ public class UserController {
     /**
      * 给用户分配角色
      */
+    @Operation(summary = "给用户分配角色")
     @PostMapping("/r2u")
     @RequirePermission({"system:user:r2u"})
     @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "用户授权")

@@ -3,6 +3,8 @@ package com.solo.dashboard.controller;
 import com.solo.common.Result;
 import com.solo.config.MapProperties;
 import com.solo.dashboard.response.MapConfigResponse;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 首页地图配置管理
  */
+@Tag(name = "首页地图配置管理", description = "首页地图配置管理")
 @RestController
 @RequestMapping("/api/dashboard")
 @RequiredArgsConstructor
@@ -21,6 +24,7 @@ public class DashboardController {
     /**
      * 地图配置
      */
+    @Operation(summary = "地图配置", description = "首页 / 地图选点对话框初始化用")
     @GetMapping("/map-config")
     public Result<MapConfigResponse> mapConfig() {
         MapConfigResponse r = new MapConfigResponse();

@@ -1,5 +1,6 @@
 package com.solo.gb28181.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 import java.util.List;
@@ -14,18 +15,19 @@ import java.util.List;
  * 分组 {@code g_<dbId>}、通道 {@code c_<dbId>}。
  * 只有 {@code g_}/{@code c_} 前缀节点会被提交到保存接口，{@code d_} 前缀仅作展示。</p>
  */
+@Schema(description = "共享目录树节点响应")
 @Data
 public class GbShareTreeNodeResponse {
 
-    /** 节点唯一键（前端 el-tree node-key）：设备 {@code d_xxx} / 分组 {@code g_xxx} / 通道 {@code c_xxx} */
+    @Schema(description = "节点唯一键（前端 el-tree node-key）：设备 d_xxx / 分组 g_xxx / 通道 c_xxx")
     private String id;
 
-    /** 节点显示标签 */
+    @Schema(description = "节点显示标签")
     private String label;
 
-    /** 节点类型：{@code DEVICE} 设备（枝干） / {@code GROUP} 分组 / {@code CHANNEL} 通道 */
+    @Schema(description = "节点类型：DEVICE 设备（枝干） / GROUP 分组 / CHANNEL 通道")
     private String type;
 
-    /** 子节点 */
+    @Schema(description = "子节点")
     private List<GbShareTreeNodeResponse> children;
 }
