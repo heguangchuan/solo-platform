@@ -5,36 +5,125 @@
  * <p>布局：顶部 5 个 KPI（国标流 / 推流 / 拉流 / ONVIF 流 / 总数）+ 节点身份信息；
  * 下方分 4 个 Tab 列四类会话明细（国标点播/回放 / 第三方推流 / 拉流代理 / ONVIF 实时点播）。</p>
  *
- * <p>复用 {@code MediaServerDetailDialog} 同样的父持有 ref 模式：父组件调 {@code open(row)}，
- * 弹窗内部按需调 {@code GET /api/media-server/{serverId}/stream-stats} 拉明细。</p>
+ * <p>加载策略（按需懒加载，避免一次性 4 类明细大 JSON）：
+ * <ol>
+ *   <li>首屏只发 {@code GET /stream-stats/summary} 拿 KPI，~200B，秒回</li>
+ *   <li>summary 拿到后自动拉一次默认 active Tab 的明细，避免用户多一次点击</li>
+ *   <li>其余 Tab 在用户切过去时才发请求，已加载过的 Tab 不重发</li>
+ *   <li>{@code lazy} 让明细表格的 DOM 也只在首次激活时创建</li>
+ * </ol>
+ * </p>
+ *
+ * <p>复用父持有 ref 模式：父组件调 {@code open(row)}，弹窗内部负责拉数据。</p>
  */
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import type { GbMediaServer, MediaServerStreamStats } from '@/types/api'
-import { getMediaServerStreamStatsApi } from '@/api/gb28181'
+import type {
+  GbMediaServer,
+  MediaServerStreamStatsSummary,
+  StreamStatsGbItem,
+  StreamStatsOnvifItem,
+  StreamStatsProxyItem,
+  StreamStatsPushItem,
+  StreamStatsTabKey,
+} from '@/types/api'
+import {
+  getMediaServerStreamStatsSummaryApi,
+  getMediaServerStreamStatsDetailApi,
+} from '@/api/gb28181'
 
 const visible = ref(false)
 const loading = ref(false)
-const activeTab = ref('gb')
-const data = ref<MediaServerStreamStats | null>(null)
+const activeTab = ref<StreamStatsTabKey>('gb')
+const summary = ref<MediaServerStreamStatsSummary | null>(null)
+
+/** 默认激活的 Tab：弹窗打开后自动加载该 Tab 的明细，避免用户多一次点击 */
+const DEFAULT_TAB: StreamStatsTabKey = 'gb'
+
+// 4 个 Tab 的明细数据 / 加载状态 / 已加载标志
+const gbSessions = ref<StreamStatsGbItem[]>([])
+const pushItems = ref<StreamStatsPushItem[]>([])
+const proxyItems = ref<StreamStatsProxyItem[]>([])
+const onvifSessions = ref<StreamStatsOnvifItem[]>([])
+
+const tabLoading = ref<Record<StreamStatsTabKey, boolean>>({
+  gb: false,
+  push: false,
+  proxy: false,
+  onvif: false,
+})
+const tabLoaded = ref<Record<StreamStatsTabKey, boolean>>({
+  gb: false,
+  push: false,
+  proxy: false,
+  onvif: false,
+})
 
 async function open(row: GbMediaServer) {
   visible.value = true
-  data.value = null
-  activeTab.value = 'gb'
-  await load(row.serverId)
+  // 重置所有状态
+  summary.value = null
+  activeTab.value = DEFAULT_TAB
+  gbSessions.value = []
+  pushItems.value = []
+  proxyItems.value = []
+  onvifSessions.value = []
+  tabLoaded.value = { gb: false, push: false, proxy: false, onvif: false }
+  tabLoading.value = { gb: false, push: false, proxy: false, onvif: false }
+  await loadSummary(row.serverId)
+  // 默认 Tab 自动加载明细（loadSummary 失败时已关弹窗，summary.value 为空则跳过）
+  if (summary.value) {
+    await loadTab(DEFAULT_TAB)
+  }
 }
 
-async function load(serverId: string) {
+async function loadSummary(serverId: string) {
   loading.value = true
   try {
-    const res = await getMediaServerStreamStatsApi(serverId)
-    data.value = res.data
+    const res = await getMediaServerStreamStatsSummaryApi(serverId)
+    summary.value = res.data
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : '加载流统计失败')
     visible.value = false
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 切 Tab 时触发：已加载过的跳过；未加载的拉对应明细。
+ * 同时用 {@code el-tab-pane lazy} 防止未激活 Tab 的 DOM 被创建。
+ */
+async function onTabChange(name: string | number | undefined) {
+  if (typeof name !== 'string') return
+  const key = name as StreamStatsTabKey
+  if (tabLoaded.value[key] || tabLoading.value[key]) return
+  await loadTab(key)
+}
+
+async function loadTab(key: StreamStatsTabKey) {
+  if (!summary.value) return
+  tabLoading.value[key] = true
+  try {
+    const serverId = summary.value.serverId
+    if (key === 'gb') {
+      const res = await getMediaServerStreamStatsDetailApi<StreamStatsGbItem>(serverId, 'gb')
+      gbSessions.value = res.data
+    } else if (key === 'push') {
+      const res = await getMediaServerStreamStatsDetailApi<StreamStatsPushItem>(serverId, 'push')
+      pushItems.value = res.data
+    } else if (key === 'proxy') {
+      const res = await getMediaServerStreamStatsDetailApi<StreamStatsProxyItem>(serverId, 'proxy')
+      proxyItems.value = res.data
+    } else if (key === 'onvif') {
+      const res = await getMediaServerStreamStatsDetailApi<StreamStatsOnvifItem>(serverId, 'onvif')
+      onvifSessions.value = res.data
+    }
+    tabLoaded.value[key] = true
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : `加载 ${key} 明细失败`)
+  } finally {
+    tabLoading.value[key] = false
   }
 }
 
@@ -55,134 +144,146 @@ defineExpose({ open })
   >
     <div v-loading="loading">
       <!-- 节点身份 + 5 KPI -->
-      <template v-if="data">
+      <template v-if="summary">
         <div class="node-meta">
-          <span class="name">{{ data.serverName || data.serverId }}</span>
-          <el-tag :type="data.status === 1 ? 'success' : 'danger'" size="small">
-            {{ statusText(data.status) }}
+          <span class="name">{{ summary.serverName || summary.serverId }}</span>
+          <el-tag :type="summary.status === 1 ? 'success' : 'danger'" size="small">
+            {{ statusText(summary.status) }}
           </el-tag>
-          <span class="host">{{ data.hostIp }}:{{ data.httpPort }}</span>
+          <span class="host">{{ summary.hostIp }}:{{ summary.httpPort }}</span>
         </div>
         <div class="kpi-row">
           <div class="kpi-tile">
-            <div class="kpi-num">{{ data.gbStreamCount }}</div>
+            <div class="kpi-num">{{ summary.gbStreamCount }}</div>
             <div class="kpi-label">国标流</div>
           </div>
           <div class="kpi-tile">
-            <div class="kpi-num">{{ data.pushStreamCount }}</div>
+            <div class="kpi-num">{{ summary.pushStreamCount }}</div>
             <div class="kpi-label">推流数</div>
           </div>
           <div class="kpi-tile">
-            <div class="kpi-num">{{ data.proxyStreamCount }}</div>
+            <div class="kpi-num">{{ summary.proxyStreamCount }}</div>
             <div class="kpi-label">拉流数</div>
           </div>
           <div class="kpi-tile">
-            <div class="kpi-num">{{ data.onvifStreamCount }}</div>
+            <div class="kpi-num">{{ summary.onvifStreamCount }}</div>
             <div class="kpi-label">ONVIF 流</div>
           </div>
           <div class="kpi-tile kpi-total">
-            <div class="kpi-num">{{ data.total }}</div>
+            <div class="kpi-num">{{ summary.total }}</div>
             <div class="kpi-label">总数</div>
           </div>
         </div>
 
-        <el-tabs v-model="activeTab" class="detail-tabs">
+        <el-tabs v-model="activeTab" class="detail-tabs" @tab-change="onTabChange">
           <!-- 国标点播 / 回放 -->
-          <el-tab-pane :label="`国标会话 (${data.gbStreamCount})`" name="gb">
-            <el-table
-              :data="data.gbSessions"
-              size="small"
-              border
-              stripe
-              fit
-              style="width: 100%"
-              max-height="360"
-              empty-text="无国标会话"
-            >
-              <el-table-column prop="streamId" label="streamId" show-overflow-tooltip />
-              <el-table-column prop="sessionType" label="类型" align="center">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="row.sessionType === 'PLAYBACK' ? 'warning' : 'primary'">
-                    {{ row.sessionType || '-' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="status" label="状态" align="center">
-                <template #default="{ row }">
-                  <el-tag
-                    size="small"
-                    :type="row.status === 'READY' ? 'success' : (row.status === 'INVITING' ? 'warning' : 'info')"
-                  >
-                    {{ row.status || '-' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="startTime" label="开始时间" />
-            </el-table>
+          <el-tab-pane :label="`国标会话 (${summary.gbStreamCount})`" name="gb" lazy>
+            <div v-loading="tabLoading.gb">
+              <el-table
+                v-if="tabLoaded.gb"
+                :data="gbSessions"
+                size="small"
+                border
+                stripe
+                fit
+                style="width: 100%"
+                max-height="360"
+                empty-text="无国标会话"
+              >
+                <el-table-column prop="streamId" label="streamId" show-overflow-tooltip />
+                <el-table-column prop="sessionType" label="类型" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="row.sessionType === 'PLAYBACK' ? 'warning' : 'primary'">
+                      {{ row.sessionType || '-' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="status" label="状态" align="center">
+                  <template #default="{ row }">
+                    <el-tag
+                      size="small"
+                      :type="row.status === 'READY' ? 'success' : (row.status === 'INVITING' ? 'warning' : 'info')"
+                    >
+                      {{ row.status || '-' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="startTime" label="开始时间" />
+              </el-table>
+            </div>
           </el-tab-pane>
 
           <!-- 第三方推流 -->
-          <el-tab-pane :label="`推流 (${data.pushStreamCount})`" name="push">
-            <el-table
-              :data="data.pushes"
-              size="small"
-              border
-              stripe
-              fit
-              style="width: 100%"
-              max-height="360"
-              empty-text="无第三方推流"
-            >
-              <el-table-column prop="app" label="app" show-overflow-tooltip />
-              <el-table-column prop="stream" label="stream" show-overflow-tooltip />
-              <el-table-column prop="originType" label="协议" align="center" />
-              <el-table-column prop="aliveSecond" label="存活(秒)" align="center" />
-              <el-table-column prop="pushTime" label="推流开始时间" />
-            </el-table>
+          <el-tab-pane :label="`推流 (${summary.pushStreamCount})`" name="push" lazy>
+            <div v-loading="tabLoading.push">
+              <el-table
+                v-if="tabLoaded.push"
+                :data="pushItems"
+                size="small"
+                border
+                stripe
+                fit
+                style="width: 100%"
+                max-height="360"
+                empty-text="无第三方推流"
+              >
+                <el-table-column prop="app" label="app" show-overflow-tooltip />
+                <el-table-column prop="stream" label="stream" show-overflow-tooltip />
+                <el-table-column prop="originType" label="协议" align="center" />
+                <el-table-column prop="aliveSecond" label="存活(秒)" align="center" />
+                <el-table-column prop="pushTime" label="推流开始时间" />
+              </el-table>
+            </div>
           </el-tab-pane>
 
           <!-- 拉流代理 -->
-          <el-tab-pane :label="`拉流代理 (${data.proxyStreamCount})`" name="proxy">
-            <el-table
-              :data="data.proxies"
-              size="small"
-              border
-              stripe
-              fit
-              style="width: 100%"
-              max-height="360"
-              empty-text="无拉流代理"
-            >
-              <el-table-column prop="app" label="app" show-overflow-tooltip />
-              <el-table-column prop="stream" label="stream" show-overflow-tooltip />
-              <el-table-column prop="srcUrl" label="源地址" show-overflow-tooltip />
-              <el-table-column prop="status" label="状态" align="center">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="row.status === 1 ? 'success' : 'info'">
-                    {{ row.status === 1 ? '运行中' : '未启动' }}
-                  </el-tag>
-                </template>
-              </el-table-column>
-            </el-table>
+          <el-tab-pane :label="`拉流代理 (${summary.proxyStreamCount})`" name="proxy" lazy>
+            <div v-loading="tabLoading.proxy">
+              <el-table
+                v-if="tabLoaded.proxy"
+                :data="proxyItems"
+                size="small"
+                border
+                stripe
+                fit
+                style="width: 100%"
+                max-height="360"
+                empty-text="无拉流代理"
+              >
+                <el-table-column prop="app" label="app" show-overflow-tooltip />
+                <el-table-column prop="stream" label="stream" show-overflow-tooltip />
+                <el-table-column prop="srcUrl" label="源地址" show-overflow-tooltip />
+                <el-table-column prop="status" label="状态" align="center">
+                  <template #default="{ row }">
+                    <el-tag size="small" :type="row.status === 1 ? 'success' : 'info'">
+                      {{ row.status === 1 ? '运行中' : '未启动' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
           </el-tab-pane>
 
           <!-- ONVIF 实时点播 -->
-          <el-tab-pane :label="`ONVIF 会话 (${data.onvifStreamCount})`" name="onvif">
-            <el-table
-              :data="data.onvifSessions"
-              size="small"
-              border
-              stripe
-              fit
-              style="width: 100%"
-              max-height="360"
-              empty-text="无 ONVIF 会话"
-            >
-              <el-table-column prop="streamId" label="streamId" show-overflow-tooltip />
-              <el-table-column prop="deviceId" label="设备 ID" align="center" />
-              <el-table-column prop="proxyKey" label="proxyKey" show-overflow-tooltip />
-              <el-table-column prop="startTime" label="开始时间" />
-            </el-table>
+          <el-tab-pane :label="`ONVIF 会话 (${summary.onvifStreamCount})`" name="onvif" lazy>
+            <div v-loading="tabLoading.onvif">
+              <el-table
+                v-if="tabLoaded.onvif"
+                :data="onvifSessions"
+                size="small"
+                border
+                stripe
+                fit
+                style="width: 100%"
+                max-height="360"
+                empty-text="无 ONVIF 会话"
+              >
+                <el-table-column prop="streamId" label="streamId" show-overflow-tooltip />
+                <el-table-column prop="deviceId" label="设备 ID" align="center" />
+                <el-table-column prop="proxyKey" label="proxyKey" show-overflow-tooltip />
+                <el-table-column prop="startTime" label="开始时间" />
+              </el-table>
+            </div>
           </el-tab-pane>
         </el-tabs>
       </template>

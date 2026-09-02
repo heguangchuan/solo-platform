@@ -7,7 +7,11 @@ import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.request.GbMediaServerPageRequest;
-import com.solo.media.response.MediaServerStreamStatsResponse;
+import com.solo.media.response.StreamStatsGbItem;
+import com.solo.media.response.StreamStatsOnvifItem;
+import com.solo.media.response.StreamStatsProxyItem;
+import com.solo.media.response.StreamStatsPushItem;
+import com.solo.media.response.StreamStatsSummaryResponse;
 import com.solo.media.service.MediaServerService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +26,21 @@ import java.util.List;
 
 /**
  * 流媒体节点管理（ZLMediaKit）
+ *
+ * <h3>接口列表</h3>
+ * <ul>
+ *   <li>{@code POST /page} — 分页查询节点（按 serverId 模糊 + status 过滤）</li>
+ *   <li>{@code GET /{serverId}/stream-stats/summary} — 节点流统计 KPI 概要（弹窗首屏用）；
+ *       只返回节点身份 + 4 类会话 count + ZLM 维护的 total，响应 ~200B</li>
+ *   <li>{@code GET /{serverId}/stream-stats/gb} — 国标点播 / 回放会话明细（按 Tab 懒加载）</li>
+ *   <li>{@code GET /{serverId}/stream-stats/push} — 第三方推流明细（按 Tab 懒加载）</li>
+ *   <li>{@code GET /{serverId}/stream-stats/proxy} — 拉流代理明细（仅 status=1，按 Tab 懒加载）</li>
+ *   <li>{@code GET /{serverId}/stream-stats/onvif} — ONVIF 实时点播会话明细（按 Tab 懒加载）</li>
+ *   <li>{@code GET /list} — 节点列表（不分页，下拉框用）</li>
+ *   <li>{@code GET /{id}} — 节点详情（按主键）</li>
+ *   <li>{@code POST /save} — 新增 / 更新节点（按 serverId 唯一）</li>
+ *   <li>{@code DELETE /{id}} — 删除节点（同步清理 Redis 负载索引）</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/media-server")
@@ -32,6 +51,7 @@ public class MediaServerController {
 
     /**
      * 分页查询节点
+     * <p>支持按 serverId 模糊匹配 + status 精确过滤，按 updateTime 倒序。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"media:server:list"})
@@ -41,18 +61,64 @@ public class MediaServerController {
     }
 
     /**
-     * 节点流统计详情（弹窗下钻用）
-     * <p>聚合该节点上的国标点播/回放会话、第三方推流、拉流代理三类会话的总数与明细。
-     * 入口在节点列表的"流统计"操作按钮。</p>
+     * 节点流统计 KPI 概要
+     * <p>弹窗首屏用，仅返回节点身份 + 4 类会话的 count + ZLM 维护的 total，
+     * 响应体积控制在 ~200B 以内，Tab 标签上的数字能立刻就位；
+     * 明细走 {@code /stream-stats/{gb|push|proxy|onvif}} 按需加载。</p>
      */
-    @GetMapping("/{serverId}/stream-stats")
+    @GetMapping("/{serverId}/stream-stats/summary")
     @RequirePermission({"media:server:list"})
-    public Result<MediaServerStreamStatsResponse> streamStats(@PathVariable String serverId) {
-        return Result.success(mediaServerService.getStreamStats(serverId));
+    public Result<StreamStatsSummaryResponse> streamStatsSummary(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStatsSummary(serverId));
     }
 
     /**
-     * 节点列表（不分页，下拉框用）
+     * 国标点播 / 回放会话明细
+     * <p>数据源：{@code Redis} 实时会话集（{@code GbInviteSessionService.listAllActive()}）
+     * 按 serverId 内存过滤。明细可能为空。</p>
+     */
+    @GetMapping("/{serverId}/stream-stats/gb")
+    @RequirePermission({"media:server:list"})
+    public Result<List<StreamStatsGbItem>> streamStatsGb(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStatsGbDetail(serverId));
+    }
+
+    /**
+     * 第三方推流明细
+     * <p>数据源：MySQL {@code stream_push} 按 {@code mediaServerId} 过滤。
+     * 行存在即代表正在推流，由 ZLM {@code on_stream_changed} hook 维护入 / 出表。</p>
+     */
+    @GetMapping("/{serverId}/stream-stats/push")
+    @RequirePermission({"media:server:list"})
+    public Result<List<StreamStatsPushItem>> streamStatsPush(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStatsPushDetail(serverId));
+    }
+
+    /**
+     * 拉流代理明细
+     * <p>数据源：MySQL {@code stream_proxy} 按 {@code mediaServerId} 过滤，
+     * 只返回 {@code status=1}（已启动）的代理行。明细可能为空。</p>
+     */
+    @GetMapping("/{serverId}/stream-stats/proxy")
+    @RequirePermission({"media:server:list"})
+    public Result<List<StreamStatsProxyItem>> streamStatsProxy(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStatsProxyDetail(serverId));
+    }
+
+    /**
+     * ONVIF 实时点播会话明细
+     * <p>数据源：{@code Redis} 实时会话集（{@code OnvifPlayService.listAllActive()}）
+     * 按 serverId 内存过滤。明细可能为空。</p>
+     */
+    @GetMapping("/{serverId}/stream-stats/onvif")
+    @RequirePermission({"media:server:list"})
+    public Result<List<StreamStatsOnvifItem>> streamStatsOnvif(@PathVariable String serverId) {
+        return Result.success(mediaServerService.getStreamStatsOnvifDetail(serverId));
+    }
+
+    /**
+     * 节点列表（不分页）
+     * <p>下拉框 / 选择器专用，按 updateTime 倒序。</p>
      */
     @GetMapping("/list")
     @RequirePermission({"media:server:list"})
@@ -61,7 +127,8 @@ public class MediaServerController {
     }
 
     /**
-     * 详情（按主键）
+     * 节点详情（按主键）
+     * <p>不存在时抛 {@code ServiceException}。</p>
      */
     @GetMapping("/{id}")
     @RequirePermission({"media:server:list"})
@@ -74,7 +141,9 @@ public class MediaServerController {
     }
 
     /**
-     * 新增/更新节点（按 serverId 唯一）
+     * 新增 / 更新节点
+     * <p>按 serverId 唯一：已存在则覆盖更新（保留 id），不存在则新增。
+     * serverId / hostIp 必填校验在 Controller 层兜底。</p>
      */
     @PostMapping("/save")
     @RequirePermission({"media:server:save"})
@@ -91,6 +160,8 @@ public class MediaServerController {
 
     /**
      * 删除节点
+     * <p>先查 serverId，MySQL 删成功后再清 Redis 负载索引；
+     * 索引清理失败不影响主流程（下次选点会被 status=1 兜底分支挡住）。</p>
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"media:server:delete"})
