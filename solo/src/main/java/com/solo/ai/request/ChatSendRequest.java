@@ -6,48 +6,49 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 发送消息请求
+ * 发送消息请求体
+ *
+ * <p>对应 {@code POST /api/ai/chat/send}（同步）与 {@code POST /api/ai/chat/stream}（SSE 流式）、
+ * {@code POST /api/ai/creation/stream}（统一创作流式）三个端点。普通对话与模板对话用同一对象：</p>
+ * <ul>
+ *   <li>{@code templateCode} 非空 → 走模板对话分支，{@code variables} 生效</li>
+ *   <li>{@code templateCode} 为空 → 普通对话，{@code content} 必填</li>
+ * </ul>
+ *
+ * <p>多模态：{@code images} 给多模态模型（视觉）使用，<b>每张图必须为可公开访问的 URL</b>；
+ * 后端会拉下来转发给模型，并落库到 {@code ai_asset}。</p>
  */
 @Data
 public class ChatSendRequest {
 
-    /**
-     * 会话ID（新建会话时为空）
-     */
+    /** 必填（新建会话后可为空）；会话 id，留空时由后端自动创建新会话 */
     private Long conversationId;
 
-    /**
-     * 用户消息内容
-     */
+    /** 必填（模板分支可选）；用户消息内容，模板分支里也会作为附加上下文传给 LLM */
     private String content;
 
-    /**
-     * 使用的模型配置ID，为空时使用默认文本模型
-     */
+    /** 可选；使用的模型配置 id，为空时使用该用户默认启用的文本模型。具体可用 model 见 {@code GET /api/ai/model-config/list} */
     private Long modelConfigId;
 
-    /**
-     * 模板编码（使用模板时指定）
-     */
+    /** 可选；模板编码（使用模板对话时必填，例 {@code TRANSLATE_EN}） */
     private String templateCode;
 
-    /**
-     * 模板变量
-     */
+    /** 可选；模板变量（{@code key → value}），仅在 {@link #templateCode} 非空时生效。例：{@code {"text":"你好"}} */
     private Map<String, Object> variables;
 
-    /**
-     * 多模态图片输入：每张图给出可访问 URL，发给模型并落库 ai_asset
-     */
+    /** 可选；多模态图片输入：每张图给出可访问 URL，发给模型并落库 ai_asset */
     private List<AttachmentInput> images;
 
+    /**
+     * 多模态附件输入项
+     */
     @Data
     public static class AttachmentInput {
-        /** 图片访问 URL，必填，需公开可达 */
+        /** 必填；图片访问 URL，需公网可访问（后端会主动拉取转发给模型） */
         private String url;
-        /** 文件原名，可选 */
+        /** 可选；文件原名，仅用于展示 */
         private String fileName;
-        /** MIME 类型，可选，例如 image/png */
+        /** 可选；MIME 类型，例如 {@code image/png} / {@code image/jpeg} / {@code image/webp} */
         private String mimeType;
     }
 }

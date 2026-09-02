@@ -3,45 +3,45 @@ package com.solo.dashboard.response;
 import lombok.Data;
 
 /**
- * 地图配置响应
+ * 地图配置响应（Leaflet 地图初始化用）
  *
- * <p>对应 {@link com.solo.config.MapProperties}，由 {@code DashboardController#mapConfig} 返回。
- * 前端 Leaflet 地图在初始化时拉一次，字段缺失时用前端兜底默认。</p>
+ * <p>对应 {@code GET /api/dashboard/map-config}。前端在首页 / 通道地图 / 选点对话框初始化时拉一次，
+ * 缓存到内存里复用。字段缺失时返回 {@code null}，前端用兜底默认填充，这样 yaml 不填也能工作。</p>
  *
- * <p>字段名刻意使用全名（centerLng / centerLat 而不是简写），因为这个接口是配置类，
- * 调一次缓存到内存，不在大列表里循环使用，体积不是问题，可读性优先。</p>
+ * <p>字段名刻意使用全名（{@code centerLng} / {@code centerLat} 而不是简写）——配置类调一次就缓存，
+ * 不在大列表里循环，体积不是问题，可读性优先。</p>
  */
 @Data
 public class MapConfigResponse {
 
-    /** 初始中心经度 */
+    /** 初始中心经度（WGS84 坐标系下，除非 {@link #coordSystem} 指明其他） */
     private Double centerLng;
 
     /** 初始中心纬度 */
     private Double centerLat;
 
-    /** 初始缩放级别 */
+    /** 初始缩放级别（典型 8~16） */
     private Integer zoom;
 
-    /** 最小缩放 */
+    /** 最小缩放（用户缩到不能再小） */
     private Integer minZoom;
 
-    /** 最大缩放 */
+    /** 最大缩放（用户放到不能再大） */
     private Integer maxZoom;
 
-    /** 瓦片 URL 模板 */
+    /** 瓦片 URL 模板（Leaflet {@code L.tileLayer(url, options)} 第一参），按 {@link #tileMode} 二选一 */
     private String tileUrl;
 
-    /** 瓦片子域 */
+    /** 瓦片子域（用于多 CDN 负载均衡，例 {@code "abc"}；不需要时给空串） */
     private String tileSubdomains;
 
-    /** 此级别及以上不聚合 */
+    /** 此缩放级别及以上不做 marker 聚合（典型 14~16） */
     private Integer disableClusteringAtZoom;
 
-    /** 视口变化 debounce（ms） */
+    /** 视口变化后等待多少 ms 再发新数据请求（防抖） */
     private Integer fetchDebounceMs;
 
-    /** marker 单次上限 */
+    /** 单次 marker 渲染上限（超过会聚合 / 抽样） */
     private Integer markerLimit;
 
     /**

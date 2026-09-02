@@ -13,9 +13,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 录像下载控制器（薄）
+ * 录像下载控制器
  *
- * <p>仅做权限校验和入参收口，所有编排、SIP / ZLM / MinIO 交互都在 {@link GbDownloadService}。</p>
+ * <p>仅做权限校验和入参收口，所有业务编排都在服务层。</p>
  *
  * <h3>接口列表</h3>
  * <ul>
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  *       业务是异步的，前端按 {@code GET /{streamId}} 轮询到 READY 取下载链接</li>
  *   <li>{@code GET /{streamId}} — 查任务状态；
  *       streamId 不存在/已清理时返回 {@code status=NOT_FOUND}</li>
- *   <li>{@code POST /{streamId}/stop} — 主动停止；发 BYE → 关端口 → 标 FAILED</li>
+ *   <li>{@code POST /{streamId}/stop} — 主动停止；服务端发 SIP 停止信令并关闭资源</li>
  * </ul>
  */
 @RestController
@@ -33,19 +33,29 @@ public class GbDownloadController {
 
     private final GbDownloadService downloadService;
 
-    /** 发起录像下载（异步，立即返回当前状态） */
+    /**
+     * 发起录像下载（异步，立即返回当前状态）
+     * <p>提交后立即返回 taskId（即 {@code streamId}），
+     * 前端轮询 {@code GET /{streamId}} 查进度，{@code READY} 状态可取下载链接。</p>
+     */
     @PostMapping("/start")
     public Result<DownloadResultResponse> start(@RequestBody DownloadStartRequest req) {
         return Result.success(downloadService.start(req));
     }
 
-    /** 查任务状态 */
+    /**
+     * 查任务状态
+     * @param streamId 任务 ID（点播 start 响应中返回的 streamId）
+     */
     @GetMapping("/{streamId}")
     public Result<DownloadResultResponse> status(@PathVariable String streamId) {
         return Result.success(downloadService.getStatus(streamId));
     }
 
-    /** 主动停止下载 */
+    /**
+     * 主动停止下载
+     * @param streamId 任务 ID
+     */
     @PostMapping("/{streamId}/stop")
     public Result<Void> stop(@PathVariable String streamId) {
         downloadService.stop(streamId);

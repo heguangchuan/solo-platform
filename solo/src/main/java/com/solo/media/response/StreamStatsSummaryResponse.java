@@ -6,56 +6,60 @@ import lombok.Data;
  * 节点流统计概要（弹窗首屏用）
  *
  * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats/summary}。
- * 只返回 KPI 数字 + 节点身份信息，明细按 Tab 懒加载：
- * {@code GET /{serverId}/stream-stats/{gb|push|proxy|onvif}}。</p>
- *
- * <p>设计意图：弹窗打开时这个接口响应控制在 ~200B 以内，Tab 标签上的 count
- * 数字能立刻就位；明细只在用户点中对应 Tab 时才发请求。</p>
+ * 只返回节点身份 + 4 类会话的 count，响应体小，弹窗打开瞬间 Tab 上的数字就能就位；
+ * 4 个 Tab 的会话明细按需懒加载，切换到哪个 Tab 才请求对应明细接口。</p>
  *
  * <h3>字段语义</h3>
  * <ul>
  *   <li>{@link #gbStreamCount} / {@link #pushStreamCount} / {@link #proxyStreamCount} /
  *       {@link #onvifStreamCount} — 四类已建模会话的 count，弹窗 Tab 标签用</li>
- *   <li>{@link #total} — ZLM 视角的权威活跃流数（Redis ZSet 维护），
- *       理论上覆盖所有来源；与四类累加之和不一定相等</li>
+ *   <li>{@link #total} — 流媒体服务器视角的活跃流总数，理论上覆盖所有来源；
+ *       与四类累加之和不一定相等（差异可能是未建模的临时流）</li>
  * </ul>
+ *
+ * <h3>弹窗使用流程</h3>
+ * <ol>
+ *   <li>打开弹窗时调 summary，4 个 Tab 标签上的数字立即就位</li>
+ *   <li>用户点击某个 Tab，才请求对应明细接口（gb / push / proxy / onvif）</li>
+ *   <li>弹窗关闭不再轮询，下次打开重新拉 summary</li>
+ * </ol>
  */
 @Data
 public class StreamStatsSummaryResponse {
 
-    /** 节点 serverId（与 {@code media_server.server_id} 一致） */
+    /** 节点 serverId（管理台展示用） */
     private String serverId;
 
-    /** 节点显示名（来自 {@code media_server.name}） */
+    /** 节点显示名（管理台列表的同名字段） */
     private String serverName;
 
-    /** ZLM 管理面 IP（用于 REST API 调用） */
+    /** 流媒体服务器管理面 IP */
     private String hostIp;
 
-    /** ZLM HTTP API 端口 */
+    /** 流媒体服务器 HTTP 端口 */
     private Integer httpPort;
 
-    /** 节点在线状态：0 离线，1 在线 */
+    /** 节点在线状态：0 离线，1 在线；前端可按值给 status 标签染色（绿 / 红） */
     private Integer status;
 
-    /** 国标点播 / 回放会话数（Redis 实时） */
+    /** 国标点播 / 回放会话数 */
     private Long gbStreamCount;
 
-    /** 第三方推流数（MySQL） */
+    /** 第三方推流数 */
     private Long pushStreamCount;
 
-    /** 拉流代理数（MySQL，仅 {@code status=1}） */
+    /** 拉流代理数（仅统计"已启动"的代理） */
     private Long proxyStreamCount;
 
-    /** ONVIF 实时点播会话数（Redis 实时） */
+    /** ONVIF 实时点播会话数 */
     private Long onvifStreamCount;
 
     /**
-     * 该节点上的活跃流总数（ZLM {@code on_stream_changed} hook 维护在 Redis ZSet）
+     * 该节点上的活跃流总数（流媒体服务器视角）
      *
      * <p>与 {@link #gbStreamCount} / {@link #pushStreamCount} / {@link #proxyStreamCount} /
-     * {@link #onvifStreamCount} 之和 <b>不一定相等</b>——前者是 ZLM 视角的权威值，理论上覆盖
-     * 所有来源；后者只覆盖四类已建模会话，未来新增来源时差值会先于 total 反映出来。</p>
+     * {@link #onvifStreamCount} 之和 <b>不一定相等</b>——前者覆盖流媒体服务器上的所有活跃流，
+     * 后者只覆盖四类已建模会话；新增流来源时差值会先于 total 反映出来。</p>
      */
     private Long total;
 }
