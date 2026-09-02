@@ -13,6 +13,10 @@ import com.solo.media.response.StreamStatsProxyItem;
 import com.solo.media.response.StreamStatsPushItem;
 import com.solo.media.response.StreamStatsSummaryResponse;
 import com.solo.media.service.MediaServerService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,6 +31,7 @@ import java.util.List;
 /**
  * 流媒体节点管理
  */
+@Tag(name = "流媒体节点管理", description = "流媒体节点管理")
 @RestController
 @RequestMapping("/api/media-server")
 @RequiredArgsConstructor
@@ -37,6 +42,7 @@ public class MediaServerController {
     /**
      * 节点分页查询
      */
+    @Operation(summary = "节点分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:server:list"})
     public Result<PageResult<MediaServer>> page(@RequestBody GbMediaServerPageRequest request) {
@@ -49,6 +55,8 @@ public class MediaServerController {
      *
      * @param serverId 节点 serverId
      */
+    @Operation(summary = "节点流统计 KPI 概要", description = "按 Tab 懒加载，弹窗首屏只发 summary")
+    @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/summary")
     @RequirePermission({"media:server:list"})
     public Result<StreamStatsSummaryResponse> streamStatsSummary(@PathVariable String serverId) {
@@ -60,6 +68,8 @@ public class MediaServerController {
      *
      * @param serverId 节点 serverId
      */
+    @Operation(summary = "国标点播 / 回放会话明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
+    @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/gb")
     @RequirePermission({"media:server:list"})
     public Result<List<StreamStatsGbItem>> streamStatsGb(@PathVariable String serverId) {
@@ -71,6 +81,8 @@ public class MediaServerController {
      *
      * @param serverId 节点 serverId
      */
+    @Operation(summary = "第三方推流明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
+    @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/push")
     @RequirePermission({"media:server:list"})
     public Result<List<StreamStatsPushItem>> streamStatsPush(@PathVariable String serverId) {
@@ -82,6 +94,8 @@ public class MediaServerController {
      *
      * @param serverId 节点 serverId
      */
+    @Operation(summary = "拉流代理明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
+    @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/proxy")
     @RequirePermission({"media:server:list"})
     public Result<List<StreamStatsProxyItem>> streamStatsProxy(@PathVariable String serverId) {
@@ -93,6 +107,8 @@ public class MediaServerController {
      *
      * @param serverId 节点 serverId
      */
+    @Operation(summary = "ONVIF 实时点播会话明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
+    @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/onvif")
     @RequirePermission({"media:server:list"})
     public Result<List<StreamStatsOnvifItem>> streamStatsOnvif(@PathVariable String serverId) {
@@ -102,6 +118,7 @@ public class MediaServerController {
     /**
      * 节点列表
      */
+    @Operation(summary = "节点列表")
     @GetMapping("/list")
     @RequirePermission({"media:server:list"})
     public Result<List<MediaServer>> list() {
@@ -113,6 +130,8 @@ public class MediaServerController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "节点详情")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
     @RequirePermission({"media:server:list"})
     public Result<MediaServer> detail(@PathVariable Long id) {
@@ -126,6 +145,7 @@ public class MediaServerController {
     /**
      * 新增 / 更新节点
      */
+    @Operation(summary = "新增 / 更新节点")
     @PostMapping("/save")
     @RequirePermission({"media:server:save"})
     public Result<Void> save(@RequestBody MediaServer server) {
@@ -144,6 +164,8 @@ public class MediaServerController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "删除节点")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:server:delete"})
     public Result<Void> delete(@PathVariable Long id) {

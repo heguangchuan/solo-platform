@@ -1,5 +1,6 @@
 package com.solo.media.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -17,27 +18,28 @@ import lombok.Data;
  *   <li>{@link #rtcUrl} — WebRTC，最低延迟（&lt;500ms），节点未配置 rtcPort 时为空</li>
  * </ul>
  */
+@Schema(description = "推流播放地址响应")
 @Data
 public class StreamPushPlayUrlResponse {
 
-    /** ZLM 应用名（默认 {@code live}） */
+    @Schema(description = "ZLM 应用名（默认 live）")
     private String app;
 
-    /** ZLM 流名（推流方自定义） */
+    @Schema(description = "ZLM 流名（推流方自定义）")
     private String stream;
 
-    /** ZLM 节点 serverId，标识该流在哪个节点 */
+    @Schema(description = "ZLM 节点 serverId，标识该流在哪个节点")
     private String mediaServerId;
 
-    /** HTTP-FLV 播放地址 */
+    @Schema(description = "HTTP-FLV 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String flvUrl;
 
-    /** WebSocket-FLV 播放地址 */
+    @Schema(description = "WS-FLV 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String wsFlvUrl;
 
-    /** HLS m3u8 地址 */
+    @Schema(description = "HLS 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String hlsUrl;
 
-    /** WebRTC 播放地址（节点未配置 rtcPort 时为空） */
+    @Schema(description = "WebRTC 播放地址（HTTP-FLV 适合内网，HLS 适合 Safari，WebRTC 最低延迟）")
     private String rtcUrl;
 }

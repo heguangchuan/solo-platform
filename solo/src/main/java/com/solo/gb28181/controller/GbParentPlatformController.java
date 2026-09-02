@@ -17,6 +17,10 @@ import com.solo.gb28181.response.GbPlatformSharedResponse;
 import com.solo.gb28181.response.GbShareTreeNodeResponse;
 import com.solo.gb28181.service.CatalogShareService;
 import com.solo.gb28181.service.GbParentPlatformService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,6 +30,7 @@ import java.util.Map;
 /**
  * 上级平台管理
  */
+@Tag(name = "上级平台管理", description = "上级平台管理")
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
 @RequiredArgsConstructor
@@ -38,6 +43,7 @@ public class GbParentPlatformController {
     /**
      * 分页查询上级平台配置
      */
+    @Operation(summary = "分页查询上级平台配置")
     @PostMapping("/page")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<PageResult<GbParentPlatform>> page(@RequestBody GbParentPlatformPageRequest request) {
@@ -48,6 +54,7 @@ public class GbParentPlatformController {
     /**
      * 新增上级平台配置
      */
+    @Operation(summary = "新增上级平台配置")
     @PostMapping("/save")
     @RequirePermission({"gb28181:parent-platform:add"})
     public Result<Void> save(@RequestBody GbParentPlatform platform) {
@@ -58,6 +65,7 @@ public class GbParentPlatformController {
     /**
      * 编辑上级平台配置
      */
+    @Operation(summary = "编辑上级平台配置")
     @PostMapping("/update")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Void> update(@RequestBody GbParentPlatform platform) {
@@ -73,6 +81,8 @@ public class GbParentPlatformController {
      *
      * @param id 上级平台主键 ID
      */
+    @Operation(summary = "删除上级平台配置")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:parent-platform:delete"})
     public Result<Void> delete(@PathVariable Long id) {
@@ -86,6 +96,7 @@ public class GbParentPlatformController {
     /**
      * 批量删除上级平台配置
      */
+    @Operation(summary = "批量删除上级平台配置")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:parent-platform:delete"})
     public Result<Void> batchDelete(@RequestBody GbParentPlatformBatchDeleteRequest request) {
@@ -96,6 +107,7 @@ public class GbParentPlatformController {
     /**
      * 获取本平台国标身份
      */
+    @Operation(summary = "获取本平台国标身份")
     @GetMapping("/local-info")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<GbLocalPlatformInfo> localInfo() {
@@ -114,6 +126,7 @@ public class GbParentPlatformController {
     /**
      * 获取可共享的资源目录树
      */
+    @Operation(summary = "获取可共享的资源目录树")
     @GetMapping("/share-tree")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<List<GbShareTreeNodeResponse>> shareTree() {
@@ -125,6 +138,8 @@ public class GbParentPlatformController {
      *
      * @param id 上级平台主键 ID
      */
+    @Operation(summary = "获取某上级平台已共享的目录/通道节点 id")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/shared")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<GbPlatformSharedResponse> getShared(@PathVariable Long id) {
@@ -136,6 +151,8 @@ public class GbParentPlatformController {
      *
      * @param id 上级平台主键 ID
      */
+    @Operation(summary = "全量覆盖保存某上级平台的共享目录/通道")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/shared")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Void> saveShared(@PathVariable Long id, @RequestBody GbPlatformShareSaveRequest request) {
@@ -149,6 +166,9 @@ public class GbParentPlatformController {
      * @param id 上级平台主键 ID
      * @param groupId 推送分组主键 ID
      */
+    @Operation(summary = "分页查询某上级平台某分组下已挂载的 catalog item")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/shared/page")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<PageResult<GbDeviceChannel>> sharedPage(
@@ -166,6 +186,9 @@ public class GbParentPlatformController {
      * @param id 上级平台主键 ID
      * @param groupId 推送分组主键 ID
      */
+    @Operation(summary = "分页查询某上级平台\"未挂载到本组\"的通道")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/unmounted-channels/page")
     @RequirePermission({"gb28181:parent-platform:list"})
     public Result<PageResult<GbDeviceChannel>> unmountedChannelsPage(
@@ -185,6 +208,9 @@ public class GbParentPlatformController {
      * @param body 请求体：`{"resourceIds": [id1, id2, ...]`}，resourceIds 不能为空，否则 400
      * @return 响应：`{"added": N`}，N 为实际新增条数
      */
+    @Operation(summary = "批量挂载 catalog item 到某分组")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Map<String, Object>> addShares(
@@ -206,6 +232,10 @@ public class GbParentPlatformController {
      * @param groupId 推送分组主键 ID
      * @param resourceId 待卸载的资源主键 ID
      */
+    @Operation(summary = "单条卸载")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "resourceId", description = "待卸载的资源主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share-group/{groupId}/share/{resourceId}")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Void> removeShare(
@@ -223,6 +253,9 @@ public class GbParentPlatformController {
      * @param groupId 推送分组主键 ID
      * @return 响应：`{"cleared": N`}，N 为实际删除条数
      */
+    @Operation(summary = "清除某上级平台某分组下的全部挂载关系")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share-group/{groupId}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Map<String, Object>> clearShares(
@@ -238,6 +271,8 @@ public class GbParentPlatformController {
      * @param id 上级平台主键 ID
      * @return 响应：`{"cleared": N`}，N 为实际删除条数
      */
+    @Operation(summary = "清除某上级平台下全部挂载关系")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Map<String, Object>> clearAllSharesByPlatform(@PathVariable("id") Long id) {
@@ -252,6 +287,9 @@ public class GbParentPlatformController {
      * @param groupId 推送分组主键 ID
      * @return 响应：`{"added": N`}，N 为实际新增条数
      */
+    @Operation(summary = "一键添加所有\"未挂载到本组\"通道到该分组")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/share-all")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Map<String, Object>> addAllShares(

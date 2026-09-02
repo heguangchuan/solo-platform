@@ -2,6 +2,8 @@ package com.solo.tests.controller;
 
 import com.solo.aop.NoRepeatSubmit;
 import com.solo.common.Result;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -11,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * 防重复提交测试管理
  */
+@Tag(name = "防重复提交测试管理", description = "防重复提交测试管理")
 @RestController
 @RequestMapping("/api/test/repeat-submit")
 public class RepeatSubmitTestController {
@@ -18,6 +21,7 @@ public class RepeatSubmitTestController {
     /**
      * 快速释放防重测试
      */
+    @Operation(summary = "快速释放防重测试")
     @PostMapping("/quick-unlock")
     @NoRepeatSubmit(expire = 3, timeUnit = TimeUnit.SECONDS,
             message = "快速释放测试触发防重复提交：请求执行中不能重复提交")
@@ -29,6 +33,7 @@ public class RepeatSubmitTestController {
     /**
      * 固定窗口防重测试
      */
+    @Operation(summary = "固定窗口防重测试")
     @PostMapping("/fixed-window")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false,
             message = "固定窗口测试触发防重复提交：5秒内只能提交一次")
@@ -40,6 +45,7 @@ public class RepeatSubmitTestController {
     /**
      * 参数级防重测试
      */
+    @Operation(summary = "参数级防重测试")
     @PostMapping("/include-params")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false, includeParams = true,
             message = "参数级测试触发防重复提交：相同参数5秒内只能提交一次")
@@ -51,6 +57,7 @@ public class RepeatSubmitTestController {
     /**
      * 全局防重测试
      */
+    @Operation(summary = "全局防重测试")
     @PostMapping("/global")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false,
             lockType = NoRepeatSubmit.LockType.GLOBAL,

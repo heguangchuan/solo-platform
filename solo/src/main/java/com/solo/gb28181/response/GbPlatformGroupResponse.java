@@ -1,6 +1,7 @@
 package com.solo.gb28181.response;
 
 import com.solo.gb28181.entity.GbPlatformGroup;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -15,12 +16,11 @@ import java.util.List;
  * <p>字段与分组实体完全一致，仅外加 {@link #children} 字段。
  * 前端用此结构渲染树形控件，{@code children} 为空数组的节点是叶子节点。</p>
  */
+@Schema(description = "推送目录分组树响应项")
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class GbPlatformGroupResponse extends GbPlatformGroup {
 
-    /**
-     * 子节点（树形结构）
-     */
+    @Schema(description = "子节点（树形结构）")
     private List<GbPlatformGroupResponse> children = new ArrayList<>();
 }

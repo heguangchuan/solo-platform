@@ -10,6 +10,10 @@ import com.solo.ai.entity.AiPromptTemplate;
 import com.solo.ai.request.AiPromptTemplatePageRequest;
 import com.solo.ai.request.AiPromptTemplateRequest;
 import com.solo.ai.service.AiPromptTemplateService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,6 +23,7 @@ import java.util.Map;
 /**
  * AI 提示词模板管理
  */
+@Tag(name = "AI 提示词模板管理", description = "AI 提示词模板管理")
 @RestController
 @RequestMapping("/api/ai/prompt-template")
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class AiPromptTemplateController {
     /**
      * 分页查询模板
      */
+    @Operation(summary = "分页查询模板")
     @PostMapping("/page")
     @RequirePermission({"ai:promptTemplate:list"})
     public Result<PageResult<AiPromptTemplate>> getPage(@RequestBody AiPromptTemplatePageRequest req) {
@@ -39,6 +45,7 @@ public class AiPromptTemplateController {
     /**
      * 获取所有启用的模板列表
      */
+    @Operation(summary = "获取所有启用的模板列表")
     @GetMapping("/list")
     @RequirePermission({"ai:promptTemplate:list"})
     public Result<List<AiPromptTemplate>> getList() {
@@ -50,6 +57,8 @@ public class AiPromptTemplateController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "模板详情")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
     @RequirePermission({"ai:promptTemplate:list"})
     public Result<AiPromptTemplate> getById(@PathVariable Long id) {
@@ -59,6 +68,7 @@ public class AiPromptTemplateController {
     /**
      * 新增模板
      */
+    @Operation(summary = "新增模板")
     @PostMapping
     @RequirePermission({"ai:promptTemplate:add"})
     @OperationLog(module = "提示词模板", type = BusinessType.ADD, description = "新增模板")
@@ -72,6 +82,8 @@ public class AiPromptTemplateController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "修改模板")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"ai:promptTemplate:edit"})
     @OperationLog(module = "提示词模板", type = BusinessType.EDIT, description = "修改模板")
@@ -85,6 +97,8 @@ public class AiPromptTemplateController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "删除模板")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"ai:promptTemplate:delete"})
     @OperationLog(module = "提示词模板", type = BusinessType.DELETE, description = "删除模板")
@@ -96,6 +110,7 @@ public class AiPromptTemplateController {
     /**
      * 批量删除模板
      */
+    @Operation(summary = "批量删除模板")
     @DeleteMapping("/batch")
     @RequirePermission({"ai:promptTemplate:delete"})
     @OperationLog(module = "提示词模板", type = BusinessType.DELETE, description = "批量删除模板")
@@ -109,6 +124,8 @@ public class AiPromptTemplateController {
      *
      * @param templateCode 模板编码
      */
+    @Operation(summary = "渲染模板")
+    @Parameter(name = "templateCode", description = "模板编码", in = ParameterIn.PATH)
     @PostMapping("/render/{templateCode}")
     @RequirePermission({"ai:promptTemplate:list"})
     public Result<String> render(@PathVariable String templateCode, @RequestBody Map<String, Object> variables) {

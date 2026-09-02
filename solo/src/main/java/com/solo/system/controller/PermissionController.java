@@ -10,6 +10,10 @@ import com.solo.system.request.PermissionRequest;
 import com.solo.system.response.PermissionExcelResponse;
 import com.solo.system.service.SysPermissionService;
 import com.solo.common.utils.ExcelUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -20,6 +24,7 @@ import java.util.List;
 /**
  * 权限管理
  */
+@Tag(name = "权限管理", description = "权限管理")
 @RestController
 @RequestMapping("/api/permission")
 @RequiredArgsConstructor
@@ -30,6 +35,7 @@ public class PermissionController {
     /**
      * 获取权限列表
      */
+    @Operation(summary = "获取权限列表")
     @GetMapping("/list")
     @RequirePermission({"system:permission:list"})
     public Result<List<SysPermission>> getList() {
@@ -41,6 +47,7 @@ public class PermissionController {
     /**
      * 导出权限为 Excel
      */
+    @Operation(summary = "导出权限为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:permission:export"})
     @OperationLog(module = "权限管理", type = BusinessType.EXPORT, description = "导出权限")
@@ -83,6 +90,7 @@ public class PermissionController {
     /**
      * 新增权限
      */
+    @Operation(summary = "新增权限")
     @PostMapping
     @RequirePermission({"system:permission:add"})
     @OperationLog(module = "权限管理", type = BusinessType.ADD, description = "新增权限")
@@ -96,6 +104,8 @@ public class PermissionController {
      *
      * @param type 可选过滤；`1=菜单`、`2=按钮`，不传返回全量
      */
+    @Operation(summary = "获取权限树形结构")
+    @Parameter(name = "type", description = "可选过滤；1=菜单、2=按钮，不传返回全量", in = ParameterIn.QUERY)
     @GetMapping("/tree")
     @RequirePermission({"system:permission:list"})
     public Result<List<SysPermission>> getTree(@RequestParam(required = false) Integer type) {
@@ -111,6 +121,8 @@ public class PermissionController {
      *
      * @param id 权限主键 ID
      */
+    @Operation(summary = "修改权限信息")
+    @Parameter(name = "id", description = "权限主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"system:permission:edit"})
     @OperationLog(module = "权限管理", type = BusinessType.EDIT, description = "修改权限")
@@ -122,6 +134,7 @@ public class PermissionController {
     /**
      * 批量删除权限
      */
+    @Operation(summary = "批量删除权限")
     @DeleteMapping("/batch")
     @RequirePermission({"system:permission:delete"})
     @OperationLog(module = "权限管理", type = BusinessType.DELETE, description = "批量删除权限")
@@ -135,6 +148,8 @@ public class PermissionController {
      *
      * @param id 权限主键 ID
      */
+    @Operation(summary = "删除单个权限")
+    @Parameter(name = "id", description = "权限主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:permission:delete"})
     @OperationLog(module = "权限管理", type = BusinessType.DELETE, description = "删除权限")

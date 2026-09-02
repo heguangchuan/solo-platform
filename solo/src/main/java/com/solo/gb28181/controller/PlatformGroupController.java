@@ -5,6 +5,10 @@ import com.solo.common.Result;
 import com.solo.gb28181.request.GbPlatformGroupSaveRequest;
 import com.solo.gb28181.response.GbPlatformGroupResponse;
 import com.solo.gb28181.service.PlatformGroupService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +25,7 @@ import java.util.List;
 /**
  * 上级平台推送目录分组管理
  */
+@Tag(name = "上级平台推送目录分组管理", description = "上级平台推送目录分组管理")
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
 @RequiredArgsConstructor
@@ -33,6 +38,8 @@ public class PlatformGroupController {
      *
      * @param id 上级平台主键 ID
      */
+    @Operation(summary = "拉取该上级平台的推送目录分组树")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/share-group-tree")
     @RequirePermission({"gb28181:share-group:list"})
     public Result<List<GbPlatformGroupResponse>> shareGroupTree(@PathVariable("id") Long id) {
@@ -45,6 +52,8 @@ public class PlatformGroupController {
      * @param platformId 路径参数：上级平台主键 ID
      * @param req 分组资料：name 必填、code 必填、parentId 必填
      */
+    @Operation(summary = "新建该上级平台下的推送分组")
+    @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group")
     @RequirePermission({"gb28181:share-group:add"})
     public Result<Void> createShareGroup(
@@ -61,6 +70,9 @@ public class PlatformGroupController {
      * @param groupId 路径参数：分组主键 ID
      * @param req 分组资料：name 必填、code 必填、parentId 必填
      */
+    @Operation(summary = "改该上级平台下的推送分组")
+    @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "分组主键 ID（路径参数）", in = ParameterIn.PATH)
     @PutMapping("/{id}/share-group/{groupId}")
     @RequirePermission({"gb28181:share-group:edit"})
     public Result<Void> updateShareGroup(
@@ -77,6 +89,9 @@ public class PlatformGroupController {
      * @param platformId 路径参数：上级平台主键 ID
      * @param groupId 路径参数：分组主键 ID
      */
+    @Operation(summary = "删除该上级平台下的推送分组")
+    @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
+    @Parameter(name = "groupId", description = "分组主键 ID（路径参数）", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share-group/{groupId}")
     @RequirePermission({"gb28181:share-group:delete"})
     public Result<Void> deleteShareGroup(

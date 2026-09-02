@@ -5,6 +5,8 @@ import com.solo.aop.RequirePermission;
 import com.solo.ai.request.ChatSendRequest;
 import com.solo.ai.service.AiCreationService;
 import com.solo.common.utils.UserHolderUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -23,6 +25,7 @@ import java.util.concurrent.Executors;
 /**
  * 统一创作管理
  */
+@Tag(name = "统一创作管理", description = "统一创作管理")
 @RestController
 @RequestMapping("/api/ai/creation")
 @RequiredArgsConstructor
@@ -42,6 +45,7 @@ public class AiCreationController {
     /**
      * 统一创作流式端点
      */
+    @Operation(summary = "统一创作流式端点", description = "立即返回 taskId，前端轮询 GET /task/{id} 查进度")
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RequirePermission({"ai:creation:send"})
     public SseEmitter stream(@RequestBody ChatSendRequest request) {

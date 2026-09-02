@@ -1,5 +1,6 @@
 package com.solo.system.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -15,12 +16,15 @@ import lombok.Data;
  *   <li>不允许包含空白字符</li>
  * </ul>
  */
+@Schema(description = "修改当前用户密码请求体")
 @Data
 public class ChangePasswordRequest {
 
     /** 旧密码（必填，明文；与服务端存的 MD5 比对） */
+    @Schema(description = "旧密码")
     private String oldPassword;
 
     /** 新密码（必填；需满足强密码规则，见类注释） */
+    @Schema(description = "新密码")
     private String newPassword;
 }

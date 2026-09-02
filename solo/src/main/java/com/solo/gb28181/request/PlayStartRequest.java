@@ -1,5 +1,6 @@
 package com.solo.gb28181.request;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
 /**
@@ -8,29 +9,19 @@ import lombok.Data;
  * <p>点播提交后立即返回带 streamId 的 INVITING 状态，
  * 前端按 {@code GET /xxx/status} 轮询到 READY 取播放地址。</p>
  */
+@Schema(description = "实时点播开始请求")
 @Data
 public class PlayStartRequest {
 
-    /**
-     * 设备国标 20 位 ID（必填）
-     */
+    @Schema(description = "设备国标 20 位 ID")
     private String deviceId;
 
-    /**
-     * 通道国标 20 位 ID（必填）
-     */
+    @Schema(description = "通道国标 20 位 ID")
     private String channelId;
 
-    /**
-     * 收流模式：{@code UDP} / {@code TCP-passive}；默认 {@code TCP-passive}
-     */
+    @Schema(description = "收流模式：UDP / TCP-passive")
     private String transport = "TCP-passive";
 
-    /**
-     * 码流标识 token：留空 / null 表示主码流（子码流传厂商约定的 wire token）。
-     * <p>取非空时按各厂商原样附加到发往设备的 INVITE 信令通道段后缀，
-     * 由前端 / 配置给出，后端不解析其含义，以兼容各厂商写法（如 {@code 1} / {@code stream:sub} / {@code streamnumber:1}）。</p>
-     * <p>默认 {@code "streamnumber:1"}（子码流）。</p>
-     */
+    @Schema(description = "码流标识 token：留空/null = 主码流（子码流默认 streamnumber:1）")
     private String streamNumber = "streamnumber:1";
 }

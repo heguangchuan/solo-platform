@@ -1,5 +1,6 @@
 package com.solo.gb28181.response;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -10,16 +11,17 @@ import lombok.EqualsAndHashCode;
  *
  * <p>前端时间轴用 {@link #startEpochSec} / {@link #endEpochSec} / {@link #durationSec} 渲染。</p>
  */
+@Schema(description = "历史回放响应")
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class PlaybackResultResponse extends PlayResultResponse {
 
-    /** 回放起始 Unix 时间戳（秒） */
+    @Schema(description = "回放起始 Unix 时间戳（秒）")
     private Long startEpochSec;
 
-    /** 回放结束 Unix 时间戳（秒） */
+    @Schema(description = "回放结束 Unix 时间戳（秒）")
     private Long endEpochSec;
 
-    /** 回放总时长（秒） = end - start */
+    @Schema(description = "回放总时长（秒） = end - start")
     private Long durationSec;
 }

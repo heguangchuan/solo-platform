@@ -10,6 +10,10 @@ import com.solo.system.entity.SysFile;
 import com.solo.system.request.FilePageRequest;
 import com.solo.system.request.FileSaveRequest;
 import com.solo.system.service.SysFileService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -19,6 +23,7 @@ import java.util.List;
 /**
  * 文件管理
  */
+@Tag(name = "文件管理", description = "文件管理")
 @RestController
 @RequestMapping("/api/file")
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class FileController {
     /**
      * 分页查询文件
      */
+    @Operation(summary = "分页查询文件")
     @PostMapping("/page")
     @RequirePermission({"system:file:list"})
     public Result<PageResult<SysFile>> page(@RequestBody FilePageRequest req) {
@@ -41,6 +47,8 @@ public class FileController {
      *
      * @param file 上传的文件本体
      */
+    @Operation(summary = "上传文件")
+    @Parameter(name = "file", description = "上传的文件本体", in = ParameterIn.QUERY)
     @PostMapping("/upload")
     @RequirePermission({"system:file:upload"})
     @OperationLog(module = "文件管理", type = BusinessType.ADD, description = "上传文件", recordParam = false)
@@ -51,6 +59,7 @@ public class FileController {
     /**
      * 仅落库元数据
      */
+    @Operation(summary = "仅落库元数据")
     @PostMapping("/meta")
     @RequirePermission({"system:file:upload"})
     @OperationLog(module = "文件管理", type = BusinessType.ADD, description = "登记文件元数据")
@@ -63,6 +72,8 @@ public class FileController {
      *
      * @param id 文件主键 ID
      */
+    @Operation(summary = "删除单个文件")
+    @Parameter(name = "id", description = "文件主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:file:delete"})
     @OperationLog(module = "文件管理", type = BusinessType.DELETE, description = "删除文件")
@@ -74,6 +85,7 @@ public class FileController {
     /**
      * 批量删除文件
      */
+    @Operation(summary = "批量删除文件")
     @DeleteMapping("/batch")
     @RequirePermission({"system:file:delete"})
     @OperationLog(module = "文件管理", type = BusinessType.DELETE, description = "批量删除文件")

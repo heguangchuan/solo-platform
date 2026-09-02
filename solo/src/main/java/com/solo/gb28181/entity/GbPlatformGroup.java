@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
 import tools.jackson.databind.ser.std.ToStringSerializer;
@@ -22,10 +23,12 @@ import java.time.LocalDateTime;
  * 走 {@link com.solo.gb28181.response.GbPlatformGroupResponse}，不在本类上挂 children，
  * 避免污染 entity 与数据库的对应关系。</p>
  */
+@Schema(description = "上级平台推送目录分组")
 @Data
 @TableName("gb_platform_group")
 public class GbPlatformGroup {
 
+    @Schema(description = "主键 ID")
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
@@ -33,6 +36,7 @@ public class GbPlatformGroup {
     /**
      * 分组名称（运营可读）
      */
+    @Schema(description = "分组名称")
     private String name;
 
     /**
@@ -40,24 +44,29 @@ public class GbPlatformGroup {
      * 前 10 位 = 本平台 domain（行政区划中心编码）；第 11-13 位 = 业务分类（215=业务分组 / 216=虚拟组织）；后 7 位 = 序号。
      * 平台内唯一（uk_platform_code）。
      */
+    @Schema(description = "分组国标编码")
     private String code;
 
     /**
      * 所属上级平台主键（逻辑关联 gb_parent_platform.id）
      */
+    @Schema(description = "所属上级平台主键")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long platformId;
 
     /**
      * 父分组主键（引用同表 id；根节点 = 0）
      */
+    @Schema(description = "父分组主键")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long parentId;
 
+    @Schema(description = "创建时间")
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;
 
+    @Schema(description = "更新时间")
     @TableField(fill = FieldFill.INSERT_UPDATE)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime updateTime;

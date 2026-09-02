@@ -13,6 +13,10 @@ import com.solo.system.request.ConfigRequest;
 import com.solo.system.response.ConfigExcelResponse;
 import com.solo.system.service.SysConfigService;
 import com.solo.common.utils.ExcelUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +28,7 @@ import java.util.List;
 /**
  * 系统参数管理
  */
+@Tag(name = "系统参数管理", description = "系统参数管理")
 @RestController
 @RequestMapping("/api/config")
 @RequiredArgsConstructor
@@ -36,6 +41,7 @@ public class ConfigController {
     /**
      * 分页查询参数列表
      */
+    @Operation(summary = "分页查询参数列表")
     @PostMapping("/page")
     @RequirePermission({"setting:config:list"})
     public Result<PageResult<SysConfig>> getPage(@RequestBody ConfigPageRequest req) {
@@ -46,6 +52,7 @@ public class ConfigController {
     /**
      * 导出参数为 Excel
      */
+    @Operation(summary = "导出参数为 Excel")
     @PostMapping("/export")
     @RequirePermission({"setting:config:export"})
     @OperationLog(module = "参数管理", type = BusinessType.EXPORT, description = "导出参数")
@@ -78,6 +85,7 @@ public class ConfigController {
     /**
      * 新增参数
      */
+    @Operation(summary = "新增参数")
     @PostMapping
     @RequirePermission({"setting:config:add"})
     @OperationLog(module = "参数管理", type = BusinessType.ADD, description = "新增参数")
@@ -91,6 +99,8 @@ public class ConfigController {
      *
      * @param id 参数主键 ID
      */
+    @Operation(summary = "修改参数")
+    @Parameter(name = "id", description = "参数主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"setting:config:edit"})
     @OperationLog(module = "参数管理", type = BusinessType.EDIT, description = "修改参数")
@@ -102,6 +112,7 @@ public class ConfigController {
     /**
      * 批量删除参数
      */
+    @Operation(summary = "批量删除参数")
     @DeleteMapping("/batch")
     @RequirePermission({"setting:config:delete"})
     @OperationLog(module = "参数管理", type = BusinessType.DELETE, description = "批量删除参数")
@@ -115,6 +126,8 @@ public class ConfigController {
      *
      * @param id 参数主键 ID
      */
+    @Operation(summary = "删除单个参数")
+    @Parameter(name = "id", description = "参数主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"setting:config:delete"})
     @OperationLog(module = "参数管理", type = BusinessType.DELETE, description = "删除参数")

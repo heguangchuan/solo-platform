@@ -13,6 +13,10 @@ import com.solo.ai.request.AiModelConfigRequest;
 import com.solo.ai.response.AiModelConfigResponse;
 import com.solo.ai.response.AiModelProviderOptionResponse;
 import com.solo.ai.service.AiModelConfigService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +26,7 @@ import java.util.List;
 /**
  * AI 模型配置管理
  */
+@Tag(name = "AI 模型配置管理", description = "AI 模型配置管理")
 @RestController
 @RequestMapping("/api/ai/model-config")
 @RequiredArgsConstructor
@@ -32,6 +37,7 @@ public class AiModelConfigController {
     /**
      * 分页查询模型配置
      */
+    @Operation(summary = "分页查询模型配置")
     @PostMapping("/page")
     @RequirePermission({"ai:modelConfig:list"})
     public Result<PageResult<AiModelConfigResponse>> getPage(@RequestBody AiModelConfigPageRequest req) {
@@ -43,6 +49,7 @@ public class AiModelConfigController {
     /**
      * 获取所有启用的配置列表
      */
+    @Operation(summary = "获取所有启用的配置列表")
     @GetMapping("/list")
     @RequirePermission({"ai:modelConfig:list"})
     public Result<List<AiModelConfigResponse>> getList() {
@@ -53,6 +60,7 @@ public class AiModelConfigController {
     /**
      * 获取支持的厂商选项
      */
+    @Operation(summary = "获取支持的厂商选项")
     @GetMapping("/provider-options")
     @RequirePermission({"ai:modelConfig:list"})
     public Result<List<AiModelProviderOptionResponse>> getProviderOptions() {
@@ -67,6 +75,8 @@ public class AiModelConfigController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "配置详情")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
     @RequirePermission({"ai:modelConfig:list"})
     public Result<AiModelConfigResponse> getById(@PathVariable Long id) {
@@ -76,6 +86,7 @@ public class AiModelConfigController {
     /**
      * 新增配置
      */
+    @Operation(summary = "新增配置")
     @PostMapping
     @RequirePermission({"ai:modelConfig:add"})
     @OperationLog(module = "AI模型配置", type = BusinessType.ADD, description = "新增模型配置", recordParam = false)
@@ -89,6 +100,8 @@ public class AiModelConfigController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "修改配置")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
     @RequirePermission({"ai:modelConfig:edit"})
     @OperationLog(module = "AI模型配置", type = BusinessType.EDIT, description = "修改模型配置", recordParam = false)
@@ -102,6 +115,8 @@ public class AiModelConfigController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "删除配置")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"ai:modelConfig:delete"})
     @OperationLog(module = "AI模型配置", type = BusinessType.DELETE, description = "删除模型配置")
@@ -113,6 +128,7 @@ public class AiModelConfigController {
     /**
      * 批量删除配置
      */
+    @Operation(summary = "批量删除配置")
     @DeleteMapping("/batch")
     @RequirePermission({"ai:modelConfig:delete"})
     @OperationLog(module = "AI模型配置", type = BusinessType.DELETE, description = "批量删除模型配置")

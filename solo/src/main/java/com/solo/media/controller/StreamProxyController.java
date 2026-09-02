@@ -10,6 +10,10 @@ import com.solo.media.request.StreamProxyBatchDeleteRequest;
 import com.solo.media.request.StreamProxyPageRequest;
 import com.solo.media.response.StreamProxyPlayUrlResponse;
 import com.solo.media.service.StreamProxyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -23,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * 拉流代理管理
  */
+@Tag(name = "拉流代理管理", description = "拉流代理管理")
 @RestController
 @RequestMapping("/api/stream-proxy")
 @RequiredArgsConstructor
@@ -33,6 +38,7 @@ public class StreamProxyController {
     /**
      * 拉流代理分页查询
      */
+    @Operation(summary = "拉流代理分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:stream-proxy:list"})
     public Result<PageResult<StreamProxy>> page(@RequestBody StreamProxyPageRequest request) {
@@ -45,6 +51,8 @@ public class StreamProxyController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "代理详情")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
     @RequirePermission({"media:stream-proxy:list"})
     public Result<StreamProxy> detail(@PathVariable Long id) {
@@ -58,6 +66,7 @@ public class StreamProxyController {
     /**
      * 新增代理
      */
+    @Operation(summary = "新增代理")
     @PostMapping("/save")
     @RequirePermission({"media:stream-proxy:add"})
     public Result<Void> save(@RequestBody StreamProxy proxy) {
@@ -69,6 +78,7 @@ public class StreamProxyController {
     /**
      * 编辑代理
      */
+    @Operation(summary = "编辑代理")
     @PostMapping("/update")
     @RequirePermission({"media:stream-proxy:edit"})
     public Result<Void> update(@RequestBody StreamProxy proxy) {
@@ -84,6 +94,8 @@ public class StreamProxyController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "启用")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/enable")
     public Result<Void> enable(@PathVariable Long id) {
         streamProxyService.enable(id);
@@ -95,6 +107,8 @@ public class StreamProxyController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "停用")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/disable")
     public Result<Void> disable(@PathVariable Long id) {
         streamProxyService.disable(id);
@@ -106,6 +120,8 @@ public class StreamProxyController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "播放地址")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/play-urls")
     public Result<StreamProxyPlayUrlResponse> playUrls(@PathVariable Long id) {
         return Result.success(streamProxyService.getPlayUrls(id));
@@ -116,6 +132,8 @@ public class StreamProxyController {
      *
      * @param id 主键 ID
      */
+    @Operation(summary = "删除代理")
+    @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:stream-proxy:delete"})
     public Result<Void> delete(@PathVariable Long id) {
@@ -126,6 +144,7 @@ public class StreamProxyController {
     /**
      * 批量删除
      */
+    @Operation(summary = "批量删除")
     @PostMapping("/batch/delete")
     @RequirePermission({"media:stream-proxy:delete"})
     @Transactional

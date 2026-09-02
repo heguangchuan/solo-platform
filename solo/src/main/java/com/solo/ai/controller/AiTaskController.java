@@ -13,12 +13,17 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.utils.UserHolderUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 /**
  * AI 创作任务管理
  */
+@Tag(name = "AI 创作任务管理", description = "AI 创作任务管理")
 @RestController
 @RequestMapping("/api/ai/task")
 @RequiredArgsConstructor
@@ -31,6 +36,7 @@ public class AiTaskController {
     /**
      * 提交图片生成任务
      */
+    @Operation(summary = "提交图片生成任务")
     @PostMapping("/image/generate")
     @RequirePermission({"ai:imageCreation:generate"})
     public Result<ImageGenerationResponse> generateImage(@RequestBody ImageGenerationRequest request) {
@@ -41,6 +47,7 @@ public class AiTaskController {
     /**
      * 提交视频生成任务
      */
+    @Operation(summary = "提交视频生成任务")
     @PostMapping("/video/generate")
     @RequirePermission({"ai:videoCreation:generate"})
     public Result<VideoGenerationResponse> generateVideo(@RequestBody VideoGenerationRequest request) {
@@ -56,6 +63,11 @@ public class AiTaskController {
      * @param taskType 可选过滤；`TEXT` / `IMAGE` / `VIDEO` / `AUDIO`
      * @param status 可选过滤；`PENDING` / `PROCESSING` / `SUCCESS` / `FAILED` / `CANCELLED`
      */
+    @Operation(summary = "获取当前用户的创作任务列表")
+    @Parameter(name = "page", description = "页码", in = ParameterIn.QUERY)
+    @Parameter(name = "pageSize", description = "每页条数", in = ParameterIn.QUERY)
+    @Parameter(name = "taskType", description = "任务类型（TEXT/IMAGE/VIDEO/AUDIO）", in = ParameterIn.QUERY)
+    @Parameter(name = "status", description = "PENDING/PROCESSING/SUCCESS/FAILED/CANCELLED", in = ParameterIn.QUERY)
     @GetMapping("/list")
     @RequirePermission({"ai:history:list"})
     public Result<PageResult<AiGenerationTask>> getTaskList(
@@ -73,6 +85,8 @@ public class AiTaskController {
      *
      * @param taskId 任务主键 ID
      */
+    @Operation(summary = "任务详情")
+    @Parameter(name = "taskId", description = "任务主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{taskId}")
     @RequirePermission({"ai:history:detail"})
     public Result<AiGenerationTask> getTaskDetail(@PathVariable Long taskId) {

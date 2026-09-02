@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
 import tools.jackson.databind.ser.std.ToStringSerializer;
@@ -29,10 +30,12 @@ import java.time.LocalDateTime;
  * 同一通道在同一平台下只能挂载一次（{@code uk_platform_resource}），即只能落在某一个分组下；
  * 想换组要先卸载旧组的 share。</p>
  */
+@Schema(description = "上级平台共享通道")
 @Data
 @TableName("gb_platform_share")
 public class GbPlatformShare {
 
+    @Schema(description = "主键 ID")
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
@@ -40,6 +43,7 @@ public class GbPlatformShare {
     /**
      * 上级平台主键（逻辑关联 gb_parent_platform.id）
      */
+    @Schema(description = "上级平台主键")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long platformId;
 
@@ -47,12 +51,14 @@ public class GbPlatformShare {
      * 所属推送分组主键（逻辑关联 gb_platform_group.id）。
      * <p>UI 强制先在弹窗左侧选中分组才能挂载；同一通道在本平台只能落在一个分组下。</p>
      */
+    @Schema(description = "所属推送分组主键")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long groupId;
 
     /**
      * 通道主键（逻辑关联 gb_device_channel.id，{@code parental=0} 的行）
      */
+    @Schema(description = "通道主键")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long resourceId;
 
@@ -64,8 +70,10 @@ public class GbPlatformShare {
      * <p><b>撞码判定是平台级的</b>（不是分组级）——上级看到的是扁平 DeviceID 空间，跨组同码也会
      * 让上级认错通道。</p>
      */
+    @Schema(description = "对上级暴露的国标码")
     private String exposedCode;
 
+    @Schema(description = "创建时间")
     @TableField(fill = FieldFill.INSERT)
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime createTime;

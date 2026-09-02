@@ -8,6 +8,10 @@ import com.solo.system.request.ServerFileListRequest;
 import com.solo.system.request.ServerFileOperationRequest;
 import com.solo.system.response.ServerFileResponse;
 import com.solo.system.service.ServerFileService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +23,7 @@ import java.util.List;
 /**
  * 服务器文件管理
  */
+@Tag(name = "服务器文件管理", description = "服务器文件管理")
 @RestController
 @RequestMapping("/api/server/file")
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class ServerFileController {
     /**
      * 列远端目录
      */
+    @Operation(summary = "列远端目录")
     @PostMapping("/list")
     @RequirePermission({"server:file:list"})
     public Result<List<ServerFileResponse>> list(@RequestBody ServerFileListRequest request) {
@@ -42,6 +48,10 @@ public class ServerFileController {
      * @param path 远端目录绝对路径
      * @param file 上传的文件
      */
+    @Operation(summary = "上传文件到远端路径")
+    @Parameter(name = "serverId", description = "服务器主键 ID", in = ParameterIn.QUERY)
+    @Parameter(name = "path", description = "远端目录绝对路径", in = ParameterIn.QUERY)
+    @Parameter(name = "file", description = "上传的文件", in = ParameterIn.QUERY)
     @PostMapping("/upload")
     @RequirePermission({"server:file:upload"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.IMPORT, description = "上传服务器文件", recordParam = false)
@@ -55,6 +65,7 @@ public class ServerFileController {
     /**
      * 下载远端文件
      */
+    @Operation(summary = "下载远端文件")
     @PostMapping("/download")
     @RequirePermission({"server:file:download"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.EXPORT, description = "下载服务器文件", recordParam = false)
@@ -65,6 +76,7 @@ public class ServerFileController {
     /**
      * 删除远端文件或目录
      */
+    @Operation(summary = "删除远端文件或目录")
     @DeleteMapping
     @RequirePermission({"server:file:delete"})
     @OperationLog(module = "服务器文件管理", type = BusinessType.DELETE, description = "删除服务器文件", recordParam = false)

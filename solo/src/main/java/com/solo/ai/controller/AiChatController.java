@@ -13,6 +13,10 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.utils.UserHolderUtils;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -28,6 +32,7 @@ import java.util.concurrent.Executors;
 /**
  * AI 对话管理
  */
+@Tag(name = "AI 对话管理", description = "AI 对话管理")
 @RestController
 @RequestMapping("/api/ai/chat")
 @RequiredArgsConstructor
@@ -49,6 +54,7 @@ public class AiChatController {
     /**
      * 发送消息
      */
+    @Operation(summary = "发送消息")
     @PostMapping("/send")
     @RequirePermission({"ai:conversation:send"})
     public Result<String> send(@RequestBody ChatSendRequest request) {
@@ -69,6 +75,7 @@ public class AiChatController {
     /**
      * 流式发送消息
      */
+    @Operation(summary = "流式发送消息", description = "SSE 流式响应")
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RequirePermission({"ai:conversation:send"})
     public SseEmitter stream(@RequestBody ChatSendRequest request) {
@@ -143,6 +150,10 @@ public class AiChatController {
      * @param pageSize 每页条数
      * @param conversationType 可选过滤；`CHAT` / `CREATION` / `TASK`
      */
+    @Operation(summary = "获取当前用户的会话列表")
+    @Parameter(name = "page", description = "页码", in = ParameterIn.QUERY)
+    @Parameter(name = "pageSize", description = "每页条数", in = ParameterIn.QUERY)
+    @Parameter(name = "conversationType", description = "可选过滤；`CHAT` / `CREATION` / `TASK`", in = ParameterIn.QUERY)
     @GetMapping("/conversations")
     @RequirePermission({"ai:conversation:list", "ai:imageCreation:list", "ai:videoCreation:list", "ai:creation:list"})
     public Result<PageResult<AiConversation>> getConversations(
@@ -159,6 +170,8 @@ public class AiChatController {
      *
      * @param conversationId 会话主键 ID
      */
+    @Operation(summary = "获取会话消息列表")
+    @Parameter(name = "conversationId", description = "会话主键 ID", in = ParameterIn.PATH)
     @GetMapping("/conversations/{conversationId}/messages")
     @RequirePermission({"ai:conversation:list", "ai:imageCreation:list", "ai:videoCreation:list", "ai:creation:list"})
     public Result<List<AiMessage>> getMessages(@PathVariable Long conversationId) {
@@ -174,6 +187,7 @@ public class AiChatController {
     /**
      * 创建新会话
      */
+    @Operation(summary = "创建新会话")
     @PostMapping("/conversations")
     @RequirePermission({"ai:conversation:create", "ai:imageCreation:generate", "ai:videoCreation:generate", "ai:creation:create"})
     public Result<AiConversation> createConversation(@RequestBody ConversationCreateRequest request) {
@@ -187,6 +201,8 @@ public class AiChatController {
      *
      * @param conversationId 会话主键 ID
      */
+    @Operation(summary = "删除会话")
+    @Parameter(name = "conversationId", description = "会话主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/conversations/{conversationId}")
     @RequirePermission({"ai:conversation:delete", "ai:imageCreation:delete", "ai:videoCreation:delete", "ai:creation:delete"})
     public Result<Void> deleteConversation(@PathVariable Long conversationId) {
@@ -201,6 +217,9 @@ public class AiChatController {
      * @param conversationId 会话主键 ID
      * @param title 新标题
      */
+    @Operation(summary = "修改会话标题")
+    @Parameter(name = "conversationId", description = "会话主键 ID", in = ParameterIn.PATH)
+    @Parameter(name = "title", description = "新标题", in = ParameterIn.QUERY)
     @PutMapping("/conversations/{conversationId}/title")
     @RequirePermission({"ai:conversation:edit"})
     public Result<Void> updateTitle(@PathVariable Long conversationId, @RequestParam String title) {
