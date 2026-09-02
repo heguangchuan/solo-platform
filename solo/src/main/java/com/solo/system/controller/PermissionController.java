@@ -18,8 +18,24 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * 权限管理控制器
- * 提供权限列表查询及权限CRUD接口
+ * 权限管理接口
+ *
+ * <p>维护菜单 / 按钮两类节点，提供平铺列表、树形结构、CRUD 与 Excel 导出。
+ * {@code type}：{@code 1=菜单}、{@code 2=按钮}；{@code parentId=0} 表示顶级。
+ * 树形结构（{@code /tree}）按 {@code parentId} 自动嵌套成 {@code children} 字段。</p>
+ *
+ * <p>权限编码 {@code permissionCode} 是按钮级控制的依据（与 {@code v-permission} 指令对应）。</p>
+ *
+ * <h3>接口列表</h3>
+ * <ul>
+ *   <li>{@code GET    /api/permission/list} — 平铺权限列表（按 sort 升序）</li>
+ *   <li>{@code POST   /api/permission/export} — 导出权限为 Excel</li>
+ *   <li>{@code POST   /api/permission} — 新增权限</li>
+ *   <li>{@code GET    /api/permission/tree} — 权限树（可选 type 过滤）</li>
+ *   <li>{@code PUT    /api/permission/{id}} — 修改权限</li>
+ *   <li>{@code DELETE /api/permission/batch} — 批量删除</li>
+ *   <li>{@code DELETE /api/permission/{id}} — 删除单个</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/permission")
@@ -31,7 +47,7 @@ public class PermissionController {
     /**
      * 获取权限列表（平铺）
      *
-     * @return 所有权限列表
+     * <p>不分页，按 {@code sort} 升序；适合做权限分配弹窗的源数据。</p>
      */
     @GetMapping("/list")
     @RequirePermission({"system:permission:list"})
@@ -42,7 +58,10 @@ public class PermissionController {
     }
 
     /**
-     * 导出权限列表
+     * 导出权限为 Excel
+     *
+     * <p>响应为二进制流；{@code ids} 非空时按 ID 集合导出，否则按下方筛选条件全量导出。
+     * {@code type} 列在 Excel 中以"菜单/按钮/未知"文本呈现。</p>
      */
     @PostMapping("/export")
     @RequirePermission({"system:permission:export"})
@@ -86,8 +105,8 @@ public class PermissionController {
     /**
      * 新增权限
      *
-     * @param request 权限信息请求体
-     * @return 创建成功响应
+     * <p>{@code permissionCode} 全局唯一，新增后给 {@code v-permission} 指令使用。
+     * 字段含义见 {@link PermissionRequest}。</p>
      */
     @PostMapping
     @RequirePermission({"system:permission:add"})
@@ -100,8 +119,8 @@ public class PermissionController {
     /**
      * 获取权限树形结构
      *
-     * @param type 可选的权限类型过滤（1菜单 / 2按钮），不传则返回全量
-     * @return 权限树
+     * <p>可选按 {@code type} 过滤（{@code 1=菜单}、{@code 2=按钮}），不传返回全量；
+     * 已按 {@code parentId} 嵌套成 {@code children} 字段，前端可直接递归渲染。</p>
      */
     @GetMapping("/tree")
     @RequirePermission({"system:permission:list"})
@@ -116,9 +135,7 @@ public class PermissionController {
     /**
      * 修改权限信息
      *
-     * @param id      权限ID
-     * @param request 权限信息请求体
-     * @return 修改成功响应
+     * <p>{@code {id}} 是权限主键 ID。</p>
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:permission:edit"})
@@ -130,6 +147,8 @@ public class PermissionController {
 
     /**
      * 批量删除权限
+     *
+     * <p>注意：删除父权限会同时移除其下子权限（前端调用前可弹二次确认）。</p>
      */
     @DeleteMapping("/batch")
     @RequirePermission({"system:permission:delete"})
@@ -140,10 +159,7 @@ public class PermissionController {
     }
 
     /**
-     * 删除权限
-     *
-     * @param id 权限ID
-     * @return 删除成功响应
+     * 删除单个权限
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:permission:delete"})

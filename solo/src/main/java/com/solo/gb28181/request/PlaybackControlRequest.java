@@ -3,7 +3,9 @@ package com.solo.gb28181.request;
 import lombok.Data;
 
 /**
- * 回放控制请求（SIP INFO + MANSRTSP）
+ * 回放控制请求
+ *
+ * <p>对应 {@code POST /api/gb28181/playback/control}。</p>
  *
  * <p>四种动作共享一个 DTO，{@link #param} 字段语义按 {@link #action} 不同：</p>
  * <ul>
@@ -15,11 +17,12 @@ import lombok.Data;
 @Data
 public class PlaybackControlRequest {
 
+    /** 流 ID（回放 start 响应中返回） */
     private String streamId;
 
-    /** {@code pause} / {@code resume} / {@code seek} / {@code speed} */
+    /** 动作类型：{@code pause} / {@code resume} / {@code seek} / {@code speed} */
     private String action;
 
-    /** 按 action 不同含义不同；pause/resume 时可省 */
+    /** 按 action 不同含义不同；{@code pause}/{@code resume} 时可省 */
     private String param;
 }

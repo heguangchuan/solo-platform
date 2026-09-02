@@ -4,8 +4,9 @@ import lombok.Data;
 
 /**
  * 本平台国标身份（级联配置时给上级平台参考用）
- * <p>对应 {@code application.yaml} 的 {@code gb28181.*} 段。按 ADR-036，本平台身份收归全局
- * 单例，per-upper 表不再冗余存储。该 DTO 只读展示，不参与任何写入。</p>
+ *
+ * <p>对应 {@code GET /api/gb28181/parent-platform/local-info}。
+ * 数据来自全局配置（{@code application.yaml} 的国标段），只读展示，不参与任何写入。</p>
  */
 @Data
 public class GbLocalPlatformInfo {

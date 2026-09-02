@@ -5,8 +5,9 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 通道分页响应：透传 {@link GbDeviceChannel} entity 全部字段。
- * <p>当前不回填任何冗余字段（{@code deviceName} 已移除——前端不需要）。</p>
+ * 通道分页响应项（透传通道表全部字段）
+ *
+ * <p>对应 {@code POST /api/gb28181/device-channel/page} 返回项。</p>
  */
 @Data
 @EqualsAndHashCode(callSuper = true)

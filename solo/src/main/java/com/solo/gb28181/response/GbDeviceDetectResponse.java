@@ -9,28 +9,46 @@ import java.util.List;
 
 /**
  * 批量检测设备存活结果（fire-and-forget）
- * <p>探测采用异步回调更新状态：本响应只汇报「已发起多少台探测、跳过多少台」，
- * 真实在线/离线结论由 SIP 应答/超时回调异步写回 {@code gb_device.status}，
+ *
+ * <p>对应 {@code POST /api/gb28181/device/detect} 返回体。</p>
+ * <p>探测采用异步更新：本响应只汇报「已发起多少台探测、跳过多少台」，
+ * 真实在线/离线结论由 SIP 应答/超时回调异步写回设备在线状态字段，
  * 前端提示后自行刷新列表查看最新状态。</p>
  */
 @Data
 public class GbDeviceDetectResponse {
 
-    /** 已发起探测台数（结果异步更新，需刷新列表查看） */
+    /**
+     * 已发起探测的台数（结果异步更新，需刷新列表查看）
+     */
     private int detecting;
 
-    /** 跳过台数（无网络地址、从未注册，无法发包探测） */
+    /**
+     * 跳过的台数（无网络地址、从未注册，无法发包探测）
+     */
     private int skipped;
 
-    /** 每台设备的处理明细 */
+    /**
+     * 每台设备的处理明细
+     */
     private List<Item> items = new ArrayList<>();
 
     @Data
     public static class Item {
+        /**
+         * 设备主键 ID（序列化为字符串避免 JS 大数精度丢失）
+         */
         @JsonSerialize(using = ToStringSerializer.class)
         private Long id;
+
+        /**
+         * 设备国标 ID（GB 码）
+         */
         private String deviceId;
-        /** 处理结论：detecting（已发起探测）/ skipped（跳过） */
+
+        /**
+         * 处理结论：{@code detecting}（已发起探测）/ {@code skipped}（跳过）
+         */
         private String result;
 
         public Item(Long id, String deviceId, String result) {

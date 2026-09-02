@@ -4,23 +4,23 @@ import lombok.Data;
 
 /**
  * 登录响应体
- * 包含JWT Token和用户信息
+ *
+ * <p>对应接口 {@code POST /api/auth/login}。Token 机制：</p>
+ * <ul>
+ *   <li>{@link #token}（access）默认 30 分钟有效；过期后用 {@link #refreshToken} 调 {@code POST /api/auth/refresh} 换发</li>
+ *   <li>{@link #refreshToken}（refresh）默认 7 天有效；滚动刷新时换发后会同步失效旧的</li>
+ *   <li>前端拿到后建议把 access token 放请求头 {@code Authorization: Bearer <token>}；refresh 只在过期换发时使用</li>
+ * </ul>
  */
 @Data
 public class LoginResponse {
 
-    /**
-     * JWT认证Token（access token）
-     */
+    /** JWT 访问 token（必填，access；请求头携带） */
     private String token;
 
-    /**
-     * 刷新Token（refresh token），过期时间长，用于无感换发新的 access token
-     */
+    /** 刷新 token（必填，refresh；access 过期时换发使用） */
     private String refreshToken;
 
-    /**
-     * 用户信息VO
-     */
+    /** 当前用户信息（含是否首次登录强制改密标记） */
     private UserInfoVO user;
 }

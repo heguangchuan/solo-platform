@@ -26,6 +26,26 @@ import java.util.Map;
 /**
  * 上级平台管理
  * 本平台作为下级向上级平台注册的配置 CRUD
+ *
+ * <h3>接口列表</h3>
+ * <ul>
+ *   <li>{@code POST /page} — 分页查询上级平台配置</li>
+ *   <li>{@code POST /save} — 新增上级平台配置</li>
+ *   <li>{@code POST /update} — 编辑上级平台配置</li>
+ *   <li>{@code DELETE /{id}} — 删除上级平台配置</li>
+ *   <li>{@code POST /batch/delete} — 批量删除上级平台配置</li>
+ *   <li>{@code GET /local-info} — 获取本平台国标身份（id/域/IP/端口/鉴权密码等）</li>
+ *   <li>{@code GET /share-tree} — 获取可共享的资源目录树（分组 + 通道）</li>
+ *   <li>{@code GET /{id}/shared} — 获取某上级平台已共享的目录 / 通道节点 id（回填前端勾选态）</li>
+ *   <li>{@code POST /{id}/shared} — 全量覆盖保存某上级平台的共享目录 / 通道</li>
+ *   <li>{@code POST /{id}/share-group/{groupId}/shared/page} — 分页查询某上级平台某分组下已挂载的 catalog item</li>
+ *   <li>{@code POST /{id}/share-group/{groupId}/unmounted-channels/page} — 分页查询某上级平台"未挂载到本组"的通道</li>
+ *   <li>{@code POST /{id}/share-group/{groupId}/share} — 批量挂载 catalog item 到某分组</li>
+ *   <li>{@code DELETE /{id}/share-group/{groupId}/share/{resourceId}} — 单条卸载</li>
+ *   <li>{@code DELETE /{id}/share-group/{groupId}/share} — 清除某上级平台某分组下的全部挂载关系</li>
+ *   <li>{@code DELETE /{id}/share} — 清除某上级平台下全部挂载关系</li>
+ *   <li>{@code POST /{id}/share-group/{groupId}/share-all} — 一键添加所有"未挂载到本组"通道到该分组</li>
+ * </ul>
  */
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
@@ -38,6 +58,8 @@ public class GbParentPlatformController {
 
     /**
      * 分页查询上级平台配置
+     * <p>分页参数：{@code page} 从 1 开始，{@code pageSize} 默认 20。
+     * 响应结构为 {@code { total, rows }}，前端表格可直接接。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -48,6 +70,7 @@ public class GbParentPlatformController {
 
     /**
      * 新增上级平台配置
+     * <p>配置入库后，本平台会以"下级"身份向该上级发起注册。</p>
      */
     @PostMapping("/save")
     @RequirePermission({"gb28181:parent-platform:add"})
@@ -58,6 +81,7 @@ public class GbParentPlatformController {
 
     /**
      * 编辑上级平台配置
+     * <p>入参 {@code id} 必填，否则返回 400。</p>
      */
     @PostMapping("/update")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -71,6 +95,7 @@ public class GbParentPlatformController {
 
     /**
      * 删除上级平台配置
+     * @param id 上级平台主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:parent-platform:delete"})
@@ -113,6 +138,7 @@ public class GbParentPlatformController {
 
     /**
      * 获取可共享的资源目录树（分组 + 通道）
+     * <p>"上级平台 → 通道推送"弹窗用，三级树：设备（枝干）→ 分组 → 通道。</p>
      */
     @GetMapping("/share-tree")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -122,6 +148,7 @@ public class GbParentPlatformController {
 
     /**
      * 获取某上级平台已共享的目录 / 通道节点 id（回填前端勾选态）
+     * @param id 上级平台主键 ID
      */
     @GetMapping("/{id}/shared")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -131,6 +158,10 @@ public class GbParentPlatformController {
 
     /**
      * 全量覆盖保存某上级平台的共享目录 / 通道
+     * <p>用 el-tree 完整勾选态提交（含半选父节点），后端按节点 id 前缀
+     * （g_ 分组 / c_ 通道）落到同一张表。</p>
+     *
+     * @param id 上级平台主键 ID
      */
     @PostMapping("/{id}/shared")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -141,6 +172,8 @@ public class GbParentPlatformController {
 
     /**
      * 分页查询某上级平台某分组下已挂载的 catalog item（推送目录弹窗"已挂载"列表）
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
      */
     @PostMapping("/{id}/share-group/{groupId}/shared/page")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -155,6 +188,8 @@ public class GbParentPlatformController {
 
     /**
      * 分页查询某上级平台"未挂载到本组"的通道（推送目录弹窗"添加"picker）
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
      */
     @PostMapping("/{id}/share-group/{groupId}/unmounted-channels/page")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -168,7 +203,12 @@ public class GbParentPlatformController {
     }
 
     /**
-     * 批量挂载 catalog item 到某分组（推送目录弹窗"添加"确认）。请求体：{@code {"resourceIds": [id1, id2, ...]}}
+     * 批量挂载 catalog item 到某分组（推送目录弹窗"添加"确认）
+     *
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
+     * @param body 请求体：{@code {"resourceIds": [id1, id2, ...]}}，resourceIds 不能为空，否则 400
+     * @return 响应：{@code {"added": N}}，N 为实际新增条数
      */
     @PostMapping("/{id}/share-group/{groupId}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -185,7 +225,10 @@ public class GbParentPlatformController {
     }
 
     /**
-     * 单条卸载（按 (platform_id, group_id, resource_id) 定位删除）
+     * 单条卸载（按 (上级平台 ID, 分组 ID, 资源 ID) 定位删除）
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
+     * @param resourceId 待卸载的资源主键 ID
      */
     @DeleteMapping("/{id}/share-group/{groupId}/share/{resourceId}")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -199,6 +242,9 @@ public class GbParentPlatformController {
 
     /**
      * 清除某上级平台某分组下的全部挂载关系（管理台树节点"清除本组"按钮）
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
+     * @return 响应：{@code {"cleared": N}}，N 为实际删除条数
      */
     @DeleteMapping("/{id}/share-group/{groupId}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -210,7 +256,9 @@ public class GbParentPlatformController {
     }
 
     /**
-     * 清除某上级平台下全部挂载关系（管理台右侧"一键清除"按钮；不分组，按 platform_id 全删）
+     * 清除某上级平台下全部挂载关系（管理台右侧"一键清除"按钮；不分组，按上级平台全删）
+     * @param id 上级平台主键 ID
+     * @return 响应：{@code {"cleared": N}}，N 为实际删除条数
      */
     @DeleteMapping("/{id}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -221,6 +269,9 @@ public class GbParentPlatformController {
 
     /**
      * 一键添加所有"未挂载到本组"通道到该分组（管理台"一键添加"按钮）
+     * @param id 上级平台主键 ID
+     * @param groupId 推送分组主键 ID
+     * @return 响应：{@code {"added": N}}，N 为实际新增条数
      */
     @PostMapping("/{id}/share-group/{groupId}/share-all")
     @RequirePermission({"gb28181:parent-platform:edit"})
