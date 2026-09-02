@@ -16,8 +16,9 @@
  *
  * <p>复用父持有 ref 模式：父组件调 {@code open(row)}，弹窗内部负责拉数据。</p>
  */
-import { ref } from 'vue'
+import { ref, watch, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { Refresh } from '@element-plus/icons-vue'
 import type {
   GbMediaServer,
   MediaServerStreamStatsSummary,
@@ -59,6 +60,14 @@ const tabLoaded = ref<Record<StreamStatsTabKey, boolean>>({
   onvif: false,
 })
 
+/** 实时刷新：默认开，打开弹窗即每 5s 自动拉 summary + 当前 Tab 明细 */
+const realtime = ref(true)
+const REFRESH_INTERVAL = 5000  // 5 秒
+const lastRefreshAt = ref<Date | null>(null)
+let refreshTimer: ReturnType<typeof setInterval> | null = null
+/** 静默模式：true 时不弹 loading / 错误吐司（轮询场景用，避免每 5s 弹一次错误） */
+let silentRefresh = false
+
 async function open(row: GbMediaServer) {
   visible.value = true
   // 重置所有状态
@@ -78,31 +87,36 @@ async function open(row: GbMediaServer) {
 }
 
 async function loadSummary(serverId: string) {
-  loading.value = true
+  if (!silentRefresh) loading.value = true
   try {
     const res = await getMediaServerStreamStatsSummaryApi(serverId)
     summary.value = res.data
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : '加载流统计失败')
-    visible.value = false
+    if (!silentRefresh) {
+      ElMessage.error(e instanceof Error ? e.message : '加载流统计失败')
+      visible.value = false
+    } else {
+      console.warn('[流统计] 静默刷新失败', e)
+    }
   } finally {
-    loading.value = false
+    if (!silentRefresh) loading.value = false
   }
 }
 
 /**
  * 切 Tab 时触发：已加载过的跳过；未加载的拉对应明细。
  * 同时用 {@code el-tab-pane lazy} 防止未激活 Tab 的 DOM 被创建。
+ * 轮询场景下 force=true 强制刷新当前 Tab（无论是否已加载）。
  */
 async function onTabChange(name: string | number | undefined) {
   if (typeof name !== 'string') return
   const key = name as StreamStatsTabKey
-  if (tabLoaded.value[key] || tabLoading.value[key]) return
-  await loadTab(key)
+  await loadTab(key, false)
 }
 
-async function loadTab(key: StreamStatsTabKey) {
+async function loadTab(key: StreamStatsTabKey, force = false) {
   if (!summary.value) return
+  if (!force && (tabLoaded.value[key] || tabLoading.value[key])) return
   tabLoading.value[key] = true
   try {
     const serverId = summary.value.serverId
@@ -121,10 +135,64 @@ async function loadTab(key: StreamStatsTabKey) {
     }
     tabLoaded.value[key] = true
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : `加载 ${key} 明细失败`)
+    if (!silentRefresh) {
+      ElMessage.error(e instanceof Error ? e.message : `加载 ${key} 明细失败`)
+    } else {
+      console.warn(`[流统计] 静默刷新 ${key} 明细失败`, e)
+    }
   } finally {
     tabLoading.value[key] = false
   }
+}
+
+/** 手动刷新 / 轮询：summary + 当前 active Tab 强制重拉 */
+async function refreshAll() {
+  if (!summary.value) return
+  const wasSilent = silentRefresh
+  silentRefresh = true
+  try {
+    await loadSummary(summary.value.serverId)
+    if (summary.value) {
+      await loadTab(activeTab.value, true)
+    }
+  } finally {
+    silentRefresh = wasSilent
+  }
+  lastRefreshAt.value = new Date()
+}
+
+function startRealtime() {
+  if (refreshTimer) return
+  refreshTimer = setInterval(refreshAll, REFRESH_INTERVAL)
+}
+
+function stopRealtime() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+}
+
+/** 实时开关变化时启停轮询；弹窗关闭时强制停 */
+watch(realtime, (on) => {
+  if (on && visible.value) startRealtime()
+  else stopRealtime()
+})
+watch(visible, (on) => {
+  if (!on) {
+    stopRealtime()
+    lastRefreshAt.value = null
+  } else if (realtime.value) {
+    startRealtime()
+  }
+})
+/** 组件卸载兜底 */
+onUnmounted(() => stopRealtime())
+
+function formatTime(d: Date | null): string {
+  if (!d) return ''
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 function statusText(s?: number) {
@@ -151,6 +219,17 @@ defineExpose({ open })
             {{ statusText(summary.status) }}
           </el-tag>
           <span class="host">{{ summary.hostIp }}:{{ summary.httpPort }}</span>
+          <el-divider direction="vertical" />
+          <!-- 实时刷新开关（默认关；开启后每 5s 自动拉 summary + 当前 Tab 明细） -->
+          <el-switch
+            v-model="realtime"
+            active-text="实时"
+            inactive-text="实时"
+            inline-prompt
+            size="small"
+          />
+          <span v-if="lastRefreshAt" class="refresh-time">最后刷新 {{ formatTime(lastRefreshAt) }}</span>
+          <el-button :icon="Refresh" size="small" plain @click="refreshAll">刷新</el-button>
         </div>
         <div class="kpi-row">
           <div class="kpi-tile">
@@ -230,7 +309,6 @@ defineExpose({ open })
                 <el-table-column prop="app" label="app" show-overflow-tooltip />
                 <el-table-column prop="stream" label="stream" show-overflow-tooltip />
                 <el-table-column prop="originType" label="协议" align="center" />
-                <el-table-column prop="aliveSecond" label="存活(秒)" align="center" />
                 <el-table-column prop="pushTime" label="推流开始时间" />
               </el-table>
             </div>
@@ -344,5 +422,12 @@ defineExpose({ open })
 
 .detail-tabs {
   margin-top: 4px;
+}
+
+.node-meta .refresh-time {
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  margin: 0 4px;
 }
 </style>
