@@ -16,23 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 字典数据管理接口（字典项）
- *
- * <p>维护字典项（"用户性别"、"设备状态" 等枚举值）。
- * 提供按 {@code dictType} 取启用项的接口（{@code GET /by-type/{dictType}}），
- * 专供前端下拉、tag、开关等控件回显使用，<b>无需鉴权</b>。</p>
- *
- * <p>典型用法：前端在管理端配置字典项，业务页打开时按 {@code dictType} 拉一次下拉源。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /api/dict/data/page} — 分页查询字典数据</li>
- *   <li>{@code GET  /api/dict/data/by-type/{dictType}} — 按类型取启用项（公开，前端下拉用）</li>
- *   <li>{@code POST /api/dict/data} — 新增字典数据</li>
- *   <li>{@code PUT  /api/dict/data/{id}} — 修改字典数据</li>
- *   <li>{@code DELETE /api/dict/data/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/dict/data/{id}} — 删除单个</li>
- * </ul>
+ * 字典数据管理
  */
 @RestController
 @RequestMapping("/api/dict/data")
@@ -43,8 +27,6 @@ public class DictDataController {
 
     /**
      * 分页查询字典数据
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code dictType} 或 {@code dictLabel} 过滤。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"setting:dict:data:list"})
@@ -56,8 +38,7 @@ public class DictDataController {
     /**
      * 按 dictType 取启用数据项
      *
-     * <p>前端下拉、tag 回显专用，<b>无需登录</b>；仅返回 {@code status=1} 的项，按 sort 升序。
-     * 缓存建议：同一 {@code dictType} 多次复用，可在 Pinia / localStorage 缓存。</p>
+     * @param dictType 字典类型编码
      */
     @GetMapping("/by-type/{dictType}")
     public Result<List<SysDictData>> listByType(@PathVariable String dictType) {
@@ -66,8 +47,6 @@ public class DictDataController {
 
     /**
      * 新增字典数据
-     *
-     * <p>{@code dictType} 必填（关联到 {@code DictTypeRequest.dictType}）；{@code dictLabel} 给前端展示，{@code dictValue} 存实际取值。</p>
      */
     @PostMapping
     @RequirePermission({"setting:dict:data:add"})
@@ -80,7 +59,7 @@ public class DictDataController {
     /**
      * 修改字典数据
      *
-     * <p>{@code {id}} 是字典项主键 ID。</p>
+     * @param id 字典项主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"setting:dict:data:edit"})
@@ -103,6 +82,8 @@ public class DictDataController {
 
     /**
      * 删除单个字典数据
+     *
+     * @param id 字典项主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"setting:dict:data:delete"})

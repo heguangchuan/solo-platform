@@ -16,15 +16,6 @@ import java.util.Map;
 
 /**
  * ZLMediaKit Hook 入口
- *
- * <p>路径形如 {@code /api/hook/on_xxx}，对应 ZLM {@code config.ini} 的 hook 段。</p>
- * <p>本类做两件事：<b>secret 强制校验</b> + <b>URL 绑定后转发到 {@link ZlmHookService}</b>。
- * 全部业务编排在 Service 中；secret 校验失败直接返 HTTP 401，让 ZLM 停止 retry。</p>
- *
- * <h3>Secret 校验策略</h3>
- * <p>{@code media.hook-secret} <b>必须配置</b>（生产 / 测试 / 内网一视同仁），
- * 未配置时所有 hook 一律拒绝。ZLM 侧需在 {@code [hook].on_xxx} URL 上带 {@code ?secret=xxx}
- * 或让 body 携带 secret 字段。</p>
  */
 @Slf4j
 @RestController
@@ -101,8 +92,6 @@ public class ZlmHookController {
 
     /**
      * 校验 hook 请求携带的 secret。返回 true 表示通过、false 表示拒绝。
-     * <p>{@code media.hook-secret} <b>必须配置</b>，未配置一律拒绝；
-     * secret 必须命中 body.secret 或 URL query 参数 secret 之一。</p>
      */
     private boolean checkSecret(HttpServletRequest req, Map<String, Object> body) {
         String expected = mediaProperties.getHookSecret();
@@ -125,7 +114,8 @@ public class ZlmHookController {
         return true;
     }
 
-    /** 从 body 或 URL query 中取 secret（ZLM 两种发送方式都支持） */
+    /** 从 body 或 URL query 中取 secret */
+/** 从 body 或 URL query 中取 secret */
     private static String extractSecret(HttpServletRequest req, Map<String, Object> body) {
         if (body != null) {
             Object v = body.get("secret");
@@ -135,7 +125,8 @@ public class ZlmHookController {
         return q == null || q.isBlank() ? null : q;
     }
 
-    /** 常量时间字符串比较，避免定时侧信道（对 hook 影响甚微，顺手做） */
+    /** 常量时间字符串比较，避免定时侧信道 */
+/** 常量时间字符串比较，避免定时侧信道 */
     private static boolean constantTimeEquals(String a, String b) {
         byte[] ab = a.getBytes(StandardCharsets.UTF_8);
         byte[] bb = b.getBytes(StandardCharsets.UTF_8);

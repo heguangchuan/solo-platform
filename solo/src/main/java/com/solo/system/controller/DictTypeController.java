@@ -16,20 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 /**
- * 字典类型管理接口（字典大类）
- *
- * <p>维护字典的归类维度（"用户性别"、"设备状态" 等大类）。
- * {@code GET /list} 取全量启用类型，供字典数据页的类型筛选下拉使用。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /api/dict/type/page} — 分页查询字典类型</li>
- *   <li>{@code GET  /api/dict/type/list} — 全量启用类型列表（用于筛选下拉）</li>
- *   <li>{@code POST /api/dict/type} — 新增字典类型</li>
- *   <li>{@code PUT  /api/dict/type/{id}} — 修改字典类型</li>
- *   <li>{@code DELETE /api/dict/type/batch} — 批量删除</li>
- *   <li>{@code DELETE /api/dict/type/{id}} — 删除单个</li>
- * </ul>
+ * 字典类型管理
  */
 @RestController
 @RequestMapping("/api/dict/type")
@@ -40,8 +27,6 @@ public class DictTypeController {
 
     /**
      * 分页查询字典类型
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code dictName} / {@code dictType} / {@code status} 过滤。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"setting:dict:type:list"})
@@ -52,8 +37,6 @@ public class DictTypeController {
 
     /**
      * 全量启用类型列表
-     *
-     * <p>仅 {@code status=1}（启用）的字典大类；用于字典数据页的"类型筛选"下拉，按 ID 升序。</p>
      */
     @GetMapping("/list")
     @RequirePermission({"setting:dict:type:list"})
@@ -67,8 +50,6 @@ public class DictTypeController {
 
     /**
      * 新增字典类型
-     *
-     * <p>{@code dictType} 全局唯一，新增后供 {@link DictDataController} 引用。</p>
      */
     @PostMapping
     @RequirePermission({"setting:dict:type:add"})
@@ -81,7 +62,7 @@ public class DictTypeController {
     /**
      * 修改字典类型
      *
-     * <p>{@code {id}} 是字典类型主键 ID；改 {@code dictType} 会影响已有数据项关联，请谨慎。</p>
+     * @param id 字典类型主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"setting:dict:type:edit"})
@@ -104,6 +85,8 @@ public class DictTypeController {
 
     /**
      * 删除单个字典类型
+     *
+     * @param id 字典类型主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"setting:dict:type:delete"})

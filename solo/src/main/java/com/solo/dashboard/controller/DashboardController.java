@@ -9,15 +9,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 首页 / 地图选点对话框的公共配置
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code GET /api/dashboard/map-config} — 地图配置（Leaflet 初始化时拉一次）</li>
- * </ul>
- *
- * <p>说明：原 {@code /api/dashboard/stats} 聚合统计接口已废弃（前端未消费），
- * 当前只保留地图配置一项。</p>
+ * 首页地图配置管理
  */
 @RestController
 @RequestMapping("/api/dashboard")
@@ -27,16 +19,7 @@ public class DashboardController {
     private final MapProperties mapProperties;
 
     /**
-     * 地图配置（Leaflet 地图组件初始化时调一次）
-     *
-     * <p>响应字段全部来自 {@code application.yaml} 的 {@code map.*} 段。
-     * 字段缺失时返回 {@code null}，前端用兜底默认填充——这样 yaml 不填也能正常工作。</p>
-     *
-     * <p>{@link MapConfigResponse#getTileUrl()} 的取值规则：</p>
-     * <ul>
-     *   <li>{@code map.tile-mode=online} → 用 {@code map.tile-url-online}（外网瓦片）</li>
-     *   <li>其他（含 {@code offline}）→ 用 {@code map.tile-url-offline}（本地瓦片）</li>
-     * </ul>
+     * 地图配置
      */
     @GetMapping("/map-config")
     public Result<MapConfigResponse> mapConfig() {

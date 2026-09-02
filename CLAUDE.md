@@ -17,6 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 运行：IDE 里启动 `com.solo.SoloApplication`，或在 `solo/` 下执行 `./mvnw spring-boot:run`。
 - 打包：`./mvnw -f solo/pom.xml package`
 - 跑单个测试：`./mvnw -f solo/pom.xml test -Dtest=SomeTest#someMethod`
+- 生成 smart-doc API 文档（HTML 单页，输出 `docs/smart-doc/`）：`mvn -f solo/pom.xml smart-doc:html`。其他格式：`smart-doc:markdown` / `smart-doc:postman` / `smart-doc:openapi`。详见 `docs/README.md`。
 
 前端（`solo-ui/`）：
 - `npm run dev` — Vite 开发服务器，`/api` 代理到 `localhost:10003`。

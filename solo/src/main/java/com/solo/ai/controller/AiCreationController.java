@@ -21,28 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * 统一创作端点（对话 / 生图 / 生视频 共用一个流式入口）
- *
- * <p>前端"AI 助手"页希望在一个会话里既能和模型对话，又能直接让它画图 / 生视频，
- * 这套接口就是为了这种混合场景而设计：用户输入一句话，模型先回复文字，
- * 如果觉得需要生成素材，会一并把生图 / 生视频任务 ID 推回来。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST /api/ai/creation/stream} — 统一创作流式端点（SSE）。
- *       后端根据会话上下文自动判定是 {@code CHAT} / {@code IMAGE} / {@code VIDEO} 任务；
- *       对话走 LLM 流式输出；生图 / 生视频会创建生成任务并通过 {@code task-created} 事件回包。</li>
- * </ul>
- *
- * <h3>SSE 事件清单</h3>
- * <ul>
- *   <li>{@code chunk} — 文本增量（对话）或 占位提示（生图 / 生视频：{@code "正在生成图片..."} 之类的中文提示）</li>
- *   <li>{@code task-created} — 生图 / 生视频任务已创建；data 是 JSON：
- *       {@code {"taskId":"...","type":"IMAGE|VIDEO","conversationId":"..."}}，
- *       前端拿到 {@code taskId} 后调 {@code GET /api/ai/task/{taskId}} 轮询进度</li>
- *   <li>{@code done} — 结束；data 是 JSON：{@code {"conversationId":"...","type":"...","reply":"..."}}</li>
- *   <li>{@code error} — 异常；data 是错误描述字符串</li>
- * </ul>
+ * 统一创作管理
  */
 @RestController
 @RequestMapping("/api/ai/creation")
@@ -61,14 +40,7 @@ public class AiCreationController {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     /**
-     * 统一创作流式端点（SSE，前端用 EventSource 或 fetch 接收）
-     *
-     * <p>请求体同 {@code /api/ai/chat/send}：{@code conversationId} / {@code content} / {@code modelConfigId} / {@code images}。
-     * {@code conversationId} 必填且必须是 {@code conversationType=CREATION} 的会话，
-     * 否则无法触发生图 / 生视频分支。</p>
-     *
-     * <p>前端轮询建议：收到 {@code task-created} 事件后，每 3~5 秒调一次
-     * {@code GET /api/ai/task/{taskId}}，直到 {@code status} 变为 {@code SUCCESS} 或 {@code FAILED}。</p>
+     * 统一创作流式端点
      */
     @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @RequirePermission({"ai:creation:send"})

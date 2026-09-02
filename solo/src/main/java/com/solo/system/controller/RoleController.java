@@ -23,23 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 角色管理接口
- *
- * <p>维护角色（{@code sys_role}），提供分页、CRUD、导出、角色授权（{@code p2r}）。
- * 一个角色对应多组权限；{@code /p2r} 系列接口用于分配/查询该角色下挂的权限 ID。</p>
- *
- * <h3>接口列表</h3>
- * <ul>
- *   <li>{@code POST   /api/role/page} — 分页查询角色</li>
- *   <li>{@code POST   /api/role/export} — 导出角色为 Excel</li>
- *   <li>{@code POST   /api/role} — 新增角色</li>
- *   <li>{@code PUT    /api/role/{id}} — 修改角色</li>
- *   <li>{@code DELETE /api/role/batch} — 批量删除</li>
- *   <li>{@code GET    /api/role/list} — 全量启用角色（用于选择）</li>
- *   <li>{@code DELETE /api/role/{id}} — 删除单个</li>
- *   <li>{@code GET    /api/role/p2r/{roleId}} — 查询角色已分配的权限 ID</li>
- *   <li>{@code POST   /api/role/p2r} — 给角色分配权限</li>
- * </ul>
+ * 角色管理
  */
 @RestController
 @RequestMapping("/api/role")
@@ -52,8 +36,6 @@ public class RoleController {
 
     /**
      * 分页查询角色列表
-     *
-     * <p>返回 {@code { total, rows }}；按 {@code roleCode} / {@code roleName} 过滤。</p>
      */
     @PostMapping("/page")
     @RequirePermission({"system:role:list"})
@@ -64,8 +46,6 @@ public class RoleController {
 
     /**
      * 导出角色为 Excel
-     *
-     * <p>响应为二进制流；{@code ids} 非空时按 ID 集合导出，否则按分页条件全量导出。</p>
      */
     @PostMapping("/export")
     @RequirePermission({"system:role:export"})
@@ -98,8 +78,6 @@ public class RoleController {
 
     /**
      * 新增角色
-     *
-     * <p>{@code roleCode} 全局唯一；新增后给"用户授权"下拉用。</p>
      */
     @PostMapping
     @RequirePermission({"system:role:add"})
@@ -112,7 +90,7 @@ public class RoleController {
     /**
      * 修改角色信息
      *
-     * <p>{@code {id}} 是角色主键 ID。</p>
+     * @param id 角色主键 ID
      */
     @PutMapping("/{id}")
     @RequirePermission({"system:role:edit"})
@@ -135,8 +113,6 @@ public class RoleController {
 
     /**
      * 全量启用角色列表
-     *
-     * <p>仅 {@code status=1} 的角色；按 ID 升序；用于"用户授权"弹窗的多选下拉。</p>
      */
     @GetMapping("/list")
     @RequirePermission({"system:role:list"})
@@ -150,6 +126,8 @@ public class RoleController {
 
     /**
      * 删除单个角色
+     *
+     * @param id 角色主键 ID
      */
     @DeleteMapping("/{id}")
     @RequirePermission({"system:role:delete"})
@@ -162,8 +140,7 @@ public class RoleController {
     /**
      * 查询角色已分配的权限 ID 列表
      *
-     * <p>ID 序列化为字符串返回，与 {@code /api/permission/tree} 节点 ID 类型一致，
-     * 前端可直接 {@code treeRef.setCheckedKeys(ids)} 渲染勾选状态。</p>
+     * @param roleId 角色主键 ID
      */
     @GetMapping("/p2r/{roleId}")
     @RequirePermission({"system:role:p2r"})
@@ -178,9 +155,6 @@ public class RoleController {
 
     /**
      * 给角色分配权限
-     *
-     * <p>全量替换该角色已有权限集：传入的 {@code permissionIds} 即为最新全量，不在其中的会被取消。
-     * 调用时机一般紧跟在 {@code /p2r/{roleId}} 拉取之后、用户在树上勾选完之后。</p>
      */
     @PostMapping("/p2r")
     @RequirePermission({"system:role:p2r"})
