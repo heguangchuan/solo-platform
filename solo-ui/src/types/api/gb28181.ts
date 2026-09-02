@@ -1,6 +1,5 @@
 /** GB/T 28181 国标模块相关类型 */
 import type { PageRequest } from './common'
-import type { OnvifSession } from './onvif'
 
 /** Catalog 同步进度（来自 GET /sync-status） */
 export interface GbSyncStatus {
@@ -503,45 +502,12 @@ export interface StreamPushPlayUrl {
 }
 
 /**
- * 国标点播 / 回放 / 下载会话（运行时状态，Redis 主存）
- * <p>与后端 {@code com.solo.gb28181.entity.GbInviteSession} 字段一一对应。
- * 节点流统计弹窗的"国标会话"Tab 用这个类型。</p>
+ * 节点流统计 KPI 概要（弹窗首屏用）
+ * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats/summary}。
+ * 只含节点身份 + 4 类会话 count + ZLM 维护的 total；明细按 Tab 懒加载：
+ * {@code GET /{serverId}/stream-stats/{gb|push|proxy|onvif}}。</p>
  */
-export interface GbInviteSession {
-  /** 业务主键：<deviceId>_<channelId>（回放再附时间段后缀） */
-  streamId: string
-  serverId: string
-  deviceId: string
-  channelId: string
-  ssrc?: string
-  rtpPort?: number
-  transport?: string
-  streamNumber?: string
-  callId?: string
-  fromTag?: string
-  toTag?: string
-  /** PLAY / PLAYBACK / DOWNLOAD */
-  sessionType?: string
-  startTimeStr?: string
-  endTimeStr?: string
-  /** INVITING / READY / STOPPED / TIMEOUT / FAILED */
-  status?: string
-  flvUrl?: string
-  wsFlvUrl?: string
-  hlsUrl?: string
-  rtcUrl?: string
-  startTime?: string
-  readyTime?: string
-  stopTime?: string
-  failReason?: string
-}
-
-/**
- * 节点流统计详情（弹窗下钻用）
- * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats}。
- * 四类会话总数 + 各自明细列表，前端弹窗顶部放 KPI，下方分 Tab 列明细。</p>
- */
-export interface MediaServerStreamStats {
+export interface MediaServerStreamStatsSummary {
   serverId: string
   serverName?: string
   hostIp: string
@@ -558,11 +524,49 @@ export interface MediaServerStreamStats {
    * 后者只覆盖四类已建模会话，未来新增来源时差值会先于 total 反映出来。</p>
    */
   total: number
-  gbSessions: GbInviteSession[]
-  pushes: StreamPush[]
-  proxies: StreamProxy[]
-  onvifSessions: OnvifSession[]
 }
+
+/** 节点流统计 - 国标会话明细项（精简字段，不含 ssrc/flvUrl 等管理台表格用不到的列） */
+export interface StreamStatsGbItem {
+  streamId: string
+  deviceId: string
+  channelId: string
+  /** PLAY / PLAYBACK / DOWNLOAD */
+  sessionType?: string
+  /** INVITING / READY / STOPPED / TIMEOUT / FAILED */
+  status?: string
+  startTime?: string
+}
+
+/** 节点流统计 - 第三方推流明细项 */
+export interface StreamStatsPushItem {
+  app: string
+  stream: string
+  /** rtmp / rtsp / rtc */
+  originType?: string
+  aliveSecond?: number
+  pushTime?: string
+}
+
+/** 节点流统计 - 拉流代理明细项（仅 status=1） */
+export interface StreamStatsProxyItem {
+  app: string
+  stream: string
+  srcUrl: string
+  /** 0 未启动 1 已启动 */
+  status?: number
+}
+
+/** 节点流统计 - ONVIF 实时点播会话明细项 */
+export interface StreamStatsOnvifItem {
+  streamId: string
+  deviceId?: number
+  proxyKey?: string
+  startTime?: string
+}
+
+/** 节点流统计 - 明细 Tab key（与后端 URL path segment 一致） */
+export type StreamStatsTabKey = 'gb' | 'push' | 'proxy' | 'onvif'
 
 /** 推流方鉴权 */
 export interface StreamPushClient {

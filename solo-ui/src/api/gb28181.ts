@@ -38,8 +38,12 @@ import type {
   GbSyncStatus,
   GbSyncTriggerResponse,
   AddShareRequest,
-  GbInviteSession,
-  MediaServerStreamStats,
+  MediaServerStreamStatsSummary,
+  StreamStatsGbItem,
+  StreamStatsTabKey,
+  StreamStatsOnvifItem,
+  StreamStatsProxyItem,
+  StreamStatsPushItem,
 } from '@/types/api'
 import { get, post, put, del } from '@/utils/request'
 
@@ -379,12 +383,24 @@ export function deleteGbMediaServerApi(id: string) {
 }
 
 /**
- * 节点流统计详情（弹窗下钻用）
- * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats}。
- * 返回 KPI 总数 + 三类会话明细（国标点播/回放 / 第三方推流 / 拉流代理）。</p>
+ * 节点流统计 KPI 概要（弹窗首屏用）
+ * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats/summary}。
+ * 只返回节点身份 + 4 类会话 count + ZLM 维护的 total，响应 ~200B。</p>
  */
-export function getMediaServerStreamStatsApi(serverId: string) {
-  return get<MediaServerStreamStats>(`/api/media-server/${serverId}/stream-stats`)
+export function getMediaServerStreamStatsSummaryApi(serverId: string) {
+  return get<MediaServerStreamStatsSummary>(`/api/media-server/${serverId}/stream-stats/summary`)
+}
+
+/**
+ * 节点流统计 - 单类明细（按 Tab 懒加载）
+ * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats/{type}}。
+ * 弹窗切到对应 Tab 时才发，已加载的 Tab 不重复请求。</p>
+ */
+export function getMediaServerStreamStatsDetailApi<T = unknown>(
+  serverId: string,
+  type: StreamStatsTabKey,
+) {
+  return get<T[]>(`/api/media-server/${serverId}/stream-stats/${type}`)
 }
 
 /**
