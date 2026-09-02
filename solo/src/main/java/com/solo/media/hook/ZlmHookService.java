@@ -255,16 +255,13 @@ public class ZlmHookService {
         String stream = stringOf(body, "stream");
         String originTypeStr = stringOf(body, "originTypeStr");
         boolean isOnvif = onvifPlayService.isOnvifStream(app, stream);
-        // close=false：GB 前端 WS-FLV 与 ZLM 收到 RTP 之间有几百 ms 延迟；刷新 / 切码流 / 网络抖动也会造成
-        // 短暂无人观看的空窗，若此时立刻关流，用户重连要重新走一遍 INVITE。故这里不立即关，
-        // 流的回收统一靠业务侧：stop API（用户主动关闭）+ on_rtp_server_timeout（RTP 端口长时间无数据兜底）。
-        // 注：ZLM 的 on_stream_none_reader 回调不带 originTypeStr（实测为 null），故不以它做判据，仅记录。
-        //
-        // ONVIF 例外：用户关闭 ONVIF 播放弹窗 / 浏览器 = 真正不想看了，没有"切码流"语义，
-        // 没有"重连"成本（重新点播是另一路 addStreamProxy，几百 ms 起步可接受），
-        // 应当立即关掉 ZLM 拉流，避免 RTSP 源被空挂。
-        // 关流后 ZLM 内部会发 on_stream_changed(regist=false)，再由那里的 ONVIF 兜底清 Redis。
-        boolean close = isOnvif;
+        // 统一策略：不管什么流，无人观看立即关。
+        // 理由：Redis 里的会话计数必须实时反映"在册活跃数"，僵尸会话（用户关浏览器后还占着 RTP 端口和 ZLM 拉流）
+        // 会让 gbStreamCount / onvifStreamCount 虚高，也会让 on_stream_changed(regist=false) 之前的窗口期资源白白浪费。
+        // GB "重连要重新走 INVITE"的成本是几百 ms 起步的 SIP 交互，对用户体验影响有限；
+        // ONVIF "重连是另一路 addStreamProxy"成本类似。
+        // 关流后 ZLM 内部会发 on_stream_changed(regist=false)，由那边对应服务的 cleanup 兜底清 Redis 会话。
+        boolean close = true;
         boolean known = inviteSessionService.getByStreamId(stream) != null;
 
         log.info("[ZLM 回调] on_stream_none_reader app={} stream={} originType={} 会话在册={} onvif={} -> close={}",
