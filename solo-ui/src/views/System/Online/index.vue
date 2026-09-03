@@ -4,7 +4,7 @@ export default { name: 'SystemOnline' }
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Logout } from '@element-plus/icons-vue'
+import { Search, Refresh, SwitchButton } from '@element-plus/icons-vue'
 import type { OnlineUser } from '@/types/api'
 import { getOnlineListApi, kickOnlineApi } from '@/api/online'
 import { useUserStore } from '@/stores/user'
@@ -135,7 +135,7 @@ onMounted(() => {
                 v-permission="'system:online:kick'"
                 type="danger"
                 link
-                :icon="Logout"
+                :icon="SwitchButton"
                 :disabled="row.username === userStore.user?.username"
                 @click="handleKick(row)"
               />
