@@ -190,9 +190,11 @@ export const dynamicRouteConfig = {
       if (menus?.length) {
         userMenus.value = menus
         registerMenuRoutes(menus)
-        addNotFoundRoute()
-        isRoutesRegistered = true
       }
+      // 即便 menus 为空也要补上 catch-all 路由 + 置完成态，
+      // 否则 guard 会在 !isRoutesRegistered 分支无限重入
+      addNotFoundRoute()
+      isRoutesRegistered = true
       const { useUserStore } = await import('@/stores/user')
       const userStore = useUserStore()
       userStore.setPermissions(permissionRes.data)
@@ -291,13 +293,20 @@ router.beforeEach(async (to, _from, next) => {
   if (!isRoutesRegistered) {
     try {
       await dynamicRouteConfig.refreshRoutes()
-      // 动态注册路由后，需要重新触发路由匹配，replace: true 避免重复历史记录
-      next({ ...to, replace: true })
-      return
     } catch {
+      // 拉取失败（401、网络等）：踢回登录
       next('/login')
       return
     }
+    // refreshRoutes 成功后 isRoutesRegistered 必然为 true；
+    // 若仍为 false 说明菜单为空（用户无任何权限），踢到 403 而不是死循环
+    if (!isRoutesRegistered) {
+      next('/403')
+      return
+    }
+    // 动态注册路由后，需要重新触发路由匹配，replace: true 避免重复历史记录
+    next({ ...to, replace: true })
+    return
   }
 
   next()
