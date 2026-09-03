@@ -196,7 +196,6 @@ VALUES
 (2, '系统设置', 'setting', NULL, 1, 0, 2, 'Tools', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02'),
 (3, '测试管理', 'test:manage', '/test/manage', 1, 0, 3, 'Operation', 1, 0, '2026-06-16 09:00:00',
  '2026-06-16 09:00:00'),
-(4, '任务调度', 'task', NULL, 1, 0, 4, 'Timer', 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
 (6, '国标视频', 'gb28181', NULL, 1, 0, 6, 'VideoCamera', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00'),
 (7, 'ONVIF 视频', 'onvif', '/onvif', 1, 0, 7, 'Camera', 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00'),
 (8, '媒体管理', 'media', '/media', 1, 0, 8, 'Cpu', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00'),
@@ -265,21 +264,6 @@ VALUES
 (52, '文件上传', 'server:file:upload', NULL, 2, 15, 7, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
 (53, '文件下载', 'server:file:download', NULL, 2, 15, 8, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
 (54, '文件删除', 'server:file:delete', NULL, 2, 15, 9, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00'),
-
--- ========== 任务调度 (id=4) 子菜单 ==========
-(55, '任务管理', 'task:manage', '/task/manage', 1, 4, 1, 'Timer', 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(56, '执行日志', 'task:log', '/task/log', 1, 4, 2, 'Document', 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-
--- ----- 任务管理 (id=55) 按钮 -----
-(57, '任务查询', 'task:manage:list', NULL, 2, 55, 1, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(58, '任务新增', 'task:manage:add', NULL, 2, 55, 2, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(59, '任务编辑', 'task:manage:edit', NULL, 2, 55, 3, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(60, '任务删除', 'task:manage:delete', NULL, 2, 55, 4, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(61, '任务启停', 'task:manage:switch', NULL, 2, 55, 5, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-(62, '任务执行', 'task:manage:run', NULL, 2, 55, 6, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
-
--- ----- 执行日志 (id=56) 按钮 -----
-(63, '任务日志查询', 'task:log:list', NULL, 2, 56, 1, NULL, 1, 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00'),
 
 -- ========== 系统设置 (id=2) 子菜单 ==========
 (64, '参数管理', 'setting:config', '/setting/config', 1, 2, 1, 'SetUp', 1, 0, '2026-06-14 22:35:02',
@@ -454,54 +438,6 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id
 FROM sys_permission
 WHERE deleted = 0;
-
--- 动态任务表
-DROP TABLE IF EXISTS sys_task;
-CREATE TABLE sys_task
-(
-    id           bigint                                                        NOT NULL COMMENT '任务ID',
-    task_name    varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务名称',
-    task_code    varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务编码',
-    cron         varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT 'Cron表达式',
-    handler_name varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务处理器名称',
-    task_params  text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '任务参数',
-    status       tinyint                                                       NOT NULL DEFAULT '0' COMMENT '状态: 0停用 1启用',
-    remark       varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT '备注',
-    deleted      tinyint                                                       NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
-    create_time  datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time  datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (id),
-    UNIQUE KEY uk_task_code (task_code),
-    KEY          idx_status (status),
-    KEY          idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='动态任务表';
-
--- 初始化任务数据
-INSERT INTO sys_task (id, task_name, task_code, cron, handler_name, task_params, status, remark, deleted, create_time,
-                      update_time)
-VALUES (2067200000000000001, '示例动态任务', 'example.dynamic.task', '0/30 * * * * ?', 'exampleTask',
-        '{"source":"init"}', 0, '启用后每30秒写入一条执行日志', 0, '2026-06-18 09:00:00', '2026-06-18 09:00:00');
-
--- 动态任务执行日志表
-DROP TABLE IF EXISTS sys_task_log;
-CREATE TABLE sys_task_log
-(
-    id             bigint                                                        NOT NULL COMMENT '日志ID',
-    task_id        bigint                                                        NOT NULL COMMENT '任务ID',
-    task_name      varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务名称',
-    task_code      varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务编码',
-    handler_name   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '任务处理器名称',
-    task_params    text CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT '任务参数',
-    execution_time datetime                                                      NOT NULL COMMENT '执行时间',
-    duration_ms    bigint                                                         DEFAULT NULL COMMENT '执行耗时(毫秒)',
-    result_status  tinyint                                                       NOT NULL COMMENT '执行结果: 0失败 1成功',
-    error_msg      varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL COMMENT '错误信息',
-    PRIMARY KEY (id),
-    KEY            idx_task_id (task_id),
-    KEY            idx_task_code (task_code),
-    KEY            idx_execution_time (execution_time),
-    KEY            idx_result_status (result_status)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='动态任务执行日志表';
 
 -- 系统用户表
 DROP TABLE IF EXISTS sys_user;
