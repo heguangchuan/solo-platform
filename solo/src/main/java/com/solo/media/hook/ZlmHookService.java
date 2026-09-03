@@ -9,6 +9,7 @@ import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.entity.StreamPush;
 import com.solo.media.entity.StreamPushClient;
 import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.mapper.StreamPushClientMapper;
@@ -255,12 +256,24 @@ public class ZlmHookService {
         String stream = stringOf(body, "stream");
         String originTypeStr = stringOf(body, "originTypeStr");
         boolean isOnvif = onvifPlayService.isOnvifStream(app, stream);
-        // 统一策略：不管什么流，无人观看立即关。
-        // 理由：Redis 里的会话计数必须实时反映"在册活跃数"，僵尸会话（用户关浏览器后还占着 RTP 端口和 ZLM 拉流）
-        // 会让 gbStreamCount / onvifStreamCount 虚高，也会让 on_stream_changed(regist=false) 之前的窗口期资源白白浪费。
-        // GB "重连要重新走 INVITE"的成本是几百 ms 起步的 SIP 交互，对用户体验影响有限；
-        // ONVIF "重连是另一路 addStreamProxy"成本类似。
-        // 关流后 ZLM 内部会发 on_stream_changed(regist=false)，由那边对应服务的 cleanup 兜底清 Redis 会话。
+
+        // 外部推流（rtsp/rtmp/rtc push）不入"无人观看即关"：关掉之后外部源必须重推，
+        // 平台无能为力。判定依据：stream_push 表里有这行 = 外部推流
+        // （GB INVITE 走 rtp app 不入此表，ONVIF 拉流代理走 stream_proxy 也不入此表）。
+        // ZLM 在 on_stream_none_reader 事件里 originTypeStr 不可靠（实测为 null），
+        // 故以本表为准。ZLM 自带的分钟级流超时是兜底，不依赖本钩子早关。
+        if (app != null && stream != null
+                && streamPushService.lambdaQuery()
+                        .eq(StreamPush::getApp, app)
+                        .eq(StreamPush::getStream, stream)
+                        .exists()) {
+            log.info("[ZLM 回调] on_stream_none_reader app={} stream={} -> 外部推流，不关闭", app, stream);
+            return HookResult.ok().put("close", false);
+        }
+
+        // 平台自起的流（GB INVITE / ONVIF 拉流代理 / 兜底）：无人观看立即关。
+        // GB 重连代价是重新走 SIP INVITE（几百 ms），ONVIF 重连代价是再 addStreamProxy，
+        // 都可接受。关流后 ZLM 内部会发 on_stream_changed(regist=false)，由对应服务的 cleanup 兜底。
         boolean close = true;
         boolean known = inviteSessionService.getByStreamId(stream) != null;
 
