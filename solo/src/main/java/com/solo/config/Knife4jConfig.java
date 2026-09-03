@@ -60,15 +60,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** AI 能力：素材 / 对话 / 创作 / 模型配置 / 提示词模板 / 任务 */
-    @Bean
-    public GroupedOpenApi aiGroup() {
-        return GroupedOpenApi.builder()
-                .group("AI能力")
-                .packagesToScan("com.solo.ai.controller")
-                .build();
-    }
-
     /** 大屏：首页 / 地图配置 */
     @Bean
     public GroupedOpenApi dashboardGroup() {
