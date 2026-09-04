@@ -24,6 +24,12 @@ public class Gb28181Properties {
     private String ip;
 
     /**
+     * SIP 公网 IP；NAT/公网部署时必填，用于构造 Via/Contact 头，让下级/设备能正常回包
+     * 留空则使用 ip 字段的值
+     */
+    private String publicIp;
+
+    /**
      * SIP 监听端口
      */
     private int port = 5060;

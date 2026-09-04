@@ -103,7 +103,8 @@ public class SipRequestHeaderProvider {
 
         // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        String sipIp = properties.getPublicIp() != null ? properties.getPublicIp() : localIp;
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
@@ -166,7 +167,8 @@ public class SipRequestHeaderProvider {
 
         // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        String sipIp = properties.getPublicIp() != null ? properties.getPublicIp() : localIp;
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
@@ -187,7 +189,7 @@ public class SipRequestHeaderProvider {
                 requestUri, Request.INVITE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
         // Contact: sip:<platformId>@<localIp:platformPort>
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), localIp + ":" + properties.getPort());
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         request.addHeader(contact);

@@ -1,0 +1,189 @@
+project:
+  ip: 10.6.0.4
+
+server:
+  port: 10003
+
+spring:
+  application:
+    name: solo
+
+  datasource:
+    url: jdbc:mysql://localhost:23306/solo_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: root
+    password: 7x8ts_)gHnTsp
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  data:
+    redis:
+      host: localhost
+      port: 26379
+
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.solo.entity
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-not-delete-value: 0
+      logic-delete-value: 1
+  configuration:
+    map-underscore-to-camel-case: true
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+jwt:
+  secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=
+  access-expiration: 1800000
+  refresh-expiration: 604800000
+
+# ============================================================
+#  地图配置（首页电子地图打点用）
+#  ─────────────────────────────────
+#  改 default-center-lng/lat + default-zoom 即可把地图默认视图切到目标区域，
+#  不需要重新发布。瓦片源在 tile-url-offline / tile-url-online 改。
+#  字段名走 Spring Boot RelaxedBinding，YAML kebab-case 自动绑到 camelCase 字段。
+# ============================================================
+map:
+  default-center-lng: 106.45          # 初始视图中心经度（坐标系与 coord-system 一致）
+  default-center-lat: 29.57           # 初始视图中心纬度
+  default-zoom: 14                   # 初始缩放（全国 4-5 / 省级 7-8 / 市级 10-12 / 园区 14-16 / 小区 16-18）
+  min-zoom: 3
+  max-zoom: 21
+  # 瓦片模式：offline / online 二选一（不要混合）
+  # - offline：瓦片走 solo-ui/public/tiles/...（Vite dev 静态服务 / nginx prod 配 root）
+  # - online：瓦片走 tile-url-online 配置的外网地址（客户端直接拉，绕开 Vite/nginx）
+  tile-mode: online
+  # 离线模式的瓦片 URL——前端地图组件用这个值
+  # Vite dev：public/tiles/... 直接服务，不需要任何 Vite 配置
+  # nginx prod：location /tiles/ { root /var/www/tiles; } 静态服务
+  tile-url-offline: /tiles/{z}/{x}/{y}.png
+  # 在线模式的瓦片 URL——外网瓦片源完整 URL
+  # ─────────────────────────────────────────────────────────────
+  # 当前默认：高德 style=8（标准地图）+ 前端 CSS filter（invert + hue-rotate），
+  # 把浅色瓦片染成深色达到"暗色大屏"效果。
+  # 为什么不直接用 CartoDB Dark Matter：basemaps.cartocdn.com 在国内
+  #   - 偶发返回 "apikey required"（CDN 节点策略收紧）
+  #   - 慢/被墙概率高
+  #   - 即便能拉，运维兜底（前置反代）成本不值
+  # CSS filter 方案优势：
+  #   - 瓦片还是 AMap，国内最稳
+  #   - 前端一行 filter 把它"染"成深色
+  #   - 暗色效果由前端控制，不绑死瓦片源；将来想换源不动 CSS 就行
+  # 备选瓦片源（如果以后想换）：
+  #  百度：https://maponline0.map.bdimg.com/tile/?qt=vtile&x={x}&y={y}&z={z}&styles=pl
+  #  天地图：https://t0.tianditu.gov.cn/vec_w/wmts?...
+  #  CartoDB Dark Matter：https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png（国内不稳）
+  tile-url-online: https://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8
+  tile-subdomains: ''                 # AMap 单域名，不需要子域
+  disable-clustering-at-zoom: 21      # 缩放到此级别及以上不再聚合，看单点
+  fetch-debounce-ms: 300              # 视口变化 → 拉新 marker 的 debounce 延迟
+  marker-limit: 5000                  # 单次请求 marker 上限（与 SQL LIMIT 保持一致）
+  # 坐标系：WGS84 / GCJ02 / BD09。AMap style=8 走 GCJ02（中国偏移坐标系），
+  # 跟数据副本列 longitude_gcj02/latitude_gcj02 对齐，marker 才能落在正确位置
+  coord-system: GCJ02
+
+minio:
+  endpoint: http://localhost:29000
+  access-key: admin
+  secret-key: 7x8ts_)gHnTsp
+  bucket: solo
+  public-url:
+
+logging:
+  level:
+    com.solo: info
+    # JAIN-SIP 协议栈内部日志压到 warn，避免刷屏影响排查。
+    # Spring Boot 默认会把它继承到 INFO，会让协议栈自带的 logInfo（事务生命周期、
+    # Dialog 状态、消息派发摘要）全部打出来。调试设备方言 / SIP 交互时临时调成 info 或 debug。
+    gov.nist: warn
+
+# ============================================================
+#  GB/T 28181 国标平台配置
+#  原则：可能需要部署改的字段都保留，值由代码默认/部署覆盖；
+#  只有"代码自动算"的（线程池）才不留。
+# ============================================================
+gb28181:
+  # 总开关：true 启动 SIP 监听 / 业务线程池 / 目录同步等所有国标能力
+  # 代码默认 false，留空等于关掉整个国标模块
+  enabled: true
+
+  # SIP 监听 IP；无代码默认，必填
+  ip: ${project.ip}
+  # SIP 公网 IP；NAT/公网部署时必填，用于构造 Via/Contact 头，让下级/设备能正常回包
+  public-ip: 162.14.110.28
+  # SIP 监听端口；代码默认 5060，本项目用 15060 避开公共端口
+  port: 15060
+
+  # 本平台 SIP ID（20 位：行政区划 10 位 + 平台编号 10 位），无代码默认
+  id: 41010500002000000001
+  # 本平台 SIP 域（一般是行政区划 + 4 位 0000），无代码默认
+  domain: 4101050000
+
+  # 设备注册鉴权密码。无代码默认；留空 = 开放模式（详见 gb28181.md ADR-022）
+  password:
+
+
+  # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏与超时
+  cascade:
+
+    # Catalog 响应每片 XML 中装多少个 Item。1/2/4/8 是 ADR-027 收敛出的单包安全档位，
+    # 超过 8 某些品牌上级会拒收/拆包失败。保守起步 3，遇问题调成 1 或 2。
+    catalog-page-size: 3
+
+    # 等上级回 200 OK 的超时（毫秒）。到点没收 ACK 就走 catalog-page-interval-ms 兜底节奏继续。
+    # 内网主流平台 3s 够用；公网/老国标可上调到 5-8s。
+    catalog-ack-timeout-ms: 3000
+
+    # ACK 驱动改造（ADR-027）后，本字段退化为「ACK 超时/出错时的 fallback 兜底间隔」，
+    # 200ms 防止对端长时间无响应时 sender 线程被占用。ACK 正常时不走这条。
+    catalog-page-interval-ms: 200
+
+    # 上级点播 sendRtp 本地发送端口段（需与 media rtp 收流端口段错开、防火墙放行）
+    send-rtp-port-start: 50000
+    send-rtp-port-end: 60000
+
+
+
+# ============================================================
+#  流媒体（ZLMediaKit）相关配置
+#  原则同 gb28181：可能需要部署改的字段都保留。
+# ============================================================
+media:
+  # ZLM hook 回调的鉴权 secret（须与 ZLM config.ini 中 [api].secret 一致）；
+  # solo 收到 hook 后会校验请求中的 secret 字段。未配置时所有 hook 都会被拒，启动期日志会告警
+  hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+
+  # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）。
+  # 开启后用户通过播放 URL 访问不存在流时自动补一次 INVITE；关闭则需先点"播放"按钮
+  auto-apply-play: true
+
+  # 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中 stream_push_client；
+  # false=不做任何校验（生产环境务必开启）
+  push-auth-enabled: true
+
+  # 启动时若 gb_media_server 表为空则自动 upsert 一个默认 ZLM 节点
+  default-server:
+    # 是否在启动时自动 upsert（测试环境可关掉,生产必开）
+    enabled: true
+    # ZLM 节点唯一标识，必须与 ZLM config.ini 中 [general].mediaServerId 完全一致
+    server-id: zlmediakit-local
+    # 节点显示名（仅用于管理面展示）
+    name: 默认节点
+    # ZLM 管理面 IP（用于 REST API 调用）
+    host-ip: 10.6.0.4
+    # ZLM HTTP API 端口
+    http-port: 10005
+    # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）
+    secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+    # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）。留空则同 host-ip。
+    # 勿与 host-ip 混用：SDP c= 也从此取，需对端可达
+    stream-ip: 162.14.110.28
+    # 对外 HTTP/WS-FLV/HLS 端口；0 表示与 http-port 一致
+    stream-http-port: 0
+    # 对外 WebRTC 端口；0 表示不生成 WebRTC URL
+    rtc-port: 0
