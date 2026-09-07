@@ -17,7 +17,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 运行：IDE 里启动 `com.solo.SoloApplication`，或在 `solo/` 下执行 `./mvnw spring-boot:run`。
 - 打包：`./mvnw -f solo/pom.xml package`
 - 跑单个测试：`./mvnw -f solo/pom.xml test -Dtest=SomeTest#someMethod`
-- 生成 smart-doc API 文档（HTML 单页，输出 `docs/smart-doc/`）：`mvn -f solo/pom.xml smart-doc:html`。其他格式：`smart-doc:markdown` / `smart-doc:postman` / `smart-doc:openapi`。详见 `docs/README.md`。
 
 前端（`solo-ui/`）：
 - `npm run dev` — Vite 开发服务器，`/api` 代理到 `localhost:10003`。
@@ -149,4 +148,3 @@ log.info("[SipLayer] 启动成功");                                       // �
 - 后端包结构领域优先：新功能通常展开为 `com.solo.<domain>/{controller,service,mapper,entity,request,response}`。
 - 当前开发阶段，SQL 直接在 `sql/solo_db.sql` 或 `sql/gb28181.sql` 里改；**不要**建增量迁移脚本（ADR-010）。
 - 数据权限走 SQL / Service 内部处理——没有部门 / 岗位模型，也没有独立的登录日志功能（记忆 `admin-feature-scope`）。
-- 后续所有接口开发严格遵循smart-doc规范，保证代码与接口文档同步一致。
