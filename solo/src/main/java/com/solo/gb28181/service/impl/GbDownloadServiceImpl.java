@@ -89,7 +89,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     private static final DateTimeFormatter COMPACT_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     /** MinIO 对象名前缀：所有录像 MP4 都归在这个目录下 */
-    private static final String MINIO_PREFIX = "gb28181/download/";
+    private static final String OBJECT_PREFIX = "gb28181/download/";
     /** MinIO 预签名 URL 有效期：1 小时 */
     private static final int PRESIGNED_EXPIRY_SEC = 3600;
 
@@ -461,19 +461,19 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             }
             // 真实大小（用 Files.size，不信 ZLM 回调给的）
             long realSize = Files.size(tmpFile);
-            String objectName = buildMinioObjectName(t);
-            // 走 MinIO 上传（FileStorage.upload 接收 InputStream 不关流）
+            String objectName = buildObjectName(t);
+            // 走 S3 兼容存储上传（FileStorage.upload 接收 InputStream 不关流）
             try (InputStream in = Files.newInputStream(tmpFile)) {
                 fileStorage.upload(in, realSize, "video/mp4", objectName);
             }
             // 标 READY
             String presigned = fileStorage.presignedUrl(objectName, PRESIGNED_EXPIRY_SEC);
-            t.setMinioObjectName(objectName);
+            t.setObjectName(objectName);
             t.setDownloadUrl(presigned);
             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_READY, null);
-            log.info("[{}] MP4 已落 MinIO 流ID:{} 对象:{} 大小:{}B URL有效期:{}s",
+            log.info("[{}] MP4 已落存储 流ID:{} 对象:{} 大小:{}B URL有效期:{}s",
                     LOG_TAG, streamId, objectName, realSize, PRESIGNED_EXPIRY_SEC);
-            // 资源清扫：会话记录 + SSRC + ZLM 端口都释放，文件本身已落 MinIO
+            // 资源清扫：会话记录 + SSRC + ZLM 端口都释放，文件本身已落存储
             cleanupForTask(t, true);
         } catch (Exception e) {
             log.error("[{}] 下载/上传失败 流ID:{} URL:{} 错误:{}",
@@ -515,9 +515,9 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         inviteSessionService.removeByStreamId(streamId);
     }
 
-    private String buildMinioObjectName(DownloadTask t) {
+    private String buildObjectName(DownloadTask t) {
         // 路径：gb28181/download/<streamId>.mp4
-        return MINIO_PREFIX + t.getStreamId() + ".mp4";
+        return OBJECT_PREFIX + t.getStreamId() + ".mp4";
     }
 
     // ============================================================
