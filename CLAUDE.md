@@ -35,13 +35,13 @@ mysql -uroot -p < sql/onvif.sql       # 启用 ONVIF 模块时装
 
 根包 `com.solo`。子包按**领域**组织，不按分层：
 
-- `system/` — RBAC（用户 / 角色 / 权限）、字典、配置、文件（MinIO）、消息、日志、服务器。表全部 `sys_*`。
+- `system/` — RBAC（用户 / 角色 / 权限）、字典、配置、文件（S3 兼容存储）、消息、日志、服务器。表全部 `sys_*`。
 - `gb28181/` — GB/T 28181 国标 SIP 模块（详见下节）。表 `gb_*`。
 - `onvif/` — ONVIF 摄像头维护 + 实时点播（客户端主动探测流派，不涉及 SIP）。表 `onvif_*`。手写 SOAP 通过 dom4j + Java 21 `HttpClient` 实现，故意不引用 `lib/onvif-ws-client-1.0.1.jar` 里的 JAX-WS stub —— 那批 stub 依赖老 `javax.xml.bind`，与 Jakarta 生态冲突。
 - `media/` — ZLMediaKit 集成，供国标与 ONVIF 复用：REST 客户端（含 `openRtpServer` / `closeRtpServer` / `addStreamProxy` / `delStreamProxy`）、Hook 接收、SSRC 池、`gb_media_server` CRUD、`MediaUrlBuilder`、`MediaServerBootstrap`、`MediaServerSelector`（挑一个可用节点，跨模块共享）。
 - `aop/` — 横切注解：`@RequirePermission`（RBAC 权限校验）、`@OperationLog`、`@RateLimiter`、`@NoRepeatSubmit`。
 - `common/` — `Result` / `PageResult` / `ServiceException`。**所有 Controller 一律返回 `Result` / `PageResult`；业务错误抛 `ServiceException`**，由 `config/GlobalExceptionHandler` 统一翻译。
-- `config/` — 全局基础设施：`WebMvcConfig`、`JwtInterceptor`、`RedisConfig`、`MybatisPlusConfig`、`AsyncConfig`、`SecurityHeadersFilter`、XSS advice、MinIO、Scheduling。
+- `config/` — 全局基础设施：`WebMvcConfig`、`JwtInterceptor`、`RedisConfig`、`MybatisPlusConfig`、`AsyncConfig`、`SecurityHeadersFilter`、XSS advice、S3Config、Scheduling。
 - `websocket/` — `SystemMessageWebSocket`（消息推送）、`TerminalWebSocket`（基于 JSch 的 Web SSH 终端）。
 - `tests/` — 开发期诊断接口，**不是**单元测试。
 

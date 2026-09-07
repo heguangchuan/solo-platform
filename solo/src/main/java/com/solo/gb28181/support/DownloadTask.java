@@ -11,7 +11,7 @@ import java.time.LocalDateTime;
  *
  * <h3>状态机</h3>
  * <pre>
- *  PENDING ──发 INVITE──▶ INVITING ──流就绪──▶ RECORDING ──文件落 MinIO──▶ READY
+ *  PENDING ──发 INVITE──▶ INVITING ──流就绪──▶ RECORDING ──文件落 S3 兼容存储──▶ READY
  *                            │                                              │
  *                            ▼                                              ▼
  *                          FAILED &lt;────────── 任意阶段失败 / 超时 ──────────  TIMEOUT
@@ -68,10 +68,10 @@ public class DownloadTask {
     /** 失败 / 超时原因（仅 FAILED / TIMEOUT 状态有值） */
     private String errorMsg;
 
-    /** 落 MinIO 后的对象名（{@code gb28181/download/&lt;streamId&gt;/&lt;原始 mp4 名&gt;}） */
-    private String minioObjectName;
+    /** 落 S3 兼容存储后的对象名（{@code gb28181/download/<streamId>/<原始 mp4 名>}） */
+    private String objectName;
 
-    /** 落 MinIO 后的预签名 URL（仅 READY 状态有值） */
+    /** 落 S3 兼容存储后的预签名 URL（仅 READY 状态有值） */
     private String downloadUrl;
 
     /** 任务创建时间（业务起点：Controller 入参后） */
