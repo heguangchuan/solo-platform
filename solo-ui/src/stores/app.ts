@@ -42,6 +42,7 @@ function applyTheme(dark: boolean, primary: string) {
 
 export const useAppStore = defineStore('app', () => {
   const sidebarCollapsed = ref(false)
+  const logoVisible = ref(true)
   const isDark = ref(localStorage.getItem(THEME_KEY) === '1')
   const primaryColor = ref(localStorage.getItem(PRIMARY_KEY) || DEFAULT_PRIMARY)
 
@@ -59,6 +60,10 @@ export const useAppStore = defineStore('app', () => {
 
   function toggleSidebar() {
     sidebarCollapsed.value = !sidebarCollapsed.value
+  }
+
+  function toggleLogo() {
+    logoVisible.value = !logoVisible.value
   }
 
   function collapse() {
@@ -79,9 +84,11 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     sidebarCollapsed,
+    logoVisible,
     isDark,
     primaryColor,
     toggleSidebar,
+    toggleLogo,
     collapse,
     expand,
     toggleDark,

@@ -67,6 +67,14 @@ function toggleFullscreen() {
       </el-breadcrumb>
     </div>
     <div class="header-right">
+      <el-tooltip :content="appStore.logoVisible ? '隐藏Logo' : '显示Logo'" placement="bottom">
+        <span class="header-action" @click="appStore.toggleLogo">
+          <el-icon>
+            <Hide v-if="appStore.logoVisible" />
+            <View v-else />
+          </el-icon>
+        </span>
+      </el-tooltip>
       <el-tooltip :content="appStore.isDark ? '切换到浅色模式' : '切换到深色模式'" placement="bottom">
         <span class="header-action" @click="appStore.toggleDark">
           <el-icon>

@@ -188,7 +188,7 @@ public class SipRequestHeaderProvider {
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.INVITE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
-        // Contact: sip:<platformId>@<localIp:platformPort>
+        // Contact: sip:<platformId>@<sipIp:platformPort>（sipIp 经 resolveSipIp 解析，公网部署时为 publicIp）
         SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
@@ -214,6 +214,7 @@ public class SipRequestHeaderProvider {
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+        String sipIp = properties.resolveSipIp(localIp);
 
         FromHeader from = (FromHeader) response.getHeader(FromHeader.NAME);
         ToHeader to = (ToHeader) response.getHeader(ToHeader.NAME);
@@ -236,7 +237,7 @@ public class SipRequestHeaderProvider {
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(username, remoteHost + ":" + remotePort);
 
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
@@ -246,7 +247,7 @@ public class SipRequestHeaderProvider {
         Request ack = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.ACK, callId, cseq, from, to, viaHeaders, maxForwards);
 
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), localIp + ":" + properties.getPort());
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         ack.addHeader(contact);
@@ -260,11 +261,12 @@ public class SipRequestHeaderProvider {
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+        String sipIp = properties.resolveSipIp(localIp);
 
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(session.getChannelId(), device.getHostAddress());
 
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
@@ -283,7 +285,7 @@ public class SipRequestHeaderProvider {
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.BYE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), localIp + ":" + properties.getPort());
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         request.addHeader(contact);
@@ -299,11 +301,12 @@ public class SipRequestHeaderProvider {
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+        String sipIp = properties.resolveSipIp(localIp);
 
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(session.getChannelId(), device.getHostAddress());
 
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, properties.getPort(), transport, SipUtils.newViaTag());
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
 
@@ -322,7 +325,7 @@ public class SipRequestHeaderProvider {
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.INFO, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
 
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), localIp + ":" + properties.getPort());
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         request.addHeader(contact);
