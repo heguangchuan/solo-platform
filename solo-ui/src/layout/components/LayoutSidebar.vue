@@ -20,7 +20,7 @@ function extractMenuItems(): any[] {
 
 <template>
   <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="layout-aside" :style="{ backgroundColor: sidebarBg }">
-    <LayoutLogo />
+    <LayoutLogo v-if="appStore.logoVisible" />
     <el-menu
       :default-active="route.path"
       router
