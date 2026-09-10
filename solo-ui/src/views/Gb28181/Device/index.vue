@@ -6,7 +6,7 @@ export default { name: 'Gb28181Device' }
 import { ref, onMounted, reactive, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Search, Refresh, Plus, View, Edit, VideoCamera, Delete } from '@element-plus/icons-vue'
+import { Search, Refresh, Plus, View, Edit, Delete } from '@element-plus/icons-vue'
 import type { GbDevice, GbDevicePageRequest, GbDeviceChannel } from '@/types/api'
 import {
   getGbDevicePageApi,
@@ -19,7 +19,6 @@ import {
   parseSyncStatus,
 } from '@/api/gb28181'
 import DeviceDetailDialog from './components/DeviceDetailDialog.vue'
-import ChannelListDialog from './components/ChannelListDialog.vue'
 import SyncProgressDialog from './components/SyncProgressDialog.vue'
 import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
@@ -215,12 +214,7 @@ function handleDetect() {
   ElMessage.success('检测已发起，请稍后刷新查看设备状态')
 }
 
-function handleViewChannels(row: GbDevice) {
-  channelListDialogRef.value?.open(row.deviceId!)
-}
-
 const detailDialogRef = ref<InstanceType<typeof DeviceDetailDialog> | null>(null)
-const channelListDialogRef = ref<InstanceType<typeof ChannelListDialog> | null>(null)
 const syncProgressDialogRef = ref<InstanceType<typeof SyncProgressDialog> | null>(null)
 
 function handleDetail(row: GbDevice) {
@@ -346,16 +340,6 @@ onMounted(() => {
                   <el-icon><Edit /></el-icon>
                 </el-button>
               </el-tooltip>
-              <el-tooltip content="通道">
-                <el-button
-                  v-permission="'gb28181:device-channel:list'"
-                  type="primary"
-                  link
-                  @click="handleViewChannels(row)"
-                >
-                  <el-icon><VideoCamera /></el-icon>
-                </el-button>
-              </el-tooltip>
               <el-tooltip content="同步">
                 <el-button
                   v-permission="'gb28181:device:sync'"
@@ -477,7 +461,6 @@ onMounted(() => {
     </el-dialog>
 
     <DeviceDetailDialog ref="detailDialogRef" />
-    <ChannelListDialog ref="channelListDialogRef" />
     <SyncProgressDialog ref="syncProgressDialogRef" />
   </div>
 </template>
