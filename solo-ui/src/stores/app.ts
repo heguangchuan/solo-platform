@@ -42,7 +42,7 @@ function applyTheme(dark: boolean, primary: string) {
 
 export const useAppStore = defineStore('app', () => {
   const sidebarCollapsed = ref(false)
-  const logoVisible = ref(true)
+  const logoVisible = ref(false)
   const isDark = ref(localStorage.getItem(THEME_KEY) === '1')
   const primaryColor = ref(localStorage.getItem(PRIMARY_KEY) || DEFAULT_PRIMARY)
 
