@@ -92,10 +92,29 @@ const isPlaying = ref(false)
 const isMuted = ref(true) // jessibuca 默认静音以满足浏览器自动播放策略
 const isFullscreen = ref(false)
 const showInfoPanel = ref(false)
-const videoInfo = ref<{ width: number; height: number } | null>(null)
-const audioInfo = ref<{ numOfChannels: number; sampleRate: number } | null>(null)
-const kBps = ref(0)
+const videoInfo = ref<{
+  width: number
+  height: number
+  /** 编码类型字符串（官方 videoInfo 扩展字段，如 "H264"/"H265"） */
+  encType?: string
+  /** 编码类型码（官方约定 10=h264, 12=h265），encType 缺失时兜底 */
+  encTypeCode?: number
+} | null>(null)
+const audioInfo = ref<{
+  numOfChannels: number
+  sampleRate: number
+  /** 音频编码字符串（官方 audioInfo 扩展字段，如 "AAC"/"PCMA"/"PCMU"） */
+  encType?: string
+  /** 音频编码码（官方约定 10=aac, 7=ALAW/g711a, 8=MULAW/g711u），encType 缺失时兜底 */
+  encTypeCode?: number
+} | null>(null)
 const playFps = ref(0)
+// stats 每秒钟吐出：更精确的视/音频码率（字节/秒）+ 缓冲时长（ms）
+const videoBps = ref(0)
+const audioBps = ref(0)
+const bufferMs = ref(0)
+// performance：0=卡顿 1=流畅 2=非常流畅
+const perfLevel = ref<number | null>(null)
 
 // 电子放大：用 CSS transform 缩放 + 平移整个画面容器
 const zoomScale = ref(1) // 1 = 原始；范围 [1, MAX_ZOOM]
@@ -112,8 +131,46 @@ const zoomLabel = computed(() => `${Math.round(zoomScale.value * 100)}%`)
 const resolutionText = computed(() =>
   videoInfo.value ? `${videoInfo.value.width}×${videoInfo.value.height}` : '—',
 )
-const bandwidthText = computed(() => (kBps.value > 0 ? `${kBps.value} KB/s` : '—'))
+// 视频编码：优先用 encType 字符串；缺失时按官方 encTypeCode（10=h264, 12=h265）兜底
+const videoCodecText = computed(() => {
+  const v = videoInfo.value
+  if (!v) return '—'
+  if (v.encType) return v.encType.toUpperCase()
+  if (v.encTypeCode === 10) return 'H264'
+  if (v.encTypeCode === 12) return 'H265'
+  return '—'
+})
+// 音频编码：优先用 encType 字符串；缺失时按官方 encTypeCode（10=aac, 7=g711a, 8=g711u）兜底
+const audioCodecText = computed(() => {
+  const a = audioInfo.value
+  if (!a) return '—'
+  if (a.encType) return a.encType.toUpperCase()
+  if (a.encTypeCode === 10) return 'AAC'
+  if (a.encTypeCode === 7) return 'G711A'
+  if (a.encTypeCode === 8) return 'G711U'
+  return '—'
+})
 const fpsText = computed(() => (playFps.value > 0 ? `${playFps.value} fps` : '—'))
+// 码率：字节/秒 → kbps（×8 ÷1000）
+const videoBitrateText = computed(() =>
+  videoBps.value > 0 ? `${Math.round((videoBps.value * 8) / 1000)} kbps` : '—',
+)
+const audioBitrateText = computed(() =>
+  audioBps.value > 0 ? `${Math.round((audioBps.value * 8) / 1000)} kbps` : '—',
+)
+const bufferText = computed(() => (bufferMs.value > 0 ? `${bufferMs.value} ms` : '—'))
+const performanceText = computed(() => {
+  switch (perfLevel.value) {
+    case 0:
+      return '卡顿'
+    case 1:
+      return '流畅'
+    case 2:
+      return '非常流畅'
+    default:
+      return '—'
+  }
+})
 
 // ============ 码流切换 ============
 // 业务层传入 streams（>=2 档）才显示切换按钮；点击按钮弹出码流选项浮层，点选即切换。
@@ -212,17 +269,31 @@ function ensurePlayer() {
   player.on('timeout', () => emit('timeout'))
   player.on('loadingTimeout', () => emit('timeout'))
   player.on('videoInfo', (data: unknown) => {
-    videoInfo.value = data as { width: number; height: number }
+    videoInfo.value = data as {
+      width: number
+      height: number
+      encType?: string
+      encTypeCode?: number
+    }
   })
   player.on('audioInfo', (data: unknown) => {
-    audioInfo.value = data as { numOfChannels: number; sampleRate: number }
-  })
-  player.on('kBps', (v: unknown) => {
-    kBps.value = Math.round(Number(v) || 0)
+    audioInfo.value = data as {
+      numOfChannels: number
+      sampleRate: number
+      encType?: string
+      encTypeCode?: number
+    }
   })
   player.on('stats', (s: unknown) => {
-    const stat = s as { fps?: number }
+    const stat = s as { fps?: number; vbps?: number; abps?: number; buf?: number }
     if (stat && typeof stat.fps === 'number') playFps.value = stat.fps
+    if (stat && typeof stat.vbps === 'number') videoBps.value = stat.vbps
+    if (stat && typeof stat.abps === 'number') audioBps.value = stat.abps
+    if (stat && typeof stat.buf === 'number') bufferMs.value = stat.buf
+  })
+  player.on('performance', (p: unknown) => {
+    const level = Number(p)
+    perfLevel.value = Number.isNaN(level) ? null : level
   })
   player.on('fullscreen', (flag: unknown) => {
     isFullscreen.value = Boolean(flag)
@@ -285,8 +356,11 @@ function destroy() {
 function resetMetrics() {
   videoInfo.value = null
   audioInfo.value = null
-  kBps.value = 0
   playFps.value = 0
+  videoBps.value = 0
+  audioBps.value = 0
+  bufferMs.value = 0
+  perfLevel.value = null
 }
 
 onBeforeUnmount(() => {
@@ -494,10 +568,15 @@ function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
     <!-- 信息面板（点 "信息" 按钮显示） -->
     <div v-if="showInfoPanel" class="info-panel">
       <div><span class="info-label">分辨率</span>{{ resolutionText }}</div>
+      <div><span class="info-label">视频编码</span>{{ videoCodecText }}</div>
       <div><span class="info-label">帧 率</span>{{ fpsText }}</div>
-      <div><span class="info-label">码 率</span>{{ bandwidthText }}</div>
+      <div><span class="info-label">视频码率</span>{{ videoBitrateText }}</div>
+      <div v-if="audioInfo"><span class="info-label">音频编码</span>{{ audioCodecText }}</div>
+      <div v-if="audioInfo"><span class="info-label">音频码率</span>{{ audioBitrateText }}</div>
       <div v-if="audioInfo"><span class="info-label">声 道</span>{{ audioInfo.numOfChannels }}</div>
       <div v-if="audioInfo"><span class="info-label">采样率</span>{{ audioInfo.sampleRate }} Hz</div>
+      <div><span class="info-label">缓 冲</span>{{ bufferText }}</div>
+      <div><span class="info-label">流畅度</span>{{ performanceText }}</div>
     </div>
 
     <!-- 放大倍数浮层（缩放生效时显示） -->
