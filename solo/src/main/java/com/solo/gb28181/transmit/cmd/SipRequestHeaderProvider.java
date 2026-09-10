@@ -103,7 +103,7 @@ public class SipRequestHeaderProvider {
 
         // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        String sipIp = properties.getPublicIp() != null ? properties.getPublicIp() : localIp;
+        String sipIp = properties.resolveSipIp(localIp);
         ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
@@ -167,7 +167,7 @@ public class SipRequestHeaderProvider {
 
         // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
-        String sipIp = properties.getPublicIp() != null ? properties.getPublicIp() : localIp;
+        String sipIp = properties.resolveSipIp(localIp);
         ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);

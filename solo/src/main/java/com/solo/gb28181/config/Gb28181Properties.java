@@ -30,6 +30,19 @@ public class Gb28181Properties {
     private String publicIp;
 
     /**
+     * 取构造 Via/Contact 用的 SIP IP：{@link #publicIp} 非空白时返回它，否则回落到本机 IP。
+     * <p>注意：Spring Boot 加载 YAML 会把 {@code public-ip:}（空值）拍平成空串 {@code ""} 而非 {@code null}，
+     * 所以判空必须看空白，不能 {@code != null}——否则空串会被当成有效公网 IP 写进 Via host，
+     * 导致对端按空 host 无法回包（设备查询全部无响应）。</p>
+     *
+     * @param localIp 本机接入网卡 IP（{@code SipLayer.getLocalIp} 的结果）
+     * @return 有效的 SIP IP
+     */
+    public String resolveSipIp(String localIp) {
+        return (publicIp == null || publicIp.isBlank()) ? localIp : publicIp;
+    }
+
+    /**
      * SIP 监听端口
      */
     private int port = 5060;
