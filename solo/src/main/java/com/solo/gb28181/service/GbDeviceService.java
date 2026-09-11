@@ -69,4 +69,13 @@ public interface GbDeviceService extends IService<GbDevice> {
      * 无网络地址（从未注册）→ skipped，不改 status。</p>
      */
     GbDeviceDetectResponse detectBatch(java.util.List<Long> ids);
+
+    /**
+     * 按关键词搜索设备（同时匹配设备编码/名称/上报名称，模糊匹配）
+     * @param keyword 搜索关键词
+     * @param page 页码，从1开始
+     * @param pageSize 每页条数
+     * @return 分页设备列表
+     */
+    Page<GbDevice> searchByKeyword(String keyword, Long page, Long pageSize);
 }

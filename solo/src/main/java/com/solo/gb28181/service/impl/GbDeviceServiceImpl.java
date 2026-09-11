@@ -321,4 +321,20 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
             log.warn("[设备档案] 缓存失效失败 deviceId={} err={}", deviceId, e.getMessage());
         }
     }
+
+    @Override
+    public Page<GbDevice> searchByKeyword(String keyword, Long page, Long pageSize) {
+        LambdaQueryWrapper<GbDevice> wrapper = new LambdaQueryWrapper<>();
+        if (keyword != null && !keyword.isBlank()) {
+            wrapper.and(w ->
+                w.like(GbDevice::getDeviceId, keyword)
+                 .or()
+                 .like(GbDevice::getName, keyword)
+                 .or()
+                 .like(GbDevice::getReportName, keyword)
+            );
+        }
+        wrapper.orderByDesc(GbDevice::getUpdateTime);
+        return page(new Page<>(page, pageSize), wrapper);
+    }
 }

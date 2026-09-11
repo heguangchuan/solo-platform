@@ -25,14 +25,11 @@ import ListStatusBar from '@/views/Gb28181/components/ListStatusBar.vue'
 
 interface Props {
   deviceId?: string
-  /** 是否显示设备编码列（独立页面需要显示，弹窗不需要） */
-  showDeviceColumn?: boolean
   /** 新增按钮是否由外部接管（独立页面用左设备选择+右多通道弹窗） */
   externalAdd?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  showDeviceColumn: true,
   externalAdd: false,
 })
 
@@ -277,8 +274,8 @@ function onMapPicked(payload: { longitude: number; latitude: number; coordSystem
 
 watch(
   () => props.deviceId,
-  (v) => {
-    searchForm.value.deviceId = v || ''
+  (newVal) => {
+    searchForm.value.deviceId = newVal || ''
     handleSearch()
   },
 )
@@ -292,7 +289,7 @@ defineExpose({ fetchData })
 
 <template>
   <div>
-    <el-card shadow="hover" v-if="showDeviceColumn" class="search-card">
+    <el-card shadow="hover" class="search-card">
       <el-form :model="searchForm" inline>
         <el-form-item label="通道名称">
           <el-input v-model="searchForm.name" placeholder="请输入通道名称" clearable style="width: 240px" />
@@ -346,7 +343,7 @@ defineExpose({ fetchData })
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
         </el-table-column>
         <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
-        <el-table-column prop="deviceId" label="设备编码" v-if="showDeviceColumn" width="200" show-overflow-tooltip />
+        <el-table-column prop="deviceId" label="设备编码" v-if="!deviceId" width="200" show-overflow-tooltip />
         <el-table-column label="云台类型" align="center" show-overflow-tooltip>
           <template #default="{ row }">{{ row.parental === 1 ? '—' : ptzTypeMap[row.ptzType ?? 0] }}</template>
         </el-table-column>
