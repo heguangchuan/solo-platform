@@ -525,6 +525,87 @@ export function deletePtzPresetApi(presetId: string) {
   return del<void>(`/api/gb28181/ptz/preset/delete/${presetId}`)
 }
 
+/**
+ * 聚焦控制
+ * @param direction near=近 / far=远 / stop=停止
+ * @param speed 聚焦速度 1~15，默认 5
+ */
+export function ptzFocusApi(deviceId: string, channelId: string, direction: 'near' | 'far' | 'stop', speed = 5) {
+  return post<void>(`/api/gb28181/ptz/focus/${deviceId}/${channelId}?direction=${direction}&speed=${speed}`)
+}
+
+/**
+ * 光圈控制
+ * @param direction open=开 / close=关 / stop=停止
+ * @param speed 光圈速度 1~15，默认 5
+ */
+export function ptzIrisApi(deviceId: string, channelId: string, direction: 'open' | 'close' | 'stop', speed = 5) {
+  return post<void>(`/api/gb28181/ptz/iris/${deviceId}/${channelId}?direction=${direction}&speed=${speed}`)
+}
+
+/**
+ * 雨刷控制
+ * @param action on=开 / off=关
+ */
+export function ptzWiperApi(deviceId: string, channelId: string, action: 'on' | 'off') {
+  return post<void>(`/api/gb28181/ptz/wiper/${deviceId}/${channelId}?action=${action}`)
+}
+
+// ============================================================
+//  云台巡航路线
+// ============================================================
+
+/** 按通道主键列出巡航路线 */
+export function getCruiseListApi(channelDbId: string) {
+  return get<GbPtzCruise[]>(`/api/gb28181/ptz/cruise/list/${channelDbId}`)
+}
+
+/** 巡航路线详情（含巡航点列表） */
+export function getCruiseDetailApi(id: string) {
+  return get<{ cruise: GbPtzCruise; points: GbPtzCruisePoint[] }>(`/api/gb28181/ptz/cruise/${id}`)
+}
+
+/** 新增巡航路线（含巡航点） */
+export function saveCruiseApi(data: {
+  channelDbId: string
+  name: string
+  speed?: number
+  staySeconds?: number
+  points: { presetId: number; staySeconds?: number }[]
+}) {
+  return post<void>('/api/gb28181/ptz/cruise/save', data)
+}
+
+/** 更新巡航路线（名称/速度/停留时间） */
+export function updateCruiseApi(data: Partial<GbPtzCruise>) {
+  return post<void>('/api/gb28181/ptz/cruise/update', data)
+}
+
+/** 删除巡航路线 */
+export function deleteCruiseApi(id: string) {
+  return del<void>(`/api/gb28181/ptz/cruise/delete/${id}`)
+}
+
+/** 添加单个巡航点 */
+export function cruiseAddPointApi(id: string, point: { presetId: number; staySeconds?: number }) {
+  return post<void>(`/api/gb28181/ptz/cruise/${id}/add-point`, point)
+}
+
+/** 删除单个巡航点 */
+export function cruiseRemovePointApi(id: string, presetId: number) {
+  return del<void>(`/api/gb28181/ptz/cruise/${id}/remove-point/${presetId}`)
+}
+
+/** 开始巡航 */
+export function startCruiseApi(id: string) {
+  return post<void>(`/api/gb28181/ptz/cruise/start/${id}`)
+}
+
+/** 停止巡航 */
+export function stopCruiseApi(id: string) {
+  return post<void>(`/api/gb28181/ptz/cruise/stop/${id}`)
+}
+
 // ============================================================
 //  拉流代理
 // ============================================================

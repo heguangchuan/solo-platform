@@ -396,9 +396,9 @@ defineExpose({ fetchData })
                   @click="handlePlayback(row)"
                 />
               </el-tooltip>
-              <el-tooltip content="预置位" v-if="(row.ptzType ?? 0) !== 3">
+              <el-tooltip content="云台设置" v-if="(row.ptzType ?? 0) !== 3">
                 <el-button
-                  v-permission="'gb28181:ptz:preset'"
+                  v-permission="['gb28181:ptz:preset', 'gb28181:ptz:cruise']"
                   type="primary"
                   link
                   :icon="Location"

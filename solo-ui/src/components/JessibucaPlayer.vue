@@ -79,8 +79,16 @@ const emit = defineEmits<{
   'switch-stream': [value: string]
   'switch-transport': [t: 'UDP' | 'TCP-passive' | 'TCP-active']
   refresh: []
-  /** 云台控制：direction 为方向/动作，pressing=true 开始、false 停止 */
+  /** 云台方向控制：direction 为方向/动作，pressing=true 开始、false 停止 */
   ptz: [direction: string, pressing: boolean]
+  /** 聚焦控制：direction=near/far/stop，speed 速度 0-15 */
+  focus: [direction: 'near' | 'far' | 'stop', speed: number]
+  /** 光圈控制：direction=open/close/stop，speed 速度 0-15 */
+  iris: [direction: 'open' | 'close' | 'stop', speed: number]
+  /** 雨刷控制：action=on/off */
+  wiper: [action: 'on' | 'off']
+  /** 速度变化：各档速度值 */
+  'speed-change': [speeds: { move: number; zoom: number; focus: number; iris: number }]
 }>()
 
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -189,6 +197,18 @@ const TRANSPORTS: Array<{ label: string; value: 'UDP' | 'TCP-passive' | 'TCP-act
 // ============ 云台控制 ============
 const ptzVisible = ref(false)
 let ptzActive = '' // 当前按住的方向
+const ptzActiveTab = ref<'direction' | 'lens' | 'speed'>('direction')
+
+// 速度值（滑块）
+const ptzSpeeds = ref({
+  move: 100,   // 移动速度 0-255
+  zoom: 5,     // 变倍速度 0-15
+  focus: 5,    // 聚焦速度 0-15
+  iris: 5,     // 光圈速度 0-15
+})
+
+// 雨刷状态
+const wiperOn = ref(false)
 
 function onPtzStart(direction: string) {
   ptzActive = direction
@@ -203,9 +223,45 @@ function onPtzGlobalUp() {
 }
 
 function onPtzStop(_direction: string) {
-  // 中间停止键专用（单击即停）
   ptzActive = ''
   emit('ptz', 'stop', false)
+}
+
+// 聚焦控制
+let focusActive = ''
+function onFocusStart(direction: 'near' | 'far') {
+  focusActive = direction
+  emit('focus', direction, ptzSpeeds.value.focus)
+  window.addEventListener('mouseup', onFocusGlobalUp, { once: true })
+}
+function onFocusGlobalUp() {
+  if (!focusActive) return
+  emit('focus', 'stop', 0)
+  focusActive = ''
+}
+
+// 光圈控制
+let irisActive = ''
+function onIrisStart(direction: 'open' | 'close') {
+  irisActive = direction
+  emit('iris', direction, ptzSpeeds.value.iris)
+  window.addEventListener('mouseup', onIrisGlobalUp, { once: true })
+}
+function onIrisGlobalUp() {
+  if (!irisActive) return
+  emit('iris', 'stop', 0)
+  irisActive = ''
+}
+
+// 雨刷
+function toggleWiper() {
+  wiperOn.value = !wiperOn.value
+  emit('wiper', wiperOn.value ? 'on' : 'off')
+}
+
+// 速度变化
+function onSpeedChange() {
+  emit('speed-change', { ...ptzSpeeds.value })
 }
 
 // ============ 播放器生命周期 ============
@@ -658,20 +714,119 @@ function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
         >
           <template #content>
             <div class="ptz-panel">
-              <div class="ptz-grid">
-                <div class="ptz-btn" @mousedown="onPtzStart('up-left')">↖</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('up')">↑</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('up-right')">↗</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('left')">←</div>
-                <div class="ptz-btn ptz-center" @click="onPtzStop('stop')">●</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('right')">→</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('down-left')">↙</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('down')">↓</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('down-right')">↘</div>
+              <div class="ptz-tabs">
+                <div
+                  class="ptz-tab"
+                  :class="{ active: ptzActiveTab === 'direction' }"
+                  @click="ptzActiveTab = 'direction'"
+                >方向</div>
+                <div
+                  class="ptz-tab"
+                  :class="{ active: ptzActiveTab === 'lens' }"
+                  @click="ptzActiveTab = 'lens'"
+                >镜头</div>
+                <div
+                  class="ptz-tab"
+                  :class="{ active: ptzActiveTab === 'speed' }"
+                  @click="ptzActiveTab = 'speed'"
+                >速度</div>
               </div>
-              <div class="ptz-zoom">
-                <div class="ptz-btn" @mousedown="onPtzStart('zoom-in')">🔍+</div>
-                <div class="ptz-btn" @mousedown="onPtzStart('zoom-out')">🔍−</div>
+
+              <!-- Tab: 方向 -->
+              <div v-show="ptzActiveTab === 'direction'" class="ptz-tab-content">
+                <div class="ptz-grid">
+                  <div class="ptz-btn" @mousedown="onPtzStart('up-left')">↖</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('up')">↑</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('up-right')">↗</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('left')">←</div>
+                  <div class="ptz-btn ptz-center" @click="onPtzStop('stop')">●</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('right')">→</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('down-left')">↙</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('down')">↓</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('down-right')">↘</div>
+                </div>
+                <div class="ptz-zoom">
+                  <div class="ptz-btn" @mousedown="onPtzStart('zoom-in')">🔍+</div>
+                  <div class="ptz-btn" @mousedown="onPtzStart('zoom-out')">🔍−</div>
+                </div>
+              </div>
+
+              <!-- Tab: 镜头 -->
+              <div v-show="ptzActiveTab === 'lens'" class="ptz-tab-content">
+                <div class="lens-row">
+                  <span class="lens-label">聚焦</span>
+                  <div class="lens-btns">
+                    <div class="ptz-btn" @mousedown="onFocusStart('near')">近</div>
+                    <div class="ptz-btn ptz-center" @click="onFocusGlobalUp">停</div>
+                    <div class="ptz-btn" @mousedown="onFocusStart('far')">远</div>
+                  </div>
+                </div>
+                <div class="lens-row">
+                  <span class="lens-label">光圈</span>
+                  <div class="lens-btns">
+                    <div class="ptz-btn" @mousedown="onIrisStart('open')">开</div>
+                    <div class="ptz-btn ptz-center" @click="onIrisGlobalUp">停</div>
+                    <div class="ptz-btn" @mousedown="onIrisStart('close')">关</div>
+                  </div>
+                </div>
+                <div class="lens-row">
+                  <span class="lens-label">雨刷</span>
+                  <el-switch
+                    :model-value="wiperOn"
+                    size="small"
+                    active-text="开"
+                    inactive-text="关"
+                    @change="toggleWiper"
+                  />
+                </div>
+              </div>
+
+              <!-- Tab: 速度 -->
+              <div v-show="ptzActiveTab === 'speed'" class="ptz-tab-content ptz-speed-panel">
+                <div class="speed-row">
+                  <span class="speed-label">移动速度</span>
+                  <el-slider
+                    v-model="ptzSpeeds.move"
+                    :min="1"
+                    :max="255"
+                    size="small"
+                    @change="onSpeedChange"
+                  />
+                  <span class="speed-value">{{ ptzSpeeds.move }}</span>
+                </div>
+                <div class="speed-row">
+                  <span class="speed-label">变倍速度</span>
+                  <el-slider
+                    v-model="ptzSpeeds.zoom"
+                    :min="0"
+                    :max="15"
+                    size="small"
+                    @change="onSpeedChange"
+                  />
+                  <span class="speed-value">{{ ptzSpeeds.zoom }}</span>
+                </div>
+                <div class="speed-row">
+                  <span class="speed-label">聚焦速度</span>
+                  <el-slider
+                    v-model="ptzSpeeds.focus"
+                    :min="0"
+                    :max="15"
+                    size="small"
+                    @change="onSpeedChange"
+                  />
+                  <span class="speed-value">{{ ptzSpeeds.focus }}</span>
+                </div>
+                <div class="speed-row">
+                  <span class="speed-label">光圈速度</span>
+                  <el-slider
+                    v-model="ptzSpeeds.iris"
+                    :min="0"
+                    :max="15"
+                    size="small"
+                    @change="onSpeedChange"
+                  />
+                  <span class="speed-value">{{ ptzSpeeds.iris }}</span>
+                </div>
               </div>
             </div>
           </template>
@@ -888,5 +1043,80 @@ function handleSwitchTransport(value: 'UDP' | 'TCP-passive' | 'TCP-active') {
 .ptz-center:hover {
   background: rgba(245, 108, 108, 0.25);
   color: #f56c6c;
+}
+.ptz-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  width: 100%;
+}
+.ptz-tab {
+  flex: 1;
+  text-align: center;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #909399;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: all 0.15s;
+}
+.ptz-tab:hover {
+  color: #d6d8db;
+  background: rgba(255, 255, 255, 0.06);
+}
+.ptz-tab.active {
+  color: #409eff;
+  background: rgba(64, 158, 255, 0.15);
+}
+.ptz-tab-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+}
+.lens-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  justify-content: space-between;
+}
+.lens-label {
+  font-size: 12px;
+  color: #909399;
+  min-width: 32px;
+}
+.lens-btns {
+  display: flex;
+  gap: 4px;
+}
+.ptz-speed-panel {
+  width: 220px;
+  gap: 10px;
+}
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+.speed-label {
+  font-size: 12px;
+  color: #909399;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+.speed-row :deep(.el-slider) {
+  flex: 1;
+}
+.speed-value {
+  font-size: 12px;
+  color: #d6d8db;
+  min-width: 28px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 </style>
