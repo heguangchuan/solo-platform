@@ -170,6 +170,14 @@ function toggleFullscreen() {
   display: flex;
   align-items: center;
   gap: 16px;
+  /* 允许面包屑在窄屏时收缩，避免把右侧操作区挤出视口 */
+  min-width: 0;
+}
+
+.header-left :deep(.el-breadcrumb) {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .collapse-btn {

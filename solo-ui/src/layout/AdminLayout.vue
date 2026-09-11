@@ -62,9 +62,10 @@ function onPasswordChanged() {
 </template>
 
 <style scoped>
+/* 用 100% 而不是 100vw：100vw 包含纵向滚动条宽度，容易引发横向滚动条 */
 .layout-container {
-  height: 100vh;
-  width: 100vw;
+  height: 100%;
+  width: 100%;
 }
 
 .layout-body {

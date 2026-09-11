@@ -18,11 +18,16 @@ const ctxX = ref(0)
 const ctxY = ref(0)
 const ctxTag = ref<TagItem | null>(null)
 
+/** 右键菜单尺寸（与样式保持一致），用于视口边缘防溢出 */
+const CTX_MENU_WIDTH = 140
+const CTX_MENU_HEIGHT = 220
+
 function openContext(e: MouseEvent, tag: TagItem) {
   e.preventDefault()
   ctxTag.value = tag
-  ctxX.value = e.clientX
-  ctxY.value = e.clientY
+  // 靠右/靠下点击时把菜单收回视口内，避免被裁掉
+  ctxX.value = Math.min(e.clientX, window.innerWidth - CTX_MENU_WIDTH - 8)
+  ctxY.value = Math.min(e.clientY, window.innerHeight - CTX_MENU_HEIGHT - 8)
   ctxVisible.value = true
 }
 
