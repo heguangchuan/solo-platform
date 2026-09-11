@@ -356,6 +356,12 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (117, '设备编辑', 'onvif:device:edit', NULL, 2, 114, 3, NULL, 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (118, '设备删除', 'onvif:device:delete', NULL, 2, 114, 4, NULL, 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (119, '设备探测', 'onvif:device:probe', NULL, 2, 114, 5, NULL, 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
+-- PTZ 云台控制权限（挂在通道管理 92 下）
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (120, '云台控制', 'gb28181:ptz:control', NULL, 2, 92, 9, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (121, '巡航查询', 'gb28181:ptz:cruise', NULL, 2, 92, 10, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (122, '巡航新增', 'gb28181:ptz:cruise:add', NULL, 2, 92, 11, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (123, '巡航编辑', 'gb28181:ptz:cruise:edit', NULL, 2, 92, 12, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (124, '巡航删除', 'gb28181:ptz:cruise:delete', NULL, 2, 92, 13, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 -- 系统角色表
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role

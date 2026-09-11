@@ -310,6 +310,38 @@ export interface GbPtzPreset {
   updateTime: string
 }
 
+/** 云台巡航路线 */
+export interface GbPtzCruise {
+  id: string
+  /** 通道数据库主键 */
+  channelDbId: string
+  /** 巡航路线编号（设备侧，1~N） */
+  cruiseId: number
+  /** 巡航路线名称 */
+  name: string
+  /** 巡航速度（1~255） */
+  speed: number
+  /** 每个预置位停留秒数 */
+  staySeconds: number
+  createTime: string
+  updateTime: string
+}
+
+/** 云台巡航点 */
+export interface GbPtzCruisePoint {
+  id: string
+  /** 巡航路线 ID（gb_ptz_cruise.id） */
+  cruiseId: string
+  /** 预置位编号（设备侧） */
+  presetId: number
+  /** 冗余：预置位名称 */
+  presetName?: string
+  /** 本点单独停留时间，null 用路线默认 */
+  staySeconds?: number
+  sortOrder: number
+  createTime: string
+}
+
 /** 开始点播请求 */
 export interface PlayStartRequest {
   deviceId: string

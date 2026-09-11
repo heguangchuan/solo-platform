@@ -9,8 +9,12 @@ import { nextTick, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { PlayResultVO } from '@/types/api'
 import { startPlayApi, stopPlayApi, ptzControlApi } from '@/api/gb28181'
-import { getPtzPresetListApi, callPtzPresetApi, deletePtzPresetApi } from '@/api/gb28181'
-import type { GbPtzPreset } from '@/types/api'
+import {
+  ptzFocusApi, ptzIrisApi, ptzWiperApi,
+  getPtzPresetListApi, callPtzPresetApi, deletePtzPresetApi,
+  getCruiseListApi, startCruiseApi, stopCruiseApi,
+} from '@/api/gb28181'
+import type { GbPtzPreset, GbPtzCruise } from '@/types/api'
 import JessibucaPlayer from '@/components/JessibucaPlayer.vue'
 
 const visible = ref(false)
@@ -56,18 +60,48 @@ const playerRef = ref<InstanceType<typeof JessibucaPlayer> | null>(null)
 const presetList = ref<GbPtzPreset[]>([])
 const presetLoading = ref(false)
 
+// 巡航路线列表
+const cruiseList = ref<GbPtzCruise[]>([])
+const activeCruiseId = ref<number | null>(null)
+
+// PTZ 速度值
+const ptzSpeeds = ref({
+  move: 100,
+  zoom: 5,
+  focus: 5,
+  iris: 5,
+})
+
 /**
  * 处理播放器工具栏抛出的云台控制事件
  */
 function handlePtz(direction: string, pressing: boolean) {
   if (!deviceIdRef.value || !channelIdRef.value) return
-  // 播放器方向命名是 up-left，需要转为 upleft 匹配后端
   const command = direction.replace(/-/g, '')
   if (pressing) {
-    ptzControlApi(deviceIdRef.value, channelIdRef.value, command, 100, 5)
+    ptzControlApi(deviceIdRef.value, channelIdRef.value, command, ptzSpeeds.value.move, ptzSpeeds.value.zoom)
   } else {
     ptzControlApi(deviceIdRef.value, channelIdRef.value, 'stop', 0, 0)
   }
+}
+
+function handleFocus(direction: 'near' | 'far' | 'stop', speed: number) {
+  if (!deviceIdRef.value || !channelIdRef.value) return
+  ptzFocusApi(deviceIdRef.value, channelIdRef.value, direction, speed)
+}
+
+function handleIris(direction: 'open' | 'close' | 'stop', speed: number) {
+  if (!deviceIdRef.value || !channelIdRef.value) return
+  ptzIrisApi(deviceIdRef.value, channelIdRef.value, direction, speed)
+}
+
+function handleWiper(action: 'on' | 'off') {
+  if (!deviceIdRef.value || !channelIdRef.value) return
+  ptzWiperApi(deviceIdRef.value, channelIdRef.value, action)
+}
+
+function handleSpeedChange(speeds: { move: number; zoom: number; focus: number; iris: number }) {
+  ptzSpeeds.value = speeds
 }
 
 async function open(deviceId: string, channelId: string, channelDbId: string, name?: string) {
@@ -81,6 +115,8 @@ async function open(deviceId: string, channelId: string, channelDbId: string, na
   currentStream.value = ''
   transport.value = 'TCP-passive'
   presetList.value = []
+  cruiseList.value = []
+  activeCruiseId.value = null
   await nextTick()
   // 加载预置位
   try {
@@ -91,6 +127,13 @@ async function open(deviceId: string, channelId: string, channelDbId: string, na
     presetList.value = []
   } finally {
     presetLoading.value = false
+  }
+  // 加载巡航路线
+  try {
+    const res = await getCruiseListApi(channelDbId)
+    cruiseList.value = res.data || []
+  } catch {
+    cruiseList.value = []
   }
   await startPlay()
 }
@@ -189,6 +232,26 @@ async function handleDeletePreset(preset: GbPtzPreset) {
   }
 }
 
+async function handleStartCruise(cruise: GbPtzCruise) {
+  try {
+    await startCruiseApi(cruise.id!)
+    activeCruiseId.value = cruise.cruiseId!
+    ElMessage.success(`已开始巡航「${cruise.name}」`)
+  } catch (e) {
+    ElMessage.error('开始巡航失败：' + (e instanceof Error ? e.message : String(e)))
+  }
+}
+
+async function handleStopCruise(cruise: GbPtzCruise) {
+  try {
+    await stopCruiseApi(cruise.id!)
+    activeCruiseId.value = null
+    ElMessage.success('已停止巡航')
+  } catch (e) {
+    ElMessage.error('停止巡航失败：' + (e instanceof Error ? e.message : String(e)))
+  }
+}
+
 async function handleStopBackend(silent: boolean) {
   if (!streamInfo.value?.streamId) return
   try {
@@ -237,6 +300,10 @@ defineExpose({ open })
       @switch-stream="handleSwitchStream"
       @switch-transport="handleSwitchTransport"
       @ptz="handlePtz"
+      @focus="handleFocus"
+      @iris="handleIris"
+      @wiper="handleWiper"
+      @speed-change="handleSpeedChange"
     />
 
     <!-- 预置位面板 -->
@@ -254,6 +321,35 @@ defineExpose({ open })
         >
           {{ p.name }}
         </el-tag>
+      </div>
+    </div>
+
+    <!-- 巡航面板 -->
+    <div v-if="cruiseList.length > 0" class="preset-panel" style="margin-top: 12px">
+      <div class="preset-title">巡航路线</div>
+      <div class="cruise-list">
+        <div
+          v-for="c in cruiseList"
+          :key="c.id"
+          class="cruise-item"
+          :class="{ active: activeCruiseId === c.cruiseId }"
+        >
+          <span class="cruise-name">{{ c.name }}</span>
+          <el-button
+            v-if="activeCruiseId !== c.cruiseId"
+            size="small"
+            type="primary"
+            link
+            @click="handleStartCruise(c)"
+          >开始</el-button>
+          <el-button
+            v-else
+            size="small"
+            type="danger"
+            link
+            @click="handleStopCruise(c)"
+          >停止</el-button>
+        </div>
       </div>
     </div>
 
@@ -300,5 +396,26 @@ defineExpose({ open })
 }
 .preset-tag {
   cursor: pointer;
+}
+.cruise-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cruise-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  font-size: 13px;
+}
+.cruise-item.active {
+  background: #ecf5ff;
+  color: #409eff;
+}
+.cruise-name {
+  font-weight: 500;
 }
 </style>

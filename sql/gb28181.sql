@@ -117,8 +117,48 @@ CREATE TABLE gb_ptz_preset
     create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
+    UNIQUE KEY uk_channel_preset (channel_db_id, preset_id),
     KEY           idx_channel (channel_db_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台预置位表';
+
+-- =====================================================
+-- 云台巡航路线表
+-- 每个通道可以配置多条巡航路线，每条路线包含多个预置位点
+-- =====================================================
+DROP TABLE IF EXISTS gb_ptz_cruise;
+CREATE TABLE gb_ptz_cruise
+(
+    id            bigint       NOT NULL COMMENT '主键ID（雪花）',
+    channel_db_id bigint       NOT NULL COMMENT '通道数据库主键（gb_device_channel.id）',
+    cruise_id     int          NOT NULL COMMENT '巡航路线编号（设备侧，1~N）',
+    name          varchar(100) NOT NULL COMMENT '巡航路线名称',
+    speed         int          NOT NULL DEFAULT 50 COMMENT '巡航速度（1~255）',
+    stay_seconds  int          NOT NULL DEFAULT 10 COMMENT '每个预置位默认停留秒数',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_channel_cruise (channel_db_id, cruise_id),
+    KEY           idx_channel (channel_db_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台巡航路线表';
+
+-- =====================================================
+-- 云台巡航点表
+-- 一条巡航路线包含多个巡航点，每个巡航点对应一个预置位
+-- =====================================================
+DROP TABLE IF EXISTS gb_ptz_cruise_point;
+CREATE TABLE gb_ptz_cruise_point
+(
+    id           bigint       NOT NULL COMMENT '主键ID（雪花）',
+    cruise_id    bigint       NOT NULL COMMENT '巡航路线ID（gb_ptz_cruise.id）',
+    preset_id    int          NOT NULL COMMENT '预置位编号（设备侧，对应 gb_ptz_preset.preset_id）',
+    preset_name  varchar(100)          DEFAULT NULL COMMENT '冗余：预置位名称，便于列表展示',
+    stay_seconds int                   DEFAULT NULL COMMENT '本点单独停留秒数，NULL 用路线默认',
+    sort_order   int          NOT NULL DEFAULT 0 COMMENT '排序号',
+    create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cruise_preset (cruise_id, preset_id),
+    KEY          idx_cruise (cruise_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云台巡航点表';
 
 -- =====================================================
 -- 国标接入禁用名单（黑名单）

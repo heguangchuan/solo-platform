@@ -235,6 +235,122 @@ public class SipUtils {
         return String.format("A50F01%02X0000%02X%02X", cmdCode, preset, checkCode);
     }
 
+    // ---------------- 聚焦控制码 ----------------
+
+    /**
+     * 聚焦控制 PTZ 命令编码
+     * <p>字节3组合码1：bit6=聚焦近(0x40)，bit7=聚焦远(0x80)</p>
+     * <p>字节7（第8字节）高4位=聚焦速度(0x00-0xF0)</p>
+     *
+     * @param direction 0=停 1=近 2=远
+     * @param focusSpeed 聚焦速度 (0-15)
+     * @return 8 字节 PTZ 控制码（16进制大写串）
+     */
+    public static String buildPtzFocusCmd(int direction, int focusSpeed) {
+        int cmdCode = 0;
+        if (direction == 1) cmdCode |= 0x40;    // 聚焦近
+        else if (direction == 2) cmdCode |= 0x80;  // 聚焦远
+
+        int focusByte = (focusSpeed & 0x0F) << 4;
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + 0x00 + 0x00 + focusByte) & 0xFF;
+        return String.format("A50F01%02X0000%02X%02X", cmdCode, focusByte, checkCode);
+    }
+
+    // ---------------- 光圈控制码 ----------------
+
+    /**
+     * 光圈控制 PTZ 命令编码
+     * <p>字节4（第5字节）组合码2：bit0=光圈大(0x01)，bit1=光圈小(0x02)</p>
+     * <p>字节7（第8字节）低4位=光圈速度(0x00-0x0F)</p>
+     *
+     * @param direction 0=停 1=大(开) 2=小(关)
+     * @param irisSpeed 光圈速度 (0-15)
+     * @return 8 字节 PTZ 控制码（16进制大写串）
+     */
+    public static String buildPtzIrisCmd(int direction, int irisSpeed) {
+        int cmdCode2 = 0;
+        if (direction == 1) cmdCode2 |= 0x01;   // 光圈大
+        else if (direction == 2) cmdCode2 |= 0x02;  // 光圈小
+
+        int irisByte = irisSpeed & 0x0F;
+        int checkCode = (0xA5 + 0x0F + 0x01 + 0x00 + cmdCode2 + 0x00 + irisByte) & 0xFF;
+        return String.format("A50F0100%02X00%02X%02X", cmdCode2, irisByte, checkCode);
+    }
+
+    // ---------------- 雨刷控制码 ----------------
+
+    /**
+     * 雨刷控制 PTZ 命令编码
+     * <p>走辅助开关指令，使用扩展字节</p>
+     *
+     * @param on true=开 false=关
+     * @return 8 字节 PTZ 控制码（16进制大写串）
+     */
+    public static String buildPtzWiperCmd(boolean on) {
+        int cmd = on ? 0x0B : 0x0C;
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmd + 0x00 + 0x00 + 0x00) & 0xFF;
+        return String.format("A50F01%02X000000%02X", cmd, checkCode);
+    }
+
+    // ---------------- 巡航控制码（扩展指令 0x84~0x89） ----------------
+
+    /**
+     * 添加巡航点
+     * <p>指令码 0x84：byte3=cruiseId, byte4=presetId, byte5=staySeconds</p>
+     */
+    public static String buildPtzCruiseAddPoint(int cruiseId, int presetId, int staySeconds) {
+        return buildPtzCruiseCmd(0x84, cruiseId & 0xFF, presetId & 0xFF, staySeconds & 0xFF);
+    }
+
+    /**
+     * 删除巡航点
+     * <p>指令码 0x85：byte3=cruiseId, byte4=presetId</p>
+     */
+    public static String buildPtzCruiseRemovePoint(int cruiseId, int presetId) {
+        return buildPtzCruiseCmd(0x85, cruiseId & 0xFF, presetId & 0xFF, 0x00);
+    }
+
+    /**
+     * 设置巡航速度
+     * <p>指令码 0x86：byte3=cruiseId, byte4=speed(1~255)</p>
+     */
+    public static String buildPtzCruiseSetSpeed(int cruiseId, int speed) {
+        return buildPtzCruiseCmd(0x86, cruiseId & 0xFF, speed & 0xFF, 0x00);
+    }
+
+    /**
+     * 设置巡航停留时间
+     * <p>指令码 0x87：byte3=cruiseId, byte4=staySeconds</p>
+     */
+    public static String buildPtzCruiseSetStay(int cruiseId, int staySeconds) {
+        return buildPtzCruiseCmd(0x87, cruiseId & 0xFF, staySeconds & 0xFF, 0x00);
+    }
+
+    /**
+     * 开始巡航
+     * <p>指令码 0x88：byte3=cruiseId</p>
+     */
+    public static String buildPtzCruiseStart(int cruiseId) {
+        return buildPtzCruiseCmd(0x88, cruiseId & 0xFF, 0x00, 0x00);
+    }
+
+    /**
+     * 停止巡航
+     * <p>指令码 0x89：byte3=cruiseId</p>
+     */
+    public static String buildPtzCruiseStop(int cruiseId) {
+        return buildPtzCruiseCmd(0x89, cruiseId & 0xFF, 0x00, 0x00);
+    }
+
+    /**
+     * 巡航扩展指令通用构造
+     * <p>格式：A5 0F 01 [cmd] [byte3] [byte4] [byte5] [checksum]</p>
+     */
+    private static String buildPtzCruiseCmd(int cmdCode, int b3, int b4, int b5) {
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + b3 + b4 + b5) & 0xFF;
+        return String.format("A50F01%02X%02X%02X%02X%02X", cmdCode, b3, b4, b5, checkCode);
+    }
+
     // ---------------- 内嵌类 ----------------
 
     /** 设备远端地址（IP+Port） */
