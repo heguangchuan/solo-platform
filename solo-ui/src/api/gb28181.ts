@@ -58,7 +58,9 @@ export function getGbDevicePageApi(data: GbDevicePageRequest) {
  * 按关键词搜索设备（同时匹配编码/名称/上报名称）
  */
 export function searchGbDeviceApi(keyword?: string, page: number = 1, pageSize: number = 20) {
-  return get<PageResult<GbDevice>>('/api/gb28181/device/search', { keyword, page, pageSize })
+  return get<PageResult<GbDevice>>('/api/gb28181/device/search', {
+    params: { keyword, page, pageSize }
+  })
 }
 
 /**
