@@ -343,19 +343,13 @@ defineExpose({ fetchData })
           <template #default="{ row }">{{ row.name || row.firstName || '—' }}</template>
         </el-table-column>
         <el-table-column prop="channelId" label="通道编码" width="200" show-overflow-tooltip />
-        <el-table-column prop="deviceId" label="设备编码" v-if="!deviceId" width="200" show-overflow-tooltip />
-        <el-table-column label="云台类型" align="center" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.parental === 1 ? '—' : ptzTypeMap[row.ptzType ?? 0] }}</template>
-        </el-table-column>
+        <el-table-column prop="deviceId" label="设备编码" width="200" show-overflow-tooltip />
         <el-table-column label="状态" align="center" width="85" show-overflow-tooltip>
           <template #default="{ row }">
             <span v-if="row.parental === 1" class="text-secondary">—</span>
             <ListStatusBar v-else-if="row.status === 'ON' || row.status === 'OFF'" :active="row.status === 'ON'" />
             <el-tag v-else type="info" size="small">未注册</el-tag>
           </template>
-        </el-table-column>
-        <el-table-column label="数据来源" align="center" show-overflow-tooltip>
-          <template #default="{ row }">{{ sourceText(row.source) }}</template>
         </el-table-column>
         <el-table-column label="资源类型" align="center" width="100">
           <template #default="{ row }">
