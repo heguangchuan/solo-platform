@@ -21,6 +21,7 @@ function extractMenuItems(): any[] {
 <template>
   <el-aside :width="appStore.sidebarCollapsed ? '64px' : '220px'" class="layout-aside" :style="{ backgroundColor: sidebarBg }">
     <LayoutLogo v-if="appStore.logoVisible" />
+    <div class="menu-scroll">
     <el-menu
       :default-active="route.path"
       router
@@ -59,14 +60,41 @@ function extractMenuItems(): any[] {
         </el-sub-menu>
       </template>
     </el-menu>
+    </div>
   </el-aside>
 </template>
 
 <style scoped>
 .layout-aside {
   transition: width 0.3s, background-color 0.3s;
+  /* 纵向布局：Logo 固定，菜单区独立滚动（菜单多于一屏时底部菜单不可丢失） */
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
   border-right: none;
+}
+
+.layout-aside :deep(.logo) {
+  flex-shrink: 0;
+}
+
+.menu-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 侧边栏滚动条做暗色细条处理，避免默认滚动条割裂深色背景 */
+.menu-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.menu-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16);
+  border-radius: 3px;
+}
+.menu-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .layout-menu {
