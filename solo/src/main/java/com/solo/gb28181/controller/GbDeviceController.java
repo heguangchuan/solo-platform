@@ -48,6 +48,20 @@ public class GbDeviceController {
     }
 
     /**
+     * 按关键词搜索设备（同时匹配设备编码/名称/上报名称，模糊匹配）
+     */
+    @Operation(summary = "按关键词搜索设备")
+    @GetMapping("/search")
+    @RequirePermission({"gb28181:device:list"})
+    public Result<PageResult<GbDevice>> search(
+            @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
+            @Parameter(description = "页码，默认1") @RequestParam(defaultValue = "1") Long page,
+            @Parameter(description = "每页条数，默认20") @RequestParam(defaultValue = "20") Long pageSize) {
+        Page<GbDevice> result = gbDeviceService.searchByKeyword(keyword, page, pageSize);
+        return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
+    }
+
+    /**
      * 设备详情
      *
      * @param deviceId 设备国标 20 位 ID
@@ -184,18 +198,18 @@ public class GbDeviceController {
      */
     @Schema(description = "同步触发响应")
     public record SyncTriggerResponse(
-            /**
-             * 触发结果：`TRIGGERED` / `ALREADY_RUNNING`
+            /*
+              触发结果：`TRIGGERED` / `ALREADY_RUNNING`
              */
             @Schema(description = "触发结果：TRIGGERED / ALREADY_RUNNING")
             String result,
-            /**
-             * 设备国标 20 位 ID
+            /*
+              设备国标 20 位 ID
              */
             @Schema(description = "设备国标 20 位 ID")
             String deviceId,
-            /**
-             * 当前同步进度 JSON 字符串
+            /*
+              当前同步进度 JSON 字符串
              */
             @Schema(description = "当前同步进度 JSON 字符串")
             String status) {}
