@@ -51,7 +51,7 @@ defineExpose({ open })
       <el-descriptions-item label="通道编码" :span="2">{{ detail.channelId }}</el-descriptions-item>
       <el-descriptions-item label="通道名称" :span="2">{{ detail.name || '—' }}</el-descriptions-item>
       <el-descriptions-item label="设备编码" :span="2">{{ detail.deviceId }}</el-descriptions-item>
-      <el-descriptions-item label="设备名称" :span="2">{{ detail.deviceName || '—' }}</el-descriptions-item>
+      <el-descriptions-item label="分组编码" :span="2">{{ detail.parentId || '—' }}</el-descriptions-item>
 
       <el-descriptions-item label="云台类型">{{ ptzTypeMap[detail.ptzType ?? 0] }}</el-descriptions-item>
       <el-descriptions-item label="在线状态">
