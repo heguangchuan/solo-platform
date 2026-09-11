@@ -2,8 +2,8 @@
 export default { name: 'Gb28181DeviceChannel' }
 </script>
 <script setup lang="ts">
-import { ref, onMounted, nextTick, watch } from 'vue'
-import { Loading } from '@element-plus/icons-vue'
+import { ref, onMounted, nextTick } from 'vue'
+import { Loading, Search } from '@element-plus/icons-vue'
 import type { GbDevice } from '@/types/api'
 import { searchGbDeviceApi } from '@/api/gb28181'
 import ChannelListTable from '@/views/Gb28181/Device/components/ChannelListTable.vue'
@@ -21,7 +21,6 @@ const pageSize = ref(20)
 const hasMore = ref(true)
 const selectedDeviceId = ref<string | undefined>(undefined) // undefined = 全部设备
 const deviceSearchKeyword = ref('')
-let searchTimer: NodeJS.Timeout | null = null
 
 // 设备状态映射
 const statusTextMap: Record<number, { text: string; type: 'success' | 'danger' | 'info' }> = {
@@ -63,25 +62,15 @@ async function fetchDeviceList(reset = false) {
   }
 }
 
-// 防抖搜索：输入停止300ms后调用接口
+// 点击搜索图标/按回车触发搜索
 function handleSearch() {
-  if (searchTimer) {
-    clearTimeout(searchTimer)
-  }
-  searchTimer = setTimeout(() => {
-    fetchDeviceList(true)
-  }, 300)
+  fetchDeviceList(true)
 }
 
 // 滚动到底部加载更多
 function loadMore() {
   fetchDeviceList()
 }
-
-// 搜索关键词变化时触发防抖搜索
-watch(deviceSearchKeyword, () => {
-  handleSearch()
-})
 
 function handleDeviceSelect(deviceId?: string) {
   selectedDeviceId.value = deviceId
@@ -106,23 +95,31 @@ onMounted(() => {
 </script>
 
 <template>
-  <el-row gutter="16">
-    <!-- 左侧设备列表 -->
-    <el-col :span="5">
+  <!-- 最外层容器：固定高度，占满整个可视区域，不受任何内容影响 -->
+  <div class="full-page-container">
+    <!-- 左侧区域：固定宽度，独立高度 -->
+    <div class="left-panel">
       <el-card shadow="hover" class="device-card">
-        <!-- 设备搜索 -->
-        <div class="mb-3">
+        <!-- 搜索框：固定在顶部，点击图标/按回车才搜索 -->
+        <div class="search-box">
           <el-input
             v-model="deviceSearchKeyword"
             placeholder="搜索设备名称/编码"
             clearable
             @clear="fetchDeviceList(true)"
-          />
+            @keyup.enter="handleSearch"
+          >
+            <template #suffix>
+              <el-icon class="search-icon" @click="handleSearch">
+                <Search />
+              </el-icon>
+            </template>
+          </el-input>
         </div>
 
-        <!-- 设备列表（无限滚动） -->
+        <!-- 设备列表：固定高度，内部滚动，无限加载 -->
         <div
-          class="device-list"
+          class="device-scroll-area"
           v-infinite-scroll="loadMore"
           :infinite-scroll-disabled="loadingMore || !hasMore"
           infinite-scroll-distance="50"
@@ -158,35 +155,76 @@ onMounted(() => {
           </div>
         </div>
       </el-card>
-    </el-col>
+    </div>
 
-    <!-- 右侧通道列表 -->
-    <el-col :span="19">
+    <!-- 右侧区域：占满剩余宽度，独立滚动 -->
+    <div class="right-panel">
       <ChannelListTable
         ref="tableRef"
         :device-id="selectedDeviceId"
         :external-add="true"
         @external-add="handleExternalAdd"
       />
-    </el-col>
-  </el-row>
+    </div>
+  </div>
 
   <ChannelBatchAddDialog ref="addDialogRef" @refresh="handleRefresh" />
 </template>
 
 <style scoped>
-.device-card {
-  height: 100%;
+/* 最外层容器：100%视口高度减去顶部导航+页面padding，固定死，不受内容影响 */
+.full-page-container {
+  height: calc(100vh - 140px);
+  max-height: 700px; /* 最大高度限制，避免过高 */
+  display: flex;
+  gap: 16px;
+  overflow: hidden;
 }
 
-.tag-margin {
-  margin-left: 8px;
+/* 左侧面板：固定宽度，100%高度，完全独立 */
+.left-panel {
+  width: 20%;
+  min-width: 240px;
+  max-width: 300px; /* 最大宽度限制，避免过宽 */
+  height: 100%;
   flex-shrink: 0;
 }
 
-.device-list {
-  max-height: calc(100vh - 240px);
+/* 右侧面板：占满剩余宽度，100%高度，独立滚动 */
+.right-panel {
+  flex: 1;
+  height: 100%;
   overflow-y: auto;
+}
+
+/* 左侧卡片：占满面板高度，flex布局 */
+.device-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 搜索框：固定高度，不缩放 */
+.search-box {
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+/* 搜索图标样式 */
+.search-icon {
+  cursor: pointer;
+  color: var(--el-text-color-secondary);
+  transition: color 0.2s;
+}
+.search-icon:hover {
+  color: var(--el-color-primary);
+}
+
+/* 设备滚动区域：自适应剩余高度，内部滚动 */
+.device-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0; /* 强制不超出父容器 */
 }
 
 .device-item {
@@ -248,8 +286,9 @@ onMounted(() => {
   color: var(--el-text-color-placeholder);
 }
 
-.mb-3 {
-  margin-bottom: 12px;
+.tag-margin {
+  margin-left: 8px;
+  flex-shrink: 0;
 }
 
 .ml-1 {
