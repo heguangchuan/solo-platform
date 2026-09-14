@@ -231,7 +231,7 @@ async function handleBatchDelete() {
 const playDialogRef = ref<InstanceType<typeof PlayDialog> | null>(null)
 
 function handlePlay(row: GbDeviceChannelVO) {
-  playDialogRef.value?.open(row.deviceId, row.channelId, row.id, row.name)
+  playDialogRef.value?.open(row.deviceId, row.channelId, row.name)
 }
 
 const playbackDialogRef = ref<InstanceType<typeof PlaybackDialog> | null>(null)
