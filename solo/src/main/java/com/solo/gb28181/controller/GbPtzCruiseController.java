@@ -4,6 +4,7 @@ import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.gb28181.entity.GbPtzCruise;
 import com.solo.gb28181.entity.GbPtzCruisePoint;
+import com.solo.gb28181.request.GbPtzCruiseSaveRequest;
 import com.solo.gb28181.service.GbPtzCruiseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -53,25 +54,18 @@ public class GbPtzCruiseController {
     @Operation(summary = "新增巡航路线（含巡航点）")
     @PostMapping("/save")
     @RequirePermission("gb28181:ptz:cruise:add")
-    public Result<Void> save(@RequestBody Map<String, Object> body) {
+    public Result<Void> save(@RequestBody GbPtzCruiseSaveRequest request) {
         GbPtzCruise cruise = new GbPtzCruise();
-        cruise.setChannelDbId(((Number) body.get("channelDbId")).longValue());
-        cruise.setName((String) body.get("name"));
-        if (body.get("speed") != null) {
-            cruise.setSpeed(((Number) body.get("speed")).intValue());
-        }
-        if (body.get("staySeconds") != null) {
-            cruise.setStaySeconds(((Number) body.get("staySeconds")).intValue());
-        }
+        cruise.setChannelDbId(request.getChannelDbId());
+        cruise.setName(request.getName());
+        cruise.setSpeed(request.getSpeed());
+        cruise.setStaySeconds(request.getStaySeconds());
 
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> pointMaps = (List<Map<String, Object>>) body.get("points");
-        List<GbPtzCruisePoint> points = pointMaps != null ? pointMaps.stream().map(m -> {
+        List<GbPtzCruiseSaveRequest.Point> requestPoints = request.getPoints();
+        List<GbPtzCruisePoint> points = requestPoints != null ? requestPoints.stream().map(rp -> {
             GbPtzCruisePoint p = new GbPtzCruisePoint();
-            p.setPresetId(((Number) m.get("presetId")).intValue());
-            if (m.get("staySeconds") != null) {
-                p.setStaySeconds(((Number) m.get("staySeconds")).intValue());
-            }
+            p.setPresetId(rp.getPresetId());
+            p.setStaySeconds(rp.getStaySeconds());
             return p;
         }).toList() : List.of();
 
