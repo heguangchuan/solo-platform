@@ -6,7 +6,7 @@ const appStore = useAppStore()
 
 <template>
   <div class="logo" :class="{ 'is-dark': appStore.isDark }">
-    <span v-if="!appStore.sidebarCollapsed">Solo 管理系统</span>
+    <span v-if="!appStore.sidebarCollapsed">Solo 视频监控平台</span>
     <span v-else>S</span>
   </div>
 </template>

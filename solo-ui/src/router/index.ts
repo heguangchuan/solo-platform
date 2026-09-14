@@ -277,7 +277,7 @@ function addNotFoundRoute() {
 }
 
 router.beforeEach(async (to, _from, next) => {
-  document.title = `${(to.meta.title as string) || ''} - Solo 后台管理系统`
+  document.title = `${(to.meta.title as string) || ''} - Solo 视频监控平台`
 
   if (to.path === '/login') {
     next()
