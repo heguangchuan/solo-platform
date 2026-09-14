@@ -175,7 +175,6 @@ onMounted(() => {
 /* 最外层容器：100%视口高度减去顶部导航+页面padding，固定死，不受内容影响 */
 .full-page-container {
   height: calc(100vh - 140px);
-  max-height: 700px; /* 最大高度限制，避免过高 */
   display: flex;
   gap: 16px;
   overflow: hidden;
