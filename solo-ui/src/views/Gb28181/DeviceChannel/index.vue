@@ -3,7 +3,7 @@ export default { name: 'Gb28181DeviceChannel' }
 </script>
 <script setup lang="ts">
 import { ref, onMounted, nextTick } from 'vue'
-import { Loading, Search } from '@element-plus/icons-vue'
+import { Loading, Search, DArrowLeft, DArrowRight } from '@element-plus/icons-vue'
 import type { GbDevice } from '@/types/api'
 import { searchGbDeviceApi } from '@/api/gb28181'
 import ChannelListTable from '@/views/Gb28181/Device/components/ChannelListTable.vue'
@@ -11,6 +11,9 @@ import ChannelBatchAddDialog from './components/ChannelBatchAddDialog.vue'
 
 const tableRef = ref<InstanceType<typeof ChannelListTable> | null>(null)
 const addDialogRef = ref<InstanceType<typeof ChannelBatchAddDialog> | null>(null)
+
+// 左侧设备面板折叠状态
+const panelCollapsed = ref(false)
 
 // ---------------- 左侧设备列表（滚动加载+后端搜索） ----------------
 const deviceLoading = ref(false)
@@ -96,10 +99,18 @@ onMounted(() => {
 
 <template>
   <!-- 最外层容器：固定高度，占满整个可视区域，不受任何内容影响 -->
-  <div class="full-page-container">
-    <!-- 左侧区域：固定宽度，独立高度 -->
+  <div class="full-page-container" :class="{ 'left-collapsed': panelCollapsed }">
+    <!-- 左侧区域：固定宽度，独立高度，可整体折叠 -->
     <div class="left-panel">
       <el-card shadow="hover" class="device-card">
+        <!-- 面板头部：标题 + 收起按钮 -->
+        <div class="panel-header">
+          <span class="panel-title">设备列表</span>
+          <el-icon class="panel-toggle" title="收起设备列表" @click="panelCollapsed = true">
+            <DArrowLeft />
+          </el-icon>
+        </div>
+
         <!-- 搜索框：固定在顶部，点击图标/按回车才搜索 -->
         <div class="search-box">
           <el-input
@@ -166,6 +177,16 @@ onMounted(() => {
         @external-add="handleExternalAdd"
       />
     </div>
+
+    <!-- 左侧面板收起后的展开按钮（相对最外层容器定位，不随右侧滚动） -->
+    <button
+      v-if="panelCollapsed"
+      class="expand-panel-btn"
+      title="展开设备列表"
+      @click="panelCollapsed = false"
+    >
+      <el-icon><DArrowRight /></el-icon>
+    </button>
   </div>
 
   <ChannelBatchAddDialog ref="addDialogRef" @refresh="handleRefresh" />
@@ -174,19 +195,81 @@ onMounted(() => {
 <style scoped>
 /* 最外层容器：100%视口高度减去顶部导航+页面padding，固定死，不受内容影响 */
 .full-page-container {
+  position: relative;
   height: calc(100vh - 140px);
   display: flex;
   gap: 16px;
   overflow: hidden;
+  transition: gap 0.25s ease;
 }
 
-/* 左侧面板：固定宽度，100%高度，完全独立 */
+.full-page-container.left-collapsed {
+  gap: 0;
+}
+
+/* 左侧面板：固定宽度，100%高度，可整体折叠 */
 .left-panel {
   width: 20%;
   min-width: 240px;
   max-width: 300px; /* 最大宽度限制，避免过宽 */
   height: 100%;
   flex-shrink: 0;
+  transition: width 0.25s ease, min-width 0.25s ease, opacity 0.2s ease;
+}
+
+.full-page-container.left-collapsed .left-panel {
+  width: 0;
+  min-width: 0;
+  opacity: 0;
+  overflow: hidden;
+}
+
+/* 面板头部：标题 + 收起按钮 */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--el-text-color-primary);
+}
+
+.panel-toggle {
+  cursor: pointer;
+  color: var(--el-text-color-secondary);
+  transition: color 0.2s;
+}
+
+.panel-toggle:hover {
+  color: var(--el-color-primary);
+}
+
+/* 折叠后的展开按钮：浮在右侧内容区左上角 */
+.expand-panel-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: var(--el-text-color-regular);
+  background: var(--el-bg-color);
+  border: 1px solid var(--el-border-color);
+  border-radius: 6px;
+  box-shadow: var(--el-box-shadow-light);
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.expand-panel-btn:hover {
+  color: var(--el-color-primary);
+  border-color: var(--el-color-primary-light-5);
 }
 
 /* 右侧面板：占满剩余宽度，100%高度，独立滚动 */
