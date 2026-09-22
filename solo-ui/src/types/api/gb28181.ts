@@ -617,6 +617,48 @@ export interface StreamPushClientPageRequest extends PageRequest {
   enabled?: number
 }
 
+/** 设备报警（报警中心） */
+export interface GbDeviceAlarm {
+  id: string
+  deviceId: string
+  channelId?: string
+  channelName?: string
+  /** 报警级别 1~4（1 最严重） */
+  alarmPriority?: number
+  alarmMethod?: string
+  alarmMethodDesc?: string
+  alarmType?: string
+  alarmTime?: string
+  alarmDescription?: string
+  longitude?: number
+  latitude?: number
+  /** 处置状态：0 未处理、1 已确认、2 已处置、3 误报 */
+  handleStatus: number
+  handleRemark?: string
+  handleUser?: string
+  handleTime?: string
+  receiveTime?: string
+  createTime: string
+}
+
+/** 报警分页请求 */
+export interface GbDeviceAlarmPageRequest extends PageRequest {
+  deviceId?: string
+  channelId?: string
+  alarmPriority?: number
+  handleStatus?: number
+  startTime?: string
+  endTime?: string
+}
+
+/** 报警处置请求 */
+export interface GbDeviceAlarmHandleRequest {
+  id: string
+  /** 处置状态：1 已确认、2 已处置、3 误报 */
+  handleStatus: number
+  handleRemark?: string
+}
+
 /** 本平台国标身份（对应 GET /api/gb28181/parent-platform/local-info） */
 export interface GbLocalPlatformInfo {
   /** 本平台 SIP ID（20 位国标编码） */
