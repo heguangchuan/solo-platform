@@ -37,6 +37,9 @@ import type {
   StreamPushClientPageRequest,
   GbSyncStatus,
   GbSyncTriggerResponse,
+  GbDeviceAlarm,
+  GbDeviceAlarmPageRequest,
+  GbDeviceAlarmHandleRequest,
   AddShareRequest,
   MediaServerStreamStatsSummary,
   StreamStatsGbItem,
@@ -706,5 +709,29 @@ export function resetStreamPushClientTokenApi(id: string) {
 
 export function deleteStreamPushClientApi(id: string) {
   return del<void>(`/api/stream-push-client/${id}`)
+}
+
+// ============================================================
+//  报警中心
+// ============================================================
+
+/** 报警分页 */
+export function getGbDeviceAlarmPageApi(data: GbDeviceAlarmPageRequest) {
+  return post<PageResult<GbDeviceAlarm>>('/api/gb28181/alarm/page', data)
+}
+
+/** 报警详情 */
+export function getGbDeviceAlarmApi(id: string) {
+  return get<GbDeviceAlarm>(`/api/gb28181/alarm/detail/${id}`)
+}
+
+/** 报警处置（确认 / 已处置 / 误报 + 备注） */
+export function handleGbDeviceAlarmApi(data: GbDeviceAlarmHandleRequest) {
+  return post<void>('/api/gb28181/alarm/handle', data)
+}
+
+/** 删除报警 */
+export function deleteGbDeviceAlarmApi(id: string) {
+  return del<void>(`/api/gb28181/alarm/delete/${id}`)
 }
 

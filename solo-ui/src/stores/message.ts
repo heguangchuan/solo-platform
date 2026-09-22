@@ -4,8 +4,10 @@
  */
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { ElNotification } from 'element-plus'
 import { wsClient } from '@/utils/websocket'
 import { getMessageList, getUnreadCount, markMessageRead, markAllMessagesRead } from '@/api/message'
+import router from '@/router'
 
 export interface SysMessage {
   id: number
@@ -119,15 +121,31 @@ export const useMessageStore = defineStore('message', () => {
   /**
    * 处理新消息到达
    */
-  function onNewMessage(msg: SysMessage) {
+  function onNewMessage(msg: any) {
+    // 设备报警：不落 sys_message 表，弹通知引导跳转报警中心，不插入消息列表
+    if (msg?.type === 'DEVICE_ALARM') {
+      ElNotification({
+        title: msg.title || '设备报警',
+        message: msg.content || '收到一条新的设备报警',
+        type: 'warning',
+        duration: 8000,
+        onClick: () => {
+          if (msg.route) router.push(msg.route)
+        },
+      })
+      showNotification(msg)
+      return
+    }
+
+    const message = msg as SysMessage
     // 插入到列表头部
-    messages.value.unshift(msg)
+    messages.value.unshift(message)
     // 未读数 +1
-    if (msg.readFlag === 0) {
+    if (message.readFlag === 0) {
       unreadCount.value++
     }
     // 播放通知声音或显示桌面通知（可选）
-    showNotification(msg)
+    showNotification(message)
   }
 
   /**

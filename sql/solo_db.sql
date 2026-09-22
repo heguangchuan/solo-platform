@@ -362,6 +362,12 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (122, '巡航新增', 'gb28181:ptz:cruise:add', NULL, 2, 92, 11, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (123, '巡航编辑', 'gb28181:ptz:cruise:edit', NULL, 2, 92, 12, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (124, '巡航删除', 'gb28181:ptz:cruise:delete', NULL, 2, 92, 13, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (125, '报警中心', 'gb28181:alarm', '/gb28181/alarm', 1, 5, 7, 'Bell', 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+
+-- ----- 报警中心 (id=125) 按钮 -----
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (126, '报警查询', 'gb28181:alarm:list', NULL, 2, 125, 1, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (127, '报警处置', 'gb28181:alarm:handle', NULL, 2, 125, 2, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (128, '报警删除', 'gb28181:alarm:delete', NULL, 2, 125, 3, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 -- 系统角色表
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role

@@ -361,5 +361,41 @@ CREATE TABLE gb_platform_share
     KEY          idx_platform_group (platform_id, group_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='上级平台共享通道表（同一通道在同一平台下只能挂载一次，必须先卸再换组）';
 
+-- =====================================================
+-- 设备报警表（报警中心）
+-- -----------------------------------------------------
+-- 来源：SIP Alarm 通知报文（AlarmNotifyMessageHandler → AlarmEvent → 落库监听器）。
+-- handle_status 处置流：0 未处理 → 1 已确认 → 2 已处置 / 3 误报。
+-- 设备国标 ID 与通道国标 ID 只做逻辑关联（gb_device / gb_device_channel 的国标码），
+-- 不建物理外键——报警到达时设备/通道可能已被删除，历史报警仍需保留。
+-- =====================================================
+DROP TABLE IF EXISTS gb_device_alarm;
+CREATE TABLE gb_device_alarm
+(
+    id                bigint       NOT NULL COMMENT '主键ID（雪花）',
+    device_id         varchar(50)  NOT NULL COMMENT '报警所属设备国标ID',
+    channel_id        varchar(50)           DEFAULT NULL COMMENT '报警通道国标ID（报文 DeviceID）',
+    channel_name      varchar(255)          DEFAULT NULL COMMENT '通道名称（落库时冗余，便于列表直接展示）',
+    alarm_priority    tinyint               DEFAULT NULL COMMENT '报警级别 1~4（1 一级最严重）',
+    alarm_method      varchar(20)           DEFAULT NULL COMMENT '报警方式原始码（1~7 的任意组合）',
+    alarm_method_desc varchar(255)          DEFAULT NULL COMMENT '报警方式描述（电话报警/视频报警等）',
+    alarm_type        varchar(10)           DEFAULT NULL COMMENT '报警类型子码',
+    alarm_time        datetime              DEFAULT NULL COMMENT '设备上报的报警发生时间',
+    alarm_description varchar(1000)         DEFAULT NULL COMMENT '报警内容描述',
+    longitude         double                DEFAULT NULL COMMENT '经度',
+    latitude          double                DEFAULT NULL COMMENT '纬度',
+    handle_status     tinyint      NOT NULL DEFAULT 0 COMMENT '处置状态：0 未处理、1 已确认、2 已处置、3 误报',
+    handle_remark     varchar(500)          DEFAULT NULL COMMENT '处置备注',
+    handle_user       varchar(64)           DEFAULT NULL COMMENT '最后处置人',
+    handle_time       datetime              DEFAULT NULL COMMENT '最后处置时间',
+    receive_time      datetime              DEFAULT NULL COMMENT '平台收到报警时间',
+    create_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    KEY idx_alarm_time (alarm_time),
+    KEY idx_handle_status (handle_status),
+    KEY idx_device (device_id),
+    KEY idx_channel (channel_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备报警表（报警中心）';
+
 SET
 FOREIGN_KEY_CHECKS = 1;
