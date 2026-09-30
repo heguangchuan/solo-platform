@@ -659,7 +659,7 @@ onBeforeUnmount(() => {
   min-height: 480px;
   border-radius: 8px;
   overflow: hidden;
-  background: #0A1929;  /* 深海蓝（主流大屏底色），瓦片加载前的兜底色 */
+  background: #061f1c;  /* 深青黑（与主色 #0f766e 同色相），瓦片加载前的兜底色 */
 }
 
 .map-container {
@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 12px;
   right: 12px;
-  background: rgba(10, 25, 41, 0.88);
+  background: rgba(6, 31, 28, 0.88);
   padding: 4px 10px;
   border-radius: 4px;
   font-size: 12px;
@@ -722,8 +722,8 @@ onBeforeUnmount(() => {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(10, 25, 41, 0.95);
-  border: 1px solid rgba(0, 188, 212, 0.3);  /* 电光蓝描边 */
+  background: rgba(6, 31, 28, 0.95);
+  border: 1px solid rgba(20, 184, 166, 0.3);  /* 深青描边 */
   color: var(--el-text-color-regular);
   padding: 14px 20px;
   border-radius: 6px;
@@ -757,14 +757,14 @@ onBeforeUnmount(() => {
   position: absolute;
   bottom: 12px;
   right: 12px;  /* 左侧让给设备/通道树，缩放等级挪到右下角 */
-  background: rgba(10, 25, 41, 0.88);
-  border: 1px solid rgba(0, 188, 212, 0.2);
+  background: rgba(6, 31, 28, 0.88);
+  border: 1px solid rgba(20, 184, 166, 0.2);
   padding: 6px 10px;
   border-radius: 4px;
   font-size: 12px;
   color: var(--el-text-color-regular);
   z-index: 1000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(0, 188, 212, 0.06);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 10px rgba(20, 184, 166, 0.06);
 }
 </style>
 
@@ -781,14 +781,14 @@ onBeforeUnmount(() => {
   filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.95);
 }
 
-/* 蓝系大屏色覆盖：tiles 之上 markers 之下塞一个蓝色渐变 div
-   只靠 tile filter 的 hue-rotate 推不动"真蓝色"——加一层半透蓝渐变才像大屏
-   渐变方向：上浅下深（"天 → 深蓝"），呼应主流监控大屏的纵向色阶
-   强度可调：0.18 / 0.40 是中等强度，再大就开始遮瓦片了 */
+/* 青系大屏色覆盖：tiles 之上 markers 之下塞一个青色渐变 div
+   只靠 tile filter 的 hue-rotate 推不动"真青色"——加一层半透青渐变才贴合主色
+   渐变方向：上浅下深（"亮青 → 深青黑"），呼应监控大屏的纵向色阶
+   强度可调：0.15 / 0.40 是中等强度，再大就开始遮瓦片了 */
 .map-blue-tint {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 130, 230, 0.18) 0%, rgba(0, 40, 120, 0.40) 100%);
+  background: linear-gradient(180deg, rgba(20, 184, 166, 0.15) 0%, rgba(4, 47, 43, 0.40) 100%);
   pointer-events: none;
 }
 
@@ -829,9 +829,9 @@ onBeforeUnmount(() => {
   position: absolute;
   right: -3px;
   bottom: -3px;
-  background: #00E5FF;
-  color: #0A1929;
-  border: 1.5px solid #0A1929;
+  background: #2dd4bf;
+  color: #042f2b;
+  border: 1.5px solid #061f1c;
   border-radius: 10px;
   padding: 0 5px;
   font-size: 10px;
@@ -839,27 +839,27 @@ onBeforeUnmount(() => {
   line-height: 14px;
   min-width: 16px;
   text-align: center;
-  box-shadow: 0 0 6px rgba(0, 229, 255, 0.5);
+  box-shadow: 0 0 6px rgba(45, 212, 191, 0.5);
   white-space: nowrap;
 }
 
-/* Leaflet popup 弹窗：深海蓝面板 + 电光蓝描边 + 冷白字，跟大屏统一 */
+/* Leaflet popup 弹窗：深青黑面板 + 深青描边 + 冷白字，跟大屏统一 */
 .leaflet-popup-content-wrapper {
-  background: #0A1929;
-  color: #E0F7FA;
-  border: 1px solid rgba(0, 188, 212, 0.3);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 188, 212, 0.1);
+  background: #061f1c;
+  color: #ccfbf1;
+  border: 1px solid rgba(20, 184, 166, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(20, 184, 166, 0.1);
   border-radius: 6px;
 }
 .leaflet-popup-tip {
-  background: #0A1929;
+  background: #061f1c;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
 }
 .leaflet-popup-close-button {
-  color: #80DEEA;
+  color: #5eead4;
 }
 .leaflet-popup-close-button:hover {
-  color: #00E5FF;
+  color: #2dd4bf;
 }
 
 .map-popup-header {
@@ -871,7 +871,7 @@ onBeforeUnmount(() => {
 .map-popup-name {
   font-weight: 600;
   font-size: 13px;
-  color: #E0F7FA;  /* 冷白 */
+  color: #ccfbf1;  /* 冷白（青调） */
 }
 .map-popup-status {
   display: inline-block;
@@ -884,7 +884,7 @@ onBeforeUnmount(() => {
 }
 .map-popup-id {
   font-size: 11px;
-  color: #80DEEA;  /* 浅电光蓝，channelId 走数据点视觉 */
+  color: #5eead4;  /* 浅青，channelId 走数据点视觉 */
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   margin-bottom: 6px;
 }
@@ -894,8 +894,8 @@ onBeforeUnmount(() => {
   gap: 2px;
   font-size: 11px;
   font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-  color: #B2EBF2;
-  border-top: 1px dashed rgba(0, 188, 212, 0.3);  /* 电光蓝虚线分隔 */
+  color: #99f6e4;
+  border-top: 1px dashed rgba(20, 184, 166, 0.3);  /* 深青虚线分隔 */
   padding-top: 4px;
 }
 .map-popup-coord-row {
@@ -906,13 +906,13 @@ onBeforeUnmount(() => {
 .map-popup-coord-label {
   display: inline-block;
   min-width: 56px;
-  color: #4DD0E1;  /* 强电光蓝，坐标系标签 */
+  color: #2dd4bf;  /* 亮青，坐标系标签 */
   font-weight: 600;
 }
 
-/* 中心点标识：14px 电光蓝锚点 + 白边 + 微光晕
-   用电光蓝而不用红/绿/蓝灰/黄：跟"在线/离线/未注册"状态色全错开，
-   语义上"锚点"独立；同时跟大屏底色形成强对比（深蓝底上电光蓝最跳） */
+/* 中心点标识：14px 深青锚点 + 白边 + 微光晕
+   用深青而不用红/绿/灰/黄：跟"在线/离线/未注册"状态色全错开，
+   语义上"锚点"独立；同时跟大屏底色形成强对比（深青黑底上亮青最跳） */
 .cm-icon {
   background: transparent;
   border: none;
@@ -921,9 +921,9 @@ onBeforeUnmount(() => {
   display: block;
   width: 14px;
   height: 14px;
-  background: #00E5FF;
+  background: #2dd4bf;
   border: 2px solid #fff;
   border-radius: 50%;
-  box-shadow: 0 0 0 1px #00E5FF, 0 0 8px rgba(0, 229, 255, 0.6);  /* 外圈电光蓝 + 微光晕 */
+  box-shadow: 0 0 0 1px #2dd4bf, 0 0 8px rgba(45, 212, 191, 0.6);  /* 外圈深青 + 微光晕 */
 }
 </style>

@@ -8,8 +8,8 @@ import LayoutLogo from './LayoutLogo.vue'
 const route = useRoute()
 const appStore = useAppStore()
 
-const sidebarBg = computed(() => (appStore.isDark ? '#1d1e1f' : '#304156'))
-const sidebarText = computed(() => (appStore.isDark ? '#cfd3dc' : '#bfcbd9'))
+const sidebarBg = computed(() => (appStore.isDark ? '#141414' : '#ffffff'))
+const sidebarText = computed(() => (appStore.isDark ? '#cfd3dc' : '#334155'))
 
 function extractMenuItems(): any[] {
   const menus = dynamicRouteConfig.getMenus()
@@ -71,7 +71,7 @@ function extractMenuItems(): any[] {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-right: none;
+  border-right: 1px solid var(--el-border-color-lighter);
 }
 
 .layout-aside :deep(.logo) {
@@ -83,14 +83,15 @@ function extractMenuItems(): any[] {
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 8px;
 }
 
-/* 侧边栏滚动条做暗色细条处理，避免默认滚动条割裂深色背景 */
+/* 侧边栏滚动条细条处理 */
 .menu-scroll::-webkit-scrollbar {
   width: 6px;
 }
 .menu-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(100, 116, 139, 0.2);
   border-radius: 3px;
 }
 .menu-scroll::-webkit-scrollbar-track {
@@ -99,5 +100,25 @@ function extractMenuItems(): any[] {
 
 .layout-menu {
   border-right: none !important;
+}
+
+/* 菜单项：圆角 + 选中态主色浅底 */
+.layout-menu :deep(.el-menu-item),
+.layout-menu :deep(.el-sub-menu__title) {
+  border-radius: 8px;
+  margin-bottom: 2px;
+  height: 42px;
+  line-height: 42px;
+}
+.layout-menu :deep(.el-menu-item:hover),
+.layout-menu :deep(.el-sub-menu__title:hover) {
+  background-color: var(--el-fill-color-light);
+}
+.layout-menu :deep(.el-menu-item.is-active) {
+  background-color: var(--el-color-primary-light-9);
+  font-weight: 500;
+}
+.layout-menu :deep(.el-sub-menu .el-menu-item) {
+  min-width: 0;
 }
 </style>
