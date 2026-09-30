@@ -17,21 +17,19 @@ const appStore = useAppStore()
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  font-size: 18px;
+  color: var(--el-color-primary);
+  font-size: 17px;
   font-weight: 700;
-  letter-spacing: 1px;
-  background-color: #304156;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.25);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+  letter-spacing: 0.5px;
+  background-color: #ffffff;
+  border-bottom: 1px solid var(--el-border-color-lighter);
   white-space: nowrap;
   overflow: hidden;
-  transition: background-color 0.3s;
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .logo.is-dark {
-  background-color: #1d1e1f;
-  border-bottom-color: rgba(0, 0, 0, 0.6);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04);
+  background-color: #141414;
+  border-bottom-color: var(--el-border-color);
 }
 </style>

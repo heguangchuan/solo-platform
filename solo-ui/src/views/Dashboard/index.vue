@@ -75,21 +75,21 @@ function handleChannelClick(channel: GbDeviceChannelVO) {
   top: 12px;
   left: 12px;
   z-index: 999;
-  background: rgba(10, 25, 41, 0.92);
-  border: 1px solid rgba(0, 188, 212, 0.4);
+  background: rgba(6, 31, 28, 0.92);
+  border: 1px solid rgba(20, 184, 166, 0.4);
   border-radius: 4px;
-  color: #00E5FF;
+  color: #2dd4bf;
   padding: 6px 10px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 8px rgba(0, 188, 212, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 8px rgba(20, 184, 166, 0.15);
   transition: all 0.2s;
 }
 .open-tree-btn:hover {
-  background: rgba(0, 188, 212, 0.15);
-  border-color: rgba(0, 188, 212, 0.7);
+  background: rgba(20, 184, 166, 0.15);
+  border-color: rgba(20, 184, 166, 0.7);
 }
 </style>

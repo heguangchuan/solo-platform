@@ -103,16 +103,16 @@ function onPasswordChanged() {
         <div class="brand-content">
           <div class="brand-logo">
             <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="60" cy="60" r="52" stroke="rgba(96,165,250,0.35)" stroke-width="1.5" />
-              <circle cx="60" cy="60" r="40" stroke="rgba(96,165,250,0.15)" stroke-width="1" />
+              <circle cx="60" cy="60" r="52" stroke="rgba(45,212,191,0.35)" stroke-width="1.5" />
+              <circle cx="60" cy="60" r="40" stroke="rgba(45,212,191,0.15)" stroke-width="1" />
               <!-- 摄像机 + 镜头 -->
-              <rect x="32" y="47" width="42" height="28" rx="5" stroke="#60a5fa" stroke-width="2.5" />
-              <path d="M74 56 L88 49 V73 L74 66 Z" stroke="#60a5fa" stroke-width="2.5" stroke-linejoin="round" />
-              <circle cx="53" cy="61" r="7" stroke="#93c5fd" stroke-width="2" />
-              <circle cx="53" cy="61" r="2.5" fill="#60a5fa" />
+              <rect x="32" y="47" width="42" height="28" rx="5" stroke="#2dd4bf" stroke-width="2.5" />
+              <path d="M74 56 L88 49 V73 L74 66 Z" stroke="#2dd4bf" stroke-width="2.5" stroke-linejoin="round" />
+              <circle cx="53" cy="61" r="7" stroke="#5eead4" stroke-width="2" />
+              <circle cx="53" cy="61" r="2.5" fill="#2dd4bf" />
               <!-- 信号波 -->
-              <path d="M45 38 Q53 33 61 38" stroke="rgba(96,165,250,0.6)" stroke-width="1.8" stroke-linecap="round" />
-              <path d="M39 33 Q53 24 67 33" stroke="rgba(96,165,250,0.3)" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M45 38 Q53 33 61 38" stroke="rgba(45,212,191,0.6)" stroke-width="1.8" stroke-linecap="round" />
+              <path d="M39 33 Q53 24 67 33" stroke="rgba(45,212,191,0.3)" stroke-width="1.8" stroke-linecap="round" />
             </svg>
           </div>
           <h1 class="brand-title">Solo 视频监控平台</h1>
@@ -222,17 +222,17 @@ function onPasswordChanged() {
   justify-content: center;
   width: 100%;
   height: 100vh;
-  background: #070d18;
+  background: #06110f;
   overflow: hidden;
 }
 
-/* 深蓝底 + 细网格，暗示监控/调度场景 */
+/* 深青底 + 细网格，暗示监控/调度场景 */
 .bg-grid {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(96, 165, 250, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(96, 165, 250, 0.045) 1px, transparent 1px);
+    linear-gradient(rgba(45, 212, 191, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.05) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: radial-gradient(ellipse at center, #000 35%, transparent 78%);
 }
@@ -249,7 +249,7 @@ function onPasswordChanged() {
   height: 520px;
   top: -180px;
   left: -120px;
-  background: rgba(37, 99, 235, 0.16);
+  background: rgba(15, 118, 110, 0.2);
 }
 
 .bg-glow-2 {
@@ -257,7 +257,7 @@ function onPasswordChanged() {
   height: 460px;
   bottom: -200px;
   right: -100px;
-  background: rgba(14, 165, 233, 0.12);
+  background: rgba(20, 184, 166, 0.12);
 }
 
 /* ===== 居中卡片 ===== */
@@ -272,7 +272,7 @@ function onPasswordChanged() {
   overflow: hidden;
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(96, 165, 250, 0.12);
+    0 0 0 1px rgba(45, 212, 191, 0.12);
 }
 
 /* ===== 左屏 ===== */
@@ -282,7 +282,7 @@ function onPasswordChanged() {
   display: flex;
   align-items: center;
   padding: 48px 44px;
-  background: linear-gradient(155deg, #0d1b2e 0%, #103157 65%, #0c4a6e 100%);
+  background: linear-gradient(155deg, #0a1f1c 0%, #0f3d38 65%, #0f766e 100%);
 }
 
 .brand-content {
@@ -307,7 +307,7 @@ function onPasswordChanged() {
 
 .brand-desc {
   font-size: 13px;
-  color: rgba(191, 219, 254, 0.75);
+  color: rgba(153, 246, 228, 0.75);
   margin: 0 0 34px;
   letter-spacing: 0.5px;
 }
@@ -332,8 +332,8 @@ function onPasswordChanged() {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #60a5fa;
-  box-shadow: 0 0 8px rgba(96, 165, 250, 0.8);
+  background: #2dd4bf;
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.8);
 }
 
 .brand-bottom-line {
@@ -342,7 +342,7 @@ function onPasswordChanged() {
   right: 0;
   bottom: 0;
   height: 2px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.9), rgba(59, 130, 246, 0));
+  background: linear-gradient(90deg, rgba(20, 184, 166, 0.9), rgba(20, 184, 166, 0));
 }
 
 /* ===== 右屏 ===== */

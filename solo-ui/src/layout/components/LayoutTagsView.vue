@@ -242,13 +242,13 @@ function setTagRef(el: HTMLElement | null, key: string) {
   display: inline-flex;
   align-items: center;
   height: 26px;
-  padding: 0 10px;
+  padding: 0 12px;
   font-size: 12px;
   line-height: 1;
   color: var(--el-text-color-regular);
   background: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: 3px;
+  border: none;
+  border-radius: 13px;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
@@ -259,16 +259,16 @@ function setTagRef(el: HTMLElement | null, key: string) {
 }
 
 .tag-item.active {
-  color: #fff;
-  background: var(--el-color-primary);
-  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+  font-weight: 500;
 }
 
 .tag-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #fff;
+  background: var(--el-color-primary);
   margin-right: 6px;
 }
 
@@ -285,7 +285,8 @@ function setTagRef(el: HTMLElement | null, key: string) {
 }
 
 .tag-item.active .tag-close:hover {
-  background: rgba(255, 255, 255, 0.3);
+  background: var(--el-color-primary-light-7);
+  color: var(--el-color-primary);
 }
 
 .tag-item:not(.active) .tag-close:hover {

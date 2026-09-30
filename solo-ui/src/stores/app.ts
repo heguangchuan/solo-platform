@@ -4,7 +4,7 @@ import { ref, watch } from 'vue'
 const THEME_KEY = 'app-theme-dark'
 const PRIMARY_KEY = 'app-theme-primary'
 
-const DEFAULT_PRIMARY = '#409eff'
+const DEFAULT_PRIMARY = '#0f766e'
 
 function hexToRgb(hex: string): [number, number, number] {
   const h = hex.replace('#', '')

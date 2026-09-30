@@ -1,33 +1,201 @@
-/* ==================== el-table 表头突出 ==================== */
+/* ==================== 差异化全局设计系统 ====================
+   设计语言：深青主色 + 无边框浮层感卡片 + 列表式表格 + 大圆角
+   目标：打破 Element Plus 默认"边框表格+蓝按钮"的大众脸 */
 
-/* 浅色模式 */
+:root {
+  /* 色板 */
+  --ds-primary: #0f766e;
+  --ds-primary-light: #14b8a6;
+  --ds-primary-bg: #ccfbf1;
+  --ds-text-primary: #0f172a;
+  --ds-text-regular: #334155;
+  --ds-text-secondary: #64748b;
+  --ds-text-muted: #94a3b8;
+  --ds-border: #e2e8f0;
+  --ds-border-light: #f1f5f9;
+  --ds-bg-page: #f8fafc;
+  --ds-bg-card: #ffffff;
+  --ds-bg-muted: #f1f5f9;
+
+  /* 圆角 */
+  --ds-radius-sm: 6px;
+  --ds-radius-md: 10px;
+  --ds-radius-lg: 14px;
+
+  /* 阴影 */
+  --ds-shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
+  --ds-shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08),
+    0 2px 4px -2px rgba(15, 23, 42, 0.04);
+  --ds-shadow-lg: 0 20px 40px -12px rgba(15, 23, 42, 0.15);
+}
+
+/* ---------- 卡片：无边框 + 纯阴影 + 大圆角 ---------- */
+.el-card {
+  border: none;
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-sm);
+  background: var(--ds-bg-card);
+  transition: box-shadow 0.25s ease;
+}
+.el-card.shadow-hover:hover,
+.el-card:hover {
+  box-shadow: var(--ds-shadow-md);
+}
+.el-card__body {
+  padding: 20px 24px;
+}
+
+/* ---------- 按钮 ---------- */
+.el-button {
+  border-radius: var(--ds-radius-sm);
+  font-weight: 500;
+}
+.el-button--primary {
+  box-shadow: 0 2px 6px rgba(15, 118, 110, 0.25);
+}
+.el-button--primary:hover {
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.32);
+}
+.el-button--default {
+  border-color: var(--ds-border);
+  color: var(--ds-text-regular);
+}
+.el-button--default:hover {
+  color: var(--ds-primary);
+  border-color: var(--ds-primary);
+  background: #fff;
+}
+/* 表格内 text/link 按钮不带阴影 */
+.el-button.is-text,
+.el-button.is-link {
+  box-shadow: none;
+}
+
+/* ---------- 输入控件 ---------- */
+.el-input__wrapper,
+.el-textarea__inner,
+.el-select__wrapper {
+  border-radius: var(--ds-radius-sm);
+  box-shadow: 0 0 0 1px var(--ds-border) inset;
+  transition: box-shadow 0.2s;
+}
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus,
+.el-select__wrapper.is-focus {
+  box-shadow: 0 0 0 1px var(--ds-primary) inset,
+    0 0 0 3px rgba(15, 118, 110, 0.12);
+}
+.el-input__wrapper:hover,
+.el-textarea__inner:hover,
+.el-select__wrapper:hover {
+  box-shadow: 0 0 0 1px #94a3b8 inset;
+}
+
+/* ---------- 标签：胶囊形 ---------- */
+.el-tag {
+  border-radius: 20px;
+  font-weight: 500;
+  padding: 0 12px;
+  border: none;
+}
+
+/* ---------- 弹层 ---------- */
+.el-dialog {
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+  box-shadow: var(--ds-shadow-lg);
+}
+.el-popover.el-popper,
+.el-popper.is-light {
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-lg);
+  border: 1px solid var(--ds-border-light);
+}
+
+/* ---------- 分页 ---------- */
+.el-pagination {
+  justify-content: flex-end;
+}
+.el-pagination .btn-prev,
+.el-pagination .btn-next,
+.el-pagination .el-pager li {
+  border-radius: var(--ds-radius-sm);
+  min-width: 30px;
+  height: 30px;
+  line-height: 30px;
+  font-weight: 500;
+}
+
+/* ==================== el-table 去框列表化 ==================== */
+
+.el-table {
+  font-size: 13.5px;
+  --el-table-border-color: transparent;
+  --el-table-header-bg-color: transparent;
+  color: var(--ds-text-regular);
+}
+
+/* 表头：透明底 + 次级灰字 + 小字号 + 字距宽
+   不靠背景色区分，靠文字样式区分 */
 .el-table thead {
-  font-weight: 600;
+  font-weight: 500;
 }
-
 .el-table thead th.el-table__cell {
-  background-color: var(--el-fill-color-light) !important;
-  color: var(--el-text-color-primary);
-  font-weight: 600;
-  border-bottom: 1px solid var(--el-border-color);
+  background-color: transparent !important;
+  color: var(--ds-text-muted);
+  font-weight: 500;
+  font-size: 12.5px;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid var(--ds-border);
 }
-
-/* 表头文字始终一行展示，避免列宽不够时被强行折成两行 */
 .el-table thead th.el-table__cell .cell {
   white-space: nowrap;
+  padding-top: 4px;
+  padding-bottom: 4px;
 }
 
+/* 行：舒展行高 + 行间细分隔线 */
+.el-table .el-table__cell {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--ds-border-light);
+}
+.el-table tbody tr:hover > td.el-table__cell {
+  background-color: #f8fafc !important;
+}
+
+/* 斑马纹关闭 — 列表式表格用线分隔就够了 */
 .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-  background-color: var(--el-fill-color-lighter);
+  background-color: transparent;
 }
 
-/* 暗色模式适配（Element Plus 暗色主题挂在 html.dark 上） */
+/* ==================== 暗色模式适配 ==================== */
+
+html.dark {
+  --ds-text-primary: #f1f5f9;
+  --ds-text-regular: #e2e8f0;
+  --ds-text-secondary: #94a3b8;
+  --ds-text-muted: #64748b;
+  --ds-border: #334155;
+  --ds-border-light: #1e293b;
+  --ds-bg-page: #0f172a;
+  --ds-bg-card: #1e293b;
+  --ds-bg-muted: #1e293b;
+}
+
+html.dark .el-card {
+  background: var(--ds-bg-card);
+  box-shadow: none;
+  border: 1px solid var(--ds-border);
+}
+html.dark .el-dialog {
+  border: 1px solid var(--ds-border);
+}
 html.dark .el-table thead th.el-table__cell {
-  background-color: var(--el-bg-color-page) !important;
-  color: var(--el-text-color-primary);
-  border-bottom: 1px solid var(--el-border-color-lighter);
+  border-bottom-color: var(--ds-border);
 }
-
-html.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
-  background-color: var(--el-fill-color-darker);
+html.dark .el-table .el-table__cell {
+  border-bottom-color: var(--ds-border-light);
+}
+html.dark .el-table tbody tr:hover > td.el-table__cell {
+  background-color: var(--ds-bg-muted) !important;
 }

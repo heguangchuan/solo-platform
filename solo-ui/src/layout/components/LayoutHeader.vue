@@ -112,7 +112,7 @@ function toggleFullscreen() {
             <span>自定义</span>
             <el-color-picker
               :model-value="appStore.primaryColor"
-              @change="(c: string) => appStore.setPrimaryColor(c || '#409eff')"
+              @change="(c: string) => appStore.setPrimaryColor(c || '#0f766e')"
             />
           </div>
         </div>
@@ -152,18 +152,18 @@ function toggleFullscreen() {
   justify-content: space-between;
   background: var(--el-bg-color);
   border-bottom: 1px solid var(--el-border-color-lighter);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: none;
   padding: 0 20px;
 }
 
 .layout-header.is-dark {
-  border-bottom-color: transparent;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border-bottom-color: var(--el-border-color-lighter);
+  box-shadow: none;
 }
 
 :global(html.dark) .layout-header {
-  border-bottom-color: transparent;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  border-bottom-color: var(--el-border-color-lighter);
+  box-shadow: none;
 }
 
 .header-left {

@@ -140,7 +140,7 @@ function buildDeviceChildren(deviceId: string | number, channels: GbDeviceChanne
  * 通道点击：手动调 tree.setCurrentKey 加 .is-current class
  * 原因：span 上的 @click.stop 阻断了 el-tree 内部 click handler，
  *  el-tree 不会自动给点击节点加 .is-current class，需要手动设
- * 配套的 CSS：.el-tree-node.is-current > .el-tree-node__content .node-row { color: #00E5FF }
+ * 配套的 CSS：.el-tree-node.is-current > .el-tree-node__content .node-row { color: #2dd4bf }
  */
 function handleChannelClick(channel: GbDeviceChannelVO, nodeKey: string) {
   const tree = treeRef.value
@@ -312,9 +312,9 @@ watch(() => props.visible, (v) => {
   left: 0;
   width: 320px;
   height: 100%;
-  background: rgba(10, 25, 41, 0.96);
-  border-right: 1px solid rgba(0, 188, 212, 0.3);
-  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(0, 188, 212, 0.08);
+  background: rgba(6, 31, 28, 0.96);
+  border-right: 1px solid rgba(20, 184, 166, 0.3);
+  box-shadow: 4px 0 16px rgba(0, 0, 0, 0.5), 0 0 12px rgba(20, 184, 166, 0.08);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -325,18 +325,18 @@ watch(() => props.visible, (v) => {
   justify-content: space-between;
   align-items: center;
   padding: 12px 16px;
-  border-bottom: 1px solid rgba(0, 188, 212, 0.2);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.2);
 }
 .panel-header .title {
-  color: #E0F7FA;
+  color: #ccfbf1;
   font-size: 14px;
   font-weight: 600;
 }
 .close-btn {
   background: transparent;
-  border: 1px solid rgba(0, 188, 212, 0.3);
+  border: 1px solid rgba(20, 184, 166, 0.3);
   border-radius: 4px;
-  color: #80DEEA;
+  color: #5eead4;
   cursor: pointer;
   padding: 4px 8px;
   display: inline-flex;
@@ -344,16 +344,16 @@ watch(() => props.visible, (v) => {
   transition: all 0.2s;
 }
 .close-btn:hover {
-  background: rgba(0, 188, 212, 0.15);
-  color: #00E5FF;
+  background: rgba(20, 184, 166, 0.15);
+  color: #2dd4bf;
 }
 
 .panel-tip {
   padding: 6px 16px;
   font-size: 11px;
-  color: #80DEEA;
-  background: rgba(0, 188, 212, 0.08);
-  border-bottom: 1px solid rgba(0, 188, 212, 0.15);
+  color: #5eead4;
+  background: rgba(20, 184, 166, 0.08);
+  border-bottom: 1px solid rgba(20, 184, 166, 0.15);
 }
 
 .panel-tree {
@@ -367,7 +367,7 @@ watch(() => props.visible, (v) => {
    节点保持透明：hover / current 都不加背景，完全用左侧面板底色做层级 */
 :deep(.el-tree) {
   background: transparent;
-  color: #E0F7FA;
+  color: #ccfbf1;
 }
 :deep(.el-tree-node__content) {
   background: transparent !important;
@@ -375,17 +375,17 @@ watch(() => props.visible, (v) => {
 :deep(.el-tree-node__content):hover {
   background: transparent !important;
 }
-/* 选中态：仅文字色变电光蓝，不加背景——最不突兀的反馈
+/* 选中态：仅文字色变亮青，不加背景——最不突兀的反馈
    整个 .node-row（含图标和文字）都跟着变，避免点击后图标还是"状态色"看着分裂 */
 :deep(.el-tree-node.is-current > .el-tree-node__content) {
   background: transparent !important;
 }
 :deep(.el-tree-node.is-current > .el-tree-node__content) .node-row,
 :deep(.el-tree-node.is-current > .el-tree-node__content) .node-label {
-  color: #00E5FF !important;
+  color: #2dd4bf !important;
 }
 :deep(.el-tree-node__expand-icon) {
-  color: #80DEEA;
+  color: #5eead4;
 }
 
 .node-row {
@@ -393,13 +393,13 @@ watch(() => props.visible, (v) => {
   align-items: center;
   gap: 6px;
   font-size: 13px;
-  color: #E0F7FA;
+  color: #ccfbf1;
 }
 .node-icon {
   font-size: 14px;
-  color: #80DEEA;
+  color: #5eead4;
 }
-/* 通道状态色：只染图标（VideoCamera 那个），文字保持冷白 #E0F7FA 不动
+/* 通道状态色：只染图标（VideoCamera 那个），文字保持冷白 #ccfbf1 不动
    理由：几百条通道时全染字太"花"，眼睛扫不动；只图标着色 → 形成天然的"状态列"
    跟资源管理器那种"文件类型图标"一个套路 */
 .node-channel-on .node-icon {
@@ -412,14 +412,14 @@ watch(() => props.visible, (v) => {
   color: #FFC107;        /* 未注册：琥珀（状态缺失，不是故障） */
 }
 .node-loadmore {
-  color: #00E5FF;
+  color: #2dd4bf;
   cursor: pointer;
 }
 .node-loadmore:hover {
-  color: #80DEEA;
+  color: #5eead4;
 }
 .node-loadmore .node-icon {
-  color: #00E5FF;
+  color: #2dd4bf;
 }
 
 /* 抽屉滑入动画 */
