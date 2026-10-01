@@ -14,7 +14,6 @@ import { Expand } from '@element-plus/icons-vue'
 import MapPanel from './components/MapPanel.vue'
 import DeviceTreePanel from './components/DeviceTreePanel.vue'
 import type { GbDeviceChannelVO } from '@/types/api/gb28181'
-import './styles/dashboard-vars.css'
 
 const treeVisible = ref(true)
 const mapRef = ref<InstanceType<typeof MapPanel>>()
