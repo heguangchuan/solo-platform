@@ -91,6 +91,12 @@ public class SipProcessorObserver implements SipListener {
             return;
         }
 
+        // 记录设备对 MESSAGE 指令（云台/巡航/预置位等）的应答状态码
+        if ("MESSAGE".equalsIgnoreCase(method)) {
+            log.info("[SIP应答] MESSAGE → status={} callId={}", status,
+                    callIdHeader == null ? null : callIdHeader.getCallId());
+        }
+
         // 按方法名分发给响应处理器
         if (method != null) {
             SipResponseProcessor processor = responseMap.get(method.toUpperCase());
