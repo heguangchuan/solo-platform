@@ -14,6 +14,7 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.MapMarkerResponse;
 import com.solo.gb28181.response.MapMarker;
@@ -91,6 +92,11 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         GbDeviceChannelResponse vo = new GbDeviceChannelResponse();
         BeanUtils.copyProperties(src, vo);
         return vo;
+    }
+
+    @Override
+    public List<GbChannelStatusCountVO> statusCount() {
+        return getBaseMapper().selectStatusCount();
     }
 
     @Override

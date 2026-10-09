@@ -2,9 +2,11 @@ package com.solo.gb28181.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.MapMarker;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
 
@@ -76,4 +78,11 @@ public interface GbDeviceChannelMapper extends BaseMapper<GbDeviceChannel> {
                                  @Param("maxLng") double maxLng,
                                  @Param("maxLat") double maxLat,
                                  @Param("target") String target);
+
+    /**
+     * 按 parental（通道/分组）+ status 分组统计数量（全局口径，与列表查询条件无关）。
+     * 分组（parental=1）status 固定为 "ON"，与在线通道同值，故必须带 parental 区分。
+     */
+    @Select("SELECT parental, status, COUNT(*) AS count FROM gb_device_channel GROUP BY parental, status")
+    List<GbChannelStatusCountVO> selectStatusCount();
 }

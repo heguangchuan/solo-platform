@@ -12,6 +12,7 @@ import com.solo.system.request.UserPageRequest;
 import com.solo.system.request.UserRequest;
 import com.solo.system.request.UserRoleAssignRequest;
 import com.solo.system.response.UserExcelResponse;
+import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.service.SysUserService;
 import com.solo.common.utils.ExcelUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -48,6 +49,16 @@ public class UserController {
     public Result<PageResult<SysUser>> getPage(@RequestBody UserPageRequest req) {
         Page<SysUser> page = sysUserService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 按状态统计用户数（全局口径，与查询条件无关）
+     */
+    @Operation(summary = "按状态统计用户数")
+    @GetMapping("/status-count")
+    @RequirePermission({"system:user:list"})
+    public Result<List<UserStatusCountVO>> statusCount() {
+        return Result.success(sysUserService.statusCount());
     }
 
     /**

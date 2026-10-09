@@ -6,6 +6,9 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
+import com.solo.gb28181.response.GbDeviceStatusCountVO;
+
+import java.util.List;
 
 /**
  * 国标设备服务
@@ -16,6 +19,11 @@ import com.solo.gb28181.response.GbDeviceDetectResponse;
 public interface GbDeviceService extends IService<GbDevice> {
 
     Page<GbDevice> pageQuery(GbDevicePageRequest request);
+
+    /**
+     * 按状态统计设备数（全局口径，与查询条件无关）
+     */
+    List<GbDeviceStatusCountVO> statusCount();
 
     /**
      * 手动新增设备（页面录入）。强制 status=未注册、source=系统新增，忽略入参 status/source。

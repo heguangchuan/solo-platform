@@ -50,17 +50,6 @@ public class GbPtzPresetController {
     }
 
     /**
-     * 编辑预置位
-     */
-    @Operation(summary = "编辑预置位")
-    @PostMapping("/update")
-    @RequirePermission({"gb28181:ptz:preset:edit"})
-    public Result<Void> update(@RequestBody GbPtzPreset preset) {
-        presetService.updatePreset(preset);
-        return Result.success();
-    }
-
-    /**
      * 删除预置位
      *
      * @param id 预置位主键 ID

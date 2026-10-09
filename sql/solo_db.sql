@@ -193,10 +193,10 @@ CREATE TABLE sys_permission
 -- ID 从 1 开始连续递增，parent_id 引用同一脚本内已定义好的行。
 
 -- ========== 一级菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (1, '系统管理', 'system', NULL, 1, 0, 1, 'Setting', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (1, '系统管理', 'system', NULL, 1, 0, 1, 'IconSettings', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ========== 系统管理 (id=1) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (7, '用户管理', 'system:user', '/system/user', 1, 1, 1, 'User', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (7, '用户管理', 'system:user', '/system/user', 1, 1, 1, 'IconUsers', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ----- 用户管理 (id=7) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (8, '用户查询', 'system:user:list', NULL, 2, 7, 1, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
@@ -209,7 +209,7 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (15, '用户导出', 'system:user:export', NULL, 2, 7, 8, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (16, '用户分页列表', 'system:user:page', NULL, 2, 7, 9, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:24');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (17, '获取用户信息', 'user/info', NULL, 2, 7, 10, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:23');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (18, '角色管理', 'system:role', '/system/role', 1, 1, 2, 'UserFilled', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (18, '角色管理', 'system:role', '/system/role', 1, 1, 2, 'IconUserCog', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ----- 角色管理 (id=18) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (19, '角色查询', 'system:role:list', NULL, 2, 18, 1, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
@@ -220,31 +220,31 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (24, '角色导入', 'system:role:import', NULL, 2, 18, 6, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (25, '角色导出', 'system:role:export', NULL, 2, 18, 7, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (26, '角色分页列表', 'system:role:page', NULL, 2, 18, 8, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:25');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (27, '权限管理', 'system:permission', '/system/permission', 1, 1, 3, 'Lock', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (27, '权限管理', 'system:permission', '/system/permission', 1, 1, 3, 'IconLock', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ----- 权限管理 (id=27) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (28, '权限查询', 'system:permission:list', NULL, 2, 27, 1, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:28');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (29, '权限新增', 'system:permission:add', NULL, 2, 27, 2, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (30, '权限编辑', 'system:permission:edit', NULL, 2, 27, 3, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:03');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (31, '权限删除', 'system:permission:delete', NULL, 2, 27, 4, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-15 23:03:04');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (32, '日志管理', 'system:log', '/system/log', 1, 1, 4, 'Document', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (32, '日志管理', 'system:log', '/system/log', 1, 1, 4, 'IconFileText', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 
 -- ----- 日志管理 (id=32) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (33, '日志查询', 'system:log:list', NULL, 2, 32, 1, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (34, '日志删除', 'system:log:delete', NULL, 2, 32, 2, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (35, '日志导出', 'system:log:export', NULL, 2, 32, 3, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (36, '在线用户', 'system:online', '/system/online', 1, 1, 5, 'Connection', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (36, '在线用户', 'system:online', '/system/online', 1, 1, 5, 'IconPlugConnected', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 
 -- ----- 在线用户 (id=36) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (37, '在线查询', 'system:online:list', NULL, 2, 36, 1, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (38, '强制下线', 'system:online:kick', NULL, 2, 36, 2, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (39, '文件管理', 'system:file', '/system/file', 1, 1, 6, 'Files', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (39, '文件管理', 'system:file', '/system/file', 1, 1, 6, 'IconFolder', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 
 -- ----- 文件管理 (id=39) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (40, '文件查询', 'system:file:list', NULL, 2, 39, 1, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (41, '文件上传', 'system:file:upload', NULL, 2, 39, 2, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (42, '文件删除', 'system:file:delete', NULL, 2, 39, 3, NULL, 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (43, '服务器管理', 'server', '/system/server', 1, 1, 7, 'Monitor', 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (43, '服务器管理', 'server', '/system/server', 1, 1, 7, 'IconServer', 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
 
 -- ----- 服务器管理 (id=43) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (44, '服务器查询', 'server:list', NULL, 2, 43, 1, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
@@ -256,10 +256,10 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (50, '文件上传', 'server:file:upload', NULL, 2, 43, 7, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (51, '文件下载', 'server:file:download', NULL, 2, 43, 8, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (52, '文件删除', 'server:file:delete', NULL, 2, 43, 9, NULL, 1, 0, '2026-07-01 00:00:00', '2026-07-01 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (2, '系统设置', 'setting', NULL, 1, 0, 2, 'Tools', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (2, '系统设置', 'setting', NULL, 1, 0, 2, 'IconTool', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ========== 系统设置 (id=2) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (53, '参数管理', 'setting:config', '/setting/config', 1, 2, 1, 'SetUp', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (53, '参数管理', 'setting:config', '/setting/config', 1, 2, 1, 'IconAdjustments', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ----- 参数管理 (id=53) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (54, '参数查询', 'setting:config:list', NULL, 2, 53, 1, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
@@ -267,7 +267,7 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (56, '参数编辑', 'setting:config:edit', NULL, 2, 53, 3, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (57, '参数删除', 'setting:config:delete', NULL, 2, 53, 4, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (58, '参数导出', 'setting:config:export', NULL, 2, 53, 5, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (59, '字典管理', 'setting:dict', '/setting/dict', 1, 2, 2, 'Collection', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (59, '字典管理', 'setting:dict', '/setting/dict', 1, 2, 2, 'IconBook2', 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 
 -- ----- 字典管理 (id=59) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (60, '字典类型查询', 'setting:dict:type:list', NULL, 2, 59, 1, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
@@ -278,28 +278,28 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (65, '字典数据新增', 'setting:dict:data:add', NULL, 2, 59, 6, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (66, '字典数据编辑', 'setting:dict:data:edit', NULL, 2, 59, 7, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (67, '字典数据删除', 'setting:dict:data:delete', NULL, 2, 59, 8, NULL, 1, 0, '2026-06-14 22:35:02', '2026-06-14 22:35:02');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (3, '测试管理', 'test:manage', NULL, 1, 0, 3, 'Operation', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (3, '测试管理', 'test:manage', NULL, 1, 0, 3, 'IconFlask', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
 
 -- ========== 测试管理 (id=3) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (68, '组件测试', 'test:component', '/test/component', 1, 3, 1, 'Tools', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (69, 'AOP测试', 'test:aop', '/test/aop', 1, 3, 2, 'Histogram', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (4, '媒体管理', 'media', NULL, 1, 0, 4, 'Cpu', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (68, '组件测试', 'test:component', '/test/component', 1, 3, 1, 'IconTool', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (69, 'AOP测试', 'test:aop', '/test/aop', 1, 3, 2, 'IconChartHistogram', 1, 0, '2026-06-16 09:00:00', '2026-06-16 09:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (4, '媒体管理', 'media', NULL, 1, 0, 4, 'IconCpu', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 
 -- ========== 媒体管理 (id=4) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (70, '节点管理', 'media:server', '/media/server', 1, 4, 1, 'Monitor', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (70, '节点管理', 'media:server', '/media/server', 1, 4, 1, 'IconServer2', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 
 -- ----- 节点管理 (id=70) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (71, '节点列表查询', 'media:server:list', NULL, 2, 70, 1, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (72, '节点保存', 'media:server:save', NULL, 2, 70, 2, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (73, '节点删除', 'media:server:delete', NULL, 2, 70, 3, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (74, '拉流代理', 'media:stream-proxy', '/media/stream-proxy', 1, 4, 2, 'Share', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (74, '拉流代理', 'media:stream-proxy', '/media/stream-proxy', 1, 4, 2, 'IconShare', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 
 -- ----- 拉流代理 (id=74) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (75, '代理列表查询', 'media:stream-proxy:list', NULL, 2, 74, 1, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (76, '代理新增', 'media:stream-proxy:add', NULL, 2, 74, 2, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (77, '代理编辑', 'media:stream-proxy:edit', NULL, 2, 74, 3, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (78, '代理删除', 'media:stream-proxy:delete', NULL, 2, 74, 4, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (79, '推流管理', 'media:stream-push', '/media/stream-push', 1, 4, 3, 'Upload', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (79, '推流管理', 'media:stream-push', '/media/stream-push', 1, 4, 3, 'IconUpload', 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 
 -- ----- 推流管理 (id=79) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (80, '推流列表查询', 'media:stream-push:list', NULL, 2, 79, 1, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
@@ -308,10 +308,10 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (83, '推流方新增', 'media:stream-push-client:add', NULL, 2, 79, 5, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (84, '推流方编辑', 'media:stream-push-client:edit', NULL, 2, 79, 6, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (85, '推流方删除', 'media:stream-push-client:delete', NULL, 2, 79, 7, NULL, 1, 0, '2026-07-23 00:00:00', '2026-07-23 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (5, '国标管理', 'gb28181', NULL, 1, 0, 5, 'VideoCamera', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (5, '国标管理', 'gb28181', NULL, 1, 0, 5, 'IconVideo', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
 
 -- ========== 国标管理 (id=5) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (86, '设备管理', 'gb28181:device', '/gb28181/device', 1, 5, 2, 'Monitor', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (86, '设备管理', 'gb28181:device', '/gb28181/device', 1, 5, 2, 'IconDeviceCctv', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
 
 -- ----- 设备管理 (id=86) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (87, '设备列表查询', 'gb28181:device:list', NULL, 2, 86, 1, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
@@ -319,7 +319,7 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (89, '设备删除', 'gb28181:device:delete', NULL, 2, 86, 3, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (90, '设备新增', 'gb28181:device:add', NULL, 2, 86, 4, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (91, '设备编辑', 'gb28181:device:edit', NULL, 2, 86, 5, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (92, '通道管理', 'gb28181:device-channel', '/gb28181/device-channel', 1, 5, 3, 'Connection', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (92, '通道管理', 'gb28181:device-channel', '/gb28181/device-channel', 1, 5, 3, 'IconList', 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
 
 -- ----- 通道管理 (id=92) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (93, '通道列表查询', 'gb28181:device-channel:list', NULL, 2, 92, 1, NULL, 1, 0, '2026-06-30 00:00:00', '2026-06-30 00:00:00');
@@ -330,7 +330,7 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (98, '预置位新增', 'gb28181:ptz:preset:add', NULL, 2, 92, 6, NULL, 1, 0, '2026-07-31 00:00:00', '2026-07-31 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (99, '预置位编辑', 'gb28181:ptz:preset:edit', NULL, 2, 92, 7, NULL, 1, 0, '2026-07-31 00:00:00', '2026-07-31 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (100, '预置位删除', 'gb28181:ptz:preset:delete', NULL, 2, 92, 8, NULL, 1, 0, '2026-07-31 00:00:00', '2026-07-31 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (101, '级联平台', 'gb28181:platform', '/gb28181/platform', 1, 5, 6, 'Share', 1, 0, '2026-07-27 00:00:00', '2026-07-27 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (101, '级联平台', 'gb28181:platform', '/gb28181/platform', 1, 5, 6, 'IconShare2', 1, 0, '2026-07-27 00:00:00', '2026-07-27 00:00:00');
 
 -- ----- 级联平台 (id=101) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (102, '级联平台查询', 'gb28181:platform:list', NULL, 2, 101, 1, NULL, 1, 0, '2026-07-27 00:00:00', '2026-07-27 00:00:00');
@@ -345,10 +345,10 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (111, '推送分组新增', 'gb28181:share-group:add', NULL, 2, 101, 10, NULL, 1, 0, '2026-08-14 00:00:00', '2026-08-14 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (112, '推送分组编辑', 'gb28181:share-group:edit', NULL, 2, 101, 11, NULL, 1, 0, '2026-08-14 00:00:00', '2026-08-14 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (113, '推送分组删除', 'gb28181:share-group:delete', NULL, 2, 101, 12, NULL, 1, 0, '2026-08-14 00:00:00', '2026-08-14 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (6, 'ONVIF管理', 'onvif', NULL, 1, 0, 6, 'Camera', 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (6, 'ONVIF管理', 'onvif', NULL, 1, 0, 6, 'IconCamera', 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
 
 -- ========== ONVIF管理 (id=6) 子菜单 ==========
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (114, '设备管理', 'onvif:device', '/onvif/device', 1, 6, 1, 'Monitor', 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (114, '设备管理', 'onvif:device', '/onvif/device', 1, 6, 1, 'IconDeviceCctv', 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
 
 -- ----- 设备管理 (id=114) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (115, '设备列表查询', 'onvif:device:list', NULL, 2, 114, 1, NULL, 1, 0, '2026-07-22 00:00:00', '2026-07-22 00:00:00');
@@ -362,7 +362,7 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (122, '巡航新增', 'gb28181:ptz:cruise:add', NULL, 2, 92, 11, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (123, '巡航编辑', 'gb28181:ptz:cruise:edit', NULL, 2, 92, 12, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (124, '巡航删除', 'gb28181:ptz:cruise:delete', NULL, 2, 92, 13, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (125, '报警中心', 'gb28181:alarm', '/gb28181/alarm', 1, 5, 7, 'Bell', 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (125, '报警中心', 'gb28181:alarm', '/gb28181/alarm', 1, 5, 7, 'IconBell', 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 
 -- ----- 报警中心 (id=125) 按钮 -----
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (126, '报警查询', 'gb28181:alarm:list', NULL, 2, 125, 1, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');

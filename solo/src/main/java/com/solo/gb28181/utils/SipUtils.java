@@ -223,7 +223,7 @@ public class SipUtils {
 
     /**
      * 预置位 PTZ 命令编码（8 字节标准格式）
-     * <p>格式：A5 0F 01 [cmdCode] 00 00 [presetId] [checksum]</p>
+     * <p>格式：A5 0F 01 [cmdCode] 00 [presetId] 00 [checksum]，预置位编号在第 6 字节</p>
      *
      * @param cmdCode  指令码：0x81=设置, 0x82=调用, 0x83=删除
      * @param presetId 预置位编号 (1-255)
@@ -231,8 +231,8 @@ public class SipUtils {
      */
     private static String buildPtzPresetCmd(int cmdCode, int presetId) {
         int preset = presetId & 0xFF;
-        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + 0x00 + 0x00 + preset) & 0xFF;
-        return String.format("A50F01%02X0000%02X%02X", cmdCode, preset, checkCode);
+        int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + 0x00 + preset + 0x00) & 0xFF;
+        return String.format("A50F01%02X00%02X00%02X", cmdCode, preset, checkCode);
     }
 
     // ---------------- 聚焦控制码 ----------------

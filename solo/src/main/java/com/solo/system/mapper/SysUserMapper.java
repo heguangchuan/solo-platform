@@ -2,6 +2,7 @@ package com.solo.system.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.solo.system.response.UserAuthResponse;
+import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.entity.SysUser;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
@@ -35,4 +36,10 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "WHERE ur.user_id = #{userId} AND p.type = 1 AND p.deleted = 0 AND r.deleted = 0 AND r.status = 1 " +
             "ORDER BY p.sort ASC")
     List<UserAuthResponse> auth(Long userId);
+
+    /**
+     * 按状态分组统计用户数（全局口径，与列表查询条件无关）
+     */
+    @Select("SELECT status, COUNT(*) AS count FROM sys_user WHERE deleted = 0 GROUP BY status")
+    List<UserStatusCountVO> selectStatusCount();
 }

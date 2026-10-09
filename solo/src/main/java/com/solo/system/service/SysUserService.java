@@ -11,6 +11,7 @@ import com.solo.system.response.LoginResponse;
 import com.solo.system.response.RefreshTokenResponse;
 import com.solo.system.response.UserAuthResponse;
 import com.solo.system.response.UserInfoVO;
+import com.solo.system.response.UserStatusCountVO;
 
 import java.util.List;
 
@@ -49,6 +50,11 @@ public interface SysUserService extends IService<SysUser> {
      * 分页查询用户列表
      */
     Page<SysUser> pageQuery(UserPageRequest req);
+
+    /**
+     * 按状态统计用户数（全局口径，与查询条件无关）
+     */
+    List<UserStatusCountVO> statusCount();
 
     /**
      * 新增用户

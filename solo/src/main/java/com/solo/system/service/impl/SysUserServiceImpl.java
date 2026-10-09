@@ -18,6 +18,7 @@ import com.solo.system.response.LoginResponse;
 import com.solo.system.response.RefreshTokenResponse;
 import com.solo.system.response.UserAuthResponse;
 import com.solo.system.response.UserInfoVO;
+import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.service.SysUserService;
 import com.solo.common.utils.JwtUtils;
 import com.solo.common.utils.PasswordUtils;
@@ -150,6 +151,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         wrapper.orderByDesc(SysUser::getCreateTime);
         return page(pageParam, wrapper);
+    }
+
+    @Override
+    public List<UserStatusCountVO> statusCount() {
+        return getBaseMapper().selectStatusCount();
     }
 
     @Override

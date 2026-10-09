@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.MapMarkerResponse;
 
@@ -17,6 +18,11 @@ import java.util.List;
 public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
 
     Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request);
+
+    /**
+     * 按 parental（通道/分组）+ status 统计数量（全局口径，与查询条件无关）
+     */
+    List<GbChannelStatusCountVO> statusCount();
 
     /**
      * 手动新增通道（页面录入）。强制 status=未注册、source=系统新增，按 {@code channel.deviceId}（GB 码）关联设备。
