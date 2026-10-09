@@ -14,6 +14,7 @@ import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
+import com.solo.gb28181.response.GbDeviceStatusCountVO;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
@@ -79,6 +80,11 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         }
         wrapper.orderByDesc(GbDevice::getUpdateTime);
         return page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
+    }
+
+    @Override
+    public List<GbDeviceStatusCountVO> statusCount() {
+        return getBaseMapper().selectStatusCount();
     }
 
     @Override

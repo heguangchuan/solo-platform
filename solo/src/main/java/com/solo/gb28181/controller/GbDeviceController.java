@@ -11,6 +11,7 @@ import com.solo.gb28181.request.GbDeviceBatchDeleteRequest;
 import com.solo.gb28181.request.GbDeviceDetectRequest;
 import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
+import com.solo.gb28181.response.GbDeviceStatusCountVO;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.CatalogSyncStatusService;
@@ -22,6 +23,8 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * 国标设备管理
@@ -45,6 +48,16 @@ public class GbDeviceController {
     public Result<PageResult<GbDevice>> page(@RequestBody GbDevicePageRequest request) {
         Page<GbDevice> page = gbDeviceService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 按状态统计设备数（全局口径，与查询条件无关）
+     */
+    @Operation(summary = "按状态统计设备数")
+    @GetMapping("/status-count")
+    @RequirePermission({"gb28181:device:list"})
+    public Result<List<GbDeviceStatusCountVO>> statusCount() {
+        return Result.success(gbDeviceService.statusCount());
     }
 
     /**

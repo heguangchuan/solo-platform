@@ -39,23 +39,25 @@ public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtz
 
     @Override
     public void savePreset(GbPtzPreset preset) {
-        // 自动计算 presetId：当前通道最大 presetId + 1，从 1 开始
-        GbPtzPreset maxPreset = this.lambdaQuery()
+        int presetId = preset.getPresetId();
+        if (presetId < 1 || presetId > 10) {
+            throw new com.solo.common.ServiceException("预置位编号范围为 1-10");
+        }
+        // 同通道同编号已存在：仅重新通知设备覆盖该位置，不重复入库
+        GbPtzPreset existing = this.lambdaQuery()
                 .eq(GbPtzPreset::getChannelDbId, preset.getChannelDbId())
-                .orderByDesc(GbPtzPreset::getPresetId)
-                .last("LIMIT 1")
+                .eq(GbPtzPreset::getPresetId, presetId)
                 .one();
-        preset.setPresetId(maxPreset == null ? 1 : maxPreset.getPresetId() + 1);
-
-        super.save(preset);
+        if (existing == null) {
+            // 名称由后端统一生成，前端不可修改
+            preset.setName("预置点" + presetId);
+            super.save(preset);
+        } else {
+            // 已存在：复用数据库记录，仅重新通知设备覆盖该位置
+            preset = existing;
+        }
         // 通知设备将当前位置保存到该预置位槽
-        sendPresetCmd(preset, "[预置点设置]", SipUtils.buildPtzSetPreset(preset.getPresetId()));
-    }
-
-    @Override
-    public void updatePreset(GbPtzPreset preset) {
-        // 仅修改名称，presetId 不变，无需通知设备
-        this.updateById(preset);
+        sendPresetCmd(preset, "[预置点设置]", SipUtils.buildPtzSetPreset(presetId));
     }
 
     @Override

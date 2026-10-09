@@ -8,6 +8,7 @@ import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelBatchDeleteRequest;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
+import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.response.MapMarkerResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
@@ -48,6 +49,16 @@ public class GbDeviceChannelController {
     public Result<PageResult<GbDeviceChannelResponse>> page(@RequestBody GbDeviceChannelPageRequest request) {
         Page<GbDeviceChannelResponse> page = channelService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+    }
+
+    /**
+     * 按状态统计通道数（全局口径，与查询条件无关；按 parental 区分通道/分组）
+     */
+    @Operation(summary = "按状态统计通道数")
+    @GetMapping("/status-count")
+    @RequirePermission({"gb28181:device-channel:list"})
+    public Result<List<GbChannelStatusCountVO>> statusCount() {
+        return Result.success(channelService.statusCount());
     }
 
     /**
