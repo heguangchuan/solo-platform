@@ -296,10 +296,11 @@ public class SipUtils {
 
     /**
      * 添加巡航点
-     * <p>指令码 0x84：byte3=cruiseId, byte4=presetId, byte5=staySeconds</p>
+     * <p>指令码 0x84：byte3=cruiseId, byte4=presetId, byte5=组合码(0)；
+     * 停留时间由 0x87 单独下发，不在本指令携带</p>
      */
     public static String buildPtzCruiseAddPoint(int cruiseId, int presetId, int staySeconds) {
-        return buildPtzCruiseCmd(0x84, cruiseId & 0xFF, presetId & 0xFF, staySeconds & 0xFF);
+        return buildPtzCruiseCmd(0x84, cruiseId & 0xFF, presetId & 0xFF, 0x00);
     }
 
     /**

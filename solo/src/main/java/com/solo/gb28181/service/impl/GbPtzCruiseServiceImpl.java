@@ -78,31 +78,34 @@ public class GbPtzCruiseServiceImpl extends ServiceImpl<GbPtzCruiseMapper, GbPtz
 
         super.save(cruise);
 
-        // 保存巡航点
+        // 设置巡航速度（路线级）
+        sendCruiseCmd(cruise, "[设置巡航速度]",
+                SipUtils.buildPtzCruiseSetSpeed(cruise.getCruiseId(), cruise.getSpeed()));
+        sleepBetweenCmd();
+
+        // 设置巡航停留（路线级默认）
+        sendCruiseCmd(cruise, "[设置巡航停留]",
+                SipUtils.buildPtzCruiseSetStay(cruise.getCruiseId(), cruise.getStaySeconds()));
+        sleepBetweenCmd();
+
+        // 保存巡航点并逐点下发，点停留(0~15)由 0x84 字节7高4位携带
         if (points != null && !points.isEmpty()) {
             int sort = 0;
             for (GbPtzCruisePoint point : points) {
                 point.setCruiseId(cruise.getId());
                 point.setSortOrder(sort++);
-                fillPresetName(point);
+                fillPresetName(point, cruise.getChannelDbId());
                 cruisePointMapper.insert(point);
 
-                // 通知设备添加巡航点
                 sendCruiseCmd(cruise, "[添加巡航点]",
                         SipUtils.buildPtzCruiseAddPoint(
                                 cruise.getCruiseId(),
                                 point.getPresetId(),
                                 point.getStaySeconds() != null ? point.getStaySeconds() : cruise.getStaySeconds()));
+                // 连续 SIP MESSAGE 需要间隔，避免设备处理不过来丢指令
+                sleepBetweenCmd();
             }
         }
-
-        // 设置巡航速度
-        sendCruiseCmd(cruise, "[设置巡航速度]",
-                SipUtils.buildPtzCruiseSetSpeed(cruise.getCruiseId(), cruise.getSpeed()));
-
-        // 设置巡航停留时间
-        sendCruiseCmd(cruise, "[设置巡航停留]",
-                SipUtils.buildPtzCruiseSetStay(cruise.getCruiseId(), cruise.getStaySeconds()));
     }
 
     @Override
@@ -139,6 +142,7 @@ public class GbPtzCruiseServiceImpl extends ServiceImpl<GbPtzCruiseMapper, GbPtz
         for (GbPtzCruisePoint point : points) {
             sendCruiseCmd(cruise, "[删除巡航点]",
                     SipUtils.buildPtzCruiseRemovePoint(cruise.getCruiseId(), point.getPresetId()));
+            sleepBetweenCmd();
         }
 
         // 删除数据库
@@ -175,7 +179,7 @@ public class GbPtzCruiseServiceImpl extends ServiceImpl<GbPtzCruiseMapper, GbPtz
         point.setPresetName(preset.getName());
         cruisePointMapper.insert(point);
 
-        // 通知设备
+        // 通知设备添加巡航点，点停留(0~15)由字节7高4位携带
         sendCruiseCmd(cruise, "[添加巡航点]",
                 SipUtils.buildPtzCruiseAddPoint(
                         cruise.getCruiseId(),
@@ -226,12 +230,28 @@ public class GbPtzCruiseServiceImpl extends ServiceImpl<GbPtzCruiseMapper, GbPtz
                 SipUtils.buildPtzCruiseStop(cruise.getCruiseId()));
     }
 
-    private void fillPresetName(GbPtzCruisePoint point) {
+    private void fillPresetName(GbPtzCruisePoint point, Long channelDbId) {
         if (point.getPresetId() == null) {
             return;
         }
-        // 预置位名称由调用方传，或通过 cruise.channelDbId + presetId 反查
-        // 此处不查，由上层保证；列表展示时可关联查
+        GbPtzPreset preset = presetMapper.selectOne(
+                new LambdaQueryWrapper<GbPtzPreset>()
+                        .eq(GbPtzPreset::getChannelDbId, channelDbId)
+                        .eq(GbPtzPreset::getPresetId, point.getPresetId()));
+        if (preset != null) {
+            point.setPresetName(preset.getName());
+        }
+    }
+
+    /**
+     * 两条 SIP 指令之间的间隔，给设备留出处理时间
+     */
+    private void sleepBetweenCmd() {
+        try {
+            Thread.sleep(200);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
