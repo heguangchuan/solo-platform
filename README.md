@@ -105,7 +105,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 
 本项目的前端经历两套实现，**请以独立仓库的新版控制台为准**：
 
-| | 新版控制台（推荐，持续更新） | 旧版（内置，停止维护） |
+| | 新版控制台（推荐，持续更新） | 旧版（内置，2026-10-08 起停止维护） |
 |---|---|---|
 | 仓库 | **[heguangchuan/solo-ui](https://gitee.com/heguangchuan/solo-ui)** | 本仓库 `solo-ui/` 目录 |
 | 技术栈 | Vue 3.5 + TypeScript + Vite 6 + **Tailwind CSS 4 + shadcn-vue (reka-ui)** + Pinia | Vue 3 + Element Plus + ECharts + Leaflet |
@@ -114,7 +114,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 | 地图 / 大屏 | 不实现（属业务呈现层，见上方"定位与边界"） | 含电子地图设备打点等页面 |
 | 端口 | `5173` | `3000` |
 
-> 内置的 `solo-ui/` 目录仅作历史保留，后续所有界面迭代都在新仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui) 进行。
+> 内置的 `solo-ui/` 目录仅作历史保留，**自 2026-10-08 起不再维护**，后续所有界面迭代都在新仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui) 进行。
 
 ## 技术栈
 
@@ -204,7 +204,7 @@ solo-platform/
 │       ├── aop/           # 权限 / 操作日志 / 限流 / 防重复提交
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
-├── solo-ui/               # 旧版前端（历史保留，停止维护）
+├── solo-ui/               # 旧版前端（历史保留，2026-10-08 起停止维护）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
