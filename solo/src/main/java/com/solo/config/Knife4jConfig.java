@@ -60,15 +60,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** 大屏：首页 / 地图配置 */
-    @Bean
-    public GroupedOpenApi dashboardGroup() {
-        return GroupedOpenApi.builder()
-                .group("大屏")
-                .packagesToScan("com.solo.dashboard.controller")
-                .build();
-    }
-
     /** 国标：设备 / 通道 / 上下级平台 / 录像下载 / 点播 / 回放 / 云台 / 分组 */
     @Bean
     public GroupedOpenApi gb28181Group() {

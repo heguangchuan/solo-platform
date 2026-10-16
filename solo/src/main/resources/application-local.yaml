@@ -42,52 +42,6 @@ jwt:
   refresh-expiration: 604800000
 
 # ============================================================
-#  地图配置（首页电子地图打点用）
-#  ─────────────────────────────────
-#  改 default-center-lng/lat + default-zoom 即可把地图默认视图切到目标区域，
-#  不需要重新发布。瓦片源在 tile-url-offline / tile-url-online 改。
-#  字段名走 Spring Boot RelaxedBinding，YAML kebab-case 自动绑到 camelCase 字段。
-# ============================================================
-map:
-  default-center-lng: 106.45          # 初始视图中心经度（坐标系与 coord-system 一致）
-  default-center-lat: 29.57           # 初始视图中心纬度
-  default-zoom: 14                   # 初始缩放（全国 4-5 / 省级 7-8 / 市级 10-12 / 园区 14-16 / 小区 16-18）
-  min-zoom: 3
-  max-zoom: 21
-  # 瓦片模式：offline / online 二选一（不要混合）
-  # - offline：瓦片走 solo-ui/public/tiles/...（Vite dev 静态服务 / nginx prod 配 root）
-  # - online：瓦片走 tile-url-online 配置的外网地址（客户端直接拉，绕开 Vite/nginx）
-  tile-mode: online
-  # 离线模式的瓦片 URL——前端地图组件用这个值
-  # Vite dev：public/tiles/... 直接服务，不需要任何 Vite 配置
-  # nginx prod：location /tiles/ { root /var/www/tiles; } 静态服务
-  tile-url-offline: /tiles/{z}/{x}/{y}.png
-  # 在线模式的瓦片 URL——外网瓦片源完整 URL
-  # ─────────────────────────────────────────────────────────────
-  # 当前默认：高德 style=8（标准地图）+ 前端 CSS filter（invert + hue-rotate），
-  # 把浅色瓦片染成深色达到"暗色大屏"效果。
-  # 为什么不直接用 CartoDB Dark Matter：basemaps.cartocdn.com 在国内
-  #   - 偶发返回 "apikey required"（CDN 节点策略收紧）
-  #   - 慢/被墙概率高
-  #   - 即便能拉，运维兜底（前置反代）成本不值
-  # CSS filter 方案优势：
-  #   - 瓦片还是 AMap，国内最稳
-  #   - 前端一行 filter 把它"染"成深色
-  #   - 暗色效果由前端控制，不绑死瓦片源；将来想换源不动 CSS 就行
-  # 备选瓦片源（如果以后想换）：
-  #  百度：https://maponline0.map.bdimg.com/tile/?qt=vtile&x={x}&y={y}&z={z}&styles=pl
-  #  天地图：https://t0.tianditu.gov.cn/vec_w/wmts?...
-  #  CartoDB Dark Matter：https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png（国内不稳）
-  tile-url-online: https://webrd01.is.autonavi.com/appmaptile?x={x}&y={y}&z={z}&lang=zh_cn&size=1&scale=1&style=8
-  tile-subdomains: ''                 # AMap 单域名，不需要子域
-  disable-clustering-at-zoom: 21      # 缩放到此级别及以上不再聚合，看单点
-  fetch-debounce-ms: 300              # 视口变化 → 拉新 marker 的 debounce 延迟
-  marker-limit: 5000                  # 单次请求 marker 上限（与 SQL LIMIT 保持一致）
-  # 坐标系：WGS84 / GCJ02 / BD09。AMap style=8 走 GCJ02（中国偏移坐标系），
-  # 跟数据副本列 longitude_gcj02/latitude_gcj02 对齐，marker 才能落在正确位置
-  coord-system: GCJ02
-
-# ============================================================
 #  文件存储（S3 兼容：RustFS / MinIO / 阿里云 OSS / 腾讯云 COS / 华为云 OBS / Ceph RGW / AWS S3）
 #  ─────────────────────────────────
 #  endpoint-override 指向 S3 服务的访问入口（默认使用自托管 RustFS）。region 字段 AWS SDK 必填：
