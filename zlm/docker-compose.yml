@@ -1,0 +1,11 @@
+services:
+  zlm:
+    image: swr.cn-north-4.myhuaweicloud.com/ddn-k8s/docker.io/zlmediakit/zlmediakit:master
+    container_name: zlmediakit
+    network_mode: "host"
+    environment:
+      - MODE=standalone
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./media:/opt/media
+    restart: always
