@@ -110,30 +110,32 @@
                 />
               </th>
               <th class="w-40 px-3 py-2 font-normal">服务器名称</th>
-              <th class="px-3 py-2 font-normal">主机</th>
-              <th class="w-20 px-3 py-2 font-normal">端口</th>
-              <th class="w-28 px-3 py-2 font-normal">用户名</th>
-              <th class="w-20 px-3 py-2 font-normal">认证</th>
-              <th class="group w-24 px-3 py-2 text-center font-normal">
-                <Select v-model="statusFilter">
-                  <RawSelectTrigger
-                    class="mx-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
-                  >
-                    <span class="flex items-center gap-1">
-                      状态
+              <th class="w-36 px-3 py-2 font-normal">主机</th>
+              <th class="w-16 px-3 py-2 font-normal">端口</th>
+              <th class="w-24 px-3 py-2 font-normal">用户名</th>
+              <th class="w-16 px-3 py-2 font-normal">认证</th>
+              <th class="w-[72px] px-3 py-2">
+                <span class="inline-flex items-center gap-1 font-normal">
+                  状态
+                  <Select v-model="statusFilter">
+                    <RawSelectTrigger
+                      title="按状态筛选"
+                      class="inline-flex size-4 items-center justify-center rounded outline-none hover:text-foreground"
+                    >
                       <IconFilter
-                        class="size-3 opacity-40 transition-opacity group-hover:opacity-100"
-                        :class="statusFilter !== '__all__' ? 'fill-primary text-primary opacity-100' : ''"
+                        class="size-3.5"
+                        :class="statusFilter !== '__all__' ? 'text-primary' : 'text-muted-foreground/60'"
                       />
-                    </span>
-                  </RawSelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">全部状态</SelectItem>
-                    <SelectItem value="1">启用</SelectItem>
-                    <SelectItem value="0">停用</SelectItem>
-                  </SelectContent>
-                </Select>
+                    </RawSelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">全部状态</SelectItem>
+                      <SelectItem value="1">启用</SelectItem>
+                      <SelectItem value="0">停用</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
               </th>
+              <th class="w-44 px-3 py-2 font-normal">创建时间</th>
               <th class="w-44 px-3 py-2 font-normal">更新时间</th>
             </tr>
           </thead>
@@ -179,30 +181,19 @@
                   </button>
                 </span>
               </td>
-              <td class="font-mono text-xs">{{ s.host }}</td>
-              <td class="font-mono text-xs">{{ s.port }}</td>
-              <td class="font-mono text-xs text-muted-foreground">{{ s.username }}</td>
+              <td class="px-3 py-2 font-mono text-xs truncate">{{ s.host }}</td>
+              <td class="px-3 py-2 font-mono text-xs">{{ s.port }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground truncate">{{ s.username }}</td>
+              <td class="px-3 py-2 text-xs text-muted-foreground">
+                {{ s.authType === 'PRIVATE_KEY' ? '密钥' : '密码' }}
+              </td>
               <td class="px-3 py-2 text-xs">
-                <span
-                  class="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-muted-foreground"
-                >
-                  <IconKey v-if="s.authType === 'PRIVATE_KEY'" class="h-3 w-3" />
-                  <IconLock v-else class="h-3 w-3" />
-                  {{ s.authType === 'PRIVATE_KEY' ? '密钥' : '密码' }}
+                <span :class="s.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
+                  {{ s.status === 1 ? '启用' : '停用' }}
                 </span>
               </td>
-              <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="s.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                  />
-                  <span :class="s.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ s.status === 1 ? '启用' : '停用' }}
-                  </span>
-                </span>
-              </td>
-              <td class="font-mono text-xs text-muted-foreground">{{ s.updateTime || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground truncate">{{ s.createTime || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground truncate">{{ s.updateTime || '—' }}</td>
             </tr>
           </tbody>
         </table>
@@ -291,8 +282,6 @@ import {
   IconPlus,
   IconTrash,
   IconTerminal,
-  IconKey,
-  IconLock,
   IconServerOff,
   IconLoader2,
   IconFilter,
