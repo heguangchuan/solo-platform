@@ -101,14 +101,14 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 
 ## 前端说明
 
-前端为独立仓库 [heguangchuan/solo-ui](https://gitee.com/heguangchuan/solo-ui)：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn-vue (reka-ui) + Pinia，现代极简风格，覆盖国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置等全部能力，开发端口 `5173`。
+前端代码位于本仓库 `solo-ui/` 目录：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn-vue (reka-ui) + Pinia，现代极简风格，覆盖国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置等全部能力，开发端口 `5173`。
 
 ## 技术栈
 
 | 端 | 技术 |
 |---|---|
 | 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
-| 前端 | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)） |
+| 前端 | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
 | 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
 
 ## 快速开始
@@ -168,7 +168,6 @@ cd solo && ./mvnw spring-boot:run
 ### 4. 启动前端
 
 ```bash
-git clone https://gitee.com/heguangchuan/solo-ui.git
 cd solo-ui && npm install && npm run dev
 ```
 
@@ -191,6 +190,7 @@ solo-platform/
 │       ├── aop/           # 权限 / 操作日志 / 限流 / 防重复提交
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
+├── solo-ui/               # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
@@ -211,7 +211,7 @@ solo-platform/
 - [x] 多 ZLM 节点负载均衡 / SSRC Redis 化 / 拉流代理 / 推流鉴权
 - [x] ONVIF 摄像头接入与点播
 - [x] RBAC 权限底座、Web SSH、站内消息、S3 文件管理
-- [x] 全新 shadcn 风格控制台（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)）
+- [x] 全新 shadcn 风格控制台（`solo-ui/`，Vue 3 + Tailwind + shadcn-vue）
 
 ### 规划中
 
@@ -232,7 +232,7 @@ solo-platform/
 - 参考范围仅限于协议处理分层、类 / 方法命名等设计思路，以便与国标文档及社区实践对照；
 - 本项目**未包含** WVP-GB28181-pro 的任何源代码，全部代码均为基于 Spring Boot 4 / Java 21 的独立实现。
 
-流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST / Hook 方式集成，未包含其源码）；前端基于 shadcn-vue 设计体系（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)）。
+流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST / Hook 方式集成，未包含其源码）；前端基于 shadcn-vue 设计体系。
 
 ## License
 
