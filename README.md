@@ -24,7 +24,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 
 ```
 设备/平台(GB28181)
-      │  SIP(UDP/TCP) :5060
+      │  SIP(UDP/TCP) :15060
       ▼
 ┌─────────────────────────────┐
 │   Solo Platform（后端）      │
@@ -124,14 +124,14 @@ mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 编辑 `solo/src/main/resources/application.yaml`：
 
 - `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接
-- `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码
+- `gb28181.*`：SIP 端口（默认 15060）、平台国标编码、域、注册密码
 - `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段
 
 ```bash
 cd solo && ./mvnw spring-boot:run
 ```
 
-服务端口 `10003`，SIP 同时监听 UDP/TCP `5060`，等待 ZLM hook 回调。
+服务端口 `10003`，SIP 同时监听 UDP/TCP `15060`，等待 ZLM hook 回调。
 
 ### 3. 启动新版前端
 
@@ -144,7 +144,7 @@ cd solo-ui && npm install && npm run dev
 
 ### 4. 接入摄像头
 
-将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
+将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:15060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
 
 ## 项目结构
 
