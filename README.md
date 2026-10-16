@@ -38,7 +38,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 │  收流 · 转封装 · 分发 · 录像  │
 └───────────┬─────────────────┘
             ▼
-   MySQL · Redis · S3 兼容存储
+   MySQL · Redis · RustFS（S3 兼容存储）
 ```
 
 ## 定位与边界
@@ -49,7 +49,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 - 设备注册鉴权、目录同步、实时点播、录像回放 / 下载、云台控制、报警事件、双向级联
 - 多流媒体节点负载均衡、拉流代理、推流鉴权
-- RBAC 权限、操作日志、Web SSH、S3 文件等系统支撑能力
+- RBAC 权限、操作日志、Web SSH、对象存储文件等系统支撑能力
 
 **平台不做（由业务系统自行实现）**
 
@@ -70,7 +70,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - **通道目录**：注册后自动拉取 Catalog，分片合并入库，支持超大目录；设备信息（厂商/型号/固件）自动同步
 - **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；按需拉流（无观看自动断流节能）
 - **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
-- **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 落 S3 兼容存储，预签名 URL 直接下载
+- **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 落 RustFS 对象存储，预签名 URL 直接下载
 - **云台控制**：八方向 + 变倍 + 聚焦 + 光圈 + 雨刷；预置位管理；巡航路线（巡航点编排、速度/停留时间、启停）
 - **报警中心**：报警落库 + WebSocket 实时推送，支持前端处置闭环
 - **移动位置**：GPS 位置上报解析、事件总线（轨迹持久化规划中）
@@ -93,7 +93,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - 用户 / 角色 / 菜单**按钮级权限**，JWT 双 Token 认证，首次登录强制改密
 - 数据字典、参数配置、操作日志（`@OperationLog` 注解）、登录在线用户管理
 - 服务器管理：**Web SSH 终端**（JSch + xterm.js）、服务器监控
-- 文件管理：S3 兼容对象存储统一接入
+- 文件管理：基于 RustFS 的对象存储统一接入（S3 协议，可替换为 OSS/COS/OBS 等）
 - 站内消息：WebSocket 实时推送
 - 限流、防重复提交、XSS 消毒等 AOP 安全能力
 
@@ -122,7 +122,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 |---|---|
 | 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
 | 前端（新） | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
-| 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · S3 兼容对象存储 |
+| 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
 
 ## 快速开始
 
@@ -130,6 +130,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 
 - JDK 21+、Maven 3.8+、Node.js 18+、MySQL 8+、Redis 6+
 - ZLMediaKit（视频功能必需，可用 Docker 部署）
+- RustFS（S3 兼容对象存储，录像下载 / 文件管理必需；亦可使用其他 S3 兼容实现）
 
 ### 1. 初始化数据库
 
@@ -148,6 +149,7 @@ mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 - `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接
 - `gb28181.*`：SIP 端口（默认 15060）、平台国标编码、域、注册密码
 - `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段
+- `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）
 
 ```bash
 cd solo && ./mvnw spring-boot:run
@@ -232,7 +234,7 @@ solo-platform/
 - [ ] **移动位置数据**：GPS 位置落库与历史轨迹查询接口（轨迹可视化由业务系统实现）
 - [ ] **云端录像中心**：录像文件检索、保留期 / 生命周期管理、截图抓拍
 - [ ] **设备配置管理**：DeviceConfig 下发、DeviceStatus 状态查询、报警主动订阅
-- [ ] **一键部署**：docker-compose（ZLM + Solo + MySQL + Redis + S3）
+- [ ] **一键部署**：docker-compose（ZLM + Solo + MySQL + Redis + RustFS）
 - [ ] **数据库迁移**：引入 Flyway/Liquibase，提供生产平滑升级路径
 - [ ] **集群高可用**：下载任务 / 订阅状态分布式化，支持多副本部署
 - [ ] **自动化测试与 CI**：SIP 报文 / Digest / PTZ 码 / SSRC 等核心逻辑单测补齐
