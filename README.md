@@ -128,6 +128,15 @@ solo-platform/
 - [ ] 监控运维大屏（设备/流路/ZLM/SSRC 指标）
 - [ ] 一键部署（docker-compose：ZLM + Solo + MySQL + Redis + S3）
 
+## 致谢与署名声明
+
+本项目的 GB/T 28181 协议实现在架构设计与领域命名上参考了开源项目 [WVP-GB28181-pro](https://github.com/648540858/wvp-GB28181-pro)（MIT License，Copyright © 2020 swwhaha）。
+
+- 参考范围仅限于协议处理分层、类/方法命名等设计思路，以便与国标文档及社区实践对照；
+- 本项目未包含 WVP-GB28181-pro 的任何源代码，全部代码均为基于 Spring Boot 4 / Java 21 的独立实现。
+
+流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST/Hook 方式集成，未包含其源码）。
+
 ## License
 
 [Apache License 2.0](LICENSE)
