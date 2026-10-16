@@ -6,7 +6,6 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
-import com.solo.gb28181.response.MapMarkerResponse;
 
 import java.util.List;
 
@@ -55,20 +54,5 @@ public interface GbDeviceChannelService extends IService<GbDeviceChannel> {
      * 批量删除通道，删除后更新所属设备的通道计数
      */
     void deleteBatch(List<Long> ids);
-
-    /**
-     * 首页地图打点查询：按视口矩形范围返回该范围内的通道 marker 列表，
-     * 同时返回数据库里"有坐标的通道总数"（不受视口限制，侧栏 KPI 用）。
-     *
-     * <p>单次最多返回 5000 条（数据库 SQL LIMIT 限制），超过会被截断，
-     * 调用方按需提示用户"放大以查看更多"。bounds 在调用前需校验合法。</p>
-     *
-     * @param minLng 视口西边经度（含）
-     * @param minLat 视口南边纬度（含）
-     * @param maxLng 视口东边经度（含）
-     * @param maxLat 视口北边纬度（含）
-     * @return 紧凑字段的 marker 响应（含总数 + marker 列表）
-     */
-    MapMarkerResponse queryMapMarkers(double minLng, double minLat, double maxLng, double maxLat);
 
 }

@@ -5,8 +5,6 @@ import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
-import com.solo.common.utils.CoordinateUtil;
-import com.solo.config.MapProperties;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
@@ -16,8 +14,6 @@ import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
-import com.solo.gb28181.response.MapMarkerResponse;
-import com.solo.gb28181.response.MapMarker;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +39,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
 
     private final GbDeviceMapper deviceMapper;
     private final Gb28181Properties properties;
-    private final MapProperties mapProperties;
 
     @Override
     public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
@@ -121,9 +116,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (dup) {
             throw new ServiceException("通道国标ID已存在：" + channel.getChannelId());
         }
-        // 入参侧 longitude/latitude 是瓦片系原始值（看 channel.coordSystem 决定系），
-        // 存之前转成 WGS-84 canonical 写回 longitude/latitude
-        convertToWgs84InPlace(channel);
         // 回填冗余字段，状态与来源由系统决定
         channel.setId(null);
         channel.setParental(0);  // 手动新增一定是通道
@@ -132,9 +124,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // parentId = 所属设备 GB 码：与 GB/T 28181 语义一致（NVR/IPC 推 Catalog 时通道
         // <ParentID> 就是设备自己的 DeviceID），也与 CatalogSyncSupport 孤儿回落规则统一
         channel.setParentId(device.getDeviceId());
-        // 算 GCJ-02 + BD-09 副本：DB 约定 longitude/latitude 存 WGS-84，副本由 WGS-84 → GCJ-02 / BD-09 算
-        // 出来冗余存，queryMapMarkers 按瓦片系直接 SELECT 副本列，零转换
-        populateCoordVariants(channel);
+        // 经纬度原样存取，不做坐标系转换
         save(channel);
         log.info("[通道新增] 系统手动新增通道: device={} channel={}", device.getDeviceId(), channel.getChannelId());
     }
@@ -155,19 +145,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         exist.setBlock(channel.getBlock());
         exist.setAddress(channel.getAddress());
         exist.setPtzType(channel.getPtzType());
-        // 入参侧 longitude/latitude 是瓦片系原始值（看 channel.coordSystem 决定系），
-        // 存之前转成 WGS-84 canonical 写回 longitude/latitude
-        if (channel.getLongitude() != null && channel.getLatitude() != null) {
-            double[] wgs = toWgs84FromSource(channel.getLongitude(), channel.getLatitude(), channel.getCoordSystem());
-            exist.setLongitude(wgs[0]);
-            exist.setLatitude(wgs[1]);
-        } else {
-            // 显式置空时也清掉 WGS-84
-            exist.setLongitude(null);
-            exist.setLatitude(null);
-        }
-        // 同步算 GCJ-02 + BD-09 副本（同 createByManual 的约定）
-        populateCoordVariants(exist);
+        // 经纬度原样存取，不做坐标系转换；显式置空时也清空
+        exist.setLongitude(channel.getLongitude());
+        exist.setLatitude(channel.getLatitude());
         updateById(exist);
         log.info("[通道编辑] 更新通道资料: {}", exist.getChannelId());
     }
@@ -186,8 +166,9 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
     @Override
     public void saveOrUpdateBatch(List<GbDeviceChannel> channels) {
         if (channels == null || channels.isEmpty()) return;
-        // 业务预处理：原始名/默认名 + 预填雪花 id + 算 GCJ-02 副本
+        // 业务预处理：原始名/默认名 + 预填雪花 id
         // parentId 不在此处兜底——保持 null（手动新增）或 Catalog 同步传入的值（XML <ParentID>）
+        // 经纬度原样入库：设备 / 下级平台上报什么就存什么，不做坐标系转换
         for (GbDeviceChannel ch : channels) {
             String reportedName = ch.getName();
             if (reportedName != null && !reportedName.isBlank()) {
@@ -199,9 +180,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
             if (ch.getId() == null) {
                 ch.setId(IdWorker.getId());
             }
-            // 设备同步的 channel.longitude/latitude 是 WGS-84（GB/T 28181 标准），
-            // 这里算 GCJ-02 副本冗余存，queryMapMarkers 按瓦片系 SELECT 副本列零转换
-            populateCoordVariants(ch);
         }
         // 走 mapper 的 INSERT ... ON DUPLICATE KEY UPDATE：单 SQL 多行 upsert
         // 4 万通道场景必须用批量——逐行 4 万次网络往返 = 4-20 秒，生产不可接受
@@ -243,95 +221,6 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         // 批量删除
         removeByIds(ids);
         log.info("[通道批量删除] 删除 {} 条通道", ids.size());
-    }
-
-    @Override
-    public MapMarkerResponse queryMapMarkers(double minLng, double minLat, double maxLng, double maxLat) {
-        // bounds 是前端按瓦片系送过来的（application.yaml 的 map.coord-system 决定），
-        // 这里按目标系做合法范围校验。DB 已冗余存 3 套坐标系，SQL 按 target 直接 SELECT
-        // 对应列做 BETWEEN，零 Java 端转换。
-        if (minLng < -180 || maxLng > 180 || minLat < -90 || maxLat > 90) {
-            throw new ServiceException("经纬度超出合法范围");
-        }
-        if (minLng >= maxLng) {
-            throw new ServiceException("minLng 必须小于 maxLng");
-        }
-        if (minLat >= maxLat) {
-            throw new ServiceException("minLat 必须小于 maxLat");
-        }
-
-        // 三元一次性赋值，保持 target 是 effectively final（lambda 引用要求）
-        String rawTarget = mapProperties.getCoordSystem();
-        final String target = (rawTarget == null || rawTarget.isBlank()) ? "WGS84" : rawTarget;
-
-        // 数据库里有坐标的通道总数（不受视口限制，侧栏 KPI 展示用）—— 数主列就行
-        // （GCJ-02 副本与主列同步写入，null/0 一致）
-        LambdaQueryWrapper<GbDeviceChannel> countWrapper = new LambdaQueryWrapper<>();
-        countWrapper.eq(GbDeviceChannel::getParental, 0)
-                .isNotNull(GbDeviceChannel::getLongitude)
-                .isNotNull(GbDeviceChannel::getLatitude)
-                .ne(GbDeviceChannel::getLongitude, 0)
-                .ne(GbDeviceChannel::getLatitude, 0);
-        int totalWithCoord = Math.toIntExact(count(countWrapper));
-
-        // 当前视口范围内的 marker：bounds 跟 target 同系，SQL CASE 选对应列做 BETWEEN + 输出
-        List<MapMarker> markers = baseMapper.selectForMap(minLng, minLat, maxLng, maxLat, target);
-
-        MapMarkerResponse resp = new MapMarkerResponse();
-        resp.setCount(markers.size());
-        resp.setTotalWithCoord(totalWithCoord);
-        resp.setMarkers(markers);
-        return resp;
-    }
-
-    /**
-     * 把 {@code [lng, lat]} 从源系转到 WGS-84。
-     * 同系（包括 null / 空字符串 / 'WGS84'）直接原值返回（省去计算）。
-     */
-    private static double[] toWgs84FromSource(double lng, double lat, String source) {
-        if (source == null || source.isBlank() || "WGS84".equalsIgnoreCase(source)) {
-            return new double[]{lng, lat};
-        }
-        return switch (source.toUpperCase()) {
-            case "BD09" -> CoordinateUtil.bd09ToWgs84(lng, lat);
-            case "GCJ02" -> CoordinateUtil.gcj02ToWgs84(lng, lat);
-            default -> new double[]{lng, lat};
-        };
-    }
-
-    /**
-     * 入参侧就地转 WGS-84：picker 端把瓦片系原始坐标 + coordSystem 发过来，
-     * 写库前把 channel.longitude/latitude 改写成 WGS-84 canonical。
-     * 入参已经是 WGS-84（或没传 coordSystem）时不动；入参坐标为 null 时也不动。
-     */
-    private static void convertToWgs84InPlace(GbDeviceChannel channel) {
-        if (channel.getLongitude() == null || channel.getLatitude() == null) {
-            return;
-        }
-        double[] wgs = toWgs84FromSource(channel.getLongitude(), channel.getLatitude(), channel.getCoordSystem());
-        channel.setLongitude(wgs[0]);
-        channel.setLatitude(wgs[1]);
-    }
-
-    /**
-     * 算 GCJ-02 + BD-09 副本并存到 channel：DB 约定 longitude/latitude 存 WGS-84，
-     * 副本由 WGS-84 → GCJ-02 / BD-09 算出来冗余存，queryMapMarkers 按瓦片系直接 SELECT 副本列，零转换。
-     * 入参 WGS-84 为 null 时副本也置 null（保持一致——没坐标就不参与地图）。
-     */
-    private static void populateCoordVariants(GbDeviceChannel ch) {
-        if (ch.getLongitude() == null || ch.getLatitude() == null) {
-            ch.setLongitudeGcj02(null);
-            ch.setLatitudeGcj02(null);
-            ch.setLongitudeBd09(null);
-            ch.setLatitudeBd09(null);
-            return;
-        }
-        double[] gcj = CoordinateUtil.wgs84ToGcj02(ch.getLongitude(), ch.getLatitude());
-        ch.setLongitudeGcj02(gcj[0]);
-        ch.setLatitudeGcj02(gcj[1]);
-        double[] bd = CoordinateUtil.wgs84ToBd09(ch.getLongitude(), ch.getLatitude());
-        ch.setLongitudeBd09(bd[0]);
-        ch.setLatitudeBd09(bd[1]);
     }
 
 }

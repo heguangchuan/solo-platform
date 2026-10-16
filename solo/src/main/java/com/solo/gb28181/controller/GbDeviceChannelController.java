@@ -10,7 +10,6 @@ import com.solo.gb28181.request.GbDeviceChannelBatchDeleteRequest;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
-import com.solo.gb28181.response.MapMarkerResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -24,7 +23,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -77,28 +75,6 @@ public class GbDeviceChannelController {
                 .orderByAsc(GbDeviceChannel::getChannelId)
                 .list();
         return Result.success(list);
-    }
-
-    /**
-     * 首页地图打点：按当前视口矩形范围返回该范围内有坐标的通道 marker 列表，
-     *
-     * @param minLng 视口最小经度
-     * @param minLat 视口最小纬度
-     * @param maxLng 视口最大经度
-     * @param maxLat 视口最大纬度
-     */
-    @Operation(summary = "首页地图打点：按视口范围返回 marker 列表")
-    @Parameter(name = "minLng", description = "视口最小经度")
-    @Parameter(name = "minLat", description = "视口最小纬度")
-    @Parameter(name = "maxLng", description = "视口最大经度")
-    @Parameter(name = "maxLat", description = "视口最大纬度")
-    @GetMapping("/map-markers")
-    @RequirePermission({"gb28181:device-channel:list"})
-    public Result<MapMarkerResponse> mapMarkers(@RequestParam double minLng,
-                                                @RequestParam double minLat,
-                                                @RequestParam double maxLng,
-                                                @RequestParam double maxLat) {
-        return Result.success(channelService.queryMapMarkers(minLng, minLat, maxLng, maxLat));
     }
 
     /**

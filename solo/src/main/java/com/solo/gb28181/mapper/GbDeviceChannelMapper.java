@@ -3,7 +3,6 @@ package com.solo.gb28181.mapper;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.response.GbChannelStatusCountVO;
-import com.solo.gb28181.response.MapMarker;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -53,31 +52,6 @@ public interface GbDeviceChannelMapper extends BaseMapper<GbDeviceChannel> {
      * @return 受影响行数（MySQL 约定：1=INSERT, 2=UPDATE, 0=值未变）
      */
     int batchUpsert(@Param("list") List<GbDeviceChannel> channels);
-
-    /**
-     * 首页地图打点：按经纬度矩形范围 + 必带坐标 + 限定 5000 条，返回单字母字段的紧凑 marker 列表。
-     * <p>配合 {@link com.solo.gb28181.service.GbDeviceChannelService#queryMapMarkers} 使用，
-     * 上层负责 bounds 校验、计数等业务控制，本方法只做单条 SQL 查询。</p>
-     *
-     * <p>{@code target} 是瓦片系（与 application.yaml 的 {@code map.coord-system} 联动）：
-     *   <ul>
-     *     <li>{@code GCJ02} / {@code BD09} → 选 longitude_gcj02 / latitude_gcj02 副本列</li>
-     *     <li>{@code WGS84} / 其他 → 选 longitude / latitude 主列</li>
-     *   </ul>
-     * DB 已经冗余存了 3 套坐标系版本，查询时按 target 直接 SELECT 对应列，零转换。</p>
-     *
-     * @param minLng 视口西边经度（含，目标系）
-     * @param minLat 视口南边纬度（含，目标系）
-     * @param maxLng 视口东边经度（含，目标系）
-     * @param maxLat 视口北边纬度（含，目标系）
-     * @param target 瓦片坐标系（WGS84 / GCJ02 / BD09）
-     * @return 紧凑字段的 marker 列表（最多 5000 条）
-     */
-    List<MapMarker> selectForMap(@Param("minLng") double minLng,
-                                 @Param("minLat") double minLat,
-                                 @Param("maxLng") double maxLng,
-                                 @Param("maxLat") double maxLat,
-                                 @Param("target") String target);
 
     /**
      * 按 parental（通道/分组）+ status 分组统计数量（全局口径，与列表查询条件无关）。
