@@ -182,8 +182,7 @@ solo-platform/
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
 ├── solo-ui/               # 旧版前端（历史保留，停止维护）
-├── sql/                   # 数据库初始化脚本
-└── lib/                   # 本地依赖
+└── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
 
 ## 文档
