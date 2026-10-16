@@ -155,7 +155,28 @@ cd solo && ./mvnw spring-boot:run
 
 服务端口 `10003`，SIP 同时监听 UDP/TCP `15060`，等待 ZLM hook 回调。
 
-### 3. 启动新版前端
+### 3. 配置并启动 ZLMediaKit
+
+仓库提供一份开箱参考配置 [zlm/config.ini](zlm/config.ini)，复制到 ZLM 的配置目录（与 `MediaServer` 可执行文件同级的 `conf/`）后按需修改三处：
+
+- **Hook 回调地址**：示例中为 `http://solo.com:10003/api/hook/...`，请将 `solo.com` 改为后端实际可达地址（本地联调可在 hosts 中把 `solo.com` 指向后端 IP）；地址上的 `secret` 须与后端 `media.hook-secret` 一致。
+- **API 密钥**：`[api].secret` 须与后端媒体节点的 `secret` 一致（示例值 `DHrrFblswk...`，生产环境请更换）。
+- **节点标识**：`[general].mediaServerId`（示例 `zlmediakit-local`）须与后端媒体节点的 `server-id` 完全一致。
+
+关键端口（需与后端媒体节点配置、防火墙放行对应）：
+
+| 端口 | 用途 |
+|---|---|
+| `10005` | HTTP API / HTTP-FLV / WS-FLV / HLS |
+| `554` | RTSP |
+| `1935` | RTMP |
+| `8000` | WebRTC（TCP/UDP） |
+| `10000` + `30000-35000` | RTP 收流端口与范围（国标 PS 流） |
+| `9000` | SRT |
+
+> 另需保证 ZLM 所在机器安装了 ffmpeg（示例中 `[ffmpeg].bin=/usr/bin/ffmpeg`，Linux 路径；Windows 请改为实际路径）。
+
+### 4. 启动新版前端
 
 ```bash
 git clone https://gitee.com/heguangchuan/solo-ui.git
@@ -164,7 +185,7 @@ cd solo-ui && npm install && npm run dev
 
 访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:10003`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
 
-### 4. 接入摄像头
+### 5. 接入摄像头
 
 将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:15060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
 
@@ -182,6 +203,7 @@ solo-platform/
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
 ├── solo-ui/               # 旧版前端（历史保留，停止维护）
+├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
 
