@@ -59,8 +59,6 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - 面向具体客户的业务流程与页面定制
 
 > 业务系统无需关心 SIP 信令与设备差异，直接调用平台接口获取播放地址、订阅报警 / 状态事件即可完成自身业务闭环。
->
-> 说明：旧版前端曾内置电子地图打点等呈现页面，新版控制台出于上述边界考虑**不再提供**；但后端相关支撑代码（地图配置、流路统计等接口）**仍予保留**，可供业务系统直接调用，旧版前端中的对应页面也可继续参考。
 
 ## 功能特性
 
@@ -103,25 +101,14 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 
 ## 前端说明
 
-本项目的前端经历两套实现，**请以独立仓库的新版控制台为准**：
-
-| | 新版控制台（推荐，持续更新） | 旧版（内置，2026-10-08 起停止维护） |
-|---|---|---|
-| 仓库 | **[heguangchuan/solo-ui](https://gitee.com/heguangchuan/solo-ui)** | 本仓库 `solo-ui/` 目录 |
-| 技术栈 | Vue 3.5 + TypeScript + Vite 6 + **Tailwind CSS 4 + shadcn-vue (reka-ui)** + Pinia | Vue 3 + Element Plus + ECharts + Leaflet |
-| 风格 | 现代极简、命令面板、Inspector 详情页 | 传统后台管理风格 |
-| 能力 | 国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置 | 同口径功能，不再新增 |
-| 地图 / 大屏 | 不实现（属业务呈现层，见上方"定位与边界"） | 含电子地图设备打点等页面 |
-| 端口 | `5173` | `3000` |
-
-> 内置的 `solo-ui/` 目录仅作历史保留，**自 2026-10-08 起不再维护**，后续所有界面迭代都在新仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui) 进行。
+前端为独立仓库 [heguangchuan/solo-ui](https://gitee.com/heguangchuan/solo-ui)：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn-vue (reka-ui) + Pinia，现代极简风格，覆盖国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置等全部能力，开发端口 `5173`。
 
 ## 技术栈
 
 | 端 | 技术 |
 |---|---|
 | 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
-| 前端（新） | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
+| 前端 | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)） |
 | 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
 
 ## 快速开始
@@ -178,7 +165,7 @@ cd solo && ./mvnw spring-boot:run
 
 > 另需保证 ZLM 所在机器安装了 ffmpeg（示例中 `[ffmpeg].bin=/usr/bin/ffmpeg`，Linux 路径；Windows 请改为实际路径）。
 
-### 4. 启动新版前端
+### 4. 启动前端
 
 ```bash
 git clone https://gitee.com/heguangchuan/solo-ui.git
@@ -204,7 +191,6 @@ solo-platform/
 │       ├── aop/           # 权限 / 操作日志 / 限流 / 防重复提交
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
-├── solo-ui/               # 旧版前端（历史保留，2026-10-08 起停止维护）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
@@ -246,7 +232,7 @@ solo-platform/
 - 参考范围仅限于协议处理分层、类 / 方法命名等设计思路，以便与国标文档及社区实践对照；
 - 本项目**未包含** WVP-GB28181-pro 的任何源代码，全部代码均为基于 Spring Boot 4 / Java 21 的独立实现。
 
-流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST / Hook 方式集成，未包含其源码）；新版前端基于 shadcn-vue 设计体系。
+流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST / Hook 方式集成，未包含其源码）；前端基于 shadcn-vue 设计体系（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)）。
 
 ## License
 
