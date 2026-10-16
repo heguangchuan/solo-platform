@@ -1,55 +1,106 @@
+<div align="center">
+
 # Solo 视频监控平台
 
-基于 **GB/T 28181-2016** 国标协议的视频监控接入与管理平台：自研 SIP 协议栈接入国标设备，集成 ZLMediaKit 完成流媒体分发，内置完整的 RBAC 权限后台。一套代码覆盖**设备接入 → 实时点播 → 录像回放下载 → 云台控制 → 多级级联**的完整链路。
+**基于 GB/T 28181-2016 国标的轻量级视频监控接入与流媒体管理平台**
+
+自研 SIP 协议栈接入国标设备 · ZLMediaKit 流媒体分发 · 双向国标级联 · 现代化管理控制台
+
+<br/>
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![JDK](https://img.shields.io/badge/JDK-21+-orange.svg)](https://adoptium.net/)
+[![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Vue](https://img.shields.io/badge/Vue-3.5-42b883.svg)](https://vuejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6.svg)](https://www.typescriptlang.org/)
+[![ZLMediaKit](https://img.shields.io/badge/ZLMediaKit-integrated-7d5aFF.svg)](https://github.com/ZLMediaKit/ZLMediaKit)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)]()
+
+</div>
+
+---
+
+Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴权、目录同步、实时点播、录像回放下载、云台控制，到多级平台双向级联、多流媒体节点负载均衡，覆盖 GB/T 28181 全链路。后端采用 Java 21 + Spring Boot 4 全新自研，代码结构清晰、注释完整、无历史包袱；前端提供现代化的 shadcn 风格管理控制台。
+
+```
+设备/平台(GB28181)
+      │  SIP(UDP/TCP) :5060
+      ▼
+┌─────────────────────────────┐
+│   Solo Platform（后端）      │
+│  注册鉴权 · 目录 · 点播信令   │
+│  回放下载 · 云台 · 报警 · 级联 │
+└───────────┬─────────────────┘
+            │ REST + Hook
+            ▼
+┌─────────────────────────────┐
+│   ZLMediaKit（流媒体节点）    │  ──► HTTP-FLV / WS-FLV / HLS / WebRTC
+│  收流 · 转封装 · 分发 · 录像  │
+└───────────┬─────────────────┘
+            ▼
+   MySQL · Redis · S3 兼容存储
+```
 
 ## 功能特性
 
 ### 视频监控（GB/T 28181 国标）
 
-- **设备接入**：SIP 注册（RFC 2617 Digest 完整 qop=auth 鉴权）、心跳保活、在线状态实时维护（Redis TTL + 定时对账）
+- **设备接入**：SIP 注册（RFC 2617 Digest 完整 qop=auth 鉴权，兼容海康/大华/宇视/华为）、心跳保活、在线状态实时维护（Redis TTL + 定时对账）
 - **通道目录**：注册后自动拉取 Catalog，分片合并入库，支持超大目录；设备信息（厂商/型号/固件）自动同步
-- **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 播放；按需拉流（无观看自动断流）
-- **历史回放**：录像查询、时间轴回放、暂停/续播/拖动/倍速（SIP INFO + MANSRTSP）
+- **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；按需拉流（无观看自动断流节能）
+- **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
 - **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 落 S3 兼容存储，预签名 URL 直接下载
 - **云台控制**：八方向 + 变倍 + 聚焦 + 光圈 + 雨刷；预置位管理；巡航路线（巡航点编排、速度/停留时间、启停）
-- **报警与移动位置**：设备报警、GPS 位置上报解析与事件总线
+- **报警中心**：报警落库 + WebSocket 实时推送，支持前端处置闭环
+- **移动位置**：GPS 位置上报解析、事件总线（轨迹持久化规划中）
 - **主动检测**：设备存活 fire-and-forget 探测，三态回调校准在线状态
 
 ### 国标级联（双向）
 
-- **作为上级**：下级平台白名单管理，下级注册后视为设备接入，通道目录自动入库，可直接点播/回放下级通道
-- **作为下级**：注册保活到上级平台（401 Digest 应答、掉线重注册），资源共享目录树勾选推送，响应上级 Catalog 查询（分片），被上级点播时经 ZLM sendRtp 推流
+- **作为上级**：下级平台白名单管理，下级注册后视为设备接入，通道目录自动入库，可直接点播 / 回放下级通道
+- **作为下级**：注册保活到上级平台（401 Digest 应答、掉线自动重注册），资源共享目录树勾选推送，响应上级 Catalog 查询（分片），被上级点播时经 ZLM sendRtp 主动推流
 
 ### 流媒体（ZLMediaKit 集成）
 
-- **多 ZLM 负载均衡**：Redis ZSet 按活跃流数选点，SSRC 池 Redis 化，跨 JVM 安全
-- **拉流代理**：外部 RTSP/RTMP 拉入 ZLM 转推，启停管理、播放地址生成
+- **多节点负载均衡**：Redis ZSet 按活跃流数智能选点，SSRC 池 Redis 化，多实例部署安全
+- **拉流代理**：外部 RTSP/RTMP 流拉入 ZLM 转推，启停管理、播放地址自动生成
 - **推流管理**：推流只读视角 + 推流方 token 鉴权，僵尸流自动对账清理
-- **自动点播**：播放地址被访问但流不存在时自动补 INVITE
+- **自动点播**：播放地址被访问但流不存在时自动补发 INVITE
 
-### 电子地图首页
+### 系统底座（RBAC）
 
-设备/通道树 + 全屏电子地图，通道定位、点击播放，深色监控风格。
-
-### 系统管理（RBAC 底座）
-
-- 用户 / 角色 / 菜单权限（按钮级），JWT 双 Token 认证，强制改密
-- 数据字典、参数配置、操作日志、登录在线用户
-- 服务器管理：Web SSH 终端（JSch）、服务器监控
-- 文件管理：S3 兼容对象存储
+- 用户 / 角色 / 菜单**按钮级权限**，JWT 双 Token 认证，首次登录强制改密
+- 数据字典、参数配置、操作日志（`@OperationLog` 注解）、登录在线用户管理
+- 服务器管理：**Web SSH 终端**（JSch + xterm.js）、服务器监控
+- 文件管理：S3 兼容对象存储统一接入
 - 站内消息：WebSocket 实时推送
+- 限流、防重复提交、XSS 消毒等 AOP 安全能力
 
 ### ONVIF 模块
 
 ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient），无 JAX-WS 历史包袱。
 
+## 前端说明
+
+本项目的前端经历两套实现，**请以独立仓库的新版控制台为准**：
+
+| | 新版控制台（推荐，持续更新） | 旧版（内置，停止维护） |
+|---|---|---|
+| 仓库 | **[heguangchuan/solo-ui](https://gitee.com/heguangchuan/solo-ui)** | 本仓库 `solo-ui/` 目录 |
+| 技术栈 | Vue 3.5 + TypeScript + Vite 6 + **Tailwind CSS 4 + shadcn-vue (reka-ui)** + Pinia | Vue 3 + Element Plus + ECharts + Leaflet |
+| 风格 | 现代极简、命令面板、Inspector 详情页 | 传统后台管理风格 |
+| 能力 | 国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置 | 同口径功能，不再新增 |
+| 端口 | `5173` | `3000` |
+
+> 内置的 `solo-ui/` 目录仅作历史保留，后续所有界面迭代都在新仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui) 进行。
+
 ## 技术栈
 
 | 端 | 技术 |
 |---|---|
-| 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j |
-| 前端 | Vue 3 · TypeScript · Vite 6 · Element Plus · Pinia · ECharts · Leaflet |
-| 基础设施 | MySQL 8 · Redis · ZLMediaKit · S3 兼容对象存储 |
+| 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
+| 前端（新） | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
+| 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · S3 兼容对象存储 |
 
 ## 快速开始
 
@@ -68,7 +119,7 @@ mysql -uroot -p < sql/gb28181.sql     # 国标模块
 mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 ```
 
-### 2. 配置后端
+### 2. 配置并启动后端
 
 编辑 `solo/src/main/resources/application.yaml`：
 
@@ -76,25 +127,24 @@ mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 - `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码
 - `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段
 
-### 3. 启动后端
-
 ```bash
 cd solo && ./mvnw spring-boot:run
 ```
 
-服务端口 `10003`。启动后 SIP 同时监听 UDP/TCP 5060，等待 ZLM hook 回调。
+服务端口 `10003`，SIP 同时监听 UDP/TCP `5060`，等待 ZLM hook 回调。
 
-### 4. 启动前端
+### 3. 启动新版前端
 
 ```bash
+git clone https://gitee.com/heguangchuan/solo-ui.git
 cd solo-ui && npm install && npm run dev
 ```
 
-访问 `http://localhost:3000`，`/api` 已代理到 `localhost:10003`。本地体验账号 `admin / admin123`（生产环境请务必修改）。
+访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:10003`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
 
-### 5. 接入摄像头
+### 4. 接入摄像头
 
-将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`，设备注册成功后自动拉取通道目录，即可点播。
+将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
 
 ## 项目结构
 
@@ -109,33 +159,50 @@ solo-platform/
 │       ├── aop/           # 权限 / 操作日志 / 限流 / 防重复提交
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
-├── solo-ui/               # Vue 3 管理台（开发端口 3000）
+├── solo-ui/               # 旧版前端（历史保留，停止维护）
 ├── sql/                   # 数据库初始化脚本
 └── lib/                   # 本地依赖
 ```
 
 ## 文档
 
-- [gb28181.md](gb28181.md) — 国标模块 Sprint 计划与 41 条 ADR 架构决策记录（动手改国标代码前必读）
+- [gb28181.md](gb28181.md) — 国标模块 Sprint 计划与 ADR 架构决策记录（动手改国标代码前必读）
 - [CLAUDE.md](CLAUDE.md) — 仓库约定速览（日志规范、包结构、SQL 流程）
+- 接口文档：后端启动后访问 Knife4j 文档页（`/doc.html`）
 
 ## 路线图
 
-- [x] 设备接入 / 实时点播 / 回放 / 下载 / 云台 / 级联
-- [x] 多 ZLM 负载均衡 / 拉流代理 / 推流鉴权
-- [ ] 报警中心（落库 + WebSocket 推送 + 前端处置）
-- [ ] 录像计划（按通道周计划定时录制）
-- [ ] 监控运维大屏（设备/流路/ZLM/SSRC 指标）
-- [ ] 一键部署（docker-compose：ZLM + Solo + MySQL + Redis + S3）
+### 已完成
+
+- [x] 设备注册鉴权 / 目录同步 / 实时点播 / 录像回放下载 / 云台（预置位 + 巡航）
+- [x] 报警落库 + WebSocket 实时推送
+- [x] 国标双向级联（作为上级 / 作为下级，目录共享与被点播推流）
+- [x] 多 ZLM 节点负载均衡 / SSRC Redis 化 / 拉流代理 / 推流鉴权
+- [x] ONVIF 摄像头接入与点播
+- [x] RBAC 权限底座、Web SSH、站内消息、S3 文件管理
+- [x] 全新 shadcn 风格控制台（独立仓库 [solo-ui](https://gitee.com/heguangchuan/solo-ui)）
+
+### 规划中
+
+- [ ] **录像计划**：按通道配置周计划，定时 startRecord / stopRecord 自动录制
+- [ ] **语音对讲 / 语音广播**：反向音频 INVITE（`a=recvonly`）与广播通知
+- [ ] **移动位置轨迹**：位置落库与历史轨迹回放
+- [ ] **云端录像中心**：录像文件检索、保留期 / 生命周期管理、截图抓拍
+- [ ] **监控运维大屏**：设备在线率、流路、ZLM 节点健康、SSRC 占用、报警趋势
+- [ ] **设备配置管理**：DeviceConfig 下发、DeviceStatus 状态查询、报警主动订阅
+- [ ] **一键部署**：docker-compose（ZLM + Solo + MySQL + Redis + S3）
+- [ ] **数据库迁移**：引入 Flyway/Liquibase，提供生产平滑升级路径
+- [ ] **集群高可用**：下载任务 / 订阅状态分布式化，支持多副本部署
+- [ ] **自动化测试与 CI**：SIP 报文 / Digest / PTZ 码 / SSRC 等核心逻辑单测补齐
 
 ## 致谢与署名声明
 
-本项目的 GB/T 28181 协议实现在架构设计与领域命名上参考了开源项目 [WVP-GB28181-pro](https://github.com/648540858/wvp-GB28181-pro)（MIT License，Copyright © 2020 swwhaha）。
+本项目的 GB/T 28181 协议实现在架构设计与领域命名上参考了开源项目 [WVP-GB28181-pro](https://github.com/648540858/wvp-GB28181-pro)（MIT License，Copyright © 2020 swwhaha）：
 
-- 参考范围仅限于协议处理分层、类/方法命名等设计思路，以便与国标文档及社区实践对照；
-- 本项目未包含 WVP-GB28181-pro 的任何源代码，全部代码均为基于 Spring Boot 4 / Java 21 的独立实现。
+- 参考范围仅限于协议处理分层、类 / 方法命名等设计思路，以便与国标文档及社区实践对照；
+- 本项目**未包含** WVP-GB28181-pro 的任何源代码，全部代码均为基于 Spring Boot 4 / Java 21 的独立实现。
 
-流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST/Hook 方式集成，未包含其源码）。
+流媒体能力基于 [ZLMediaKit](https://github.com/ZLMediaKit/ZLMediaKit)（C++ 流媒体服务器，通过 REST / Hook 方式集成，未包含其源码）；新版前端基于 shadcn-vue 设计体系。
 
 ## License
 
