@@ -130,7 +130,7 @@
     </Transition>
 
     <!-- Token 结果弹窗（创建 / 重置后），挂在面板层，不随 inspector 卸载 -->
-    <DialogRoot :open="tokenVisible">
+    <DialogRoot :open="tokenVisible" @update:open="(v: boolean) => !v && (tokenVisible = false)">
       <DialogContent class="max-w-lg gap-3">
         <div class="flex items-center gap-3">
           <div class="grid h-10 w-10 place-items-center rounded-full bg-primary/10 text-primary">
