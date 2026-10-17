@@ -413,10 +413,10 @@ watch(
               </th>
               <th class="w-32 px-3 py-2 font-normal">操作人员</th>
               <th class="w-28 px-3 py-2 font-normal">模块</th>
-              <th class="group w-24 px-3 py-2 text-center font-normal">
+              <th class="group w-32 px-3 py-2 font-normal">
                 <Select v-model="businessType">
                   <RawSelectTrigger
-                    class="mx-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
+                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
                   >
                     <span class="flex items-center gap-1">
                       类型
@@ -434,11 +434,11 @@ watch(
                   </SelectContent>
                 </Select>
               </th>
-              <th class="px-3 py-2 font-normal">操作描述</th>
-              <th class="group w-24 px-3 py-2 text-center font-normal">
+              <th class="w-44 px-3 py-2 font-normal">操作描述</th>
+              <th class="group w-24 px-3 py-2 font-normal">
                 <Select v-model="responseStatus">
                   <RawSelectTrigger
-                    class="mx-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
+                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
                   >
                     <span class="flex items-center gap-1">
                       状态
@@ -455,8 +455,8 @@ watch(
                   </SelectContent>
                 </Select>
               </th>
-              <th class="w-24 px-3 py-2 text-right font-normal">耗时</th>
-              <th class="group w-36 px-3 py-2 font-normal">
+              <th class="w-32 px-3 py-2 font-normal">耗时</th>
+              <th class="group w-48 px-3 py-2 font-normal">
                 <Select v-model="clientSource">
                   <RawSelectTrigger
                     class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
@@ -481,7 +481,7 @@ watch(
                   <PopoverTrigger
                     class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
                   >
-                    时间
+                    创建时间
                     <IconFilter
                       class="size-3 opacity-40 transition-opacity group-hover:opacity-100"
                       :class="startTime || endTime ? 'fill-primary text-primary opacity-100' : ''"
@@ -557,7 +557,7 @@ watch(
               </td>
               <td class="px-3 py-2">{{ r.operatorName || '—' }}</td>
               <td class="px-3 py-2 text-xs">{{ r.module || '—' }}</td>
-              <td class="px-3 py-2 text-center">
+              <td class="px-3 py-2">
                 <span
                   class="inline-flex rounded px-1.5 py-0.5 text-[11px]"
                   :class="businessMetaOf(r.businessType).badge"
@@ -568,7 +568,7 @@ watch(
               <td class="truncate px-3 py-2" :title="r.description">
                 {{ r.description || '—' }}
               </td>
-              <td class="px-3 py-2 text-center">
+              <td class="px-3 py-2">
                 <span
                   class="inline-flex rounded px-1.5 py-0.5 text-[11px]"
                   :class="
@@ -580,8 +580,8 @@ watch(
                   {{ r.responseStatus === 1 ? '成功' : '失败' }}
                 </span>
               </td>
-              <td class="px-3 py-2 text-right font-mono text-xs">{{ r.costMs }}ms</td>
-              <td class="px-3 py-2 font-mono text-xs">
+              <td class="px-3 py-2 font-mono text-xs">{{ r.costMs }}ms</td>
+              <td class="truncate px-3 py-2 font-mono text-xs" :title="`${r.clientSource || ''} ${r.clientIp || ''}`.trim()">
                 <span>{{ r.clientSource || '—' }}</span>
                 <span class="ml-1.5 text-muted-foreground">{{ r.clientIp || '' }}</span>
               </td>
