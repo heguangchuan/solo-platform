@@ -205,14 +205,21 @@
       </div>
     </div>
 
-    <!-- 右侧：检视器 -->
+    <!-- 右侧：检视器 / 播放 -->
     <Transition name="inspector">
       <aside
-        v-if="selected"
+        v-if="selected || playing"
         class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
       >
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <StreamPlayPanel
+            v-if="playing"
+            kind="push"
+            :target="playing"
+            @close="playing = null"
+          />
           <StreamPushInspector
+            v-else-if="selected"
             :push="selected"
             @close="onCloseInspector"
             @play="onPlay"
@@ -222,9 +229,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- 播放弹窗 -->
-    <StreamPlayDialog ref="playDialogRef" />
   </div>
 </template>
 
@@ -240,7 +244,7 @@ import {
 } from '@tabler/icons-vue'
 import { Trash2, Loader2 } from 'lucide-vue-next'
 import StreamPushInspector from '@/features/media/StreamPushInspector.vue'
-import StreamPlayDialog from '@/features/media/StreamPlayDialog.vue'
+import StreamPlayPanel from '@/features/media/StreamPlayPanel.vue'
 import {
   getStreamPushPageApi,
   batchDeleteStreamPushApi,
@@ -327,10 +331,12 @@ const scrollCursorIntoView = () => {
 
 const onRowClick = (p: StreamPush, i: number) => {
   cursor.value = i
+  playing.value = null
   selected.value = p
 }
 
 const onCloseInspector = () => {
+  playing.value = null
   selected.value = null
 }
 
@@ -340,9 +346,12 @@ const onDeleted = (p: StreamPush) => {
   selected.value = null
 }
 
-/* 播放 */
-const playDialogRef = ref<InstanceType<typeof StreamPlayDialog>>()
-const onPlay = (p: StreamPush) => playDialogRef.value?.open(p, 'push')
+/* 播放（右侧检视器内嵌，jessibuca） */
+const playing = ref<StreamPush | null>(null)
+const onPlay = (p: StreamPush) => {
+  selected.value = null
+  playing.value = p
+}
 
 /* 批量勾选 / 删除 */
 const checkedIds = ref<Set<string>>(new Set())

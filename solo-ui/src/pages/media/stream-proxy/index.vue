@@ -226,11 +226,18 @@
     <!-- 右侧：检视器 -->
     <Transition name="inspector">
       <aside
-        v-if="creating || selected"
+        v-if="creating || selected || playing"
         class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
       >
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <StreamPlayPanel
+            v-if="playing"
+            kind="proxy"
+            :target="playing"
+            @close="playing = null"
+          />
           <StreamProxyInspector
+            v-else
             :proxy="selected ?? undefined"
             :servers="servers"
             :creating="creating"
@@ -245,9 +252,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- 播放弹窗 -->
-    <StreamPlayDialog ref="playDialogRef" />
   </div>
 </template>
 
@@ -263,7 +267,7 @@ import {
 } from '@tabler/icons-vue'
 import { Plus, Trash2, Loader2 } from 'lucide-vue-next'
 import StreamProxyInspector from '@/features/media/StreamProxyInspector.vue'
-import StreamPlayDialog from '@/features/media/StreamPlayDialog.vue'
+import StreamPlayPanel from '@/features/media/StreamPlayPanel.vue'
 import {
   getStreamProxyPageApi,
   listMediaServerApi,
@@ -342,10 +346,12 @@ const scrollCursorIntoView = () => {
 
 const onRowClick = (p: StreamProxy, i: number) => {
   cursor.value = i
+  playing.value = null
   selected.value = p
 }
 
 const onCloseInspector = () => {
+  playing.value = null
   creating.value = false
   selected.value = null
 }
@@ -378,9 +384,17 @@ const onDisable = async (p: StreamProxy) => {
   resource.search()
 }
 
-/* 播放 */
-const playDialogRef = ref<InstanceType<typeof StreamPlayDialog>>()
-const onPlay = (p: StreamProxy) => playDialogRef.value?.open(p, 'proxy')
+/* 播放（右侧检视器内嵌，jessibuca） */
+const playing = ref<StreamProxy | null>(null)
+const onPlay = (p: StreamProxy) => {
+  if (p.status !== 1) {
+    toast.warning('代理未在推流，请先启用')
+    return
+  }
+  creating.value = false
+  selected.value = null
+  playing.value = p
+}
 
 /* 批量勾选 / 删除 */
 const checkedIds = ref<Set<string>>(new Set())
