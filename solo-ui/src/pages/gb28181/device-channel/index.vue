@@ -107,7 +107,7 @@
                   @update:model-value="onToggleAll"
                 />
               </th>
-              <th class="px-3 py-2 font-normal">通道名称</th>
+              <th class="w-48 px-3 py-2 font-normal">通道名称</th>
               <th class="w-52 px-3 py-2 font-normal">通道编码</th>
               <th class="w-52 px-3 py-2 font-normal">设备编码</th>
               <th class="w-[72px] px-3 py-2">

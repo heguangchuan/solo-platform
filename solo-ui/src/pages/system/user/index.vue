@@ -117,12 +117,12 @@
                 />
               </th>
               <th class="w-[180px] px-3 py-2 font-normal">账号</th>
-              <th class="px-3 py-2 font-normal">昵称</th>
+              <th class="w-40 px-3 py-2 font-normal">昵称</th>
               <th class="w-52 px-3 py-2 font-normal">邮箱</th>
               <th class="w-32 px-3 py-2 font-normal">电话</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
-              <th class="w-40 px-3 py-2 font-normal">创建时间</th>
-              <th class="w-40 px-3 py-2 font-normal">更新时间</th>
+              <th class="w-44 px-3 py-2 font-normal">创建时间</th>
+              <th class="w-44 px-3 py-2 font-normal">更新时间</th>
             </tr>
           </thead>
 

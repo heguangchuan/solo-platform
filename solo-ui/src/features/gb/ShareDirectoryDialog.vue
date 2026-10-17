@@ -88,7 +88,7 @@
             <table v-if="selectedGroupId" class="w-full table-fixed text-left text-xs">
               <thead class="sticky top-0 z-10">
                 <tr class="bg-card text-muted-foreground">
-                  <th class="px-3 py-2 font-normal">通道名称</th>
+                  <th class="w-40 px-3 py-2 font-normal">通道名称</th>
                   <th class="w-48 px-3 py-2 font-normal">国标编码</th>
                   <th class="w-48 px-3 py-2 font-normal">
                     <span class="inline-flex items-center gap-1">
@@ -98,7 +98,7 @@
                       </span>
                     </span>
                   </th>
-                  <th class="w-16 px-3 py-2 text-right font-normal">操作</th>
+                  <th class="w-16 px-3 py-2 font-normal">操作</th>
                 </tr>
               </thead>
               <tbody>
@@ -110,7 +110,7 @@
                   <td class="px-3 py-2 font-mono text-muted-foreground">
                     {{ c.exposedCode || '—' }}
                   </td>
-                  <td class="px-3 py-2 text-right">
+                  <td class="px-3 py-2">
                     <Button
                       v-access="PERM.GB_PARENT_PLATFORM_EDIT"
                       variant="ghost"

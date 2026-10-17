@@ -89,7 +89,7 @@
                   @click.stop
                 />
               </th>
-              <th class="px-3 py-2 font-normal">文件名称</th>
+              <th class="w-64 px-3 py-2 font-normal">文件名称</th>
               <th class="w-24 px-3 py-2 font-normal">类型</th>
               <th class="w-28 px-3 py-2 font-normal">大小</th>
               <th class="w-40 px-3 py-2 font-normal">上传账号</th>

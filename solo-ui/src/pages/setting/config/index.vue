@@ -106,7 +106,7 @@
               </th>
               <th class="w-[180px] px-3 py-2 font-normal">参数名称</th>
               <th class="w-[180px] px-3 py-2 font-normal">参数编码</th>
-              <th class="px-3 py-2 font-normal">参数取值</th>
+              <th class="w-56 px-3 py-2 font-normal">参数取值</th>
               <th class="w-48 px-3 py-2 font-normal">备注</th>
               <th class="w-44 px-3 py-2 font-normal">创建时间</th>
             </tr>

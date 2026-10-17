@@ -105,10 +105,10 @@
             <tr>
               <th class="w-16 px-3 py-2 font-normal">ID</th>
               <th class="w-40 px-3 py-2 font-normal">标题</th>
-              <th class="px-3 py-2 font-normal">内容</th>
+              <th class="w-64 px-3 py-2 font-normal">内容</th>
               <th class="w-20 px-3 py-2 font-normal">级别</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
-              <th class="w-40 px-3 py-2 font-normal">时间</th>
+              <th class="w-44 px-3 py-2 font-normal">时间</th>
             </tr>
           </thead>
           <tbody>

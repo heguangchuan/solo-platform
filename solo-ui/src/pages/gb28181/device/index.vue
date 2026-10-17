@@ -117,7 +117,7 @@
                 />
               </th>
               <th class="w-52 px-3 py-2 font-normal">设备编码</th>
-              <th class="px-3 py-2 font-normal">设备名称</th>
+              <th class="w-48 px-3 py-2 font-normal">设备名称</th>
               <th class="w-[72px] px-3 py-2">
                 <span class="inline-flex items-center gap-1 font-normal">
                   状态
@@ -171,7 +171,7 @@
                 </span>
               </th>
               <th class="w-40 px-3 py-2 font-normal">网络地址</th>
-              <th class="w-40 px-3 py-2 font-normal">最近心跳</th>
+              <th class="w-44 px-3 py-2 font-normal">最近心跳</th>
             </tr>
           </thead>
 
