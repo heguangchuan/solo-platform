@@ -85,12 +85,12 @@
           </div>
 
           <div ref="sharedScroller" class="min-h-0 flex-1 overflow-y-auto">
-            <table v-if="selectedGroupId" class="w-full text-left text-xs">
+            <table v-if="selectedGroupId" class="w-full table-fixed text-left text-xs">
               <thead class="sticky top-0 z-10">
                 <tr class="bg-card text-muted-foreground">
                   <th class="px-3 py-2 font-normal">通道名称</th>
-                  <th class="px-3 py-2 font-normal">国标编码</th>
-                  <th class="px-3 py-2 font-normal">
+                  <th class="w-48 px-3 py-2 font-normal">国标编码</th>
+                  <th class="w-48 px-3 py-2 font-normal">
                     <span class="inline-flex items-center gap-1">
                       推送码
                       <span title="通道国标码撞码时系统会派生新编码推送，正常情况与国标编码一致">
@@ -103,7 +103,7 @@
               </thead>
               <tbody>
                 <tr v-for="c in shared" :key="c.id" class="hover:bg-muted/30">
-                  <td class="max-w-0 truncate px-3 py-2" :title="displayName(c)">
+                  <td class="truncate px-3 py-2" :title="displayName(c)">
                     {{ displayName(c) }}
                   </td>
                   <td class="px-3 py-2 font-mono text-muted-foreground">{{ c.channelId }}</td>

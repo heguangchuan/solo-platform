@@ -92,7 +92,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -142,18 +142,15 @@
                 <span class="mono text-xs">{{ r.roleCode }}</span>
               </td>
               <td class="px-3 py-2 font-medium">{{ r.roleName }}</td>
-              <td class="max-w-80 truncate px-3 py-2 text-xs text-muted-foreground" :title="r.description">
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="r.description">
                 {{ r.description || '—' }}
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="r.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                  />
-                  <span :class="r.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ r.status === 1 ? '启用' : '禁用' }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="r.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'"
+                >
+                  {{ r.status === 1 ? '启用' : '禁用' }}
                 </span>
               </td>
               <td class="mono px-3 py-2 text-xs text-muted-foreground">

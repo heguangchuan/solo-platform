@@ -343,7 +343,7 @@ watch(flatRows, (rows) => {
 
       <!-- 树表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -354,7 +354,7 @@ watch(flatRows, (rows) => {
                   @click.stop
                 />
               </th>
-              <th class="min-w-[220px] px-3 py-2 font-normal">权限名称</th>
+              <th class="px-3 py-2 font-normal">权限名称</th>
               <th class="w-[200px] px-3 py-2 font-normal">权限编码</th>
               <th class="w-[180px] px-3 py-2 font-normal">路由地址</th>
               <th class="w-20 px-3 py-2 text-center font-normal">类型</th>
@@ -385,9 +385,9 @@ watch(flatRows, (rows) => {
                   @click.stop
                 />
               </td>
-              <td class="min-w-[220px] px-3 py-1.5">
+              <td class="px-3 py-1.5">
                 <div
-                  class="flex items-center gap-1.5"
+                  class="flex min-w-0 items-center gap-1.5"
                   :style="{ paddingLeft: `${row.depth * 18}px` }"
                 >
                   <button
@@ -410,7 +410,7 @@ watch(flatRows, (rows) => {
                   >
                     {{ row.node.type === 1 ? 'M' : 'B' }}
                   </span>
-                  <span class="truncate">{{ row.node.permissionName }}</span>
+                  <span class="min-w-0 truncate">{{ row.node.permissionName }}</span>
                 </div>
               </td>
               <td class="w-[200px] px-3 py-1.5 font-mono text-xs text-muted-foreground">

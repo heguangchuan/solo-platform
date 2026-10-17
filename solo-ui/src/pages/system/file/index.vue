@@ -78,7 +78,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -124,8 +124,8 @@
                   v-if="selected?.id === f.id"
                   class="absolute inset-y-0 left-0 w-0.5 bg-primary"
                 />
-                <span class="flex items-center gap-1.5">
-                  <span class="truncate font-medium" :title="f.originalName">{{ f.originalName }}</span>
+                <span class="flex min-w-0 items-center gap-1.5">
+                  <span class="min-w-0 truncate font-medium" :title="f.originalName">{{ f.originalName }}</span>
                   <button
                     class="shrink-0 text-muted-foreground/60 opacity-0 transition-opacity hover:text-primary group-hover:opacity-100"
                     title="复制链接"
@@ -144,9 +144,9 @@
                 </span>
                 <span v-else class="text-muted-foreground/50">—</span>
               </td>
-              <td class="font-mono text-xs">{{ formatSize(f.size) }}</td>
-              <td class="font-mono text-xs text-muted-foreground">{{ f.uploaderName || '—' }}</td>
-              <td class="font-mono text-xs text-muted-foreground">{{ f.createTime || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs">{{ formatSize(f.size) }}</td>
+              <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="f.uploaderName || ''">{{ f.uploaderName || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ f.createTime || '—' }}</td>
             </tr>
           </tbody>
         </table>

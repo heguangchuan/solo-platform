@@ -15,7 +15,6 @@
           "
           @click="onTab(tab.status)"
         >
-          <span v-if="tab.dot" class="h-1.5 w-1.5 rounded-full" :class="tab.dotClass" />
           {{ tab.label }}
           <span class="rounded-full bg-muted px-1.5 py-px text-[11px] text-muted-foreground">
             {{ counts[tab.key] }}
@@ -106,7 +105,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -119,8 +118,8 @@
               </th>
               <th class="w-[180px] px-3 py-2 font-normal">账号</th>
               <th class="px-3 py-2 font-normal">昵称</th>
-              <th class="px-3 py-2 font-normal">邮箱</th>
-              <th class="px-3 py-2 font-normal">电话</th>
+              <th class="w-52 px-3 py-2 font-normal">邮箱</th>
+              <th class="w-32 px-3 py-2 font-normal">电话</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
               <th class="w-40 px-3 py-2 font-normal">创建时间</th>
               <th class="w-40 px-3 py-2 font-normal">更新时间</th>
@@ -164,73 +163,17 @@
                 </div>
               </td>
 
-              <!-- 昵称：双击行内编辑 -->
-              <td class="px-3 py-2">
-                <input
-                  v-if="editing?.id === u.id && editing.field === 'nickname'"
-                  ref="editInputRef"
-                  v-model="editing.value"
-                  class="h-7 w-full rounded border border-primary/40 bg-background px-2 text-[13px] outline-none"
-                  @click.stop
-                  @keydown.enter.prevent="commitEdit(u)"
-                  @keydown.esc.stop="cancelEdit"
-                  @blur="commitEdit(u)"
-                />
-                <span
-                  v-else
-                  class="font-medium"
-                  :title="can(USER_EDIT) ? '双击编辑' : ''"
-                  @dblclick.stop="can(USER_EDIT) && startEdit(u, 'nickname')"
-                >
-                  {{ u.nickname }}
-                </span>
+              <td class="truncate px-3 py-2 font-medium" :title="u.nickname">{{ u.nickname }}</td>
+
+              <td class="mono truncate px-3 py-2 text-xs text-muted-foreground" :title="u.email || ''">
+                {{ u.email || '—' }}
               </td>
 
-              <!-- 邮箱：双击行内编辑 -->
-              <td class="px-3 py-2">
-                <input
-                  v-if="editing?.id === u.id && editing.field === 'email'"
-                  ref="editInputRef"
-                  v-model="editing.value"
-                  class="mono h-7 w-full max-w-52 rounded border border-primary/40 bg-background px-2 text-xs outline-none"
-                  @click.stop
-                  @keydown.enter.prevent="commitEdit(u)"
-                  @keydown.esc.stop="cancelEdit"
-                  @blur="commitEdit(u)"
-                />
-                <span
-                  v-else
-                  class="mono block max-w-52 truncate text-xs text-muted-foreground"
-                  :title="u.email || (can(USER_EDIT) ? '双击编辑' : '')"
-                  @dblclick.stop="can(USER_EDIT) && startEdit(u, 'email')"
-                >
-                  {{ u.email || '—' }}
-                </span>
+              <td class="mono truncate px-3 py-2 text-xs text-muted-foreground" :title="u.phone || ''">
+                {{ u.phone || '—' }}
               </td>
 
-              <!-- 电话：双击行内编辑 -->
-              <td class="px-3 py-2">
-                <input
-                  v-if="editing?.id === u.id && editing.field === 'phone'"
-                  ref="editInputRef"
-                  v-model="editing.value"
-                  class="mono h-7 w-36 rounded border border-primary/40 bg-background px-2 text-xs outline-none"
-                  @click.stop
-                  @keydown.enter.prevent="commitEdit(u)"
-                  @keydown.esc.stop="cancelEdit"
-                  @blur="commitEdit(u)"
-                />
-                <span
-                  v-else
-                  class="mono text-xs text-muted-foreground"
-                  :title="can(USER_EDIT) ? '双击编辑' : ''"
-                  @dblclick.stop="can(USER_EDIT) && startEdit(u, 'phone')"
-                >
-                  {{ u.phone || '—' }}
-                </span>
-              </td>
-
-              <!-- 状态：色点 + 文字，点击即切换 -->
+              <!-- 状态：文字颜色区分，点击即切换 -->
               <td class="px-3 py-2">
                 <button
                   class="flex items-center gap-1.5 text-xs"
@@ -238,11 +181,7 @@
                   :title="can(USER_SWITCH) ? '点击切换状态' : ''"
                   @click.stop="onToggleStatus(u)"
                 >
-                  <span
-                    class="h-1.5 w-1.5 rounded-full transition-colors"
-                    :class="u.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                  />
-                  <span :class="u.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
+                  <span :class="u.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
                     {{ u.status === 1 ? '正常' : '停用' }}
                   </span>
                 </button>
@@ -335,7 +274,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { Download, Loader2, Plus, Search, Trash2, Upload, UserX, X } from 'lucide-vue-next'
 import { useRoute, useRouter } from 'vue-router'
 import UserInspector from '@/features/user/UserInspector.vue'
@@ -344,7 +283,6 @@ import {
   getUserPageApi,
   getUserStatusCountApi,
   deleteUserApi,
-  editUserApi,
   switchUserStatusApi,
   deleteUserBatchApi,
   exportUserApi,
@@ -362,7 +300,6 @@ import AvatarFallback from '@/components/ui/avatar/AvatarFallback.vue'
 import type { SysUser, UserPageRequest } from '@/types/api'
 
 const { can } = useAccess()
-const USER_EDIT = PERM.USER_EDIT
 const USER_SWITCH = PERM.USER_SWITCH
 
 /* ---------- 搜索条件（严格对应后端 UserPageRequest） ---------- */
@@ -412,21 +349,9 @@ const counts = ref<{ all: number; active: number; disabled: number }>({
 })
 
 const tabs = computed(() => [
-  { key: 'all' as const, label: '全部', status: null, dot: false, dotClass: '' },
-  {
-    key: 'active' as const,
-    label: '正常',
-    status: 1,
-    dot: true,
-    dotClass: 'bg-emerald-500',
-  },
-  {
-    key: 'disabled' as const,
-    label: '停用',
-    status: 0,
-    dot: true,
-    dotClass: 'bg-muted-foreground/50',
-  },
+  { key: 'all' as const, label: '全部', status: null },
+  { key: 'active' as const, label: '正常', status: 1 },
+  { key: 'disabled' as const, label: '停用', status: 0 },
 ])
 
 /*
@@ -460,7 +385,6 @@ const scrollerRef = ref<HTMLElement>()
 const sentinelRef = ref<HTMLElement>()
 const usernameRef = ref<HTMLInputElement>()
 const nicknameRef = ref<HTMLInputElement>()
-const editInputRef = ref<HTMLInputElement | HTMLInputElement[]>()
 
 const firstLoading = computed(
   () => resource.loading.value && resource.items.value.length === 0
@@ -611,52 +535,6 @@ const onSaved = () => {
   fetchStatusCount()
 }
 
-/* ---------- 列表即编辑 ---------- */
-const editing = ref<{ id: string; field: 'nickname' | 'email' | 'phone'; value: string } | null>(
-  null
-)
-
-const startEdit = (u: SysUser, field: 'nickname' | 'email' | 'phone') => {
-  editing.value = { id: u.id, field, value: u[field] ?? '' }
-  nextTick(() => {
-    const el = Array.isArray(editInputRef.value)
-      ? editInputRef.value[0]
-      : editInputRef.value
-    el?.focus()
-    el?.select()
-  })
-}
-
-const cancelEdit = () => {
-  editing.value = null
-}
-
-const commitEdit = async (u: SysUser) => {
-  if (!editing.value || editing.value.id !== u.id) return
-  const value = editing.value.value.trim()
-  const field = editing.value.field
-  editing.value = null
-
-  if (value === (u[field] ?? '')) return
-  if (field === 'email' && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-    toast.error('邮箱格式不正确')
-    return
-  }
-
-  await editUserApi(u.id, {
-    username: u.username,
-    nickname: u.nickname,
-    email: u.email,
-    phone: u.phone,
-    avatar: u.avatar,
-    status: u.status,
-    [field]: value,
-  })
-  u[field] = value
-  if (selected.value?.id === u.id) selected.value = { ...u }
-  toast.success('已更新')
-}
-
 /* ---------------- 状态切换 ---------------- */
 /* 点击状态点切换 */
 const onToggleStatus = async (u: SysUser) => {
@@ -702,11 +580,6 @@ const isTypingTarget = (el: EventTarget | null): boolean => {
 }
 
 const onGlobalKeydown = (e: KeyboardEvent) => {
-  // 行内编辑中：除 Escape 外不拦截，交给输入框处理
-  if (editing.value) {
-    if (e.key === 'Escape') editing.value = null
-    return
-  }
   // 输入框聚焦时：/ 不再触发搜索；Esc 退出焦点
   if (isTypingTarget(e.target)) {
     if (e.key === 'Escape') (e.target as HTMLElement).blur()

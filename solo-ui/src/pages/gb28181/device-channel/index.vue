@@ -18,7 +18,6 @@
             "
             @click="onTab(tab.key)"
           >
-            <span v-if="tab.dot" class="h-1.5 w-1.5 rounded-full" :class="tab.dotClass" />
             {{ tab.label }}
             <span class="rounded-full bg-muted px-1.5 py-px text-[11px] text-muted-foreground">{{
               counts[tab.key]
@@ -99,16 +98,16 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
-              <th class="w-9 px-3 py-2">
+              <th class="w-10 px-3 py-2">
                 <Checkbox
                   :model-value="allChecked ? true : indeterminate ? 'indeterminate' : false"
                   @update:model-value="onToggleAll"
                 />
               </th>
-              <th class="w-48 px-3 py-2 font-normal">通道名称</th>
+              <th class="px-3 py-2 font-normal">通道名称</th>
               <th class="w-52 px-3 py-2 font-normal">通道编码</th>
               <th class="w-52 px-3 py-2 font-normal">设备编码</th>
               <th class="w-[72px] px-3 py-2">
@@ -197,22 +196,24 @@
                   {{ displayName(c) }}
                 </span>
               </td>
-              <td class="max-w-0 truncate px-3 py-2 font-mono" :title="c.channelId">
+              <td class="truncate px-3 py-2 font-mono" :title="c.channelId">
                 {{ c.channelId }}
               </td>
-              <td class="max-w-0 truncate px-3 py-2 font-mono text-muted-foreground" :title="c.deviceId || ''">
+              <td class="truncate px-3 py-2 font-mono text-muted-foreground" :title="c.deviceId || ''">
                 {{ c.deviceId || '—' }}
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    v-if="c.parental !== 1 && (c.status === 'ON' || c.status === 'OFF')"
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="c.status === 'ON' ? 'bg-emerald-500' : 'bg-red-500'"
-                  />
-                  <span :class="c.parental !== 1 && c.status === 'ON' ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ statusText(c) }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="
+                    c.parental !== 1 && c.status === 'ON'
+                      ? 'text-emerald-500'
+                      : c.parental !== 1 && c.status === 'OFF'
+                        ? 'text-red-500'
+                        : 'text-muted-foreground'
+                  "
+                >
+                  {{ statusText(c) }}
                 </span>
               </td>
               <td class="px-3 py-2 text-xs">
@@ -353,17 +354,12 @@ const counts = ref<Record<TabKey, number>>({
 })
 
 const tabs = computed(() => [
-  { key: 'all' as const, label: '全部', dot: false, dotClass: '' },
-  { key: 'group' as const, label: '分组', dot: false, dotClass: '' },
-  { key: 'channel' as const, label: '通道', dot: false, dotClass: '' },
-  { key: 'online' as const, label: '在线', dot: true, dotClass: 'bg-emerald-500' },
-  { key: 'offline' as const, label: '离线', dot: true, dotClass: 'bg-red-500' },
-  {
-    key: 'unregistered' as const,
-    label: '未注册',
-    dot: true,
-    dotClass: 'bg-muted-foreground/50',
-  },
+  { key: 'all' as const, label: '全部' },
+  { key: 'group' as const, label: '分组' },
+  { key: 'channel' as const, label: '通道' },
+  { key: 'online' as const, label: '在线' },
+  { key: 'offline' as const, label: '离线' },
+  { key: 'unregistered' as const, label: '未注册' },
 ])
 
 /** tab → 查询参数：分组/通道走 parental；在线等状态走 status（后端自动追加 parental=0） */

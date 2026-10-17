@@ -16,7 +16,6 @@
             "
             @click="onStatusTab(tab.value)"
           >
-            <span v-if="tab.dot" class="h-1.5 w-1.5 rounded-full" :class="tab.dotClass" />
             {{ tab.label }}
             <span
               v-if="tab.value === 0 && unhandledCount"
@@ -36,7 +35,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="group w-[72px] px-3 py-2 font-normal">
@@ -116,7 +115,7 @@
               </th>
               <th class="w-24 px-3 py-2 font-normal">报警方式</th>
               <th class="w-32 px-3 py-2 font-normal">报警类型</th>
-              <th class="min-w-[200px] px-3 py-2 font-normal">报警描述</th>
+              <th class="px-3 py-2 font-normal">报警描述</th>
               <th class="group w-40 px-3 py-2 font-normal">
                 <PopoverRoot>
                   <PopoverTrigger
@@ -187,15 +186,11 @@
               @click="cursor = i"
             >
               <td class="px-3 py-2">
-                <span
-                  class="inline-flex items-center gap-1.5 text-xs"
-                  :class="priorityTextClass(a.alarmPriority)"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full" :class="priorityDotClass(a.alarmPriority)" />
+                <span class="text-xs" :class="priorityTextClass(a.alarmPriority)">
                   {{ priorityLabel(a.alarmPriority) }}
                 </span>
               </td>
-              <td class="max-w-0 px-3 py-2">
+              <td class="px-3 py-2">
                 <div class="truncate" :title="a.channelName">{{ a.channelName || '—' }}</div>
                 <div class="truncate font-mono text-[11px] text-muted-foreground">
                   {{ a.channelId || a.deviceId }}
@@ -207,7 +202,7 @@
               <td class="px-3 py-2 text-xs">
                 {{ alarmTypeText(a.alarmType) }}
               </td>
-              <td class="max-w-0 truncate px-3 py-2 text-muted-foreground" :title="a.alarmDescription">
+              <td class="truncate px-3 py-2 text-muted-foreground" :title="a.alarmDescription">
                 {{ a.alarmDescription || '—' }}
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
@@ -440,11 +435,11 @@ const endTimeQ = ref('')
 const priorityFilter = ref('__all__')
 
 const statusTabs = computed(() => [
-  { label: '全部', value: null, dot: false, dotClass: '' },
-  { label: '未处理', value: 0, dot: true, dotClass: 'bg-red-500' },
-  { label: '已确认', value: 1, dot: true, dotClass: 'bg-amber-500' },
-  { label: '已处置', value: 2, dot: true, dotClass: 'bg-emerald-500' },
-  { label: '误报', value: 3, dot: false, dotClass: '' },
+  { label: '全部', value: null },
+  { label: '未处理', value: 0 },
+  { label: '已确认', value: 1 },
+  { label: '已处置', value: 2 },
+  { label: '误报', value: 3 },
 ])
 
 const unhandledCount = ref(0)
@@ -500,14 +495,6 @@ const priorityLabel = (p?: number | null) => {
   if (p == null) return '—'
   return ['一级', '二级', '三级', '四级'][p - 1] ?? String(p)
 }
-
-const priorityDotClass = (p?: number | null) =>
-  ({
-    1: 'bg-red-500',
-    2: 'bg-amber-500',
-    3: 'bg-sky-500',
-    4: 'bg-muted-foreground',
-  })[p ?? 0] ?? 'bg-muted-foreground'
 
 const priorityTextClass = (p?: number | null) =>
   ({

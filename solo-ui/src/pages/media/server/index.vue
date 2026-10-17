@@ -71,12 +71,12 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
-              <th class="px-3 py-2 font-normal">节点标识</th>
+              <th class="w-44 px-3 py-2 font-normal">节点标识</th>
               <th class="px-3 py-2 font-normal">名称</th>
-              <th class="px-3 py-2 font-normal">管理地址</th>
+              <th class="w-40 px-3 py-2 font-normal">管理地址</th>
               <th class="w-16 px-3 py-2 font-normal">端口</th>
               <th class="w-32 px-3 py-2 font-normal">端口范围</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
@@ -104,8 +104,8 @@
                   v-if="!creating && selected?.id === s.id"
                   class="absolute inset-y-0 left-0 w-0.5 bg-primary"
                 />
-                <span class="flex items-center gap-1">
-                  <span class="truncate font-mono" :title="s.serverId">{{ s.serverId }}</span>
+                <span class="flex min-w-0 items-center gap-1">
+                  <span class="min-w-0 truncate font-mono" :title="s.serverId">{{ s.serverId }}</span>
                   <button
                     type="button"
                     class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
@@ -116,21 +116,18 @@
                   </button>
                 </span>
               </td>
-              <td class="px-3 py-2 text-muted-foreground">{{ s.name || '—' }}</td>
-              <td class="px-3 py-2 font-mono text-xs">{{ s.hostIp }}</td>
+              <td class="truncate px-3 py-2 text-muted-foreground" :title="s.name || ''">{{ s.name || '—' }}</td>
+              <td class="truncate px-3 py-2 font-mono text-xs" :title="s.hostIp">{{ s.hostIp }}</td>
               <td class="px-3 py-2 font-mono text-xs">{{ s.httpPort }}</td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
                 {{ s.rtpPortStart }} - {{ s.rtpPortEnd }}
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="s.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                  />
-                  <span :class="s.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ s.status === 1 ? '在线' : '离线' }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="s.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'"
+                >
+                  {{ s.status === 1 ? '在线' : '离线' }}
                 </span>
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">

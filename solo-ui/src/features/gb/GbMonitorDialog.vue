@@ -424,9 +424,8 @@ const onCruiseStop = async (id: string) => {
         <span class="truncate text-sm font-medium">{{ channelName }}</span>
         <span
           v-if="isPlaying"
-          class="flex items-center gap-1 text-[10px] font-medium text-emerald-500"
+          class="animate-pulse text-[10px] font-medium text-emerald-500"
         >
-          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
           LIVE
         </span>
         <button

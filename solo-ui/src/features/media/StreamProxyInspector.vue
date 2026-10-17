@@ -119,11 +119,7 @@
         <div class="space-y-2 text-xs">
           <div class="flex items-center justify-between">
             <span class="text-muted-foreground">代理状态</span>
-            <span class="flex items-center gap-1.5">
-              <span
-                class="h-1.5 w-1.5 rounded-full"
-                :class="proxy.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-              />
+            <span :class="proxy.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
               {{ proxy.status === 1 ? '运行中' : '已停止' }}
             </span>
           </div>

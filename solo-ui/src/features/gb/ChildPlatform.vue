@@ -56,12 +56,12 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="border-b border-border bg-card text-xs text-muted-foreground">
-              <th class="px-3 py-2 font-normal">国标编码</th>
+              <th class="w-52 px-3 py-2 font-normal">国标编码</th>
               <th class="px-3 py-2 font-normal">备注名</th>
-              <th class="group px-3 py-2 font-normal">
+              <th class="group w-28 px-3 py-2 font-normal">
                 <Select v-model="enabledFilter">
                   <RawSelectTrigger
                     class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
@@ -83,7 +83,7 @@
                   </SelectContent>
                 </Select>
               </th>
-              <th class="px-3 py-2 font-normal">登记时间</th>
+              <th class="w-44 px-3 py-2 font-normal">登记时间</th>
             </tr>
           </thead>
           <tbody>
@@ -99,18 +99,15 @@
               @click="onRowClick(row)"
             >
               <td class="px-3 py-2 font-mono text-xs">{{ row.platformId }}</td>
-              <td class="max-w-0 truncate px-3 py-2" :title="row.name">
+              <td class="truncate px-3 py-2" :title="row.name">
                 {{ row.name || '—' }}
               </td>
               <td class="px-3 py-2">
-                <span class="inline-flex items-center gap-1.5 text-xs">
-                  <span
-                    class="size-1.5 rounded-full"
-                    :class="row.enabled === 1 ? 'bg-green-500' : 'bg-red-500'"
-                  />
-                  <span :class="row.enabled === 1 ? 'text-green-500' : 'text-red-500'">
-                    {{ row.enabled === 1 ? '允许接入' : '禁止接入' }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="row.enabled === 1 ? 'text-emerald-500' : 'text-red-500'"
+                >
+                  {{ row.enabled === 1 ? '允许接入' : '禁止接入' }}
                 </span>
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">

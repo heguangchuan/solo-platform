@@ -55,8 +55,7 @@
         v-if="isRecording"
         class="absolute left-3 top-3 z-10 flex items-center gap-1.5 rounded-md bg-black/65 px-2.5 py-1 text-xs text-white backdrop-blur-sm"
       >
-        <span class="h-2 w-2 animate-pulse rounded-full bg-red-600" />
-        <span class="font-medium">REC</span>
+        <span class="animate-pulse font-medium text-red-500">REC</span>
         <span class="font-mono tabular-nums text-white/90">{{ recordTimeText }}</span>
       </div>
 
@@ -587,11 +586,12 @@
                 <span class="grid h-5 w-5 shrink-0 place-items-center rounded bg-white/10 font-mono text-[10px] text-white/70">
                   {{ c.cruiseId }}
                 </span>
-                <span class="min-w-0 flex-1 truncate text-xs text-white/80">{{ c.name }}</span>
                 <span
-                  v-if="runningCruiseId === c.id"
-                  class="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-emerald-400"
-                />
+                  class="min-w-0 flex-1 truncate text-xs"
+                  :class="runningCruiseId === c.id ? 'animate-pulse text-emerald-400' : 'text-white/80'"
+                >
+                  {{ c.name }}
+                </span>
                 <div class="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     v-if="runningCruiseId === c.id"

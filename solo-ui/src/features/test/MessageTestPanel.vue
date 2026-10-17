@@ -100,22 +100,22 @@
       </div>
 
       <div class="mt-3 max-h-80 min-h-0 overflow-auto rounded-lg border border-border">
-        <table class="w-full text-left text-xs">
+        <table class="w-full table-fixed text-left text-xs">
           <thead class="sticky top-0 bg-muted/60 text-muted-foreground">
             <tr>
-              <th class="px-3 py-2 font-normal">ID</th>
-              <th class="px-3 py-2 font-normal">标题</th>
+              <th class="w-16 px-3 py-2 font-normal">ID</th>
+              <th class="w-40 px-3 py-2 font-normal">标题</th>
               <th class="px-3 py-2 font-normal">内容</th>
-              <th class="px-3 py-2 font-normal">级别</th>
-              <th class="px-3 py-2 font-normal">状态</th>
-              <th class="px-3 py-2 font-normal">时间</th>
+              <th class="w-20 px-3 py-2 font-normal">级别</th>
+              <th class="w-20 px-3 py-2 font-normal">状态</th>
+              <th class="w-40 px-3 py-2 font-normal">时间</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="m in list" :key="m.id" class="border-t border-border hover:bg-muted/30">
               <td class="px-3 py-2 font-mono text-muted-foreground">{{ m.id }}</td>
-              <td class="max-w-32 truncate px-3 py-2 font-medium">{{ m.title }}</td>
-              <td class="max-w-48 truncate px-3 py-2 text-muted-foreground">{{ m.content }}</td>
+              <td class="truncate px-3 py-2 font-medium" :title="m.title">{{ m.title }}</td>
+              <td class="truncate px-3 py-2 text-muted-foreground" :title="m.content">{{ m.content }}</td>
               <td class="px-3 py-2">
                 <span :class="levelClass(m.level)">{{ m.level }}</span>
               </td>

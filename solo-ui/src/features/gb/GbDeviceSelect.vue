@@ -7,8 +7,7 @@
         :title="selected ? displayName(selected) + ' ' + modelValue : '按设备筛选'"
       >
         <template v-if="selected">
-          <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotClass(selected.status)" />
-          <span class="min-w-0 flex-1 truncate">{{ displayName(selected) }}</span>
+          <span class="min-w-0 flex-1 truncate" :class="statusTextClass(selected.status)">{{ displayName(selected) }}</span>
           <span
             class="shrink-0 rounded-sm p-0.5 text-muted-foreground hover:bg-muted-foreground/15 hover:text-foreground"
             @click.stop="onClear"
@@ -58,8 +57,7 @@
             :class="modelValue === d.deviceId ? 'bg-accent' : ''"
             @click="onSelect(d.deviceId)"
           >
-            <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="dotClass(d.status)" />
-            <span class="min-w-0 flex-1 truncate">{{ displayName(d) }}</span>
+            <span class="min-w-0 flex-1 truncate" :class="statusTextClass(d.status)">{{ displayName(d) }}</span>
             <span class="shrink-0 font-mono text-[11px] text-muted-foreground">{{ d.deviceId }}</span>
           </button>
 
@@ -120,10 +118,10 @@ const selectedDevice = ref<GbDevice | null>(null)
 
 const displayName = (d: GbDevice) => d.name || d.reportName || d.deviceId
 
-const dotClass = (status?: number) => {
-  if (status === 1) return 'bg-emerald-500'
-  if (status === 0) return 'bg-red-500'
-  return 'bg-muted-foreground/50'
+const statusTextClass = (status?: number) => {
+  if (status === 0) return 'text-red-500'
+  if (status === 2) return 'text-muted-foreground'
+  return ''
 }
 
 const load = async (reset = false) => {
