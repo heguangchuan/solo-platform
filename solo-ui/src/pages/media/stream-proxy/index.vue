@@ -140,20 +140,7 @@
                 />
                 <span class="truncate font-mono text-xs" :title="p.app">{{ p.app }}</span>
               </td>
-              <td class="px-3 py-2">
-                <span class="flex min-w-0 items-center gap-1">
-                  <span class="min-w-0 truncate font-mono" :title="p.stream">{{ p.stream }}</span>
-                  <button
-                    type="button"
-                    class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
-                    title="播放"
-                    :disabled="p.status !== 1"
-                    @click.stop="onPlay(p)"
-                  >
-                    <IconPlayerPlay class="size-3.5" />
-                  </button>
-                </span>
-              </td>
+              <td class="truncate px-3 py-2 font-mono" :title="p.stream">{{ p.stream }}</td>
               <td class="px-3 py-2">
                 <span
                   class="block truncate font-mono text-xs text-muted-foreground"
@@ -226,18 +213,26 @@
     <!-- 右侧：检视器 -->
     <Transition name="inspector">
       <aside
-        v-if="creating || selected || playing"
+        v-if="creating || selected"
         class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
       >
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
-          <StreamPlayPanel
-            v-if="playing"
-            kind="proxy"
-            :target="playing"
-            @close="playing = null"
-          />
+          <template v-if="selected && !creating">
+            <StreamPlayPanel
+              v-if="selected.status === 1"
+              kind="proxy"
+              :target="selected"
+              :show-header="false"
+              class="mb-4"
+            />
+            <div
+              v-else
+              class="mb-4 grid aspect-video place-items-center rounded-md bg-muted/40 text-xs text-muted-foreground"
+            >
+              代理未启用，无实时画面
+            </div>
+          </template>
           <StreamProxyInspector
-            v-else
             :proxy="selected ?? undefined"
             :servers="servers"
             :creating="creating"
@@ -247,7 +242,6 @@
             @deleted="onDeleted"
             @enable="onEnable"
             @disable="onDisable"
-            @play="onPlay"
           />
         </div>
       </aside>
@@ -262,7 +256,6 @@ import {
   IconX,
   IconLoader2,
   IconFilter,
-  IconPlayerPlay,
   IconShareOff,
 } from '@tabler/icons-vue'
 import { Plus, Trash2, Loader2 } from 'lucide-vue-next'
@@ -346,12 +339,10 @@ const scrollCursorIntoView = () => {
 
 const onRowClick = (p: StreamProxy, i: number) => {
   cursor.value = i
-  playing.value = null
   selected.value = p
 }
 
 const onCloseInspector = () => {
-  playing.value = null
   creating.value = false
   selected.value = null
 }
@@ -382,18 +373,6 @@ const onDisable = async (p: StreamProxy) => {
   await disableStreamProxyApi(p.id)
   toast.success('已停用')
   resource.search()
-}
-
-/* 播放（右侧检视器内嵌，jessibuca） */
-const playing = ref<StreamProxy | null>(null)
-const onPlay = (p: StreamProxy) => {
-  if (p.status !== 1) {
-    toast.warning('代理未在推流，请先启用')
-    return
-  }
-  creating.value = false
-  selected.value = null
-  playing.value = p
 }
 
 /* 批量勾选 / 删除 */

@@ -68,16 +68,10 @@
 
     <section>
       <h4 class="mb-3.5 text-[13px] font-medium">操作</h4>
-      <div class="flex gap-2">
-        <Button size="sm" class="flex-1" @click="emit('play', push)">
-          <IconPlayerPlay class="size-3.5" />
-          播放
-        </Button>
-        <Button variant="outline" size="sm" class="flex-1" @click="onStop">
-          <IconPlayerStop class="size-3.5" />
-          强制中止
-        </Button>
-      </div>
+      <Button variant="outline" size="sm" class="w-full" @click="onStop">
+        <IconPlayerStop class="size-3.5" />
+        强制中止
+      </Button>
     </section>
 
     <!-- 危险操作 -->
@@ -103,7 +97,6 @@
 import {
   IconX,
   IconTrash,
-  IconPlayerPlay,
   IconPlayerStop,
   IconBroadcast,
 } from '@tabler/icons-vue'
@@ -118,7 +111,6 @@ import Badge from '@/components/ui/badge/Badge.vue'
 const props = defineProps<{ push: StreamPush }>()
 const emit = defineEmits<{
   close: []
-  play: [push: StreamPush]
   stopped: []
   deleted: [push: StreamPush]
 }>()

@@ -1,7 +1,7 @@
 <template>
   <div class="space-y-3">
-    <!-- 头部：标题 + 关闭 -->
-    <div class="flex items-center gap-2">
+    <!-- 头部：标题 + 关闭（内嵌检视器时隐藏） -->
+    <div v-if="showHeader" class="flex items-center gap-2">
       <span class="shrink-0 text-[13px] font-medium">播放</span>
       <span class="min-w-0 truncate font-mono text-xs text-muted-foreground" :title="title">
         {{ title }}
@@ -56,10 +56,15 @@ import type { StreamPlayUrl } from '@/types/api'
 
 export type StreamPlayKind = 'proxy' | 'push'
 
-const props = defineProps<{
-  kind: StreamPlayKind
-  target: { id: string; app: string; stream: string }
-}>()
+const props = withDefaults(
+  defineProps<{
+    kind: StreamPlayKind
+    target: { id: string; app: string; stream: string }
+    /** 独立面板模式显示标题栏；内嵌检视器时传 false */
+    showHeader?: boolean
+  }>(),
+  { showHeader: true },
+)
 
 const emit = defineEmits<{ close: [] }>()
 

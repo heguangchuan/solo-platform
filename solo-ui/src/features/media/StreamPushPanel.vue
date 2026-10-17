@@ -132,19 +132,7 @@
                 />
                 <span class="truncate font-mono text-xs" :title="p.app">{{ p.app }}</span>
               </td>
-              <td class="px-3 py-2">
-                <span class="flex min-w-0 items-center gap-1">
-                  <span class="min-w-0 truncate font-mono" :title="p.stream">{{ p.stream }}</span>
-                  <button
-                    type="button"
-                    class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
-                    title="播放"
-                    @click.stop="onPlay(p)"
-                  >
-                    <IconPlayerPlay class="size-3.5" />
-                  </button>
-                </span>
-              </td>
+              <td class="truncate px-3 py-2 font-mono" :title="p.stream">{{ p.stream }}</td>
               <td class="px-3 py-2 text-xs text-muted-foreground">
                 {{ originTypeText(p.originType) }}
               </td>
@@ -205,24 +193,22 @@
       </div>
     </div>
 
-    <!-- 右侧：检视器 / 播放 -->
+    <!-- 右侧：检视器（顶部实时画面，选中即播） -->
     <Transition name="inspector">
       <aside
-        v-if="selected || playing"
+        v-if="selected"
         class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
       >
         <div class="min-h-0 flex-1 overflow-y-auto p-5">
           <StreamPlayPanel
-            v-if="playing"
             kind="push"
-            :target="playing"
-            @close="playing = null"
+            :target="selected"
+            :show-header="false"
+            class="mb-4"
           />
           <StreamPushInspector
-            v-else-if="selected"
             :push="selected"
             @close="onCloseInspector"
-            @play="onPlay"
             @stopped="onChanged"
             @deleted="onDeleted"
           />
@@ -239,7 +225,6 @@ import {
   IconX,
   IconLoader2,
   IconFilter,
-  IconPlayerPlay,
   IconBroadcast,
 } from '@tabler/icons-vue'
 import { Trash2, Loader2 } from 'lucide-vue-next'
@@ -331,12 +316,10 @@ const scrollCursorIntoView = () => {
 
 const onRowClick = (p: StreamPush, i: number) => {
   cursor.value = i
-  playing.value = null
   selected.value = p
 }
 
 const onCloseInspector = () => {
-  playing.value = null
   selected.value = null
 }
 
@@ -344,13 +327,6 @@ const onChanged = () => resource.search()
 const onDeleted = (p: StreamPush) => {
   resource.removeWhere((item) => item.id === p.id)
   selected.value = null
-}
-
-/* 播放（右侧检视器内嵌，jessibuca） */
-const playing = ref<StreamPush | null>(null)
-const onPlay = (p: StreamPush) => {
-  selected.value = null
-  playing.value = p
 }
 
 /* 批量勾选 / 删除 */
