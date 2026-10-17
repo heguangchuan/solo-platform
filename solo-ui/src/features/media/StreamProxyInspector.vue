@@ -153,16 +153,6 @@
             <IconPlayerPlay class="size-3.5" />
             启用
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            class="flex-1"
-            :disabled="proxy.status !== 1"
-            @click="emit('play', proxy)"
-          >
-            <IconPlayerPlay class="size-3.5" />
-            播放
-          </Button>
         </div>
       </section>
 
@@ -231,7 +221,6 @@ const emit = defineEmits<{
   deleted: [proxy: StreamProxy]
   enable: [proxy: StreamProxy]
   disable: [proxy: StreamProxy]
-  play: [proxy: StreamProxy]
 }>()
 
 const STREAM_RE = /^[A-Za-z0-9_\-.]+$/
