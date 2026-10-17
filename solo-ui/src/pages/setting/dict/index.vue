@@ -78,7 +78,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -89,7 +89,7 @@
                   @click.stop
                 />
               </th>
-              <th class="w-[200px] px-3 py-2 font-normal">字典名称</th>
+              <th class="px-3 py-2 font-normal">字典名称</th>
               <th class="w-[200px] px-3 py-2 font-normal">字典编码</th>
               <th class="group w-28 px-3 py-2 text-center font-normal">
                 <Select v-model="statusFilter">
@@ -156,7 +156,7 @@
                   {{ t.status === 1 ? '启用' : '禁用' }}
                 </Badge>
               </td>
-              <td class="font-mono text-xs text-muted-foreground">{{ t.createTime || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ t.createTime || '—' }}</td>
             </tr>
           </tbody>
         </table>

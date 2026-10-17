@@ -53,13 +53,13 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="border-b border-border bg-card text-xs text-muted-foreground">
               <th class="px-3 py-2 font-normal">平台名称</th>
-              <th class="px-3 py-2 font-normal">上级国标编码</th>
-              <th class="px-3 py-2 font-normal">国标域</th>
-              <th class="group px-3 py-2 font-normal">
+              <th class="w-52 px-3 py-2 font-normal">上级国标编码</th>
+              <th class="w-28 px-3 py-2 font-normal">国标域</th>
+              <th class="group w-24 px-3 py-2 font-normal">
                 <Select v-model="enabledFilter">
                   <RawSelectTrigger
                     class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
@@ -81,9 +81,9 @@
                   </SelectContent>
                 </Select>
               </th>
-              <th class="px-3 py-2 font-normal">在线状态</th>
-              <th class="px-3 py-2 font-normal">网络地址</th>
-              <th class="px-3 py-2 font-normal">传输协议</th>
+              <th class="w-24 px-3 py-2 font-normal">在线状态</th>
+              <th class="w-40 px-3 py-2 font-normal">网络地址</th>
+              <th class="w-20 px-3 py-2 font-normal">传输协议</th>
             </tr>
           </thead>
           <tbody>
@@ -98,7 +98,7 @@
               "
               @click="onRowClick(p)"
             >
-              <td class="max-w-0 truncate px-3 py-2" :title="p.name">
+              <td class="truncate px-3 py-2" :title="p.name">
                 <span class="flex min-w-0 items-center gap-1">
                   <span class="min-w-0 truncate font-medium">{{ p.name }}</span>
                   <button
@@ -129,14 +129,11 @@
                 </span>
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="p.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                  />
-                  <span :class="p.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ p.status === 1 ? '在线' : '未接入' }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="p.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'"
+                >
+                  {{ p.status === 1 ? '在线' : '未接入' }}
                 </span>
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">

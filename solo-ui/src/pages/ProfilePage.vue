@@ -65,10 +65,6 @@
                         : 'bg-muted text-muted-foreground'
                     "
                   >
-                    <span
-                      class="h-1.5 w-1.5 rounded-full"
-                      :class="profile.status === 1 ? 'bg-success' : 'bg-muted-foreground'"
-                    />
                     {{ profile.status === 1 ? '正常' : '停用' }}
                   </span>
                 </li>

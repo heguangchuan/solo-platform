@@ -17,7 +17,6 @@
             "
             @click="onTab(tab.status)"
           >
-            <span v-if="tab.dot" class="h-1.5 w-1.5 rounded-full" :class="tab.dotClass" />
             {{ tab.label }}
             <span class="rounded-full bg-muted px-1.5 py-px text-[11px] text-muted-foreground">{{
               counts[tab.key]
@@ -108,17 +107,17 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
-              <th class="w-9 px-3 py-2">
+              <th class="w-10 px-3 py-2">
                 <Checkbox
                   :model-value="allChecked ? true : indeterminate ? 'indeterminate' : false"
                   @update:model-value="onToggleAll"
                 />
               </th>
               <th class="w-52 px-3 py-2 font-normal">设备编码</th>
-              <th class="w-48 px-3 py-2 font-normal">设备名称</th>
+              <th class="px-3 py-2 font-normal">设备名称</th>
               <th class="w-[72px] px-3 py-2">
                 <span class="inline-flex items-center gap-1 font-normal">
                   状态
@@ -215,23 +214,25 @@
                   </button>
                 </span>
               </td>
-              <td class="max-w-0 truncate px-3 py-2 text-muted-foreground" :title="displayName(d)">
+              <td class="truncate px-3 py-2 text-muted-foreground" :title="displayName(d)">
                 {{ displayName(d) }}
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    v-if="d.status !== 2"
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="d.status === 1 ? 'bg-emerald-500' : 'bg-red-500'"
-                  />
-                  <span :class="d.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ statusText(d.status) }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="
+                    d.status === 1
+                      ? 'text-emerald-500'
+                      : d.status === 0
+                        ? 'text-red-500'
+                        : 'text-muted-foreground'
+                  "
+                >
+                  {{ statusText(d.status) }}
                 </span>
               </td>
               <td class="px-3 py-2 text-xs text-muted-foreground">{{ sourceText(d.source) }}</td>
-              <td class="max-w-0 truncate px-3 py-2 font-mono text-xs" :title="d.hostAddress || ''">
+              <td class="truncate px-3 py-2 font-mono text-xs" :title="d.hostAddress || ''">
                 {{ d.hostAddress || '—' }}
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
@@ -362,16 +363,10 @@ watch(status, (v) => {
 
 const counts = ref({ all: 0, online: 0, offline: 0, unregistered: 0 })
 const tabs = computed(() => [
-  { key: 'all' as const, label: '全部', status: null, dot: false, dotClass: '' },
-  { key: 'online' as const, label: '在线', status: 1, dot: true, dotClass: 'bg-emerald-500' },
-  { key: 'offline' as const, label: '离线', status: 0, dot: true, dotClass: 'bg-red-500' },
-  {
-    key: 'unregistered' as const,
-    label: '未注册',
-    status: 2,
-    dot: true,
-    dotClass: 'bg-muted-foreground/50',
-  },
+  { key: 'all' as const, label: '全部', status: null },
+  { key: 'online' as const, label: '在线', status: 1 },
+  { key: 'offline' as const, label: '离线', status: 0 },
+  { key: 'unregistered' as const, label: '未注册', status: 2 },
 ])
 
 const fetchStatusCount = async () => {

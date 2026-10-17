@@ -254,12 +254,15 @@
           </div>
           <div class="flex items-center justify-between gap-3">
             <span class="shrink-0 text-muted-foreground">通道状态</span>
-            <span class="flex items-center gap-1.5">
-              <span
-                v-if="channel.status === 'ON' || channel.status === 'OFF'"
-                class="h-1.5 w-1.5 rounded-full"
-                :class="channel.status === 'ON' ? 'bg-emerald-500' : 'bg-red-500'"
-              />
+            <span
+              :class="
+                channel.status === 'ON'
+                  ? 'text-emerald-500'
+                  : channel.status === 'OFF'
+                    ? 'text-red-500'
+                    : 'text-muted-foreground'
+              "
+            >
               {{ statusText(channel) }}
             </span>
           </div>

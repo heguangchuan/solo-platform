@@ -3,7 +3,7 @@
     <div v-if="loading" class="absolute right-2 top-2 z-10">
       <IconLoader2 class="size-4 animate-spin text-muted-foreground" />
     </div>
-    <table v-if="count" class="w-full border-collapse text-left text-[13px]">
+    <table v-if="count" class="w-full table-fixed border-collapse text-left text-[13px]">
       <thead class="sticky top-0 z-10 border-b border-border bg-muted/90 text-xs text-muted-foreground">
         <slot name="head" />
       </thead>

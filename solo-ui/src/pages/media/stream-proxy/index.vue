@@ -91,7 +91,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -141,8 +141,8 @@
                 <span class="truncate font-mono text-xs" :title="p.app">{{ p.app }}</span>
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1">
-                  <span class="truncate font-mono" :title="p.stream">{{ p.stream }}</span>
+                <span class="flex min-w-0 items-center gap-1">
+                  <span class="min-w-0 truncate font-mono" :title="p.stream">{{ p.stream }}</span>
                   <button
                     type="button"
                     class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
@@ -156,7 +156,7 @@
               </td>
               <td class="px-3 py-2">
                 <span
-                  class="block max-w-[320px] truncate font-mono text-xs text-muted-foreground"
+                  class="block truncate font-mono text-xs text-muted-foreground"
                   :title="p.srcUrl"
                   >{{ p.srcUrl }}</span
                 >
@@ -165,15 +165,12 @@
                 {{ p.mediaServerId || '自动' }}
               </td>
               <td class="px-3 py-2">
-                <span class="flex items-center gap-1.5 text-xs">
-                  <span
-                    class="h-1.5 w-1.5 rounded-full"
-                    :class="p.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-                    :title="p.status !== 1 && p.lastError ? p.lastError : ''"
-                  />
-                  <span :class="p.status === 1 ? 'text-foreground' : 'text-muted-foreground'">
-                    {{ p.status === 1 ? '运行中' : '已停止' }}
-                  </span>
+                <span
+                  class="text-xs"
+                  :class="p.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'"
+                  :title="p.status !== 1 && p.lastError ? p.lastError : ''"
+                >
+                  {{ p.status === 1 ? '运行中' : '已停止' }}
                 </span>
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">

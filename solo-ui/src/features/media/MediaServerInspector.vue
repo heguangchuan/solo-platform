@@ -148,11 +148,7 @@
         <div class="space-y-2 text-xs">
           <div class="flex items-center justify-between">
             <span class="text-muted-foreground">节点状态</span>
-            <span class="flex items-center gap-1.5">
-              <span
-                class="h-1.5 w-1.5 rounded-full"
-                :class="server.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-              />
+            <span :class="server.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
               {{ server.status === 1 ? '在线' : '离线' }}
             </span>
           </div>

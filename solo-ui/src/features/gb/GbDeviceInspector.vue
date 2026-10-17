@@ -205,12 +205,15 @@
         <div class="space-y-2 text-xs">
           <div class="flex items-center justify-between gap-3">
             <span class="shrink-0 text-muted-foreground">设备状态</span>
-            <span class="flex items-center gap-1.5">
-              <span
-                v-if="device.status !== 2"
-                class="h-1.5 w-1.5 rounded-full"
-                :class="device.status === 1 ? 'bg-emerald-500' : 'bg-red-500'"
-              />
+            <span
+              :class="
+                device.status === 1
+                  ? 'text-emerald-500'
+                  : device.status === 0
+                    ? 'text-red-500'
+                    : 'text-muted-foreground'
+              "
+            >
               {{ statusText }}
             </span>
           </div>

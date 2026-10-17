@@ -400,7 +400,7 @@ watch(
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -565,7 +565,7 @@ watch(
                   {{ businessMetaOf(r.businessType).label }}
                 </span>
               </td>
-              <td class="max-w-64 truncate px-3 py-2" :title="r.description">
+              <td class="truncate px-3 py-2" :title="r.description">
                 {{ r.description || '—' }}
               </td>
               <td class="px-3 py-2 text-center">

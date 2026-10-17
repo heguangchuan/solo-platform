@@ -93,7 +93,7 @@
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-10 px-3 py-2">
@@ -144,13 +144,13 @@
               <td class="px-3 py-2">
                 <span class="font-mono text-xs">{{ c.configKey }}</span>
               </td>
-              <td class="max-w-64 truncate px-3 py-2 text-xs text-muted-foreground" :title="c.configValue">
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="c.configValue">
                 {{ c.configValue }}
               </td>
-              <td class="max-w-48 truncate px-3 py-2 text-xs text-muted-foreground" :title="c.remark">
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="c.remark">
                 {{ c.remark || '—' }}
               </td>
-              <td class="font-mono text-xs text-muted-foreground">{{ c.createTime || '—' }}</td>
+              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ c.createTime || '—' }}</td>
             </tr>
           </tbody>
         </table>

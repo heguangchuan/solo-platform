@@ -188,7 +188,6 @@ onBeforeUnmount(() => {
       <div class="flex h-12 shrink-0 items-center gap-2 border-b border-border px-3">
         <span class="text-[13px] font-medium">在线用户</span>
         <span class="flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] text-emerald-600 dark:text-emerald-400">
-          <span class="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" />
           {{ users.length }} 人在线
         </span>
         <div class="flex-1" />
@@ -227,7 +226,7 @@ onBeforeUnmount(() => {
 
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
-        <table class="w-full border-collapse text-left text-[13px]">
+        <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-[180px] px-3 py-2 font-normal">用户账号</th>
@@ -275,7 +274,7 @@ onBeforeUnmount(() => {
                 >{{ row.clientSource }}</span>
                 <span v-else class="text-muted-foreground/50">—</span>
               </td>
-              <td class="max-w-72 truncate px-3 py-2 text-xs text-muted-foreground" :title="row.userAgent">
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="row.userAgent">
                 {{ parseUa(row.userAgent).short }}
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">

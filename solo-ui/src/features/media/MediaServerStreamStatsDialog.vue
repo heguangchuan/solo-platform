@@ -11,11 +11,7 @@
           <span class="text-[13px] font-medium">
             {{ summary.serverName || summary.serverId }}
           </span>
-          <span class="flex items-center gap-1 text-muted-foreground">
-            <span
-              class="h-1.5 w-1.5 rounded-full"
-              :class="summary.status === 1 ? 'bg-emerald-500' : 'bg-muted-foreground/50'"
-            />
+          <span :class="summary.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
             {{ summary.status === 1 ? '在线' : '离线' }}
           </span>
           <span class="font-mono text-muted-foreground">
@@ -65,7 +61,7 @@
                 </tr>
               </template>
               <tr v-for="r in gbSessions" :key="r.streamId" class="border-b border-border last:border-0">
-                <td class="max-w-0 truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
                 <td class="px-3 py-2 text-center">
                   <Badge :variant="r.sessionType === 'PLAYBACK' ? 'default' : 'secondary'">
                     {{ r.sessionType || '—' }}
@@ -85,15 +81,15 @@
             <DetailTable :loading="tabLoading.push" :count="pushItems.length" empty="无第三方推流">
               <template #head>
                 <tr>
-                  <th class="px-3 py-2 font-normal">app</th>
+                  <th class="w-28 px-3 py-2 font-normal">app</th>
                   <th class="px-3 py-2 font-normal">stream</th>
                   <th class="w-24 px-3 py-2 text-center font-normal">协议</th>
                   <th class="w-40 px-3 py-2 font-normal">推流开始时间</th>
                 </tr>
               </template>
               <tr v-for="r in pushItems" :key="`${r.app}/${r.stream}`" class="border-b border-border last:border-0">
-                <td class="px-3 py-2 font-mono text-xs">{{ r.app }}</td>
-                <td class="max-w-0 truncate px-3 py-2 font-mono text-xs" :title="r.stream">{{ r.stream }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.app">{{ r.app }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.stream">{{ r.stream }}</td>
                 <td class="px-3 py-2 text-center text-xs">{{ r.originType || '—' }}</td>
                 <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ r.pushTime || '—' }}</td>
               </tr>
@@ -104,16 +100,16 @@
             <DetailTable :loading="tabLoading.proxy" :count="proxyItems.length" empty="无拉流代理">
               <template #head>
                 <tr>
-                  <th class="px-3 py-2 font-normal">app</th>
-                  <th class="px-3 py-2 font-normal">stream</th>
+                  <th class="w-28 px-3 py-2 font-normal">app</th>
+                  <th class="w-40 px-3 py-2 font-normal">stream</th>
                   <th class="px-3 py-2 font-normal">源地址</th>
                   <th class="w-24 px-3 py-2 text-center font-normal">状态</th>
                 </tr>
               </template>
               <tr v-for="r in proxyItems" :key="`${r.app}/${r.stream}`" class="border-b border-border last:border-0">
-                <td class="px-3 py-2 font-mono text-xs">{{ r.app }}</td>
-                <td class="px-3 py-2 font-mono text-xs">{{ r.stream }}</td>
-                <td class="max-w-0 truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.srcUrl">
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.app">{{ r.app }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.stream">{{ r.stream }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.srcUrl">
                   {{ r.srcUrl }}
                 </td>
                 <td class="px-3 py-2 text-center">
@@ -136,9 +132,9 @@
                 </tr>
               </template>
               <tr v-for="r in onvifSessions" :key="r.streamId" class="border-b border-border last:border-0">
-                <td class="max-w-0 truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
+                <td class="truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
                 <td class="px-3 py-2 text-center font-mono text-xs">{{ r.deviceId ?? '—' }}</td>
-                <td class="max-w-0 truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.proxyKey">
+                <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.proxyKey">
                   {{ r.proxyKey || '—' }}
                 </td>
                 <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ r.startTime || '—' }}</td>
