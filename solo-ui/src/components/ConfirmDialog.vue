@@ -1,5 +1,5 @@
 <template>
-  <DialogRoot :open="state.visible">
+  <DialogRoot :open="state.visible" @update:open="(v: boolean) => !v && settle(false)">
     <DialogContent class="max-w-sm">
       <DialogHeader>
         <DialogTitle>{{ state.title }}</DialogTitle>

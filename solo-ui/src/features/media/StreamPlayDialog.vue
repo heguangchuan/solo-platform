@@ -1,12 +1,14 @@
 <template>
-  <DialogRoot :open="visible">
-    <DialogContent class="max-w-2xl gap-3" @update:open="(v: boolean) => !v && onClose()">
+  <DialogRoot :open="visible" @update:open="(v: boolean) => !v && onClose()">
+    <DialogContent class="max-w-2xl gap-3">
       <DialogHeader>
         <DialogTitle>播放 · {{ title }}</DialogTitle>
       </DialogHeader>
 
       <div class="space-y-3">
-        <FlvPlayer v-if="playUrl" :url="playUrl" :height="420" />
+        <div v-if="playUrl" class="h-[420px] overflow-hidden rounded-md">
+          <GbPlayer :src="playUrl" :video-buffer="0.2" />
+        </div>
 
         <!-- 播放地址 -->
         <div v-if="urls.length" class="space-y-1.5">
@@ -42,7 +44,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import Button from '@/components/ui/button/Button.vue'
-import FlvPlayer from './FlvPlayer.vue'
+import GbPlayer from '@/features/gb/GbPlayer.vue'
 import { getStreamProxyPlayUrlsApi, getStreamPushPlayUrlsApi } from '@/api/media'
 import type { StreamPlayUrl } from '@/types/api'
 
