@@ -54,20 +54,20 @@
             <DetailTable :loading="tabLoading.gb" :count="gbSessions.length" empty="无国标会话">
               <template #head>
                 <tr>
-                  <th class="px-3 py-2 font-normal">streamId</th>
-                  <th class="w-24 px-3 py-2 text-center font-normal">类型</th>
-                  <th class="w-24 px-3 py-2 text-center font-normal">状态</th>
-                  <th class="w-40 px-3 py-2 font-normal">开始时间</th>
+                  <th class="w-56 px-3 py-2 font-normal">streamId</th>
+                  <th class="w-24 px-3 py-2 font-normal">类型</th>
+                  <th class="w-24 px-3 py-2 font-normal">状态</th>
+                  <th class="w-44 px-3 py-2 font-normal">开始时间</th>
                 </tr>
               </template>
               <tr v-for="r in gbSessions" :key="r.streamId" class="border-b border-border last:border-0">
                 <td class="truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
-                <td class="px-3 py-2 text-center">
+                <td class="px-3 py-2">
                   <Badge :variant="r.sessionType === 'PLAYBACK' ? 'default' : 'secondary'">
                     {{ r.sessionType || '—' }}
                   </Badge>
                 </td>
-                <td class="px-3 py-2 text-center">
+                <td class="px-3 py-2">
                   <Badge :variant="r.status === 'READY' ? 'secondary' : 'outline'">
                     {{ r.status || '—' }}
                   </Badge>
@@ -82,15 +82,15 @@
               <template #head>
                 <tr>
                   <th class="w-28 px-3 py-2 font-normal">app</th>
-                  <th class="px-3 py-2 font-normal">stream</th>
-                  <th class="w-24 px-3 py-2 text-center font-normal">协议</th>
-                  <th class="w-40 px-3 py-2 font-normal">推流开始时间</th>
+                  <th class="w-48 px-3 py-2 font-normal">stream</th>
+                  <th class="w-24 px-3 py-2 font-normal">协议</th>
+                  <th class="w-44 px-3 py-2 font-normal">推流开始时间</th>
                 </tr>
               </template>
               <tr v-for="r in pushItems" :key="`${r.app}/${r.stream}`" class="border-b border-border last:border-0">
                 <td class="truncate px-3 py-2 font-mono text-xs" :title="r.app">{{ r.app }}</td>
                 <td class="truncate px-3 py-2 font-mono text-xs" :title="r.stream">{{ r.stream }}</td>
-                <td class="px-3 py-2 text-center text-xs">{{ r.originType || '—' }}</td>
+                <td class="px-3 py-2 text-xs">{{ r.originType || '—' }}</td>
                 <td class="px-3 py-2 font-mono text-xs text-muted-foreground">{{ r.pushTime || '—' }}</td>
               </tr>
             </DetailTable>
@@ -102,8 +102,8 @@
                 <tr>
                   <th class="w-28 px-3 py-2 font-normal">app</th>
                   <th class="w-40 px-3 py-2 font-normal">stream</th>
-                  <th class="px-3 py-2 font-normal">源地址</th>
-                  <th class="w-24 px-3 py-2 text-center font-normal">状态</th>
+                  <th class="w-56 px-3 py-2 font-normal">源地址</th>
+                  <th class="w-24 px-3 py-2 font-normal">状态</th>
                 </tr>
               </template>
               <tr v-for="r in proxyItems" :key="`${r.app}/${r.stream}`" class="border-b border-border last:border-0">
@@ -112,7 +112,7 @@
                 <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.srcUrl">
                   {{ r.srcUrl }}
                 </td>
-                <td class="px-3 py-2 text-center">
+                <td class="px-3 py-2">
                   <Badge :variant="r.status === 1 ? 'secondary' : 'outline'">
                     {{ r.status === 1 ? '运行中' : '未启动' }}
                   </Badge>
@@ -125,15 +125,15 @@
             <DetailTable :loading="tabLoading.onvif" :count="onvifSessions.length" empty="无 ONVIF 会话">
               <template #head>
                 <tr>
-                  <th class="px-3 py-2 font-normal">streamId</th>
-                  <th class="w-28 px-3 py-2 text-center font-normal">设备 ID</th>
-                  <th class="px-3 py-2 font-normal">proxyKey</th>
-                  <th class="w-40 px-3 py-2 font-normal">开始时间</th>
+                  <th class="w-56 px-3 py-2 font-normal">streamId</th>
+                  <th class="w-28 px-3 py-2 font-normal">设备 ID</th>
+                  <th class="w-56 px-3 py-2 font-normal">proxyKey</th>
+                  <th class="w-44 px-3 py-2 font-normal">开始时间</th>
                 </tr>
               </template>
               <tr v-for="r in onvifSessions" :key="r.streamId" class="border-b border-border last:border-0">
                 <td class="truncate px-3 py-2 font-mono text-xs" :title="r.streamId">{{ r.streamId }}</td>
-                <td class="px-3 py-2 text-center font-mono text-xs">{{ r.deviceId ?? '—' }}</td>
+                <td class="px-3 py-2 font-mono text-xs">{{ r.deviceId ?? '—' }}</td>
                 <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="r.proxyKey">
                   {{ r.proxyKey || '—' }}
                 </td>

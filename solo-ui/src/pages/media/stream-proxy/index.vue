@@ -104,10 +104,10 @@
               </th>
               <th class="w-32 px-3 py-2 font-normal">应用名</th>
               <th class="w-52 px-3 py-2 font-normal">流标识</th>
-              <th class="px-3 py-2 font-normal">源地址</th>
+              <th class="w-64 px-3 py-2 font-normal">源地址</th>
               <th class="w-36 px-3 py-2 font-normal">目标节点</th>
               <th class="w-24 px-3 py-2 font-normal">状态</th>
-              <th class="w-40 px-3 py-2 font-normal">更新时间</th>
+              <th class="w-44 px-3 py-2 font-normal">更新时间</th>
             </tr>
           </thead>
 

@@ -56,7 +56,7 @@
         <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="border-b border-border bg-card text-xs text-muted-foreground">
-              <th class="px-3 py-2 font-normal">平台名称</th>
+              <th class="w-48 px-3 py-2 font-normal">平台名称</th>
               <th class="w-52 px-3 py-2 font-normal">上级国标编码</th>
               <th class="w-28 px-3 py-2 font-normal">国标域</th>
               <th class="group w-24 px-3 py-2 font-normal">

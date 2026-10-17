@@ -75,12 +75,12 @@
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-44 px-3 py-2 font-normal">节点标识</th>
-              <th class="px-3 py-2 font-normal">名称</th>
+              <th class="w-48 px-3 py-2 font-normal">名称</th>
               <th class="w-40 px-3 py-2 font-normal">管理地址</th>
               <th class="w-16 px-3 py-2 font-normal">端口</th>
               <th class="w-32 px-3 py-2 font-normal">端口范围</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
-              <th class="w-40 px-3 py-2 font-normal">最近心跳</th>
+              <th class="w-44 px-3 py-2 font-normal">最近心跳</th>
             </tr>
           </thead>
 

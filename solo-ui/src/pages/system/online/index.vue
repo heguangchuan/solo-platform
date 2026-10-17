@@ -232,8 +232,8 @@ onBeforeUnmount(() => {
               <th class="w-[180px] px-3 py-2 font-normal">用户账号</th>
               <th class="w-[180px] px-3 py-2 font-normal">用户昵称</th>
               <th class="w-[160px] px-3 py-2 font-normal">登录地址</th>
-              <th class="w-24 px-3 py-2 text-center font-normal">来源</th>
-              <th class="px-3 py-2 font-normal">客户端</th>
+              <th class="w-24 px-3 py-2 font-normal">来源</th>
+              <th class="w-56 px-3 py-2 font-normal">客户端</th>
               <th class="w-44 px-3 py-2 font-normal">登录时间</th>
             </tr>
           </thead>
@@ -267,7 +267,7 @@ onBeforeUnmount(() => {
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
                 {{ row.loginIp || '—' }}
               </td>
-              <td class="px-3 py-2 text-center">
+              <td class="px-3 py-2">
                 <span
                   v-if="row.clientSource"
                   class="font-mono text-[11px] text-muted-foreground"

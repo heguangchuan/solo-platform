@@ -354,13 +354,13 @@ watch(flatRows, (rows) => {
                   @click.stop
                 />
               </th>
-              <th class="px-3 py-2 font-normal">权限名称</th>
+              <th class="w-56 px-3 py-2 font-normal">权限名称</th>
               <th class="w-[200px] px-3 py-2 font-normal">权限编码</th>
               <th class="w-[180px] px-3 py-2 font-normal">路由地址</th>
-              <th class="w-20 px-3 py-2 text-center font-normal">类型</th>
-              <th class="w-20 px-3 py-2 text-center font-normal">图标</th>
-              <th class="w-20 px-3 py-2 text-center font-normal">排序</th>
-              <th class="w-20 px-3 py-2 text-center font-normal">状态</th>
+              <th class="w-20 px-3 py-2 font-normal">类型</th>
+              <th class="w-20 px-3 py-2 font-normal">图标</th>
+              <th class="w-20 px-3 py-2 font-normal">排序</th>
+              <th class="w-20 px-3 py-2 font-normal">状态</th>
             </tr>
           </thead>
           <tbody v-if="!loading">
@@ -419,15 +419,15 @@ watch(flatRows, (rows) => {
               <td class="w-[180px] truncate px-3 py-1.5 text-xs text-muted-foreground" :title="row.node.url">
                 {{ row.node.url || '—' }}
               </td>
-              <td class="w-20 px-3 py-1.5 text-center text-xs text-muted-foreground">
+              <td class="w-20 px-3 py-1.5 text-xs text-muted-foreground">
                 {{ row.node.type === 1 ? '菜单' : row.node.type === 2 ? '按钮' : '未知' }}
               </td>
-              <td class="w-20 px-3 py-1.5 text-center text-muted-foreground">
+              <td class="w-20 px-3 py-1.5 text-muted-foreground">
                 <DynamicIcon v-if="row.node.icon" :name="row.node.icon" :size="17" />
                 <span v-else class="text-xs text-muted-foreground/50">—</span>
               </td>
-              <td class="w-20 px-3 py-1.5 text-center text-xs">{{ row.node.sort }}</td>
-              <td class="w-20 px-3 py-1.5 text-center" @click.stop>
+              <td class="w-20 px-3 py-1.5 text-xs">{{ row.node.sort }}</td>
+              <td class="w-20 px-3 py-1.5" @click.stop>
                 <button
                   type="button"
                   class="cursor-pointer rounded px-1.5 py-0.5 text-[11px]"

@@ -109,7 +109,7 @@
                   @click.stop
                 />
               </th>
-              <th class="px-3 py-2 font-normal">服务器名称</th>
+              <th class="w-48 px-3 py-2 font-normal">服务器名称</th>
               <th class="w-36 px-3 py-2 font-normal">主机</th>
               <th class="w-16 px-3 py-2 font-normal">端口</th>
               <th class="w-24 px-3 py-2 font-normal">用户名</th>

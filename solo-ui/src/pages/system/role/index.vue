@@ -105,7 +105,7 @@
               </th>
               <th class="w-[180px] px-3 py-2 font-normal">角色编码</th>
               <th class="w-[180px] px-3 py-2 font-normal">角色名称</th>
-              <th class="px-3 py-2 font-normal">角色描述</th>
+              <th class="w-56 px-3 py-2 font-normal">角色描述</th>
               <th class="w-24 px-3 py-2 font-normal">状态</th>
               <th class="w-44 px-3 py-2 font-normal">创建时间</th>
               <th class="w-44 px-3 py-2 font-normal">更新时间</th>

@@ -115,8 +115,8 @@
               </th>
               <th class="w-24 px-3 py-2 font-normal">报警方式</th>
               <th class="w-32 px-3 py-2 font-normal">报警类型</th>
-              <th class="px-3 py-2 font-normal">报警描述</th>
-              <th class="group w-40 px-3 py-2 font-normal">
+              <th class="w-56 px-3 py-2 font-normal">报警描述</th>
+              <th class="group w-44 px-3 py-2 font-normal">
                 <PopoverRoot>
                   <PopoverTrigger
                     class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
@@ -173,7 +173,7 @@
                 </PopoverRoot>
               </th>
               <th class="w-[88px] px-3 py-2 font-normal">状态</th>
-              <th class="w-28 px-3 py-2 text-right font-normal">操作</th>
+              <th class="w-28 px-3 py-2 font-normal">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -214,7 +214,7 @@
                 </span>
               </td>
               <td class="px-3 py-2">
-                <div class="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
                     class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
                     title="详情"

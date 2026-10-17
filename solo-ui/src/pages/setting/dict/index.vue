@@ -89,12 +89,12 @@
                   @click.stop
                 />
               </th>
-              <th class="px-3 py-2 font-normal">字典名称</th>
+              <th class="w-56 px-3 py-2 font-normal">字典名称</th>
               <th class="w-[200px] px-3 py-2 font-normal">字典编码</th>
-              <th class="group w-28 px-3 py-2 text-center font-normal">
+              <th class="group w-28 px-3 py-2 font-normal">
                 <Select v-model="statusFilter">
                   <RawSelectTrigger
-                    class="mx-auto inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
+                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
                   >
                     <span class="flex items-center gap-1">
                       状态
@@ -147,7 +147,7 @@
               <td class="px-3 py-2">
                 <span class="font-mono text-xs">{{ t.dictType }}</span>
               </td>
-              <td class="px-3 py-2 text-center">
+              <td class="px-3 py-2">
                 <Badge
                   class="px-1.5 text-[10px]"
                   :variant="t.status === 1 ? 'secondary' : 'outline'"
