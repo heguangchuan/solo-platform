@@ -54,21 +54,22 @@
           <span class="font-medium">{{ currentLabel }}</span>
         </div>
 
+        <!-- 搜索 / 命令入口（大搜索框，占位文本轮播展示工作方式提示） -->
+        <button
+          class="flex h-8 w-[22rem] items-center gap-2 rounded-md border border-border bg-muted/40 px-3 text-muted-foreground transition-colors hover:border-primary/40 hover:bg-muted hover:text-foreground"
+          @click="paletteOpen = true"
+        >
+          <Search class="h-3.5 w-3.5 shrink-0" />
+          <span class="min-w-0 flex-1 truncate text-left text-xs">{{ searchHint }}</span>
+          <kbd class="shrink-0 rounded border border-border bg-background px-1 py-0.5 text-[10px] leading-none">⌘K</kbd>
+        </button>
+
         <div class="flex-1" />
 
         <!-- 工具按钮组 -->
         <div class="flex items-center gap-0.5">
           <!-- 消息中心 -->
           <MessageCenter />
-
-          <!-- ⌘K 搜索 -->
-          <button
-            class="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            title="搜索 / 命令 (Ctrl+K)"
-            @click="paletteOpen = true"
-          >
-            <Search class="h-4 w-4" />
-          </button>
 
           <!-- 全屏 -->
           <button
@@ -179,6 +180,16 @@ const router = useRouter()
 const paletteOpen = ref(false)
 const isFullscreen = ref(false)
 
+/* 搜索框占位提示轮播：顺带传达"工作方式" */
+const searchHints = [
+  '搜索页面、用户或执行动作…',
+  '点击列表对象，在右侧检视器中查看与编辑',
+  '列表支持 J / K 移动，回车查看，ESC 关闭',
+]
+const hintIndex = ref(0)
+const searchHint = computed(() => searchHints[hintIndex.value])
+let hintTimer: ReturnType<typeof setInterval> | null = null
+
 const menuModules = computed(() => buildNavFromMenus(auth.menus))
 const navModules = computed(() => [homeModule, ...menuModules.value])
 
@@ -270,9 +281,13 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   document.addEventListener('fullscreenchange', onFullscreenChange)
   messageStore.init()
+  hintTimer = setInterval(() => {
+    hintIndex.value = (hintIndex.value + 1) % searchHints.length
+  }, 4000)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  if (hintTimer) clearInterval(hintTimer)
 })
 </script>

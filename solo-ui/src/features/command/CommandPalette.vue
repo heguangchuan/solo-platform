@@ -1,25 +1,31 @@
 <template>
   <DialogRoot v-model:open="show" @update:open="onOpenChange">
-    <DialogContent class="top-[18%] translate-y-0 gap-0 p-0">
-      <div class="flex items-center gap-3 border-b border-border px-4 py-3.5">
-        <Search class="h-4 w-4 shrink-0 text-muted-foreground" />
+    <DialogContent
+      :show-close-button="false"
+      class="top-[16%] translate-y-0 gap-0 overflow-hidden rounded-xl p-0 shadow-2xl sm:max-w-xl"
+    >
+      <!-- 输入行 -->
+      <div class="flex items-center gap-3 border-b border-border px-4 py-4">
+        <Search class="h-4.5 w-4.5 shrink-0 text-muted-foreground" />
         <input
           ref="inputRef"
           v-model="keyword"
           placeholder="搜索页面、用户或执行操作…"
-          class="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+          class="flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground/70"
           @keydown.down.prevent="move(1)"
           @keydown.up.prevent="move(-1)"
           @keydown.enter.prevent="runActive"
         />
-        <kbd class="rounded border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">ESC</kbd>
+        <kbd class="rounded-md border border-border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">ESC</kbd>
       </div>
 
-      <div class="max-h-[360px] overflow-y-auto p-2">
+      <!-- 结果列表 -->
+      <div class="max-h-[380px] overflow-y-auto p-2">
         <template v-for="(group, gi) in grouped" :key="group.label">
           <div
-            v-if="gi > 0 && group.items.length"
-            class="px-2 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground"
+            v-if="group.items.length"
+            class="px-2.5 pb-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/80"
+            :class="gi > 0 ? 'pt-3' : 'pt-1'"
           >
             {{ group.label }}
           </div>
@@ -27,20 +33,50 @@
             v-for="entry in group.items"
             :key="entry.id"
             type="button"
-            class="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left text-sm transition-colors"
+            class="group flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left text-sm transition-colors"
             :class="flatIndex(entry.id) === active ? 'bg-accent text-accent-foreground' : 'text-foreground'"
             @mouseenter="active = flatIndex(entry.id)"
             @click="run(entry)"
           >
-            <component :is="entry.icon" class="h-4 w-4 shrink-0 text-muted-foreground" />
+            <span
+              class="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-border bg-muted/60 text-muted-foreground"
+            >
+              <component :is="entry.icon" class="h-3.5 w-3.5" />
+            </span>
             <span class="flex-1 truncate">{{ entry.label }}</span>
-            <span v-if="entry.hint" class="text-[11px] text-muted-foreground">{{ entry.hint }}</span>
+            <span
+              v-if="entry.hint"
+              class="rounded border border-border/70 px-1.5 py-0.5 text-[10px] leading-none text-muted-foreground"
+            >
+              {{ entry.hint }}
+            </span>
           </button>
         </template>
 
-        <div v-if="totalCount === 0" class="py-10 text-center text-sm text-muted-foreground">
-          未找到匹配项
+        <div
+          v-if="totalCount === 0"
+          class="flex flex-col items-center gap-2 py-12 text-muted-foreground"
+        >
+          <SearchX class="h-6 w-6" />
+          <div class="text-sm">未找到「{{ keyword }}」相关的结果</div>
         </div>
+      </div>
+
+      <!-- 底部快捷键栏 -->
+      <div
+        class="flex h-9 items-center gap-3 border-t border-border bg-muted/30 px-4 text-[11px] text-muted-foreground"
+      >
+        <span class="flex items-center gap-1">
+          <kbd class="rounded border border-border bg-background px-1">↑↓</kbd> 选择
+        </span>
+        <span class="flex items-center gap-1">
+          <kbd class="rounded border border-border bg-background px-1">↵</kbd> 打开
+        </span>
+        <span class="flex items-center gap-1">
+          <kbd class="rounded border border-border bg-background px-1">ESC</kbd> 关闭
+        </span>
+        <div class="flex-1" />
+        <span v-if="keyword.trim()">{{ totalCount }} 个结果</span>
       </div>
     </DialogContent>
   </DialogRoot>
@@ -49,7 +85,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, LogOut, UserRound } from 'lucide-vue-next'
+import { Search, SearchX, LogOut, UserRound } from 'lucide-vue-next'
 import { DialogRoot, DialogContent } from '@/components/ui/dialog'
 import { buildNavFromMenus, homeModule } from '@/app/nav'
 import { useAuthStore } from '@/stores/auth'
