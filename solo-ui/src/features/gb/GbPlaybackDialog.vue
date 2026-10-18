@@ -95,7 +95,7 @@ const STREAMS = [
   { label: '主码流-水星+TP-LINK', value: 'streamMode:main' },
   { label: '子码流-水星+TP-LINK', value: 'streamMode:sub' },
 ]
-const currentStream = ref('')
+const currentStream = ref('streamnumber:1')
 const streamMenuOpen = ref(false)
 
 // 收流模式
@@ -237,7 +237,7 @@ function resetPlayState() {
   sliderValue.value = 0
   durationSec.value = 0
   transport.value = 'TCP-passive'
-  currentStream.value = ''
+  currentStream.value = 'streamnumber:1'
   videoInfo.value = null
   audioInfo.value = null
   stats.value = null
