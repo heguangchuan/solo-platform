@@ -141,11 +141,11 @@
               v-for="s in streams"
               :key="s.value"
               class="flex cursor-pointer items-center justify-between gap-4 whitespace-nowrap rounded px-2.5 py-1 text-white/70 hover:bg-white/10 hover:text-white"
-              :class="{ 'bg-white/5 text-white': s.value === currentStream }"
+              :class="{ 'bg-white/5 text-white': s.value === activeStream }"
               @click="onSwitchStream(s.value)"
             >
               <span>{{ s.label }}</span>
-              <Check v-if="s.value === currentStream" class="h-3.5 w-3.5 text-white" />
+              <Check v-if="s.value === activeStream" class="h-3.5 w-3.5 text-white" />
             </div>
           </div>
         </div>
@@ -1413,9 +1413,12 @@ const onStop = () => {
 const streamMenuOpen = ref(false)
 const transportMenuOpen = ref(false)
 
+/** 当前码流档位：父级未显式选择（空值）时按第一档回显 */
+const activeStream = computed(() => props.currentStream || props.streams[0]?.value || '')
+
 const onSwitchStream = (value: string) => {
   streamMenuOpen.value = false
-  if (value !== props.currentStream) emit('switch-stream', value)
+  if (value !== activeStream.value) emit('switch-stream', value)
 }
 const onSwitchTransport = (value: 'UDP' | 'TCP-passive' | 'TCP-active') => {
   transportMenuOpen.value = false

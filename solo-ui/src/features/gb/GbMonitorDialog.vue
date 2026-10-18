@@ -72,7 +72,7 @@ const playerRef = ref<InstanceType<typeof GbPlayer> | null>(null)
 const playUrl = ref('')
 const loading = ref(false)
 const isPlaying = ref(false)
-const currentStream = ref('')
+const currentStream = ref('streamnumber:1')
 const transport = ref<'UDP' | 'TCP-passive' | 'TCP-active'>('TCP-passive')
 let session: { streamId: string } | null = null
 /** 当前会话是否由本弹窗新建；复用模式接入的共享流不归本弹窗释放 */
