@@ -1,84 +1,72 @@
 <template>
   <div class="h-full overflow-y-auto">
-    <div class="mx-auto max-w-5xl px-8 py-8">
+    <div class="px-6 py-6">
       <!-- 问候 -->
-      <div class="mb-7">
+      <div class="mb-5">
         <h1 class="text-2xl font-semibold tracking-tight">{{ greeting }}，{{ auth.user?.nickname }}</h1>
         <p class="mt-1 text-sm text-muted-foreground">
-          今天是 {{ today }}，从下面的入口或按 <kbd class="rounded border border-border bg-secondary px-1.5 py-0.5 text-xs">⌘K</kbd> 开始
+          今天是 {{ today }}，按
+          <kbd class="rounded border border-border bg-secondary px-1.5 py-0.5 text-xs">⌘K</kbd>
+          快速跳转页面
         </p>
       </div>
 
-      <!-- 统计 -->
-      <div class="mb-6 grid grid-cols-3 gap-4">
-        <div
-          v-for="s in stats"
-          :key="s.label"
-          class="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
-        >
-          <div class="grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
-            <component :is="s.icon" class="h-5 w-5" />
-          </div>
-          <div>
-            <div class="font-mono text-2xl font-bold leading-none tabular-nums">{{ s.value }}</div>
-            <div class="mt-1 text-xs text-muted-foreground">{{ s.label }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-4">
-        <!-- 快捷入口 -->
-        <section class="rounded-xl border border-border bg-card p-5">
-          <h2 class="mb-4 text-sm font-semibold">快捷入口</h2>
-          <div class="grid grid-cols-3 gap-2">
-            <RouterLink
-              v-for="s in shortcuts"
-              :key="s.path"
-              :to="s.path"
-              class="flex flex-col items-center gap-2 rounded-lg border border-border px-2 py-4 text-xs transition-colors hover:border-primary/50 hover:bg-accent"
+      <!-- 接入概览 -->
+      <div class="mb-4 grid grid-cols-4 gap-4">
+            <div
+              v-for="c in cards"
+              :key="c.label"
+              class="flex items-center gap-4 rounded-xl border border-border bg-card p-5"
             >
-              <component :is="s.icon" class="h-5 w-5 text-muted-foreground" />
-              {{ s.label }}
-            </RouterLink>
+              <div class="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <component :is="c.icon" class="h-5 w-5" />
+              </div>
+              <div class="min-w-0">
+                <div class="flex items-baseline gap-1.5">
+                  <span
+                    class="font-mono text-2xl font-bold leading-none tabular-nums"
+                    :class="c.online > 0 ? 'text-emerald-500' : ''"
+                  >
+                    {{ c.online }}
+                  </span>
+                  <span class="font-mono text-sm text-muted-foreground tabular-nums">
+                    / {{ c.total }}
+                  </span>
+                </div>
+                <div class="mt-1.5 text-xs text-muted-foreground">{{ c.label }}</div>
+              </div>
+            </div>
           </div>
-        </section>
 
-        <!-- 操作提示 -->
-        <section class="rounded-xl border border-border bg-card p-5">
-          <h2 class="mb-4 text-sm font-semibold">工作方式</h2>
-          <ul class="space-y-3 text-sm text-muted-foreground">
-            <li class="flex items-start gap-2.5">
-              <Command class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span><strong class="font-medium text-foreground">命令面板</strong>：⌘K 快速跳转页面、搜索用户或执行动作</span>
-            </li>
-            <li class="flex items-start gap-2.5">
-              <MousePointerClick class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span><strong class="font-medium text-foreground">分栏检视</strong>：点击列表对象，右侧检视器内查看与编辑</span>
-            </li>
-            <li class="flex items-start gap-2.5">
-              <Keyboard class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span><strong class="font-medium text-foreground">键盘优先</strong>：方向键移动、回车确认、ESC 关闭</span>
-            </li>
-          </ul>
-        </section>
-      </div>
+          <!-- 媒体节点流统计 -->
+          <MediaServerStreamStatsPanel v-if="can(PERM.MEDIA_SERVER_LIST)" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink } from 'vue-router'
-import { Users, ShieldCheck, Lock, Command, MousePointerClick, Keyboard } from 'lucide-vue-next'
+import { IconDevices, IconVideo, IconDeviceCctv, IconServer } from '@tabler/icons-vue'
 import { useAuthStore } from '@/stores/auth'
-import { getStatsApi } from '@/api/auth'
+import { getHomeOverviewApi } from '@/api/home'
 import { useAccess } from '@/features/access/useAccess'
 import { PERM } from '@/features/access/permissions'
+import MediaServerStreamStatsPanel from '@/features/media/MediaServerStreamStatsPanel.vue'
+import type { HomeOverview } from '@/types/api'
 
 const auth = useAuthStore()
 const { can } = useAccess()
 
-const statData = ref({ userCount: 0, roleCount: 0, permissionCount: 0 })
+const overview = ref<HomeOverview>({
+  gbDeviceTotal: 0,
+  gbDeviceOnline: 0,
+  gbChannelTotal: 0,
+  gbChannelOnline: 0,
+  onvifDeviceTotal: 0,
+  onvifDeviceOnline: 0,
+  mediaServerTotal: 0,
+  mediaServerOnline: 0,
+})
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -95,22 +83,19 @@ const today = computed(() => {
   return `${d.getMonth() + 1} 月 ${d.getDate()} 日 · 星期${week}`
 })
 
-const stats = computed(() => [
-  { label: '用户', value: statData.value.userCount, icon: Users },
-  { label: '角色', value: statData.value.roleCount, icon: ShieldCheck },
-  { label: '权限', value: statData.value.permissionCount, icon: Lock },
-])
-
-const allShortcuts = [
-  { label: '用户管理', path: '/system/user', icon: Users, perm: PERM.USER },
-  { label: '角色管理', path: '/system/role', icon: ShieldCheck, perm: PERM.ROLE },
-  { label: '权限管理', path: '/system/permission', icon: Lock, perm: PERM.PERMISSION },
-]
-const shortcuts = computed(() => allShortcuts.filter((s) => can(s.perm)))
+const cards = computed(() => {
+  const o = overview.value
+  return [
+    { label: '国标设备（在线 / 总数）', online: o.gbDeviceOnline, total: o.gbDeviceTotal, icon: IconDevices },
+    { label: '国标通道（在线 / 总数）', online: o.gbChannelOnline, total: o.gbChannelTotal, icon: IconVideo },
+    { label: 'ONVIF 设备（在线 / 总数）', online: o.onvifDeviceOnline, total: o.onvifDeviceTotal, icon: IconDeviceCctv },
+    { label: '媒体节点（在线 / 总数）', online: o.mediaServerOnline, total: o.mediaServerTotal, icon: IconServer },
+  ]
+})
 
 onMounted(async () => {
   try {
-    statData.value = (await getStatsApi()).data
+    overview.value = (await getHomeOverviewApi()).data
   } catch {
     /* 统计失败不阻塞页面 */
   }

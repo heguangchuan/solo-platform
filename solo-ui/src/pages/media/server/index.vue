@@ -106,14 +106,6 @@
                 />
                 <span class="flex min-w-0 items-center gap-1">
                   <span class="min-w-0 truncate font-mono" :title="s.serverId">{{ s.serverId }}</span>
-                  <button
-                    type="button"
-                    class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
-                    title="流统计"
-                    @click.stop="onStats(s)"
-                  >
-                    <IconChartLine class="size-3.5" />
-                  </button>
                 </span>
               </td>
               <td class="truncate px-3 py-2 text-muted-foreground" :title="s.name || ''">{{ s.name || '—' }}</td>
@@ -198,9 +190,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- 流统计弹窗 -->
-    <MediaServerStreamStatsDialog ref="statsDialogRef" />
   </div>
 </template>
 
@@ -210,13 +199,11 @@ import {
   IconSearch,
   IconX,
   IconPlus,
-  IconChartLine,
   IconServerOff,
   IconLoader2,
   IconFilter,
 } from '@tabler/icons-vue'
 import MediaServerInspector from '@/features/media/MediaServerInspector.vue'
-import MediaServerStreamStatsDialog from '@/features/media/MediaServerStreamStatsDialog.vue'
 import { getMediaServerPageApi } from '@/api/media'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
@@ -307,10 +294,6 @@ const onDeleted = (s: MediaServer) => {
   selected.value = null
   creating.value = false
 }
-
-/* 流统计 */
-const statsDialogRef = ref<InstanceType<typeof MediaServerStreamStatsDialog>>()
-const onStats = (s: MediaServer) => statsDialogRef.value?.open(s)
 
 /* 键盘流 */
 const isTypingTarget = (el: EventTarget | null) =>
