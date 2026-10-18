@@ -144,6 +144,16 @@ export const PERM = {
   GB_PLATFORM_ADD: 'gb28181:platform:add',
   GB_PLATFORM_EDIT: 'gb28181:platform:edit',
   GB_PLATFORM_DELETE: 'gb28181:platform:delete',
+
+  // ===== ONVIF 管理 onvif =====
+  ONVIF: 'onvif',
+  // 设备
+  ONVIF_DEVICE: 'onvif:device',
+  ONVIF_DEVICE_LIST: 'onvif:device:list',
+  ONVIF_DEVICE_ADD: 'onvif:device:add',
+  ONVIF_DEVICE_EDIT: 'onvif:device:edit',
+  ONVIF_DEVICE_DELETE: 'onvif:device:delete',
+  ONVIF_DEVICE_PROBE: 'onvif:device:probe',
 } as const
 
 export type PermCode = (typeof PERM)[keyof typeof PERM]
