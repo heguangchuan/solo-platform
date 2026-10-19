@@ -1,0 +1,4 @@
+# 自动生成的类型声明：固定为 LF，避免 Windows 下插件重写产生 CRLF 噪声 diff。
+# 该文件需纳入版本控制：构建顺序为 vue-tsc 先于 vite，全新 clone 后首次 build
+# 依赖它提供自动导入符号的全局类型声明。
+solo-ui/src/auto-imports.d.ts text eol=lf
