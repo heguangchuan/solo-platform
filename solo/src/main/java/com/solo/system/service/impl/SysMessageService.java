@@ -1,13 +1,14 @@
 package com.solo.system.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solo.system.entity.SysMessage;
 import com.solo.system.mapper.SysMessageMapper;
 import com.solo.websocket.SystemMessageWebSocket;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,9 +20,14 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage> {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    /**
+     * WebSocket 推送使用的序列化器，统一使用 Spring Boot 4 自动配置的 Jackson 3 实例，
+     * 默认支持 LocalDateTime（ISO-8601），保证 readFlag/createTime 等字段完整下发。
+     */
+    private final ObjectMapper objectMapper;
 
     /**
      * 发送消息给指定用户
@@ -81,15 +87,15 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
         msg.put("content", content);
         msg.put("type", "BROADCAST");
         msg.put("level", level);
-        msg.put("createTime", LocalDateTime.now().toString());
+        msg.put("createTime", LocalDateTime.now());
         msg.put("readFlag", 0);
 
         try {
-            String jsonMessage = MAPPER.writeValueAsString(msg);
+            String jsonMessage = objectMapper.writeValueAsString(msg);
             int count = SystemMessageWebSocket.broadcast(jsonMessage);
             log.info("广播系统消息：标题={}, 推送人数={}", title, count);
             return count;
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.error("广播消息序列化失败", e);
             return 0;
         }
@@ -131,14 +137,14 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
     }
 
     /**
-     * 构建 WebSocket JSON 消息
+     * 构建 WebSocket JSON 消息。统一走 Spring Boot 4 的 Jackson 3，LocalDateTime 默认可序列化，
+     * 不再需要手工拼接残数据；若真的失败则抛出而非静默降级，避免前端漏更新红点。
      */
     private String buildJsonMessage(SysMessage message) {
         try {
-            return MAPPER.writeValueAsString(message);
-        } catch (JsonProcessingException e) {
-            // 降级：简单 JSON
-            return "{\"id\":" + message.getId() + ",\"title\":\"" + message.getTitle() + "\"}";
+            return objectMapper.writeValueAsString(message);
+        } catch (JacksonException e) {
+            throw new IllegalStateException("系统消息序列化失败：id=" + message.getId(), e);
         }
     }
 }

@@ -1,12 +1,12 @@
 package com.solo.media.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solo.common.ServiceException;
 import com.solo.media.entity.MediaServer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.net.URLEncoder;
@@ -46,7 +46,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ZlmRestClient {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    /** 统一使用 Spring Boot 4 自动配置的 Jackson 3 实例解析 ZLM 响应 */
+    private final ObjectMapper objectMapper;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
@@ -492,7 +493,7 @@ public class ZlmRestClient {
             if (resp.statusCode() != 200) {
                 throw new ServiceException("ZLM HTTP " + resp.statusCode() + " " + method);
             }
-            JsonNode node = MAPPER.readTree(resp.body());
+            JsonNode node = objectMapper.readTree(resp.body());
             int code = node.path("code").asInt(-1);
             if (code != 0) {
                 throw new ServiceException("ZLM " + method + " 失败 code=" + code + " msg=" + node.path("msg").asText());

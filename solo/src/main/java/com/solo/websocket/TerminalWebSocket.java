@@ -1,7 +1,5 @@
 package com.solo.websocket;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.solo.system.constant.SystemConstants;
 import com.solo.config.TerminalProperties;
 import com.solo.system.entity.SysServer;
@@ -17,6 +15,8 @@ import jakarta.websocket.server.ServerEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Map;
@@ -33,7 +33,12 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ServerEndpoint("/api/ws/terminal/{serverId}")
 public class TerminalWebSocket {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    /**
+     * 统一使用 Spring Boot 4 自动配置的 Jackson 3 实例。
+     * @ServerEndpoint 每个连接由容器 new 出新实例、非 Spring 单例，因此依赖通过
+     * {@code @Autowired} setter 注入到静态字段供各连接共享。
+     */
+    private static ObjectMapper objectMapper;
     private static final AtomicInteger ONLINE_COUNT = new AtomicInteger(0);
     private static final Map<String, Set<Session>> SESSION_MAP = new ConcurrentHashMap<>();
 
@@ -46,6 +51,11 @@ public class TerminalWebSocket {
     private String username;
     private Long serverId;
     private SshTerminalService.TerminalSession terminalSession;
+
+    @Autowired
+    public void setObjectMapper(ObjectMapper objectMapper) {
+        TerminalWebSocket.objectMapper = objectMapper;
+    }
 
     @Autowired
     public void setJwtUtils(JwtUtils jwtUtils) {
@@ -126,7 +136,7 @@ public class TerminalWebSocket {
             return;
         }
         try {
-            JsonNode node = MAPPER.readTree(message);
+            JsonNode node = objectMapper.readTree(message);
             String type = node.path("type").asText();
             if ("close".equals(type)) {
                 closeSession(session, CloseReason.CloseCodes.NORMAL_CLOSURE, "客户端断开");
@@ -194,7 +204,7 @@ public class TerminalWebSocket {
 
     private void sendMessage(Session session, String type, String data) {
         try {
-            sendText(session, MAPPER.writeValueAsString(Map.of("type", type, "data", data == null ? "" : data)));
+            sendText(session, objectMapper.writeValueAsString(Map.of("type", type, "data", data == null ? "" : data)));
         } catch (Exception e) {
             log.warn("终端消息序列化失败：{}", e.getMessage());
         }

@@ -22,7 +22,7 @@ import com.solo.gb28181.utils.SipUtils;
 import com.solo.media.client.ZlmRestClient;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.mapper.GbMediaServerMapper;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import gov.nist.javax.sip.message.SIPRequest;
 import gov.nist.javax.sip.message.SIPResponse;
 import lombok.RequiredArgsConstructor;
