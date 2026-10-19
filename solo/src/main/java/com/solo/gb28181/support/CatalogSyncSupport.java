@@ -88,7 +88,7 @@ public class CatalogSyncSupport {
             return;
         }
         // 队列前再 check 一次：cancel 已发生（done=true）→ 不入队
-        // ⚠️ 但 final flush 必须入队——finalize 已设 done=true，这里再 check 会自误，
+        // 但 final flush 必须入队——finalize 已设 done=true，这里再 check 会自误，
         //   导致 sumNum 收齐时 final flush 被自己的 done=true 拦截、Item 永远不落库。
         //   intermediate flush（accumulate 触发的）依然走 done check 尊重 cancel。
         if (!isFinalFlush && ctx.done) {

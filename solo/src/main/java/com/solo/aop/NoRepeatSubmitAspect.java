@@ -68,13 +68,13 @@ public class NoRepeatSubmitAspect {
 
         // 构建锁 key
         String lockKey = buildLockKey(noRepeatSubmit, method, joinPoint.getArgs());
-        // 🔴 锁持有者唯一标识：随机 UUID，防止业务超时后误删其他请求的锁
+        // 锁持有者唯一标识：随机 UUID，防止业务超时后误删其他请求的锁
         // 经典分布式锁问题：请求A锁过期了，请求B拿到锁，请求A执行完误删请求B的锁
         String lockHolder = java.util.UUID.randomUUID().toString().replace("-", "");
 
         boolean locked = false;
         try {
-            // 🔴 原子加锁：SET key value NX PX expire，value 是当前请求的唯一标识
+            // 原子加锁：SET key value NX PX expire，value 是当前请求的唯一标识
             // 成功返回 true，锁已存在返回 false
             Duration lockDuration = Duration.ofMillis(noRepeatSubmit.timeUnit().toMillis(noRepeatSubmit.expire()));
             locked = Boolean.TRUE.equals(redisTemplate.opsForValue()
@@ -92,7 +92,7 @@ public class NoRepeatSubmitAspect {
             // 防重异常直接抛出
             throw e;
         } catch (Exception e) {
-            // 🔴 熔断器降级：Redis 故障时直接放行，不影响主业务
+            // 熔断器降级：Redis 故障时直接放行，不影响主业务
             long count = degradeCount.incrementAndGet();
             long currentMs = System.currentTimeMillis();
             long prevTime = lastDegradeLogTime.get();
@@ -106,7 +106,7 @@ public class NoRepeatSubmitAspect {
             // 配置了执行完成立即解锁，且确实拿到了锁
             if (locked && noRepeatSubmit.unlockWhenFinish()) {
                 try {
-                    // 🔴 原子校验并释放锁：只有锁的持有者才能释放，防止误删其他请求的锁
+                    // 原子校验并释放锁：只有锁的持有者才能释放，防止误删其他请求的锁
                     redisTemplate.execute(unlockScript, Collections.singletonList(lockKey), lockHolder);
                 } catch (Exception e) {
                     log.warn("释放防重锁失败（不影响业务，等待过期自动释放）: key={}", lockKey);
@@ -119,7 +119,7 @@ public class NoRepeatSubmitAspect {
      * 根据锁粒度构建对应的 Redis key
      */
     private String buildLockKey(NoRepeatSubmit noRepeatSubmit, Method method, Object[] args) {
-        // 🔴 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
+        // 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
         String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
         String baseKey = LOCK_KEY_PREFIX + methodKey;
 
