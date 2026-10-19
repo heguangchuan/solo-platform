@@ -146,6 +146,7 @@
     </div>
 
     <CommandPalette v-model:show="paletteOpen" />
+    <ForcePasswordChangeDialog />
   </div>
 </template>
 
@@ -164,6 +165,7 @@ import Avatar from '@/components/ui/avatar/Avatar.vue'
 import AvatarImage from '@/components/ui/avatar/AvatarImage.vue'
 import AvatarFallback from '@/components/ui/avatar/AvatarFallback.vue'
 import CommandPalette from '@/features/command/CommandPalette.vue'
+import ForcePasswordChangeDialog from '@/features/auth/ForcePasswordChangeDialog.vue'
 import MessageCenter from '@/features/message/MessageCenter.vue'
 import { buildNavFromMenus, homeModule } from '@/app/nav'
 import { useAuthStore } from '@/stores/auth'

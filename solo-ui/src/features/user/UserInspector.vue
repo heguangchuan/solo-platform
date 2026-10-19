@@ -99,12 +99,48 @@
           />
         </div>
       </div>
+    </section>
 
-      <div class="mt-4 flex justify-end gap-2">
+    <!-- 角色分配（创建态内联：随保存一并提交） -->
+    <section v-if="creating" class="mt-4">
+      <h4 class="mb-3.5 text-[13px] font-medium">
+        分配角色<span v-if="canAssign" class="ml-0.5 text-destructive">*</span>
+      </h4>
+      <div v-if="rolesLoading" class="grid place-items-center py-5">
+        <svg class="h-5 w-5 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+          <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+        </svg>
+      </div>
+      <template v-else>
+        <div class="space-y-2.5">
+          <label
+            v-for="r in allRoles"
+            :key="r.id"
+            class="flex items-center gap-2.5 text-xs"
+            :class="canAssign ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
+          >
+            <Checkbox
+              :model-value="roleIds.includes(r.id)"
+              :disabled="!canAssign"
+              @update:model-value="(v: boolean | 'indeterminate') => toggleRole(r.id, v === true)"
+            />
+            <span>{{ r.roleName }}</span>
+          </label>
+          <p v-if="allRoles.length === 0" class="text-xs text-muted-foreground">暂无角色</p>
+        </div>
+        <p v-if="errors.roles" class="mt-1.5 text-[11px] text-destructive">{{ errors.roles }}</p>
+        <p class="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          <template v-if="canAssign">未分配角色的账号创建后将无法登录，至少选择一个角色。</template>
+          <template v-else>你没有角色分配权限，创建后的账号默认无角色、无法登录，需联系有授权权限的管理员分配。</template>
+        </p>
+      </template>
+    </section>
+
+    <section class="mt-4">
+      <div class="flex justify-end gap-2">
         <Button size="sm" variant="outline" @click="$emit('close')">取消</Button>
-        <Button size="sm" :loading="saving" @click="onSave">
-          {{ creating ? '创建用户' : '保存' }}
-        </Button>
+        <Button size="sm" :loading="saving" @click="onSave">保存</Button>
       </div>
     </section>
 
@@ -213,10 +249,11 @@ const form = reactive<UserRequest>({
   status: props.user?.status ?? 1,
 })
 const saving = ref(false)
-const errors = reactive<{ username: string; nickname: string; email: string }>({
+const errors = reactive<{ username: string; nickname: string; email: string; roles: string }>({
   username: '',
   nickname: '',
   email: '',
+  roles: '',
 })
 
 const allRoles = ref<SysRole[]>([])
@@ -232,19 +269,19 @@ const validateEmail = () => {
 }
 
 const loadRoles = async () => {
-  if (!props.user) return
   const reqId = ++roleReqSeq
   rolesLoading.value = true
   try {
-    const [all, assigned] = await Promise.all([
-      getRoleListApi(),
-      getUserAssignedRolesApi(props.user.id),
-    ])
-    // 快速切换用户时，丢弃过期请求的结果
+    // 创建态只需全部角色；编辑态同时拉取该用户已勾选的角色
+    const all = await getRoleListApi()
     if (reqId !== roleReqSeq) return
     allRoles.value = all.data
-    // 与 role.id（字符串）归一化后再比对勾选
-    roleIds.value = (assigned.data || []).map((id) => String(id))
+    if (!props.creating && props.user) {
+      const assigned = await getUserAssignedRolesApi(props.user.id)
+      if (reqId !== roleReqSeq) return
+      // 与 role.id（字符串）归一化后再比对勾选
+      roleIds.value = (assigned.data || []).map((id) => String(id))
+    }
   } finally {
     if (reqId === roleReqSeq) rolesLoading.value = false
   }
@@ -268,8 +305,10 @@ watch(
       errors.username = ''
       errors.nickname = ''
       errors.email = ''
-      allRoles.value = []
+      errors.roles = ''
       roleIds.value = []
+      // 创建态也加载角色列表供勾选
+      await loadRoles()
       return
     }
     Object.assign(form, {
@@ -283,6 +322,7 @@ watch(
     errors.username = ''
     errors.nickname = ''
     errors.email = ''
+    errors.roles = ''
     await loadRoles()
   },
   { immediate: true }
@@ -294,13 +334,18 @@ const toggleRole = (id: string, checked: boolean) => {
   } else {
     roleIds.value = roleIds.value.filter((r) => r !== id)
   }
+  if (roleIds.value.length > 0) errors.roles = ''
 }
 
 const validate = (): boolean => {
   errors.username = form.username?.trim() ? '' : '请输入登录账号'
   errors.nickname = form.nickname?.trim() ? '' : '请输入昵称'
   validateEmail()
-  return !errors.username && !errors.nickname && !errors.email
+  // 无角色授权权限的管理员无法勾选（后端也不强制），避免卡死；有授权权限则必须选一个
+  if (props.creating && canAssign.value && roleIds.value.length === 0) {
+    errors.roles = '请至少选择一个角色'
+  }
+  return !errors.username && !errors.nickname && !errors.email && !errors.roles
 }
 
 const onSave = async () => {
@@ -308,7 +353,7 @@ const onSave = async () => {
   saving.value = true
   try {
     if (props.creating) {
-      await addUserApi({ ...form })
+      await addUserApi({ ...form, roleIds: roleIds.value })
       toast.success('用户创建成功')
       emit('created')
     } else if (props.user) {

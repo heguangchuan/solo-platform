@@ -3,6 +3,8 @@ package com.solo.system.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
+import java.util.List;
+
 /**
  * 用户新增/编辑请求体
  *
@@ -37,4 +39,8 @@ public class UserRequest {
     /** 用户状态（可选）：{@code 0=禁用}、{@code 1=启用} */
     @Schema(description = "状态（0/1）")
     private Integer status;
+
+    /** 角色ID列表（仅新增时使用；建议至少分配一个，未分配角色的账号无法登录） */
+    @Schema(description = "角色ID列表（仅新增时使用，至少一个）")
+    private List<Long> roleIds;
 }

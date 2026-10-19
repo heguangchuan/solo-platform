@@ -69,6 +69,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (!PasswordUtils.md5(password).equals(user.getPassword())) {
             return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
         }
+        // 未分配任何有效角色（角色被删除/停用同视为无权限）：不允许登录，避免进入空白控制台
+        List<String> roleCodes = getBaseMapper().selectRoleCodes(user.getId());
+        if (roleCodes == null || roleCodes.isEmpty()) {
+            return Result.error(SystemConstants.HTTP_FORBIDDEN, "当前账号未分配角色，请联系管理员授权后再登录");
+        }
         LoginResponse loginResponse = new LoginResponse();
         String token = jwtUtils.generateToken(user.getUsername());
         String refreshToken = jwtUtils.generateRefreshToken(user.getUsername());
@@ -159,6 +164,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    @Transactional
     public void createUser(UserRequest request) {
         SysUser existing = getByUsername(request.getUsername());
         if (existing != null) {
@@ -174,6 +180,17 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
         user.setPwdResetRequired(SystemConstants.PWD_RESET_REQUIRED);
         save(user);
+        // 创建时一并分配角色（可选：无角色账号将无法登录）
+        List<Long> roleIds = request.getRoleIds();
+        if (roleIds != null && !roleIds.isEmpty()) {
+            for (Long roleId : roleIds) {
+                if (roleId == null) continue;
+                SysUserRole entry = new SysUserRole();
+                entry.setUserId(user.getId());
+                entry.setRoleId(roleId);
+                sysUserRoleMapper.insert(entry);
+            }
+        }
     }
 
     @Override
