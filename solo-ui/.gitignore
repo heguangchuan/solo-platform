@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-ssr
+src/auto-imports.d.ts
 *.local
 .DS_Store
 .idea
