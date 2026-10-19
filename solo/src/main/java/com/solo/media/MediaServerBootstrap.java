@@ -79,7 +79,5 @@ public class MediaServerBootstrap {
                 ? cfg.getHostIp() : cfg.getStreamIp());
         server.setStreamHttpPort(cfg.getStreamHttpPort());
         server.setRtcPort(cfg.getRtcPort());
-        server.setRtpPortStart(cfg.getRtpPortStart());
-        server.setRtpPortEnd(cfg.getRtpPortEnd());
     }
 }

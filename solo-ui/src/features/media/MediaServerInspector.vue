@@ -108,27 +108,6 @@
             placeholder="留空则同管理地址"
           />
         </div>
-
-        <div class="flex items-center gap-3">
-          <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">端口范围</Label>
-          <div class="flex flex-1 items-center gap-2">
-            <Input
-              v-model.number="form.rtpPortStart"
-              type="number"
-              min="1024"
-              max="65535"
-              class="h-8 flex-1 font-mono text-xs"
-            />
-            <span class="text-xs text-muted-foreground">-</span>
-            <Input
-              v-model.number="form.rtpPortEnd"
-              type="number"
-              min="1024"
-              max="65535"
-              class="h-8 flex-1 font-mono text-xs"
-            />
-          </div>
-        </div>
       </div>
 
       <div class="mt-4 flex justify-end gap-2">
@@ -211,8 +190,6 @@ const buildForm = (): MediaServerRequest => ({
   httpPort: props.server?.httpPort ?? 80,
   secret: props.server?.secret ?? '',
   streamIp: props.server?.streamIp ?? '',
-  rtpPortStart: props.server?.rtpPortStart ?? 30000,
-  rtpPortEnd: props.server?.rtpPortEnd ?? 35000,
 })
 
 const form = reactive<MediaServerRequest>(buildForm())

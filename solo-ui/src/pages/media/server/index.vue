@@ -78,7 +78,6 @@
               <th class="w-48 px-3 py-2 font-normal">名称</th>
               <th class="w-40 px-3 py-2 font-normal">管理地址</th>
               <th class="w-16 px-3 py-2 font-normal">端口</th>
-              <th class="w-32 px-3 py-2 font-normal">端口范围</th>
               <th class="w-20 px-3 py-2 font-normal">状态</th>
               <th class="w-44 px-3 py-2 font-normal">最近心跳</th>
             </tr>
@@ -111,9 +110,6 @@
               <td class="truncate px-3 py-2 text-muted-foreground" :title="s.name || ''">{{ s.name || '—' }}</td>
               <td class="truncate px-3 py-2 font-mono text-xs" :title="s.hostIp">{{ s.hostIp }}</td>
               <td class="px-3 py-2 font-mono text-xs">{{ s.httpPort }}</td>
-              <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
-                {{ s.rtpPortStart }} - {{ s.rtpPortEnd }}
-              </td>
               <td class="px-3 py-2">
                 <span
                   class="text-xs"

@@ -79,18 +79,6 @@ public class MediaServer {
     private Integer rtcPort;
 
     /**
-     * RTP 端口段起始
-     */
-    @Schema(description = "RTP 端口段起始")
-    private Integer rtpPortStart;
-
-    /**
-     * RTP 端口段截止
-     */
-    @Schema(description = "RTP 端口段截止")
-    private Integer rtpPortEnd;
-
-    /**
      * 在线状态：0 离线，1 在线
      */
     @Schema(description = "在线状态：0 离线，1 在线")
