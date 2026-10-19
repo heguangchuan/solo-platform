@@ -17,7 +17,7 @@
       <PopoverContent
         align="end"
         :side-offset="8"
-        class="flex w-[360px] flex-col overflow-hidden rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-lg"
+        class="z-50 flex w-[360px] flex-col overflow-hidden rounded-lg border border-border bg-popover p-0 text-popover-foreground shadow-xl"
       >
         <!-- 头部 -->
         <div class="flex items-center justify-between border-b border-border px-4 py-2.5">

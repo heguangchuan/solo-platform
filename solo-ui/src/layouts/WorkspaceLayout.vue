@@ -103,7 +103,7 @@
           <DropdownMenuPortal>
             <DropdownMenuContent
               align="end"
-              class="min-w-[200px] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-lg"
+              class="z-50 min-w-[200px] overflow-hidden rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-xl"
             >
               <!-- 当前账号信息 -->
               <div class="flex items-center gap-2.5 rounded-md px-2 py-2">
