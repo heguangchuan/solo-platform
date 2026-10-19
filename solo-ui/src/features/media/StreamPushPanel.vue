@@ -33,13 +33,13 @@
           ref="appRef"
           v-model="app"
           class="h-7 w-32 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="应用名"
+          placeholder="请输入应用名"
         />
         <input
           ref="streamInputRef"
           v-model="stream"
           class="h-7 w-44 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="流标识"
+          placeholder="请输入流标识"
         />
 
         <Select v-model="serverFilter">
