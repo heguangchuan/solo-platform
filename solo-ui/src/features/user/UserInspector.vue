@@ -104,7 +104,7 @@
     <!-- 角色分配（创建态内联：随保存一并提交） -->
     <section v-if="creating" class="mt-4">
       <h4 class="mb-3.5 text-[13px] font-medium">
-        分配角色<span v-if="canAssign" class="ml-0.5 text-destructive">*</span>
+        分配角色<span class="ml-0.5 text-destructive">*</span>
       </h4>
       <div v-if="rolesLoading" class="grid place-items-center py-5">
         <svg class="h-5 w-5 animate-spin text-muted-foreground" viewBox="0 0 24 24" fill="none">
@@ -114,15 +114,9 @@
       </div>
       <template v-else>
         <div class="space-y-2.5">
-          <label
-            v-for="r in allRoles"
-            :key="r.id"
-            class="flex items-center gap-2.5 text-xs"
-            :class="canAssign ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'"
-          >
+          <label v-for="r in allRoles" :key="r.id" class="flex cursor-pointer items-center gap-2.5 text-xs">
             <Checkbox
               :model-value="roleIds.includes(r.id)"
-              :disabled="!canAssign"
               @update:model-value="(v: boolean | 'indeterminate') => toggleRole(r.id, v === true)"
             />
             <span>{{ r.roleName }}</span>
@@ -131,8 +125,7 @@
         </div>
         <p v-if="errors.roles" class="mt-1.5 text-[11px] text-destructive">{{ errors.roles }}</p>
         <p class="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          <template v-if="canAssign">未分配角色的账号创建后将无法登录，至少选择一个角色。</template>
-          <template v-else>你没有角色分配权限，创建后的账号默认无角色、无法登录，需联系有授权权限的管理员分配。</template>
+          未分配角色的账号创建后将无法登录，至少选择一个角色。
         </p>
       </template>
     </section>
@@ -341,8 +334,8 @@ const validate = (): boolean => {
   errors.username = form.username?.trim() ? '' : '请输入登录账号'
   errors.nickname = form.nickname?.trim() ? '' : '请输入昵称'
   validateEmail()
-  // 无角色授权权限的管理员无法勾选（后端也不强制），避免卡死；有授权权限则必须选一个
-  if (props.creating && canAssign.value && roleIds.value.length === 0) {
+  // 创建时必须至少选择一个角色，否则账号无法登录
+  if (props.creating && roleIds.value.length === 0) {
     errors.roles = '请至少选择一个角色'
   }
   return !errors.username && !errors.nickname && !errors.email && !errors.roles
