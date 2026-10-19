@@ -3,7 +3,7 @@ package com.solo.media.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import com.solo.common.ServiceException;
 import com.solo.media.MediaUrlBuilder;
 import com.solo.media.client.ZlmRestClient;

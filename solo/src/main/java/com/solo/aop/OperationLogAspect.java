@@ -39,15 +39,17 @@ public class OperationLogAspect {
 
     private static final int PARAM_MAX_LEN = 4000;
     private static final int ERROR_MAX_LEN = 2000;
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final SysLogService sysLogService;
     private final ThreadPoolTaskExecutor logExecutor;
+    private final ObjectMapper objectMapper;
 
     public OperationLogAspect(SysLogService sysLogService,
-                              @Qualifier("logExecutor") ThreadPoolTaskExecutor logExecutor) {
+                              @Qualifier("logExecutor") ThreadPoolTaskExecutor logExecutor,
+                              ObjectMapper objectMapper) {
         this.sysLogService = sysLogService;
         this.logExecutor = logExecutor;
+        this.objectMapper = objectMapper;
     }
 
     @Around("@annotation(operationLog)")
@@ -177,7 +179,7 @@ public class OperationLogAspect {
             }
         }
         try {
-            String json = MAPPER.writeValueAsString(filtered.size() == 1 ? filtered.get(0) : filtered);
+            String json = objectMapper.writeValueAsString(filtered.size() == 1 ? filtered.get(0) : filtered);
             return truncate(json, PARAM_MAX_LEN);
         } catch (Exception e) {
             try {

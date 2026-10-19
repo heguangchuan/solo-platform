@@ -48,10 +48,10 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
 
     /** Jackson 3.x（{@code tools.jackson} 系列）默认集成 JavaTime 支持，
      * LocalDateTime 直接走 ISO-8601 字符串，不需要单独引 jsr310 模块。
+     * 统一使用 Spring Boot 4 容器中的单一 ObjectMapper（JsonMapper）Bean。
      */
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void save(GbInviteSession s) {
@@ -166,17 +166,17 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         }
     }
 
-    private static String toJson(GbInviteSession s) {
+    private String toJson(GbInviteSession s) {
         try {
-            return MAPPER.writeValueAsString(s);
+            return objectMapper.writeValueAsString(s);
         } catch (Exception e) {
             throw new ServiceException("会话序列化失败: " + e.getMessage());
         }
     }
 
-    private static GbInviteSession fromJson(String json) {
+    private GbInviteSession fromJson(String json) {
         try {
-            return MAPPER.readValue(json, GbInviteSession.class);
+            return objectMapper.readValue(json, GbInviteSession.class);
         } catch (Exception e) {
             log.warn("[实时点播] 会话反序列化失败：{}", e.getMessage());
             return null;

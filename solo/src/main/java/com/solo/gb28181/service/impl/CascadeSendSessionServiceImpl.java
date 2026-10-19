@@ -31,9 +31,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class CascadeSendSessionServiceImpl implements CascadeSendSessionService {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void save(CascadeSendSession s) {
@@ -144,17 +143,17 @@ public class CascadeSendSessionServiceImpl implements CascadeSendSessionService 
         }
     }
 
-    private static String toJson(CascadeSendSession s) {
+    private String toJson(CascadeSendSession s) {
         try {
-            return MAPPER.writeValueAsString(s);
+            return objectMapper.writeValueAsString(s);
         } catch (Exception e) {
             throw new ServiceException("级联推流会话序列化失败: " + e.getMessage());
         }
     }
 
-    private static CascadeSendSession fromJson(String json) {
+    private CascadeSendSession fromJson(String json) {
         try {
-            return MAPPER.readValue(json, CascadeSendSession.class);
+            return objectMapper.readValue(json, CascadeSendSession.class);
         } catch (Exception e) {
             log.warn("[级联点播] 推流会话反序列化失败：{}", e.getMessage());
             return null;

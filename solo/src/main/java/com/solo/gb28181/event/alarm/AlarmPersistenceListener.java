@@ -26,9 +26,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AlarmPersistenceListener {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
-
     private final GbDeviceAlarmService alarmService;
+    private final ObjectMapper objectMapper;
 
     @Async("gb28181BizExecutor")
     @EventListener
@@ -56,7 +55,7 @@ public class AlarmPersistenceListener {
         payload.put("route", "/gb28181/alarm");
         payload.put("createTime", alarm.getCreateTime());
         try {
-            int count = SystemMessageWebSocket.broadcast(MAPPER.writeValueAsString(payload));
+            int count = SystemMessageWebSocket.broadcast(objectMapper.writeValueAsString(payload));
             log.info("[报警中心] 报警已广播 id={} 推送人数={}", alarm.getId(), count);
         } catch (JacksonException e) {
             log.warn("[报警中心] 报警消息序列化失败 id={}", alarm.getId(), e);
