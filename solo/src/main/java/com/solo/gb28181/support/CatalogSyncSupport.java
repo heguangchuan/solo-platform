@@ -185,12 +185,12 @@ public class CatalogSyncSupport {
                                 .eq(GbDeviceChannel::getDeviceId, device.getDeviceId())
                                 .eq(GbDeviceChannel::getParental, 0)
                                 .notIn(GbDeviceChannel::getChannelId, ctx.syncedItemIds));
-                log.info("[通道目录] final flush 清扫 deviceId={} ratio={} threshold={} (传入 {} 条)  ok={}",
-                        ctx.deviceId, String.format("%.2f", ratio), threshold,
-                        ctx.syncedItemIds.size(), rows > 0);
+                log.info("[通道目录] final flush 清扫完成 deviceId={} ratio={} threshold={} 本轮唯一={} 删除失效通道={}",
+                        ctx.deviceId, String.format("%.4f", ratio), threshold,
+                        ctx.syncedItemIds.size(), rows);
             } else {
                 log.warn("[通道目录] final flush 保留残缺数据 deviceId={} ratio={} < threshold={} 保留 {} 条已入库通道，等下次 sync 补齐",
-                        ctx.deviceId, String.format("%.2f", ratio), threshold, countAfter);
+                        ctx.deviceId, String.format("%.4f", ratio), threshold, countAfter);
             }
             // 落库后回写 lastCatalogSyncTime
             device.setLastCatalogSyncTime(LocalDateTime.now());

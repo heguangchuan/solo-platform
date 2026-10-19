@@ -120,8 +120,9 @@ public class CatalogDataCache {
      * finalize 路径决定是否删"已不存在通道"。</p>
      *
      * @param items               本片解析出的 catalog item 列表（分组 + 通道合一）
+     * @param declaredNum         本片 DeviceList 的 Num 属性（报文声明条数），无法解析传 null
      */
-    public boolean accumulate(CatalogSyncContext ctx, List<GbDeviceChannel> items) {
+    public boolean accumulate(CatalogSyncContext ctx, List<GbDeviceChannel> items, Integer declaredNum) {
         if (ctx == null) {
             return false;
         }
@@ -136,6 +137,11 @@ public class CatalogDataCache {
                 return false;
             }
             long now = System.currentTimeMillis();
+            // 诊断计数：每收到一片分片报文 +1，本片声明 Num 累加（null 不计）
+            ctx.chunkCount.incrementAndGet();
+            if (declaredNum != null) {
+                ctx.declaredNumSum.addAndGet(declaredNum);
+            }
             // 通道 / 分组统一按 channel_id 去重
             if (items != null && !items.isEmpty()) {
                 for (GbDeviceChannel it : items) {
@@ -238,9 +244,11 @@ public class CatalogDataCache {
             log.warn("[通道目录] 发布收尾事件失败 deviceId={} err={}", ctx.deviceId, e.getMessage());
         }
         scheduleContextEviction(ctx.deviceId, ctx, 30_000L);
-        log.info("[通道目录] 同步收尾 deviceId={} sn={} total={}/{} ratio={} partial={} reason={}",
+        log.info("[通道目录] 同步收尾 deviceId={} sn={} 唯一={}/{} ratio={} 分片={} 声明合计={} 重复={} partial={} reason={}",
                 ctx.deviceId, ctx.sn, ctx.totalReceived.get(), ctx.sumNum,
-                String.format("%.2f", ctx.completenessRatio), ctx.partial, reason);
+                String.format("%.4f", ctx.completenessRatio),
+                ctx.chunkCount.get(), ctx.declaredNumSum.get(), ctx.duplicateCount.get(),
+                ctx.partial, reason);
     }
 
     /** 提交一次 flush 任务到 catalogSyncExecutor。 */

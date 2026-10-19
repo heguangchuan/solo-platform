@@ -50,6 +50,10 @@ public class CatalogSyncContext {
     public final AtomicLong totalReceived = new AtomicLong(0);
     /** 重传被丢弃的条数（仅用于日志统计） */
     public final AtomicLong duplicateCount = new AtomicLong(0);
+    /** 收到的 Catalog 分片报文数（含空分片，每片 +1）——收尾诊断用 */
+    public final AtomicLong chunkCount = new AtomicLong(0);
+    /** 各分片报文中 DeviceList 声明的 Num 之和；为 null 的分片不计——收尾诊断用 */
+    public final AtomicLong declaredNumSum = new AtomicLong(0);
 
     /** 任何 update（包含空响应）的最后时刻——sweep 用 */
     public final AtomicLong lastUpdateMs = new AtomicLong(System.currentTimeMillis());
