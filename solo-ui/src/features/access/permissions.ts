@@ -126,6 +126,10 @@ export const PERM = {
   GB_ALARM_LIST: 'gb28181:alarm:list',
   GB_ALARM_HANDLE: 'gb28181:alarm:handle',
   GB_ALARM_DELETE: 'gb28181:alarm:delete',
+  // 移动轨迹
+  GB_POSITION: 'gb28181:position',
+  GB_POSITION_LIST: 'gb28181:position:list',
+  GB_POSITION_DELETE: 'gb28181:position:delete',
   // 云台控制
   GB_PTZ: 'gb28181:ptz',
   // 级联平台

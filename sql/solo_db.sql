@@ -368,6 +368,11 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (126, '报警查询', 'gb28181:alarm:list', NULL, 2, 125, 1, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (127, '报警处置', 'gb28181:alarm:handle', NULL, 2, 125, 2, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (128, '报警删除', 'gb28181:alarm:delete', NULL, 2, 125, 3, NULL, 1, 0, '2026-09-11 00:00:00', '2026-09-11 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (129, '移动轨迹', 'gb28181:position', '/gb28181/position', 1, 5, 8, 'IconRoute', 1, 0, '2026-10-19 00:00:00', '2026-10-19 00:00:00');
+
+-- ----- 移动轨迹 (id=129) 按钮 -----
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (130, '轨迹查询', 'gb28181:position:list', NULL, 2, 129, 1, NULL, 1, 0, '2026-10-19 00:00:00', '2026-10-19 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (131, '轨迹删除', 'gb28181:position:delete', NULL, 2, 129, 2, NULL, 1, 0, '2026-10-19 00:00:00', '2026-10-19 00:00:00');
 -- 系统角色表
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role

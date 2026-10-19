@@ -119,6 +119,11 @@ public class Gb28181Properties {
     private CatalogSyncPool catalogSyncPool = new CatalogSyncPool();
 
     /**
+     * 移动位置（GPS 轨迹）配置。
+     */
+    private Position position = new Position();
+
+    /**
      * 级联下级侧配置。
      * <p>本平台作为下级向上级平台推送数据（Catalog 响应、Notify 变更）时的分片/节奏控制。</p>
      */
@@ -227,5 +232,19 @@ public class Gb28181Properties {
 
         /** 队列容量（每个任务是一次 flush 批次，500-1000 条） */
         private int queueCapacity = 5000;
+    }
+
+    /**
+     * 移动位置（GPS 轨迹）配置。
+     * <p>设备可按 5s/次高频上报 MobilePosition，全量长期保留会让 {@code gb_mobile_position}
+     * 无限膨胀，因此按保留天数每日清理过期数据。</p>
+     */
+    @Data
+    public static class Position {
+
+        /**
+         * 轨迹保留天数，超过的记录每日凌晨清理。设为 0 或负数表示不自动清理。默认 30 天。
+         */
+        private int retentionDays = 30;
     }
 }

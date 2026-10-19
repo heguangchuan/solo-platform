@@ -231,6 +231,37 @@ export interface GbDeviceAlarmHandleRequest {
   handleRemark?: string
 }
 
+/** 设备移动位置点（GPS 轨迹，POST /api/gb28181/position/page 行项） */
+export interface GbMobilePosition {
+  id: string
+  /** 设备国标 ID */
+  deviceId: string
+  /** 设备名称（落库时冗余） */
+  deviceName: string
+  /** 设备上报的定位时间 */
+  positionTime: string
+  /** 经度（WGS84） */
+  longitude?: number | null
+  /** 纬度（WGS84） */
+  latitude?: number | null
+  /** 海拔（米） */
+  altitude?: number | null
+  /** 速度（设备原值，km/h 或 m/s 视厂商而定） */
+  speed?: number | null
+  /** 方向角 0~359，正北为 0 顺时针 */
+  direction?: number | null
+  /** 平台收到报文时间 */
+  receiveTime: string
+  createTime: string
+}
+
+/** 移动位置分页 / 轨迹查询参数（/position/page、/position/track） */
+export interface GbMobilePositionPageRequest extends PageRequest {
+  deviceId?: string
+  startTime?: string
+  endTime?: string
+}
+
 /** 云台预置位（GET /api/gb28181/ptz/preset/list/{channelDbId}） */
 export interface GbPtzPreset {
   id: string
