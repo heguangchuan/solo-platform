@@ -151,17 +151,17 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             }
         }
 
-        // 累加分片（内部阈值 flush；sumNum 收齐时返回 true）
-        boolean complete = cache.accumulate(ctx, chunkItems);
-
-        // 诊断：报文声明的 Num vs 我们实际解析出的条数。两者不等说明解析漏了（编码/字段名/嵌套异常）；
-        // 两者都等于 1 说明对端确实一片只发 1 条（发包节奏问题，不是本平台瓶颈）。
-        String declaredNum = deviceList.attributeValue("Num");
+        // 本片 DeviceList 声明条数（收尾诊断用：声明合计 < SumNum 即设备少发分片 / UDP 丢片）
+        Integer declaredNum = parseIntOrNull(deviceList.attributeValue("Num"));
         int parsedNum = chunkItems.size();
-        if (log.isInfoEnabled() && (declaredNum == null || !declaredNum.equals(String.valueOf(parsedNum)))) {
+        // 诊断：报文声明 Num vs 实际解析条数，不等说明解析漏了（编码 / 字段名 / 嵌套异常，含非法 ID 被丢弃）
+        if (log.isInfoEnabled() && (declaredNum == null || declaredNum != parsedNum)) {
             log.info("[通道目录] 分片计数不一致 deviceId={} sn={} 报文声明Num={} 实际解析={} sumNum={}",
                     device.getDeviceId(), sn, declaredNum, parsedNum, sumNum);
         }
+
+        // 累加分片（内部阈值 flush；sumNum 收齐时返回 true）
+        boolean complete = cache.accumulate(ctx, chunkItems, declaredNum);
 
         if (complete) {
             // 收齐分支已在 accumulate 内 finalize，这里仅记录日志
