@@ -74,13 +74,23 @@
 
         <div class="flex items-center gap-3">
           <Label class="w-16 shrink-0 text-xs text-muted-foreground">密码</Label>
-          <Input
-            v-model="form.password"
-            type="password"
-            class="h-8 font-mono text-xs"
-            placeholder="鉴权密码（可选）"
-            autocomplete="new-password"
-          />
+          <div class="relative flex-1">
+            <Input
+              v-model="form.password"
+              :type="showPwd ? 'text' : 'password'"
+              class="h-8 pr-8 font-mono text-xs"
+              placeholder="鉴权密码（可选）"
+              autocomplete="new-password"
+            />
+            <button
+              type="button"
+              class="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              @click="showPwd = !showPwd"
+            >
+              <IconEye v-if="!showPwd" class="size-3.5" />
+              <IconEyeOff v-else class="size-3.5" />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -128,7 +138,7 @@
             :loading="probing"
             @click="onProbe"
           >
-            <IconRefresh class="size-3.5" />
+            <IconRadar class="size-3.5" />
             立即探测
           </Button>
           <p class="mt-1.5 text-[11px] text-muted-foreground/70">
@@ -159,7 +169,8 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { IconDeviceCctv, IconX, IconTrash, IconRefresh } from '@tabler/icons-vue'
+import { IconDeviceCctv, IconX, IconTrash, IconRadar } from '@tabler/icons-vue'
+import { Eye as IconEye, EyeOff as IconEyeOff } from 'lucide-vue-next'
 import type { OnvifDevice, OnvifDeviceRequest } from '@/types/api'
 import {
   saveOnvifDeviceApi,
@@ -184,6 +195,8 @@ const emit = defineEmits<{
   created: []
   deleted: [device: OnvifDevice]
 }>()
+
+const showPwd = ref(false)
 
 const buildForm = (): OnvifDeviceRequest => ({
   id: props.device?.id,
