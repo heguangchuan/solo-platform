@@ -43,7 +43,11 @@ router.beforeEach(async (to) => {
   }
 
   // 登录后首次跳转：菜单已在内存，但动态路由尚未注册
-  registerDynamicRoutes(router, auth.menus)
+  // 首次注册动态路由后需重新导航：目标动态路由在本次导航发起时尚不存在，
+  // 直接放行会渲染空白页面（刷新才恢复）。
+  if (registerDynamicRoutes(router, auth.menus)) {
+    return { ...to, replace: true }
+  }
 
   if (to.name === 'login') return { name: 'home' }
   return true
