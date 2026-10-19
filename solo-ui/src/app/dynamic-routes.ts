@@ -37,9 +37,13 @@ const flattenMenus = (menus: UserAuthResponse[]): UserAuthResponse[] => {
  * 依据后端菜单树，在 WorkspaceLayout 下注册动态路由。
  * 仅注册“有对应页面文件”的叶子菜单，目录节点与未迁移模块自然跳过。
  * 每个会话只注册一次，登出时调用 resetDynamicRoutes 复位。
+ *
+ * @returns 本次调用是否真正执行了注册（首次为 true，之后幂等返回 false）。
+ *          在导航守卫中首次注册后需据此重新导航，否则目标动态路由在本次
+ *          导航发起时尚不存在，确认 true 会渲染空白。
  */
-export const registerDynamicRoutes = (router: Router, menus: UserAuthResponse[]) => {
-  if (registered) return
+export const registerDynamicRoutes = (router: Router, menus: UserAuthResponse[]): boolean => {
+  if (registered) return false
   flattenMenus(menus).forEach((menu) => {
     if (!menu.url || !hasPage(menu.url)) return
     const route:RouteRecordRaw = {
@@ -54,6 +58,7 @@ export const registerDynamicRoutes = (router: Router, menus: UserAuthResponse[])
   // 具名路由重复 addRoute 会覆盖，不会产生重复记录。
   router.addRoute({ name: 'not-found', path: '/:pathMatch(.*)*', redirect: '/' })
   registered = true
+  return true
 }
 
 /** 登出后复位，允许下次登录重新注册 */
