@@ -30,7 +30,14 @@ router.beforeEach(async (to) => {
 
   // 已登录但菜单尚未加载（刷新页面的场景）：先拉取菜单，再注册动态路由并重新导航
   if (auth.menus.length === 0) {
-    await auth.loadProfile()
+    try {
+      await auth.loadProfile()
+    } catch {
+      // 档案/菜单加载失败（典型：登录态已失效，如 Redis 会话被清）——回到登录页
+      auth.logout()
+      resetDynamicRoutes()
+      return { name: 'login', query: { redirect: to.fullPath } }
+    }
     registerDynamicRoutes(router, auth.menus)
     return { ...to, replace: true }
   }

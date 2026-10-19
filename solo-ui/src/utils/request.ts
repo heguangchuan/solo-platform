@@ -15,6 +15,25 @@ const WHITE_LIST = ['/auth/login', '/auth/refresh']
 let isRefreshing = false
 let pendingRequests: Array<(token: string) => void> = []
 
+/**
+ * 会话彻底失效：清登录态、提示一次并跳转登录页。
+ * 加跳转锁，避免并发 401 重复 toast / 重复 replace。
+ */
+let isRedirecting = false
+async function handleSessionExpired() {
+  const authStore = useAuthStore()
+  authStore.logout()
+  if (isRedirecting) return
+  isRedirecting = true
+  toast.error('登录已过期，请重新登录')
+  const router = (await import('@/app/router')).default
+  const current = router.currentRoute.value
+  if (current.name !== 'login') {
+    await router.replace({ name: 'login', query: { redirect: current.fullPath } })
+  }
+  isRedirecting = false
+}
+
 const service: AxiosInstance = axios.create({
   timeout: 15000,
   headers: {
@@ -59,9 +78,12 @@ service.interceptors.response.use(
       // 401：尝试滚动刷新
       if (response.status === 401) {
         const authStore = useAuthStore()
-        if (config.url?.includes('/auth/refresh') || !authStore.refreshToken) {
-          authStore.logout()
-          toast.error('登录已过期，请重新登录')
+        // 刷新请求自身 401：交由外层发起刷新的 catch 统一处理，这里不再提示，避免重复
+        if (config.url?.includes('/auth/refresh')) {
+          return Promise.reject(error)
+        }
+        if (!authStore.refreshToken) {
+          await handleSessionExpired()
           return Promise.reject(error)
         }
         if (isRefreshing) {
@@ -85,8 +107,7 @@ service.interceptors.response.use(
           return service(config)
         } catch {
           pendingRequests = []
-          authStore.logout()
-          toast.error('登录已过期，请重新登录')
+          await handleSessionExpired()
         } finally {
           isRefreshing = false
         }
