@@ -11,20 +11,6 @@
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
 
         <Button
-          v-access="PERM.ONVIF_DEVICE_PROBE"
-          variant="ghost"
-          size="sm"
-          class="ml-1 gap-1.5"
-          title="探测选中设备"
-          :disabled="creating || !selected || probing"
-          @click="onProbe"
-        >
-          <IconLoader2 v-if="probing" class="size-3.5 animate-spin" />
-          <IconRadar v-else class="size-3.5" />
-          探测
-        </Button>
-
-        <Button
           v-access="PERM.ONVIF_DEVICE_ADD"
           variant="ghost"
           size="sm"
@@ -232,16 +218,14 @@ import {
   IconX,
   IconLoader2,
   IconFilter,
-  IconRadar,
   IconDeviceCctvOff,
 } from '@tabler/icons-vue'
 import { Plus } from 'lucide-vue-next'
 import OnvifDeviceInspector from '@/features/onvif/OnvifDeviceInspector.vue'
 import OnvifPlayPanel from '@/features/onvif/OnvifPlayPanel.vue'
-import { getOnvifDevicePageApi, probeOnvifDeviceApi } from '@/api/onvif'
+import { getOnvifDevicePageApi } from '@/api/onvif'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
-import { toast } from '@/lib/toast'
 import Button from '@/components/ui/button/Button.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import { Select, SelectContent, SelectItem } from '@/components/ui/select'
@@ -333,20 +317,6 @@ const onDeleted = (d: OnvifDevice) => {
 
 /** 手动刷新：重拉列表（保留当前筛选） */
 const onRefresh = () => resource.load(true)
-
-/* 探测选中设备（同步接口，可能耗时数秒） */
-const probing = ref(false)
-const onProbe = async () => {
-  if (!selected.value) return
-  probing.value = true
-  try {
-    await probeOnvifDeviceApi(selected.value.id)
-    toast.success('探测完成')
-    resource.search()
-  } finally {
-    probing.value = false
-  }
-}
 
 /* 键盘流 */
 const isTypingTarget = (el: EventTarget | null) =>
