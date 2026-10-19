@@ -2,7 +2,6 @@ package com.solo.system.service;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.solo.common.Result;
 import com.solo.system.entity.SysUser;
 import com.solo.system.request.UserRequest;
 import com.solo.system.request.UserPageRequest;
@@ -37,14 +36,14 @@ public interface SysUserService extends IService<SysUser> {
     List<String> getPermissionCodes(Long userId);
 
     /**
-     * 用户登录认证
+     * 用户登录认证（认证失败抛出携带 401/403 状态码的 ServiceException）
      */
-    Result<LoginResponse> login(String username, String password);
+    LoginResponse login(String username, String password);
 
     /**
-     * 用 refresh token 换发新的 access / refresh token（滚动刷新）
+     * 用 refresh token 换发新的 access / refresh token（滚动刷新）；失效时抛出 401 ServiceException
      */
-    Result<RefreshTokenResponse> refresh(String refreshToken);
+    RefreshTokenResponse refresh(String refreshToken);
 
     /**
      * 分页查询用户列表

@@ -4,7 +4,6 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.aop.PermissionCache;
-import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.system.constant.SystemConstants;
 import com.solo.system.entity.SysUser;
@@ -58,21 +57,21 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
-    public Result<LoginResponse> login(String username, String password) {
+    public LoginResponse login(String username, String password) {
         SysUser user = getByUsername(username);
         if (user == null) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
         }
         if (user.getStatus() == SystemConstants.STATUS_DISABLED) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "账户已被禁用");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "账户已被禁用");
         }
         if (!PasswordUtils.md5(password).equals(user.getPassword())) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
         }
         // 未分配任何有效角色（角色被删除/停用同视为无权限）：不允许登录，避免进入空白控制台
         List<String> roleCodes = getBaseMapper().selectRoleCodes(user.getId());
         if (roleCodes == null || roleCodes.isEmpty()) {
-            return Result.error(SystemConstants.HTTP_FORBIDDEN, "当前账号未分配角色，请联系管理员授权后再登录");
+            throw new ServiceException(SystemConstants.HTTP_FORBIDDEN, "当前账号未分配角色，请联系管理员授权后再登录");
         }
         LoginResponse loginResponse = new LoginResponse();
         String token = jwtUtils.generateToken(user.getUsername());
@@ -84,29 +83,29 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         jwtUtils.saveSession(user.getUsername(), token, buildSessionMeta(user));
         // 单独保存 refresh token，TTL 与 refresh 有效期一致，每次刷新会被覆盖（滚动失效）
         jwtUtils.saveRefreshToken(user.getUsername(), refreshToken);
-        return Result.success(loginResponse);
+        return loginResponse;
     }
 
     @Override
-    public Result<RefreshTokenResponse> refresh(String refreshToken) {
+    public RefreshTokenResponse refresh(String refreshToken) {
         if (refreshToken == null || refreshToken.isBlank()) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
         // 解析用户名（签名/格式异常 → 401）
         String username;
         try {
             username = jwtUtils.getUsernameFromToken(refreshToken);
         } catch (Exception e) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
         // 校验签名 + 过期 + type=refresh + Redis 一致性
         if (!jwtUtils.validateRefreshToken(refreshToken, username)) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
         // 用户仍存在且未被禁用
         SysUser user = getByUsername(username);
         if (user == null || user.getStatus() == SystemConstants.STATUS_DISABLED) {
-            return Result.error(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
+            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
         // 滚动：换发一对全新的 access / refresh token，旧 refresh 因 Redis 被覆盖而失效
         String newAccess = jwtUtils.generateToken(username);
@@ -116,7 +115,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         RefreshTokenResponse resp = new RefreshTokenResponse();
         resp.setToken(newAccess);
         resp.setRefreshToken(newRefresh);
-        return Result.success(resp);
+        return resp;
     }
 
     /** 抓取登录请求的 IP / 来源 / UA 等元数据，与 token 一并写入 Redis */
@@ -170,6 +169,11 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (existing != null) {
             throw new ServiceException("用户名已存在");
         }
+        // 未分配角色的账号无法登录，创建时必须至少选择一个角色
+        List<Long> roleIds = request.getRoleIds();
+        if (roleIds == null || roleIds.isEmpty()) {
+            throw new ServiceException("请至少为用户分配一个角色");
+        }
         SysUser user = new SysUser();
         user.setUsername(request.getUsername());
         user.setPassword(PasswordUtils.defaultPasswordHashOf(request.getUsername()));
@@ -180,16 +184,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
         user.setPwdResetRequired(SystemConstants.PWD_RESET_REQUIRED);
         save(user);
-        // 创建时一并分配角色（可选：无角色账号将无法登录）
-        List<Long> roleIds = request.getRoleIds();
-        if (roleIds != null && !roleIds.isEmpty()) {
-            for (Long roleId : roleIds) {
-                if (roleId == null) continue;
-                SysUserRole entry = new SysUserRole();
-                entry.setUserId(user.getId());
-                entry.setRoleId(roleId);
-                sysUserRoleMapper.insert(entry);
-            }
+        // 创建时在同一事务内一并分配角色
+        for (Long roleId : roleIds) {
+            if (roleId == null) continue;
+            SysUserRole entry = new SysUserRole();
+            entry.setUserId(user.getId());
+            entry.setRoleId(roleId);
+            sysUserRoleMapper.insert(entry);
         }
     }
 

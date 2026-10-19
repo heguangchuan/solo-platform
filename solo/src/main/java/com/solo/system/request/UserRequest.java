@@ -40,7 +40,7 @@ public class UserRequest {
     @Schema(description = "状态（0/1）")
     private Integer status;
 
-    /** 角色ID列表（仅新增时使用；建议至少分配一个，未分配角色的账号无法登录） */
-    @Schema(description = "角色ID列表（仅新增时使用，至少一个）")
+    /** 角色ID列表（新增时必填，至少一个：未分配角色的账号无法登录） */
+    @Schema(description = "角色ID列表（新增时必填，至少一个）")
     private List<Long> roleIds;
 }

@@ -51,7 +51,7 @@ public class AuthController {
     @OperationLog(module = "登录认证", type = BusinessType.LOGIN, description = "用户登录", recordParam = false)
     @RateLimiter(maxCount = 5, time = 1, timeUnit = TimeUnit.MINUTES, message = "登录次数过多，请1分钟后再试")
     public Result<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
-        return sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword());
+        return Result.success(sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword()));
     }
 
     /**
@@ -61,7 +61,7 @@ public class AuthController {
     @PostMapping("/refresh")
     @RateLimiter(maxCount = 10, time = 1, timeUnit = TimeUnit.MINUTES, message = "刷新过于频繁，请稍后再试")
     public Result<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
-        return sysUserService.refresh(request.getRefreshToken());
+        return Result.success(sysUserService.refresh(request.getRefreshToken()));
     }
 
     /**
