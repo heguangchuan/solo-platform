@@ -18,7 +18,6 @@ import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Catalog 同步落库执行器（异步批量写，ADR-023）。
@@ -60,9 +59,6 @@ public class CatalogSyncSupport {
     private final GbDeviceChannelMapper channelMapper;
     private final GbDeviceMapper deviceMapper;
     private final ThreadPoolTaskExecutor executor;
-
-    private final AtomicLong totalFlushCount = new AtomicLong(0);
-    private final AtomicLong totalFlushedItems = new AtomicLong(0);
 
     /**
      * 显式构造器——Lombok @RequiredArgsConstructor 不会把字段上的 @Qualifier 复制到构造器参数上，
@@ -107,11 +103,9 @@ public class CatalogSyncSupport {
             try {
                 doFlush(ctx, items, isFinalFlush);
                 long cost = System.currentTimeMillis() - start;
-                totalFlushCount.incrementAndGet();
-                totalFlushedItems.addAndGet(items.size());
                 log.info("[通道目录] 分片落库完成 设备:{} SN:{} 条目:{} 是否终片:{} 耗时:{}ms 累计分片:{} 累计条目:{}",
                         ctx.deviceId, ctx.sn, items.size(), isFinalFlush, cost,
-                        totalFlushCount.get(), totalFlushedItems.get());
+                        ctx.chunkCount.get(), ctx.totalReceived.get());
             } catch (Exception e) {
                 log.error("[通道目录] 分片落库失败 设备:{} SN:{} 是否终片:{} 错误:{}",
                         ctx.deviceId, ctx.sn, isFinalFlush, e.getMessage(), e);
