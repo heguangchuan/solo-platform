@@ -32,12 +32,12 @@
           ref="nameRef"
           v-model="name"
           class="h-7 w-36 rounded-md bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="名称"
+          placeholder="请输入名称"
         />
         <input
           v-model="host"
           class="h-7 w-40 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="IP 地址"
+          placeholder="请输入IP地址"
         />
 
         <span v-if="hasCondition" class="text-xs text-muted-foreground">

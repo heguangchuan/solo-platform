@@ -51,6 +51,9 @@ public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, Med
     @Override
     public Page<MediaServer> pageQuery(GbMediaServerPageRequest request) {
         LambdaQueryWrapper<MediaServer> wrapper = new LambdaQueryWrapper<>();
+        if (request.getName() != null && !request.getName().isBlank()) {
+            wrapper.like(MediaServer::getName, request.getName());
+        }
         if (request.getServerId() != null && !request.getServerId().isBlank()) {
             wrapper.like(MediaServer::getServerId, request.getServerId());
         }

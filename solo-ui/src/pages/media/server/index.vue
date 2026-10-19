@@ -26,30 +26,17 @@
       <div class="flex h-12 shrink-0 items-center gap-2 px-3">
         <IconSearch class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <input
+          ref="nameRef"
+          v-model="name"
+          class="h-7 w-36 rounded-md bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground focus:bg-muted/70"
+          placeholder="请输入名称"
+        />
+        <input
           ref="serverIdRef"
           v-model="serverId"
-          class="h-7 w-48 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="节点标识"
+          class="h-7 w-44 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
+          placeholder="请输入节点标识"
         />
-
-        <Select v-model="statusFilter">
-          <RawSelectTrigger
-            class="inline-flex h-7 items-center gap-1 rounded-md px-2 text-xs text-muted-foreground outline-none hover:bg-muted/70"
-          >
-            <span class="flex items-center gap-1">
-              状态
-              <IconFilter
-                class="size-3 opacity-40"
-                :class="statusFilter !== '__all__' ? 'text-primary opacity-100' : ''"
-              />
-            </span>
-          </RawSelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">全部</SelectItem>
-            <SelectItem value="1">在线</SelectItem>
-            <SelectItem value="0">离线</SelectItem>
-          </SelectContent>
-        </Select>
 
         <span v-if="hasCondition" class="text-xs text-muted-foreground">
           匹配 {{ resource.total.value }} 个
@@ -75,10 +62,31 @@
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-44 px-3 py-2 font-normal">节点标识</th>
-              <th class="w-48 px-3 py-2 font-normal">名称</th>
-              <th class="w-40 px-3 py-2 font-normal">管理地址</th>
-              <th class="w-16 px-3 py-2 font-normal">端口</th>
-              <th class="w-20 px-3 py-2 font-normal">状态</th>
+              <th class="w-40 px-3 py-2 font-normal">节点名称</th>
+              <th class="w-36 px-3 py-2 font-normal">服务地址</th>
+              <th class="w-20 px-3 py-2 font-normal">服务端口</th>
+              <th class="group w-24 px-3 py-2 font-normal">
+                <Select v-model="statusFilter">
+                  <RawSelectTrigger
+                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
+                  >
+                    节点状态
+                    <IconFilter
+                      class="size-3 opacity-40 transition-opacity group-hover:opacity-100"
+                      :class="
+                        statusFilter !== '__all__'
+                          ? 'fill-primary text-primary opacity-100'
+                          : ''
+                      "
+                    />
+                  </RawSelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">全部</SelectItem>
+                    <SelectItem value="1">在线</SelectItem>
+                    <SelectItem value="0">离线</SelectItem>
+                  </SelectContent>
+                </Select>
+              </th>
               <th class="w-44 px-3 py-2 font-normal">最近心跳</th>
             </tr>
           </thead>
@@ -209,17 +217,22 @@ import { Select, SelectContent, SelectItem } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import type { MediaServer, MediaServerPageRequest } from '@/types/api'
 
+const name = ref('')
 const serverId = ref('')
 const statusFilter = ref<'__all__' | '1' | '0'>('__all__')
 
 const hasCondition = computed(
-  () => !!serverId.value.trim() || statusFilter.value !== '__all__',
+  () =>
+    !!name.value.trim() ||
+    !!serverId.value.trim() ||
+    statusFilter.value !== '__all__',
 )
 
 const resource = useResource<MediaServerPageRequest, MediaServer>({
   fetcher: (q) =>
     getMediaServerPageApi({
       ...q,
+      name: name.value.trim() || undefined,
       serverId: serverId.value.trim() || undefined,
       status: statusFilter.value === '__all__' ? undefined : Number(statusFilter.value),
     }),
@@ -230,7 +243,7 @@ const resource = useResource<MediaServerPageRequest, MediaServer>({
 const onRefresh = () => resource.load(true)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-watch(serverId, () => {
+watch([name, serverId], () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     cursor.value = 0
@@ -243,6 +256,7 @@ watch(statusFilter, () => {
 })
 
 const onClear = () => {
+  name.value = ''
   serverId.value = ''
   statusFilter.value = '__all__'
   cursor.value = 0
@@ -255,6 +269,7 @@ const creating = ref(false)
 
 const scrollerRef = ref<HTMLElement>()
 const sentinelRef = ref<HTMLElement>()
+const nameRef = ref<HTMLInputElement>()
 const serverIdRef = ref<HTMLInputElement>()
 
 const firstLoading = computed(
@@ -305,7 +320,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
   switch (e.key) {
     case '/':
       e.preventDefault()
-      serverIdRef.value?.focus()
+      nameRef.value?.focus()
       break
     case 'j':
     case 'J':

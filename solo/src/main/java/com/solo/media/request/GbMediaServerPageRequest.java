@@ -19,6 +19,9 @@ public class GbMediaServerPageRequest {
     @Schema(description = "每页条数（默认 20）")
     private Long pageSize = 20L;
 
+    @Schema(description = "节点名称模糊匹配（可选）")
+    private String name;
+
     @Schema(description = "节点 serverId 模糊匹配（可选）")
     private String serverId;
 

@@ -30,6 +30,7 @@ export interface MediaServer {
 export interface MediaServerPageRequest {
   page?: number
   pageSize?: number
+  name?: string
   serverId?: string
   status?: number
 }

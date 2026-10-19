@@ -28,12 +28,12 @@
         <input
           v-model="platformIdQ"
           class="h-7 w-44 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="国标编码"
+          placeholder="请输入国标编码"
         />
         <input
           v-model="nameQ"
           class="h-7 w-36 rounded-md bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="备注名"
+          placeholder="请输入备注名"
         />
 
         <span v-if="hasCondition" class="text-xs text-muted-foreground">

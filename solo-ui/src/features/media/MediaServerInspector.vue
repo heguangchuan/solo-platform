@@ -59,13 +59,13 @@
 
         <div class="flex items-center gap-3">
           <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-            管理地址<span class="ml-0.5 text-destructive">*</span>
+            服务地址<span class="ml-0.5 text-destructive">*</span>
           </Label>
           <div class="flex-1">
             <Input
               v-model="form.hostIp"
               class="h-8 font-mono text-xs"
-              placeholder="ZLM 管理面 IP，用于 REST API"
+              placeholder="ZLM 服务 IP，用于调用 REST API"
             />
             <p v-if="errors.hostIp" class="mt-1 text-[11px] text-destructive">
               {{ errors.hostIp }}
@@ -75,7 +75,7 @@
 
         <div class="flex items-center gap-3">
           <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">
-            管理端口<span class="ml-0.5 text-destructive">*</span>
+            服务端口<span class="ml-0.5 text-destructive">*</span>
           </Label>
           <div class="flex-1">
             <Input
@@ -105,7 +105,7 @@
           <Input
             v-model="form.streamIp"
             class="h-8 font-mono text-xs"
-            placeholder="留空则同管理地址"
+            placeholder="留空则同服务地址"
           />
         </div>
       </div>
@@ -212,7 +212,7 @@ watch(
 
 const validate = (): boolean => {
   errors.serverId = form.serverId.trim() ? '' : '请输入节点标识'
-  errors.hostIp = form.hostIp.trim() ? '' : '请输入管理地址'
+  errors.hostIp = form.hostIp.trim() ? '' : '请输入服务地址'
   errors.httpPort = form.httpPort >= 1 && form.httpPort <= 65535 ? '' : '端口范围 1 - 65535'
   return !errors.serverId && !errors.hostIp && !errors.httpPort
 }

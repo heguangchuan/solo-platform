@@ -49,7 +49,7 @@
           ref="streamRef"
           v-model="stream"
           class="h-7 w-56 rounded-md bg-transparent px-2 font-mono text-[13px] outline-none placeholder:font-sans placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="流标识"
+          placeholder="请输入流标识"
         />
 
         <Select v-model="statusFilter">
