@@ -21,6 +21,8 @@ export interface UserRequest {
   phone: string
   avatar: string
   status: number
+  /** 角色 ID 列表（仅新增时使用） */
+  roleIds?: string[]
 }
 
 /** 用户列表项（后端原始模型） */
