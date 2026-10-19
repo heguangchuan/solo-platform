@@ -34,7 +34,10 @@ public class GbMobilePositionServiceImpl
 
     @Override
     public Page<GbMobilePosition> pageQuery(GbMobilePositionPageRequest request) {
-        return page(new Page<>(request.getPage(), request.getPageSize()), buildWrapper(request));
+        LambdaQueryWrapper<GbMobilePosition> wrapper = buildWrapper(request);
+        // 设备定位时间可能缺失（非法报文），用入库时间兜底排序
+        wrapper.orderByDesc(GbMobilePosition::getCreateTime);
+        return page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
     }
 
     @Override
@@ -42,15 +45,7 @@ public class GbMobilePositionServiceImpl
         if (request.getDeviceId() == null || request.getDeviceId().isBlank()) {
             throw new ServiceException("设备国标 ID 不能为空");
         }
-        // 轨迹必须精确匹配设备，不能走分页查询的模糊匹配
-        LambdaQueryWrapper<GbMobilePosition> wrapper = new LambdaQueryWrapper<GbMobilePosition>()
-                .eq(GbMobilePosition::getDeviceId, request.getDeviceId().trim());
-        if (request.getStartTime() != null) {
-            wrapper.ge(GbMobilePosition::getPositionTime, request.getStartTime());
-        }
-        if (request.getEndTime() != null) {
-            wrapper.le(GbMobilePosition::getPositionTime, request.getEndTime());
-        }
+        LambdaQueryWrapper<GbMobilePosition> wrapper = buildWrapper(request);
         wrapper.orderByAsc(GbMobilePosition::getPositionTime).last("LIMIT " + TRACK_LIMIT);
         return list(wrapper);
     }
@@ -90,8 +85,9 @@ public class GbMobilePositionServiceImpl
 
     private LambdaQueryWrapper<GbMobilePosition> buildWrapper(GbMobilePositionPageRequest request) {
         LambdaQueryWrapper<GbMobilePosition> wrapper = new LambdaQueryWrapper<>();
+        // 前端通过设备下拉选择（GbDeviceSelect），按设备国标 ID 精确匹配
         if (request.getDeviceId() != null && !request.getDeviceId().isBlank()) {
-            wrapper.like(GbMobilePosition::getDeviceId, request.getDeviceId());
+            wrapper.eq(GbMobilePosition::getDeviceId, request.getDeviceId().trim());
         }
         if (request.getStartTime() != null) {
             wrapper.ge(GbMobilePosition::getPositionTime, request.getStartTime());
@@ -99,8 +95,6 @@ public class GbMobilePositionServiceImpl
         if (request.getEndTime() != null) {
             wrapper.le(GbMobilePosition::getPositionTime, request.getEndTime());
         }
-        // 设备定位时间可能缺失（非法报文），用入库时间兜底排序
-        wrapper.orderByDesc(GbMobilePosition::getCreateTime);
         return wrapper;
     }
 

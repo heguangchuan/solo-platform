@@ -22,7 +22,7 @@ public class GbMobilePositionPageRequest {
     @Schema(description = "每页条数")
     private Long pageSize = 20L;
 
-    @Schema(description = "设备国标 ID（模糊匹配）")
+    @Schema(description = "设备国标 ID（前端设备下拉精确选择）")
     private String deviceId;
 
     @Schema(description = "轨迹查询起始时间（按设备定位时间）")
