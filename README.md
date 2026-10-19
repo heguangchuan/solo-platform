@@ -8,7 +8,7 @@
 
 <br/>
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![JDK](https://img.shields.io/badge/JDK-21+-orange.svg)](https://adoptium.net/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Vue](https://img.shields.io/badge/Vue-3.5-42b883.svg)](https://vuejs.org/)
@@ -236,4 +236,4 @@ solo-platform/
 
 ## License
 
-[Apache License 2.0](LICENSE)
+[MIT License](LICENSE)
