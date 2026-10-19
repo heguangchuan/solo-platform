@@ -8,110 +8,48 @@
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
       </div>
 
+      <!-- 搜索行 -->
+      <div class="flex h-12 shrink-0 items-center gap-2 px-3">
+        <GbDeviceSelect v-model="deviceIdQ" />
+        <input
+          v-model="startTimeQ"
+          type="datetime-local"
+          class="h-7 w-[180px] rounded-md bg-transparent px-2 text-[13px] outline-none focus:bg-muted/70"
+          title="定位开始时间"
+        />
+        <span class="text-xs text-muted-foreground">至</span>
+        <input
+          v-model="endTimeQ"
+          type="datetime-local"
+          class="h-7 w-[180px] rounded-md bg-transparent px-2 text-[13px] outline-none focus:bg-muted/70"
+          title="定位结束时间"
+        />
+
+        <span v-if="hasCondition" class="text-xs text-muted-foreground">
+          匹配 {{ resource.total.value }} 条
+        </span>
+
+        <div class="flex-1" />
+
+        <Button
+          v-if="hasCondition"
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs text-muted-foreground"
+          @click="onClear"
+        >
+          <IconX class="size-3.5" />
+          清除
+        </Button>
+      </div>
+
       <!-- 列表 -->
       <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
         <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
-              <th class="group w-52 px-3 py-2 font-normal">
-                <PopoverRoot>
-                  <PopoverTrigger
-                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
-                  >
-                    设备
-                    <IconFilter
-                      class="size-3 opacity-40 transition-opacity group-hover:opacity-100"
-                      :class="deviceIdQ.trim() ? 'fill-primary text-primary opacity-100' : ''"
-                    />
-                  </PopoverTrigger>
-                  <PopoverPortal>
-                    <PopoverContent
-                      align="start"
-                      side="bottom"
-                      :side-offset="6"
-                      class="z-50 w-60 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md outline-none"
-                    >
-                      <label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                        设备编码（模糊匹配）
-                        <input
-                          v-model="deviceIdQ"
-                          class="h-7 rounded-md border border-input bg-transparent px-2 font-mono text-xs outline-none focus:border-ring"
-                        />
-                      </label>
-                      <div class="mt-3 flex justify-end gap-2">
-                        <Button
-                          v-if="deviceIdQ"
-                          variant="ghost"
-                          size="sm"
-                          class="h-7 text-xs"
-                          @click="deviceIdQ = ''"
-                        >
-                          清除
-                        </Button>
-                        <PopoverClose as-child>
-                          <Button size="sm" class="h-7 text-xs">完成</Button>
-                        </PopoverClose>
-                      </div>
-                    </PopoverContent>
-                  </PopoverPortal>
-                </PopoverRoot>
-              </th>
-              <th class="group w-48 px-3 py-2 font-normal">
-                <PopoverRoot>
-                  <PopoverTrigger
-                    class="inline-flex items-center gap-1 text-xs font-normal text-muted-foreground outline-none hover:text-foreground"
-                  >
-                    定位时间
-                    <IconFilter
-                      class="size-3 opacity-40 transition-opacity group-hover:opacity-100"
-                      :class="
-                        startTimeQ || endTimeQ ? 'fill-primary text-primary opacity-100' : ''
-                      "
-                    />
-                  </PopoverTrigger>
-                  <PopoverPortal>
-                    <PopoverContent
-                      align="start"
-                      side="bottom"
-                      :side-offset="6"
-                      class="z-50 w-64 rounded-md border border-border bg-popover p-3 text-popover-foreground shadow-md outline-none"
-                    >
-                      <div class="flex flex-col gap-2">
-                        <label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                          开始
-                          <input
-                            v-model="startTimeQ"
-                            type="datetime-local"
-                            class="h-7 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus:border-ring"
-                          />
-                        </label>
-                        <label class="flex flex-col gap-1 text-[11px] text-muted-foreground">
-                          结束
-                          <input
-                            v-model="endTimeQ"
-                            type="datetime-local"
-                            class="h-7 rounded-md border border-input bg-transparent px-2 text-xs outline-none focus:border-ring"
-                          />
-                        </label>
-                      </div>
-                      <div class="mt-3 flex justify-end gap-2">
-                        <Button
-                          v-if="startTimeQ || endTimeQ"
-                          variant="ghost"
-                          size="sm"
-                          class="h-7 text-xs"
-                          @click="startTimeQ = ''; endTimeQ = ''"
-                        >
-                          清除
-                        </Button>
-                        <PopoverClose as-child>
-                          <Button size="sm" class="h-7 text-xs">完成</Button>
-                        </PopoverClose>
-                      </div>
-                    </PopoverContent>
-                  </PopoverPortal>
-                </PopoverRoot>
-              </th>
+              <th class="w-52 px-3 py-2 font-normal">设备</th>
+              <th class="w-48 px-3 py-2 font-normal">定位时间</th>
               <th class="w-56 px-3 py-2 font-normal">经纬度</th>
               <th class="w-24 px-3 py-2 font-normal">速度</th>
               <th class="w-24 px-3 py-2 font-normal">方向</th>
@@ -251,10 +189,11 @@
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { IconFilter, IconLoader2, IconRouteOff } from '@tabler/icons-vue'
+import { IconLoader2, IconRouteOff, IconX } from '@tabler/icons-vue'
 import { Eye, Trash2 } from 'lucide-vue-next'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
+import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
 import {
   Dialog,
   DialogContent,
@@ -262,13 +201,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  PopoverRoot,
-  PopoverTrigger,
-  PopoverPortal,
-  PopoverContent,
-  PopoverClose,
-} from 'reka-ui'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
@@ -277,17 +209,21 @@ import { deleteGbPositionApi, getGbPositionPageApi } from '@/api/gb28181'
 import type { GbMobilePosition, GbMobilePositionPageRequest } from '@/types/api'
 
 /* ---------------- 筛选条件 ---------------- */
-const deviceIdQ = ref('')
+const deviceIdQ = ref<string | undefined>(undefined)
 const startTimeQ = ref('')
 const endTimeQ = ref('')
 
 const fmtTime = (v: string) => v.replace('T', ' ')
 
+const hasCondition = computed(
+  () => !!deviceIdQ.value || !!startTimeQ.value || !!endTimeQ.value,
+)
+
 const resource = useResource<GbMobilePositionPageRequest, GbMobilePosition>({
   fetcher: (q) =>
     getGbPositionPageApi({
       ...q,
-      deviceId: deviceIdQ.value.trim() || undefined,
+      deviceId: deviceIdQ.value || undefined,
       startTime: startTimeQ.value ? fmtTime(startTimeQ.value) : undefined,
       endTime: endTimeQ.value ? fmtTime(endTimeQ.value) : undefined,
     }),
@@ -295,6 +231,14 @@ const resource = useResource<GbMobilePositionPageRequest, GbMobilePosition>({
 })
 
 const onRefresh = () => resource.load(true)
+
+const onClear = () => {
+  deviceIdQ.value = undefined
+  startTimeQ.value = ''
+  endTimeQ.value = ''
+  cursor.value = 0
+  resource.search()
+}
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 const triggerSearch = () => {
@@ -304,7 +248,12 @@ const triggerSearch = () => {
     resource.search()
   }, 300)
 }
-watch([deviceIdQ, startTimeQ, endTimeQ], triggerSearch)
+// 设备下拉选择立即触发（无需防抖），时间输入走防抖
+watch(deviceIdQ, () => {
+  cursor.value = 0
+  resource.search()
+})
+watch([startTimeQ, endTimeQ], triggerSearch)
 
 /* ---------------- 详情 ---------------- */
 const detailOpen = ref(false)
