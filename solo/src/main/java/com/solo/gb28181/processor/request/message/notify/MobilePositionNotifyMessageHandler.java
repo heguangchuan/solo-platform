@@ -37,8 +37,9 @@ import java.time.LocalDateTime;
  * <h3>职责</h3>
  * <ol>
  *   <li>解析 XML 字段填进 {@link DevicePosition} DTO</li>
- *   <li>发布 {@link PositionEvent}，由 {@link com.solo.gb28181.event.position.PositionEventListener} 异步处理</li>
- *   <li>不落库（按当前 Sprint 5 决定），不推 WebSocket（后续 Sprint 补）</li>
+ *   <li>发布 {@link PositionEvent}，由日志监听器 {@link com.solo.gb28181.event.position.PositionEventListener}
+ *       和落库监听器 {@link com.solo.gb28181.event.position.PositionPersistenceListener} 并行异步处理</li>
+ *   <li>定位为高频上报，不推 WebSocket；轨迹点写入 gb_mobile_position 并按保留期定期清理</li>
  * </ol>
  *
  * <h3>来源分支</h3>

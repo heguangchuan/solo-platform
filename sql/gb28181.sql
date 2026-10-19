@@ -298,5 +298,24 @@ CREATE TABLE gb_device_alarm
     KEY idx_channel (channel_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+DROP TABLE IF EXISTS gb_mobile_position;
+CREATE TABLE gb_mobile_position
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    device_id     varchar(50)  NOT NULL COMMENT '设备国标ID',
+    device_name   varchar(255)          DEFAULT NULL COMMENT '设备名称（落库时冗余）',
+    position_time datetime              DEFAULT NULL COMMENT '设备上报的定位时间',
+    longitude     double                DEFAULT NULL COMMENT '经度（WGS84）',
+    latitude      double                DEFAULT NULL COMMENT '纬度（WGS84）',
+    altitude      double                DEFAULT NULL COMMENT '海拔（米）',
+    speed         double                DEFAULT NULL COMMENT '速度（设备原值，km/h 或 m/s 视厂商而定）',
+    direction     double                DEFAULT NULL COMMENT '方向角 0~359，正北为 0 顺时针',
+    receive_time  datetime              DEFAULT NULL COMMENT '平台收到报文时间',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    KEY idx_device_time (device_id, position_time),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备移动位置（GPS 轨迹）';
+
 SET
 FOREIGN_KEY_CHECKS = 1;

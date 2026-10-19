@@ -12,6 +12,8 @@ import type {
   GbDeviceAlarm,
   GbDeviceAlarmPageRequest,
   GbDeviceAlarmHandleRequest,
+  GbMobilePosition,
+  GbMobilePositionPageRequest,
   GbPtzCruise,
   GbPtzCruiseDetail,
   GbPtzCruisePoint,
@@ -172,6 +174,20 @@ export const handleGbAlarmApi = (data: GbDeviceAlarmHandleRequest) =>
 /** 删除报警记录 */
 export const deleteGbAlarmApi = (id: string) =>
   del<void>(`/api/gb28181/alarm/delete/${id}`)
+
+/* ===== 移动轨迹 ===== */
+
+/** 移动位置分页查询 */
+export const getGbPositionPageApi = (data: GbMobilePositionPageRequest) =>
+  post<PageResult<GbMobilePosition>>('/api/gb28181/position/page', data)
+
+/** 按设备 + 时间段查询历史轨迹（时间升序） */
+export const getGbPositionTrackApi = (data: GbMobilePositionPageRequest) =>
+  post<GbMobilePosition[]>('/api/gb28181/position/track', data)
+
+/** 删除位置点 */
+export const deleteGbPositionApi = (id: string) =>
+  del<void>(`/api/gb28181/position/delete/${id}`)
 
 /* ===== 云台 ===== */
 

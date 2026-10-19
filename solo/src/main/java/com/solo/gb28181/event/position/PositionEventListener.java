@@ -9,8 +9,9 @@ import org.springframework.stereotype.Component;
  * 设备定位监听器
  *
  * <h3>当前职责</h3>
- * <p>仅按统一格式日志输出定位内容，<b>不入库</b>（按当前 Sprint 5 决定）。
- * 设备上线后 GPS 会上报轨迹，运维 grep 关键字 {@code [移动位置]} 即可定位。</p>
+ * <p>仅按统一格式日志输出定位内容，<b>不负责入库</b>。落库由并行订阅的
+ * {@link PositionPersistenceListener} 完成；本类保留是为了运维 grep
+ * 关键字 {@code [移动位置]} 即可定位实时上报。</p>
  *
  * <h3>线程</h3>
  * <p>挂 {@code @Async("gb28181BizExecutor")} 异步处理：SIP 监听线程解析完 XML 后立即

@@ -1,6 +1,8 @@
 package com.solo.gb28181.task;
 
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.processor.request.message.notify.KeepaliveNotifyMessageHandler;
+import com.solo.gb28181.service.GbMobilePositionService;
 import com.solo.gb28181.service.PlatformRegisterService;
 import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.sip.SipSubscribe;
@@ -32,6 +34,8 @@ public class GbScheduledTasks {
     private final SipSubscribe sipSubscribe;
     private final PlatformRegisterService platformRegisterService;
     private final CascadeSendService cascadeSendService;
+    private final GbMobilePositionService mobilePositionService;
+    private final Gb28181Properties gb28181Properties;
 
     /** 设备离线检测：每 30s 扫库比对 Redis 在线 key，并清理目录分片缓存 */
     @Scheduled(fixedDelay = 30_000)
@@ -55,6 +59,17 @@ public class GbScheduledTasks {
     @Scheduled(initialDelay = 10_000, fixedDelay = 10_000)
     public void sweepCascadeSendAckTimeout() {
         cascadeSendService.sweepAckTimeout();
+    }
+
+    /** GPS 轨迹过期清理：每天凌晨 03:30 按保留天数删除旧轨迹点（retentionDays<=0 不清理） */
+    @Scheduled(cron = "0 30 3 * * ?", zone = "Asia/Shanghai")
+    public void cleanExpiredPositions() {
+        int retentionDays = gb28181Properties.getPosition().getRetentionDays();
+        if (retentionDays <= 0) {
+            return;
+        }
+        int deleted = mobilePositionService.cleanExpired(retentionDays);
+        log.info("[移动位置] 过期轨迹清理完成 retentionDays={} 删除条数={}", retentionDays, deleted);
     }
 
     // ============================================================

@@ -9,9 +9,9 @@ import java.time.LocalDateTime;
  *
  * <p>承载从 SIP 定位通知报文（Notify/CmdType=MobilePosition）中解析出来的字段，
  * 跨 {@code MobilePositionNotifyMessageHandler} → {@link PositionEvent} →
- * {@link PositionEventListener} 三层传递。定位按当前 Sprint 5 决定
- * <b>不落库</b>，只在监听器里日志输出——所以这里没有对应的 MyBatis-Plus 实体映射，
- * 用普通 {@code @Data} 即可。</p>
+ * 日志监听器 {@link PositionEventListener} 与落库监听器
+ * {@link PositionPersistenceListener} 传递。本类是事件层 DTO，不是 MyBatis-Plus 实体，
+ * 用普通 {@code @Data} 即可；落库实体见 {@code GbMobilePosition}。</p>
  *
  * <p>字段语义：</p>
  * <ul>
