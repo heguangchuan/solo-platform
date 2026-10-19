@@ -166,7 +166,7 @@ public class RateLimiterAspect {
 
         // Lua 脚本原子执行限流判断
         try {
-            // 🔴 所有数字参数统一转为字符串传递，避免 Spring Data Redis 序列化与 Lua tonumber 的类型兼容性问题
+            // 所有数字参数统一转为字符串传递，避免 Spring Data Redis 序列化与 Lua tonumber 的类型兼容性问题
             // 这是 Redis Lua 脚本在不同 JDK/Redis 版本下的经典坑：long 可能被序列化为非纯数字字符串
             Long result = redisTemplate.execute(
                     rateLimitScript,
@@ -186,7 +186,7 @@ public class RateLimiterAspect {
             // 限流异常直接抛出，不做降级处理
             throw e;
         } catch (Exception e) {
-            // 🔴 熔断器降级：Redis 故障（宕机 / 网络抖动 / 超时）时，直接放行请求
+            // 熔断器降级：Redis 故障（宕机 / 网络抖动 / 超时）时，直接放行请求
             // 设计原则：宁可不限流，也不能影响主业务
             long count = degradeCount.incrementAndGet();
             long currentMs = System.currentTimeMillis();
@@ -205,7 +205,7 @@ public class RateLimiterAspect {
      * 根据限流类型构建对应的 Redis key
      */
     private String buildLimitKey(RateLimiter rateLimiter, Method method) {
-        // 🔴 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
+        // 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
         String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
         String baseKey = rateLimiter.key() + methodKey;
 

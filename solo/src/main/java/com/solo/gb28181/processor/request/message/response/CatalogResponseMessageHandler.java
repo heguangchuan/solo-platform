@@ -134,7 +134,7 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             } else {
                 // 20 位标准 GB ID：200/215/216 是目录；200-214 范围内 Parental=1 也按目录
                 // （200+ 是中心设备类，海康相机不会用，冲突面小）。
-                // ⚠️ 故意不收 130-198 + Parental=1：海康相机普遍把 <Parental> 错填成 65535，
+                // 注意：故意不收 130-198 + Parental=1：海康相机普遍把 <Parental> 错填成 65535，
                 // 兜底成 1 后会被这条规则误吞进 parental=1，导致海康相机的通道完全没入库。
                 isDirectoryType = (typeCode == 200 || typeCode == 215 || typeCode == 216)
                         || (typeCode >= 200 && typeCode <= 214 && parental == 1);

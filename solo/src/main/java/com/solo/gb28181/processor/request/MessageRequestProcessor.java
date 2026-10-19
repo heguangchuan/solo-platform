@@ -131,7 +131,7 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
         // 先按 fromUser 查设备
         GbDevice device = lookupDeviceCached(fromUser);
         if (device != null) {
-            // ⚠️ 关键：先回 200 OK 再分发业务。GB28181 对端（尤其下级平台）普遍是
+            // 关键：先回 200 OK 再分发业务。GB28181 对端（尤其下级平台）普遍是
             // "收到上一片的 200 才发下一片"，不回 200 会让对端一直等 SIP 事务超时
             // （Timer F = 64×T1 ≈ 32s，实测某些实现 8.6s）才发下一片——4w 条目录要跑几天。
             // responseAck 只依赖 SIPRequest 头部，不需要业务处理结果，可以安全前置。
