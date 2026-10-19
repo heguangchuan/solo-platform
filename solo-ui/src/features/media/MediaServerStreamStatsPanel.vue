@@ -191,10 +191,10 @@ import Badge from '@/components/ui/badge/Badge.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 import DetailTable from './DetailTable.vue'
 import {
-  listMediaServerApi,
-  getStreamStatsSummaryApi,
-  getStreamStatsDetailApi,
-} from '@/api/media'
+  getHomeMediaServersApi,
+  getHomeStreamStatsSummaryApi,
+  getHomeStreamStatsDetailApi,
+} from '@/api/home'
 import type {
   MediaServer,
   MediaServerStreamStatsSummary,
@@ -260,7 +260,7 @@ const tabs = computed(() => {
 
 const loadSummary = async (id: string) => {
   try {
-    const res = await getStreamStatsSummaryApi(id)
+    const res = await getHomeStreamStatsSummaryApi(id)
     summary.value = res.data
   } catch (e) {
     if (!silent) console.warn('[流统计] summary 加载失败', e)
@@ -274,14 +274,14 @@ const loadTab = async (key: StreamStatsTabKey, force = false) => {
   try {
     const id = summary.value.serverId
     if (key === 'gb') {
-      gbSessions.value = (await getStreamStatsDetailApi<StreamStatsGbItem>(id, 'gb')).data
+      gbSessions.value = (await getHomeStreamStatsDetailApi<StreamStatsGbItem>(id, 'gb')).data
     } else if (key === 'push') {
-      pushItems.value = (await getStreamStatsDetailApi<StreamStatsPushItem>(id, 'push')).data
+      pushItems.value = (await getHomeStreamStatsDetailApi<StreamStatsPushItem>(id, 'push')).data
     } else if (key === 'proxy') {
-      proxyItems.value = (await getStreamStatsDetailApi<StreamStatsProxyItem>(id, 'proxy')).data
+      proxyItems.value = (await getHomeStreamStatsDetailApi<StreamStatsProxyItem>(id, 'proxy')).data
     } else {
       onvifSessions.value = (
-        await getStreamStatsDetailApi<StreamStatsOnvifItem>(id, 'onvif')
+        await getHomeStreamStatsDetailApi<StreamStatsOnvifItem>(id, 'onvif')
       ).data
     }
     tabLoaded.value[key] = true
@@ -345,7 +345,7 @@ watch(realtime, (on) => {
 
 onMounted(async () => {
   try {
-    servers.value = (await listMediaServerApi()).data
+    servers.value = (await getHomeMediaServersApi()).data
     // 默认选第一个在线节点，无在线则取第一个
     const preferred = servers.value.find((s) => s.status === 1) ?? servers.value[0]
     if (preferred) serverId.value = preferred.serverId

@@ -12,12 +12,6 @@ import type {
   StreamPushClient,
   StreamPushClientPageRequest,
   StreamPushClientRequest,
-  MediaServerStreamStatsSummary,
-  StreamStatsGbItem,
-  StreamStatsOnvifItem,
-  StreamStatsProxyItem,
-  StreamStatsPushItem,
-  StreamStatsTabKey,
 } from '@/types/api'
 
 /* ==================== 流媒体节点 ==================== */
@@ -36,27 +30,6 @@ export const saveMediaServerApi = (data: MediaServerRequest) => {
 
 export const deleteMediaServerApi = (id: string) => {
   return del<void>(`/api/media-server/${id}`)
-}
-
-/* ---- 节点流统计 ---- */
-
-export const getStreamStatsSummaryApi = (serverId: string) => {
-  return get<MediaServerStreamStatsSummary>(
-    `/api/media-server/${serverId}/stream-stats/summary`,
-  )
-}
-
-export const getStreamStatsDetailApi = <
-  T extends
-    | StreamStatsGbItem
-    | StreamStatsPushItem
-    | StreamStatsProxyItem
-    | StreamStatsOnvifItem,
->(
-  serverId: string,
-  type: StreamStatsTabKey,
-) => {
-  return get<T[]>(`/api/media-server/${serverId}/stream-stats/${type}`)
 }
 
 /* ==================== 拉流代理 ==================== */

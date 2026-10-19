@@ -38,8 +38,8 @@
             </div>
           </div>
 
-          <!-- 媒体节点流统计 -->
-          <MediaServerStreamStatsPanel v-if="can(PERM.MEDIA_SERVER_LIST)" />
+          <!-- 媒体节点流统计：所有账号可见，数据口径一致 -->
+          <MediaServerStreamStatsPanel />
     </div>
   </div>
 </template>
@@ -49,13 +49,10 @@ import { computed, onMounted, ref } from 'vue'
 import { IconDevices, IconVideo, IconDeviceCctv, IconServer } from '@tabler/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { getHomeOverviewApi } from '@/api/home'
-import { useAccess } from '@/features/access/useAccess'
-import { PERM } from '@/features/access/permissions'
 import MediaServerStreamStatsPanel from '@/features/media/MediaServerStreamStatsPanel.vue'
 import type { HomeOverview } from '@/types/api'
 
 const auth = useAuthStore()
-const { can } = useAccess()
 
 const overview = ref<HomeOverview>({
   gbDeviceTotal: 0,
