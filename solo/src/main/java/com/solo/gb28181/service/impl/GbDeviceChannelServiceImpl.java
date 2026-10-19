@@ -68,6 +68,11 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
         if (request.getSource() != null) {
             wrapper.eq(GbDeviceChannel::getSource, request.getSource());
         }
+        if (request.getPtzType() != null) {
+            // ptzType 是通道字段，分组行该列为 NULL——按类型过滤时只看通道行（同 status 的处理）
+            wrapper.eq(GbDeviceChannel::getParental, 0)
+                    .eq(GbDeviceChannel::getPtzType, request.getPtzType());
+        }
         wrapper.orderByAsc(GbDeviceChannel::getParental)  // 分组（1）排在通道（0）之前
                 .orderByAsc(GbDeviceChannel::getDeviceId)
                 .orderByAsc(GbDeviceChannel::getChannelId);

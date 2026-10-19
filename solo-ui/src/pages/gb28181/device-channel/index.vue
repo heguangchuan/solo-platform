@@ -139,6 +139,34 @@
               <th class="w-20 px-3 py-2 font-normal">资源类型</th>
               <th class="w-24 px-3 py-2">
                 <span class="inline-flex items-center gap-1 font-normal">
+                  类型
+                  <Select v-model="ptzFilter">
+                    <RawSelectTrigger
+                      title="按云台类型筛选"
+                      class="inline-flex size-4 items-center justify-center rounded outline-none hover:text-foreground"
+                    >
+                      <IconFilter
+                        class="size-3.5"
+                        :class="
+                          ptzFilter !== '__all__'
+                            ? 'text-primary'
+                            : 'text-muted-foreground/60'
+                        "
+                      />
+                    </RawSelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">全部</SelectItem>
+                      <SelectItem value="0">未知</SelectItem>
+                      <SelectItem value="1">球机</SelectItem>
+                      <SelectItem value="2">半球</SelectItem>
+                      <SelectItem value="3">固定枪机</SelectItem>
+                      <SelectItem value="4">遥控枪机</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
+              </th>
+              <th class="w-24 px-3 py-2">
+                <span class="inline-flex items-center gap-1 font-normal">
                   数据来源
                   <Select v-model="sourceFilter">
                     <RawSelectTrigger
@@ -228,6 +256,7 @@
                   {{ c.parental === 1 ? '分组' : '通道' }}
                 </span>
               </td>
+              <td class="px-3 py-2 text-xs text-muted-foreground">{{ ptzText(c) }}</td>
               <td class="px-3 py-2 text-xs text-muted-foreground">{{ sourceText(c.source) }}</td>
             </tr>
           </tbody>
@@ -327,6 +356,7 @@ const nameQ = ref('')
 const deviceIdQ = ref<string | undefined>(undefined)
 const activeKey = ref<TabKey>('all')
 const sourceFilter = ref<'__all__' | '1' | '2' | '3'>('__all__')
+const ptzFilter = ref<'__all__' | '0' | '1' | '2' | '3' | '4'>('__all__')
 const statusFilter = ref<'__all__' | 'ON' | 'OFF' | 'UNREGISTERED'>('__all__')
 
 // 表头状态漏斗 ↔ 顶部状态 tab：在线/离线/未注册映射到 activeKey，双向同步
@@ -378,7 +408,8 @@ const hasCondition = computed(
     !!nameQ.value.trim() ||
     !!deviceIdQ.value ||
     activeKey.value !== 'all' ||
-    sourceFilter.value !== '__all__',
+    sourceFilter.value !== '__all__' ||
+    ptzFilter.value !== '__all__',
 )
 
 const resource = useResource<GbDeviceChannelPageRequest, GbDeviceChannel>({
@@ -389,6 +420,7 @@ const resource = useResource<GbDeviceChannelPageRequest, GbDeviceChannel>({
       name: nameQ.value.trim() || undefined,
       deviceId: deviceIdQ.value || undefined,
       source: sourceFilter.value === '__all__' ? undefined : Number(sourceFilter.value),
+      ptzType: ptzFilter.value === '__all__' ? undefined : Number(ptzFilter.value),
       ...tabQuery(activeKey.value),
     }),
   initial: { page: 1, pageSize: 50 },
@@ -436,6 +468,11 @@ watch(sourceFilter, () => {
   clearChecked()
   resource.search()
 })
+watch(ptzFilter, () => {
+  cursor.value = 0
+  clearChecked()
+  resource.search()
+})
 
 const onTab = (key: TabKey) => {
   if (activeKey.value === key) return
@@ -451,6 +488,7 @@ const onClear = () => {
   deviceIdQ.value = undefined
   activeKey.value = 'all'
   sourceFilter.value = '__all__'
+  ptzFilter.value = '__all__'
   cursor.value = 0
   clearChecked()
   resource.search()
@@ -580,6 +618,18 @@ const SOURCE_TEXT: Record<number, string> = {
 }
 const sourceText = (source?: number) =>
   source == null ? '—' : SOURCE_TEXT[source] ?? '—'
+
+const PTZ_TEXT: Record<number, string> = {
+  0: '未知',
+  1: '球机',
+  2: '半球',
+  3: '固定枪机',
+  4: '遥控枪机',
+}
+const ptzText = (c: GbDeviceChannel) => {
+  if (c.parental === 1 || c.ptzType == null) return '—'
+  return PTZ_TEXT[c.ptzType] ?? '未知'
+}
 
 /* ---------------- 键盘流 ---------------- */
 const isTypingTarget = (el: EventTarget | null) =>

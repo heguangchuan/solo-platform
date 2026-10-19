@@ -118,6 +118,8 @@ export interface GbDeviceChannelPageRequest extends PageRequest {
   parental?: number
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
+  /** 云台类型：0 未知 / 1 球机 / 2 半球 / 3 固定枪机 / 4 遥控枪机（仅对通道生效） */
+  ptzType?: number
 }
 
 /** 国标资源目录项（通道 + 分组合一） */
