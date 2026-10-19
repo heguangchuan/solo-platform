@@ -20,8 +20,6 @@ export interface MediaServer {
   rtspPort?: number
   /** WebRTC 端口，0 = 不生成 RTC URL */
   rtcPort?: number
-  rtpPortStart?: number
-  rtpPortEnd?: number
   /** 0 离线，1 在线（由 ZLM hook 心跳驱动） */
   status: number
   hookAliveTime?: string
@@ -45,8 +43,6 @@ export interface MediaServerRequest {
   httpPort: number
   secret?: string
   streamIp?: string
-  rtpPortStart: number
-  rtpPortEnd: number
 }
 
 /* ========== 拉流代理 ========== */

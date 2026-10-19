@@ -150,8 +150,6 @@ CREATE TABLE media_server
     stream_http_port int                  DEFAULT 0 COMMENT '对外HTTP端口',
     rtsp_port        int                  DEFAULT 0 COMMENT '对外RTSP端口',
     rtc_port         int                  DEFAULT 0 COMMENT '对外WebRTC端口',
-    rtp_port_start   int                  DEFAULT 30000 COMMENT 'RTP端口起始',
-    rtp_port_end     int                  DEFAULT 35000 COMMENT 'RTP端口截止',
     status           tinyint              DEFAULT 0 COMMENT '在线状态 0离线 1在线',
     hook_alive_time  datetime             DEFAULT NULL COMMENT '最近keepalive时间',
     create_time      datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',

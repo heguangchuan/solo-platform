@@ -92,15 +92,5 @@ public class MediaProperties {
          * 对外 WebRTC 端口；0 表示不生成 WebRTC URL
          */
         private int rtcPort = 0;
-        /**
-         * 多端口 RTP 收流段起始（同步给 ZLM 的 {@code rtp_proxy.port_range}）。
-         * 实际收流时 ZLM 仍由 {@code openRtpServer} 的 port=0 自动分配；该字段仅控制
-         * ZLM 进程级可分配的端口范围，需要与 ZLM 自身启动脚本 / 防火墙放行段一致。
-         */
-        private int rtpPortStart = 30000;
-        /**
-         * 多端口 RTP 收流段结束。语义同 rtpPortStart。
-         */
-        private int rtpPortEnd = 35000;
     }
 }
