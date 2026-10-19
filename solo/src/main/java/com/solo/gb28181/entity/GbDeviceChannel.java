@@ -141,7 +141,7 @@ public class GbDeviceChannel {
     private Double latitude;
 
     /** 云台类型：0 未知 1 球机 2 半球 3 固定枪机 4 遥控枪机（仅通道） */
-    @Schema(description = "云台类型（0=不支持，1=支持）")
+    @Schema(description = "云台类型：0 未知、1 球机、2 半球、3 固定枪机、4 遥控枪机")
     private Integer ptzType;
 
     /**
