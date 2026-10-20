@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full gap-3 overflow-hidden p-3 pt-3">
+  <div class="relative flex h-full gap-3 overflow-hidden p-3 pt-3">
     <!-- 左侧：上级平台列表 -->
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <!-- 工具栏 -->
@@ -175,8 +175,12 @@
     <Transition name="inspector">
       <aside
         v-if="creating || selected || shareTarget"
-        class="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
-        :class="shareTarget ? 'w-[640px]' : 'w-[420px]'"
+        class="flex flex-col overflow-hidden rounded-xl border border-border bg-card"
+        :class="
+          shareTarget
+            ? 'absolute inset-y-3 right-3 z-30 w-[1000px] max-w-[calc(100%_-_1.5rem)]'
+            : 'relative w-[420px] shrink-0'
+        "
       >
         <div v-if="shareTarget" class="min-h-0 flex-1 overflow-y-auto p-5">
           <ShareDirectoryDialog
@@ -286,6 +290,7 @@ const fetchLocalInfo = async () => {
 /* ---------------- 检视器 ---------------- */
 const selected = ref<GbParentPlatform | null>(null)
 const creating = ref(false)
+const shareTarget = ref<GbParentPlatform | null>(null)
 
 const scrollerRef = ref<HTMLElement>()
 const sentinelRef = ref<HTMLElement>()
@@ -297,10 +302,12 @@ const firstLoading = computed(
 const onRowClick = (p: GbParentPlatform) => {
   creating.value = false
   selected.value = p
+  shareTarget.value = null
 }
 const onCreate = () => {
   selected.value = null
   creating.value = true
+  shareTarget.value = null
 }
 const onCloseInspector = () => {
   creating.value = false
@@ -318,9 +325,10 @@ const onDeleted = (p: GbParentPlatform) => {
 }
 
 /* ---------------- 推送目录 ---------------- */
-const shareTarget = ref<GbParentPlatform | null>(null)
 const onShare = (p: GbParentPlatform) => {
   shareTarget.value = p
+  selected.value = null
+  creating.value = false
 }
 const onCloseShare = () => {
   shareTarget.value = null
