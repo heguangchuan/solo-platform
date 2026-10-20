@@ -43,16 +43,20 @@ public class ShareChangedEventListener {
             return;
         }
         SubscribeInfo sub = subscribeHolder.getActive(platform.getServerGbId(), "Catalog").orElse(null);
-        if (sub == null || sub.getDeviceId() != null && !sub.getDeviceId().isEmpty()) {
+        if (sub == null) {
+            log.warn("[级联订阅] share 变化但无活跃 Catalog 订阅，跳过推送 上级平台:{}", platform.getServerGbId());
             return;
         }
-        List<GbDeviceChannel> channels = catalogShareService.loadSharedChannels(platformId);
-        if (channels == null) {
-            channels = List.of();
+        if (sub.getDeviceId() != null && !sub.getDeviceId().isEmpty()) {
+            return;
         }
-        platformCommander.sendNotifyCatalogList(platform, properties.getId(), channels,
+        List<GbDeviceChannel> items = catalogShareService.loadSharedCatalogItems(platformId);
+        if (items == null) {
+            items = List.of();
+        }
+        platformCommander.sendNotifyCatalogList(platform, properties.getId(), items,
                 String.valueOf(PlatformCommander.nextSn()));
-        log.info("[级联订阅] share 变化推送 上级平台:{} 共享通道:{}",
-                platform.getServerGbId(), channels.size());
+        log.info("[级联订阅] share 变化推送 上级平台:{} 目录条目:{}",
+                platform.getServerGbId(), items.size());
     }
 }

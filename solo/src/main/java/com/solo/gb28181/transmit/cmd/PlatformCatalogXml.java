@@ -4,8 +4,6 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
 
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * 级联 Catalog Response 报文体（XML）构造（ADR-023 合并版）。
@@ -41,11 +39,6 @@ public final class PlatformCatalogXml {
         String charset = platform.getCharacterSet() == null ? "GB2312" : platform.getCharacterSet();
         int itemNum = items.size();
 
-        // 父 id（GB 码）→ 父 item 的 20 位码映射：item.parent_id 直查同批内
-        Map<String, String> parentCodeByItem = items.stream()
-                .filter(i -> i.getChannelId() != null)
-                .collect(Collectors.toMap(GbDeviceChannel::getChannelId, GbDeviceChannel::getChannelId, (a, b) -> a));
-
         StringBuilder sb = new StringBuilder(600 + itemNum * 300);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
         sb.append("<Response>\r\n");
@@ -53,15 +46,20 @@ public final class PlatformCatalogXml {
         sb.append("<SN>").append(sn).append("</SN>\r\n");
         sb.append("<DeviceID>").append(deviceGbId).append("</DeviceID>\r\n");
         sb.append("<SumNum>").append(sumNum).append("</SumNum>\r\n");
-        sb.append("<DeviceList Num=\"").append(itemNum).append("\">\r\n");
-
-        for (GbDeviceChannel it : items) {
-            appendItem(sb, it, deviceGbId, parentCodeByItem);
-        }
-
-        sb.append("</DeviceList>\r\n");
+        appendDeviceList(sb, deviceGbId, items);
         sb.append("</Response>\r\n");
         return sb.toString();
+    }
+
+    /**
+     * 渲染 DeviceList 片段（分组 parental=1 + 通道 parental=0），供 Response 与 NOTIFY 复用。
+     */
+    public static void appendDeviceList(StringBuilder sb, String deviceGbId, List<GbDeviceChannel> items) {
+        sb.append("<DeviceList Num=\"").append(items.size()).append("\">\r\n");
+        for (GbDeviceChannel it : items) {
+            appendItem(sb, it, deviceGbId);
+        }
+        sb.append("</DeviceList>\r\n");
     }
 
     /**
@@ -71,8 +69,7 @@ public final class PlatformCatalogXml {
      * <p>通道（parental=0）：DeviceID 优先 exposed_code（平台唯一），回退 channelId；
      *   ParentID = item.parentId（父分组 GB 码；ROOT_PARENT 时兜底到 deviceGbId）。</p>
      */
-    private static void appendItem(StringBuilder sb, GbDeviceChannel it, String deviceGbId,
-                                   Map<String, String> parentCodeByItem) {
+    private static void appendItem(StringBuilder sb, GbDeviceChannel it, String deviceGbId) {
         boolean isGroup = it.getParental() != null && it.getParental() == 1;
         String reportId;
         if (isGroup) {
@@ -83,7 +80,7 @@ public final class PlatformCatalogXml {
             reportId = it.getExposedOrChannelId();
         }
 
-        String parentCode = resolveParentCode(it.getParentId(), parentCodeByItem, deviceGbId);
+        String parentCode = resolveParentCode(it.getParentId(), deviceGbId);
 
         sb.append("<Item>\r\n");
         sb.append("<DeviceID>").append(nullSafe(reportId)).append("</DeviceID>\r\n");
@@ -138,12 +135,10 @@ public final class PlatformCatalogXml {
      * 解析 item.parentId → XML 中实际写入的 &lt;ParentID&gt;：
      * <ul>
      *   <li>"0"（根哨兵）→ 兜底 deviceGbId（挂到平台自身节点下）</li>
-     *   <li>其他值 → 直接用 item.parentId 自身（已是父 item 的 20 位 GB 码，
-     *       与父行 channel_id 对齐；同批内 map 仅作查存在性，这里直接透传即可）</li>
+     *   <li>其他值 → 直接用 item.parentId 自身（已是父 item 的 20 位 GB 码）</li>
      * </ul>
      */
-    private static String resolveParentCode(String parentId, Map<String, String> parentCodeByItem,
-                                            String deviceGbId) {
+    private static String resolveParentCode(String parentId, String deviceGbId) {
         if (parentId == null || ROOT_PARENT.equals(parentId)) {
             return deviceGbId;
         }
