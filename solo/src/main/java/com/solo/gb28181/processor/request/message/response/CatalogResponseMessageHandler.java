@@ -74,6 +74,10 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     @org.springframework.beans.factory.annotation.Autowired
     private CatalogSyncStatusService catalogSyncStatusService;
 
+    @Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.solo.gb28181.subscribe.PlatformCatalogSubscribeManager catalogSubscribeManager;
+
     @Override
     public String getRootType() { return "Response"; }
 
@@ -101,6 +105,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
             // 通知进度服务收尾（防前端等不到完成态）
             cache.finalize(buildIdleContextForEmpty(device.getDeviceId(), sn, sumNum),
                     true, "sumNum=0-空目录");
+            // 通知订阅的上级平台：目录有变化
+            catalogSubscribeManager.notifyChannelChange(device.getDeviceId());
             return;
         }
 
