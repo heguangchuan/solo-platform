@@ -1,16 +1,19 @@
 package com.solo.gb28181.processor.request.message.response;
 
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.CatalogSyncContext;
+import com.solo.gb28181.support.CatalogSyncStatusService;
 import com.solo.gb28181.utils.SipUtils;
 import com.solo.gb28181.utils.XmlUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
@@ -67,6 +70,10 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     private final GbDeviceChannelService channelService;
     private final GbDeviceService deviceService;
 
+    @Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private CatalogSyncStatusService catalogSyncStatusService;
+
     @Override
     public String getRootType() { return "Response"; }
 
@@ -84,10 +91,13 @@ public class CatalogResponseMessageHandler implements MessageHandler {
 
         if (sumNum == 0) {
             log.info("[通道目录] 设备无通道 deviceId={}", device.getDeviceId());
-            // 设备通告空目录：清理并记录 lastCatalogSyncTime
+            // 设备通告空目录：清理并记录 lastCatalogSyncTime（只更这一个字段，避免覆盖并发写入的 DeviceInfo）
             channelService.deleteByDeviceId(device.getDeviceId());
-            device.setLastCatalogSyncTime(java.time.LocalDateTime.now());
-            deviceService.updateById(device);
+            deviceService.update(new LambdaUpdateWrapper<GbDevice>()
+                    .eq(GbDevice::getId, device.getId())
+                    .set(GbDevice::getLastCatalogSyncTime, java.time.LocalDateTime.now()));
+            // 释放同步锁（空目录不走 finalize，手动释放避免 5 分钟死锁）
+            catalogSyncStatusService.release(device.getDeviceId());
             // 通知进度服务收尾（防前端等不到完成态）
             cache.finalize(buildIdleContextForEmpty(device.getDeviceId(), sn, sumNum),
                     true, "sumNum=0-空目录");

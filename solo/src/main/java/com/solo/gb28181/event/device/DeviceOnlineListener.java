@@ -43,30 +43,40 @@ public class DeviceOnlineListener {
         // 1) 先清残留的 in-flight sync：老 sync 占着 SN 不让位，新 sync 来了会被 startSync 丢
         catalogDataCache.cancel(event.getDeviceId());
 
-        // 2) 走 Redis 锁，5 分钟内同设备重复触发直接跳过
-        if (!catalogSyncStatusService.tryAcquire(event.getDeviceId())) {
-            log.info("[设备上线] 同步锁被占用，跳过本次触发 deviceId={} firstTime={}",
-                    event.getDeviceId(), event.isFirstTime());
-            return;
-        }
-        // 锁由 CatalogSyncProgressEvent 在 sync 收尾（非 RUNNING 状态）时自动 release
-
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
         if (device == null) {
             return;
         }
+
+        // 2) DeviceInfo 查询不受 Catalog 同步锁影响，每次上线都发
         try {
             sipCommander.queryDeviceInfo(device);
             Thread.sleep(500);
-            sipCommander.queryCatalog(device);
-            log.info("[设备上线] 触发设备信息和通道目录同步 deviceId={} firstTime={}", event.getDeviceId(), event.isFirstTime());
-            // 3) 启动目录订阅（如果设备配置了订阅周期）
-            catalogSubscribeManager.start(event.getDeviceId());
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {
-            log.error("[设备上线] 同步触发失败 deviceId={}", event.getDeviceId(), e);
+            log.error("[设备上线] DeviceInfo 查询失败 deviceId={}", event.getDeviceId(), e);
         }
+
+        // 3) Catalog 同步走 Redis 锁，5 分钟内重复触发跳过
+        boolean catalogStarted = false;
+        if (catalogSyncStatusService.tryAcquire(event.getDeviceId())) {
+            try {
+                sipCommander.queryCatalog(device);
+                catalogStarted = true;
+                log.info("[设备上线] 触发通道目录同步 deviceId={} firstTime={}",
+                        event.getDeviceId(), event.isFirstTime());
+            } catch (Exception e) {
+                log.error("[设备上线] Catalog 同步触发失败 deviceId={}", event.getDeviceId(), e);
+                catalogSyncStatusService.release(event.getDeviceId());
+            }
+        } else {
+            log.info("[设备上线] 同步锁被占用，跳过 Catalog 同步 deviceId={} firstTime={}",
+                    event.getDeviceId(), event.isFirstTime());
+        }
+
+        // 4) 启动目录订阅（不受 Catalog 锁影响，每次上线都尝试）
+        catalogSubscribeManager.start(event.getDeviceId());
     }
 }
