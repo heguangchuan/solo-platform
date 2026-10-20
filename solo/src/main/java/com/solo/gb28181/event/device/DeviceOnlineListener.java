@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
+import com.solo.gb28181.subscribe.DeviceCatalogSubscribeManager;
 import com.solo.gb28181.support.CatalogSyncStatusService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class DeviceOnlineListener {
     private final SipCommander sipCommander;
     private final CatalogDataCache catalogDataCache;
     private final CatalogSyncStatusService catalogSyncStatusService;
+    private final DeviceCatalogSubscribeManager catalogSubscribeManager;
 
     @Async("gb28181BizExecutor")
     @EventListener
@@ -59,6 +61,8 @@ public class DeviceOnlineListener {
             Thread.sleep(500);
             sipCommander.queryCatalog(device);
             log.info("[设备上线] 触发设备信息和通道目录同步 deviceId={} firstTime={}", event.getDeviceId(), event.isFirstTime());
+            // 3) 启动目录订阅（如果设备配置了订阅周期）
+            catalogSubscribeManager.start(event.getDeviceId());
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
         } catch (Exception e) {

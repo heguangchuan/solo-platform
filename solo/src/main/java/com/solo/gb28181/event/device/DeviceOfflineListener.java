@@ -7,6 +7,7 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.request.message.response.CatalogDataCache;
+import com.solo.gb28181.subscribe.DeviceCatalogSubscribeManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -24,6 +25,7 @@ public class DeviceOfflineListener {
     private final GbDeviceMapper deviceMapper;
     private final GbDeviceChannelMapper channelMapper;
     private final CatalogDataCache catalogDataCache;
+    private final DeviceCatalogSubscribeManager catalogSubscribeManager;
 
     @Async("taskExecutor")
     @EventListener
@@ -34,7 +36,10 @@ public class DeviceOfflineListener {
         //    留待设备重新注册后由新 sync 拉完整目录覆盖。
         catalogDataCache.cancel(event.getDeviceId());
 
-        // 2) 通道置 OFF
+        // 2) 停止目录订阅
+        catalogSubscribeManager.stop(event.getDeviceId());
+
+        // 3) 通道置 OFF
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, event.getDeviceId()));
         if (device == null) {

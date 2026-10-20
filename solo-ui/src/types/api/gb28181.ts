@@ -70,6 +70,8 @@ export interface GbDevice {
   registerTime?: string
   keepaliveTime?: string
   lastCatalogSyncTime?: string
+  /** 目录订阅周期（秒），0=不订阅 */
+  subscribeCycleForCatalog?: number
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
   createTime: string

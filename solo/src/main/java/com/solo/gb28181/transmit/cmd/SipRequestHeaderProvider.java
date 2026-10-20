@@ -21,6 +21,8 @@ import javax.sip.header.CSeqHeader;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ContactHeader;
 import javax.sip.header.ContentTypeHeader;
+import javax.sip.header.EventHeader;
+import javax.sip.header.ExpiresHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.HeaderFactory;
 import javax.sip.header.MaxForwardsHeader;
@@ -332,6 +334,78 @@ public class SipRequestHeaderProvider {
 
         ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSRTSP");
         request.setContent(rtspBody, ct);
+        return request;
+    }
+
+    // ============================================================
+    // SUBSCRIBE（目录/移动位置订阅）
+    // ============================================================
+
+    /**
+     * 构造发往设备的 SUBSCRIBE 请求
+     *
+     * @param device    目标设备
+     * @param eventType 事件类型（catalog / mobilePosition 等）
+     * @param xmlBody   XML 报文体，退订时可为 null
+     * @param charset   XML 字符集，用于编码 body 字节
+     * @param expires   有效期（秒），0 表示退订
+     * @param callId    首次传 null，续期/退订复用原 dialog 的 callId
+     * @param fromTag   from-tag，首次传 null
+     * @param toTag     to-tag，首次传 null
+     */
+    public Request buildSubscribeRequest(GbDevice device, String eventType, String xmlBody,
+                                         String charset, int expires, CallIdHeader callId,
+                                         String fromTag, String toTag)
+            throws ParseException, InvalidArgumentException, java.io.UnsupportedEncodingException {
+        String localIp = sipLayer.getLocalIp(device.getLocalIp());
+        String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+        String sipIp = properties.resolveSipIp(localIp);
+
+        // Request-URI: sip:<deviceId>@<deviceHostAddress>
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
+
+        // Via
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        // From
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
+        Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, fromTag);
+
+        // To
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
+        Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, toTag);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.SUBSCRIBE);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.SUBSCRIBE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        // Contact
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
+        Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
+        request.addHeader(contact);
+
+        // Event 头
+        EventHeader eventHeader = HEADER_FACTORY.createEventHeader(eventType);
+        request.addHeader(eventHeader);
+
+        // Expires 头
+        ExpiresHeader expiresHeader = HEADER_FACTORY.createExpiresHeader(Math.max(0, expires));
+        request.addHeader(expiresHeader);
+
+        // Body（MANSCDP+xml）——按 XML 声明的编码转字节，避免声明与实际编码不一致
+        if (xmlBody != null && !xmlBody.isBlank()) {
+            ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSCDP+xml");
+            byte[] bodyBytes = xmlBody.getBytes(charset);
+            request.setContent(bodyBytes, ct);
+        }
         return request;
     }
 

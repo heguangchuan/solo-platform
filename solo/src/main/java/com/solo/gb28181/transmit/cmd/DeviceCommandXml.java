@@ -105,4 +105,19 @@ public final class DeviceCommandXml {
         sb.append("</Control>\r\n");
         return sb.toString();
     }
+
+    /**
+     * 构造 SUBSCRIBE XML 报文（Catalog / MobilePosition / Alarm 共用）
+     */
+    public static String buildSubscribe(String cmdType, int sn, String deviceId, int expires, String charset) {
+        StringBuilder sb = new StringBuilder(260);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Subscribe>\r\n");
+        sb.append("<CmdType>").append(cmdType).append("</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(deviceId).append("</DeviceID>\r\n");
+        sb.append("<Expires>").append(Math.max(0, expires)).append("</Expires>\r\n");
+        sb.append("</Subscribe>\r\n");
+        return sb.toString();
+    }
 }

@@ -30,6 +30,7 @@ CREATE TABLE gb_device
     register_time          datetime             DEFAULT NULL COMMENT '最后注册时间',
     keepalive_time         datetime             DEFAULT NULL COMMENT '最后心跳时间',
     last_catalog_sync_time datetime             DEFAULT NULL COMMENT '最后Catalog同步时间',
+    subscribe_cycle_for_catalog int            DEFAULT 0 COMMENT '目录订阅周期（秒），0=不订阅',
     create_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     update_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (id),
