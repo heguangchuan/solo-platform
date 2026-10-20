@@ -139,9 +139,58 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
     @Override
     public List<GbDeviceChannel> loadSharedCatalogItems(Long platformId) {
-        // ADR-028：返回分组 + 通道。mapper 用递归 CTE 沿 parent_id 链上溯，拿到共享通道的全部祖先分组，
-        // 分组在前 + channelId 二级排序保证跨片顺序稳定。XmlBuilder 已有 parental 分支，无需特殊处理。
-        return shareMapper.selectSharedCatalogWithGroups(platformId);
+        // 推送给上级的目录结构 = 推送分组树（gb_platform_group，parental=1）+ 挂载通道（parental=0）。
+        // 分组 DeviceID 用 group.code（215/216），通道 parentId 指向所在分组 code——上级看到的是本平台
+        // 在弹窗里编排的推送树，而不是设备原始目录（parental=1）层级。
+        List<GbPlatformGroup> groups = groupMapper.selectList(
+                new LambdaQueryWrapper<GbPlatformGroup>()
+                        .eq(GbPlatformGroup::getPlatformId, platformId)
+                        .orderByAsc(GbPlatformGroup::getId));
+        Map<Long, String> codeByGroupId = groups.stream()
+                .collect(Collectors.toMap(GbPlatformGroup::getId, GbPlatformGroup::getCode, (a, b) -> a));
+
+        List<GbDeviceChannel> result = new ArrayList<>();
+        for (GbPlatformGroup g : groups) {
+            GbDeviceChannel node = new GbDeviceChannel();
+            node.setChannelId(g.getCode());
+            node.setName(g.getName());
+            node.setParental(1);
+            node.setStatus("ON");
+            String parentCode = g.getParentId() != null && g.getParentId() != 0L
+                    ? codeByGroupId.getOrDefault(g.getParentId(), "0") : "0";
+            node.setParentId(parentCode);
+            result.add(node);
+        }
+
+        List<GbPlatformShare> shares = shareMapper.selectList(
+                new LambdaQueryWrapper<GbPlatformShare>()
+                        .eq(GbPlatformShare::getPlatformId, platformId));
+        if (!shares.isEmpty()) {
+            List<Long> resourceIds = shares.stream()
+                    .map(GbPlatformShare::getResourceId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+            Map<Long, GbDeviceChannel> channelById = resourceIds.isEmpty()
+                    ? Map.of()
+                    : channelMapper.selectBatchIds(resourceIds).stream()
+                            .collect(Collectors.toMap(GbDeviceChannel::getId, c -> c, (a, b) -> a));
+            for (GbPlatformShare s : shares) {
+                GbDeviceChannel c = channelById.get(s.getResourceId());
+                if (c == null) {
+                    continue;
+                }
+                c.setParentId(codeByGroupId.getOrDefault(s.getGroupId(), "0"));
+                c.setExposedCode(s.getExposedCode());
+                result.add(c);
+            }
+        }
+
+        // 分组在前、通道在后，同类型按 channelId 升序，保证跨片顺序稳定
+        result.sort(Comparator
+                .comparingInt((GbDeviceChannel c) -> c.getParental() != null && c.getParental() == 1 ? 0 : 1)
+                .thenComparing(GbDeviceChannel::getChannelId, Comparator.nullsLast(String::compareTo)));
+        return result;
     }
 
     @Override

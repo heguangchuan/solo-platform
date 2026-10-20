@@ -45,7 +45,10 @@ public class CatalogSyncProgressEventListener {
         }
         String deviceId = progress.getDeviceId();
         List<GbDeviceChannel> channels = channelMapper.selectList(
-                new LambdaQueryWrapper<GbDeviceChannel>().eq(GbDeviceChannel::getDeviceId, deviceId));
+                new LambdaQueryWrapper<GbDeviceChannel>()
+                        .eq(GbDeviceChannel::getDeviceId, deviceId)
+                        .orderByDesc(GbDeviceChannel::getParental)
+                        .orderByAsc(GbDeviceChannel::getChannelId));
 
         for (SubscribeInfo sub : subscribeHolder.listByCmdType("Catalog")) {
             if (sub.getDeviceId() == null || sub.getDeviceId().isEmpty()) {

@@ -70,7 +70,7 @@ public final class PlatformNotifyXml {
         return sb.toString();
     }
 
-    /** 构造多通道 Catalog NOTIFY body——推送通道目录变更（新增/删除/更新） */
+    /** 构造 Catalog NOTIFY body——推送目录变更（分组 + 通道，ADR-028） */
     public static String buildCatalogList(GbParentPlatform platform, String parentDeviceGbId,
                                           String deviceId, List<GbDeviceChannel> channels, String sn) {
         String charset = charset(platform);
@@ -81,33 +81,9 @@ public final class PlatformNotifyXml {
         sb.append("<SN>").append(sn).append("</SN>\r\n");
         sb.append("<DeviceID>").append(deviceId).append("</DeviceID>\r\n");
         sb.append("<SumNum>").append(channels.size()).append("</SumNum>\r\n");
-        sb.append("<DeviceList Num=\"").append(channels.size()).append("\">\r\n");
-        for (GbDeviceChannel c : channels) {
-            appendChannelItem(sb, c, parentDeviceGbId);
-        }
-        sb.append("</DeviceList>\r\n");
+        PlatformCatalogXml.appendDeviceList(sb, parentDeviceGbId, channels);
         sb.append("</Notify>\r\n");
         return sb.toString();
-    }
-
-    private static void appendChannelItem(StringBuilder sb, GbDeviceChannel c, String parentDeviceGbId) {
-        boolean online = "ON".equalsIgnoreCase(c.getStatus());
-        sb.append("<Item>\r\n");
-        sb.append("<DeviceID>").append(c.getExposedOrChannelId()).append("</DeviceID>\r\n");
-        sb.append("<Name>").append(escape(c.getName())).append("</Name>\r\n");
-        sb.append("<Manufacturer>").append(escape(c.getManufacturer())).append("</Manufacturer>\r\n");
-        sb.append("<Model>").append(escape(c.getModel())).append("</Model>\r\n");
-        sb.append("<Owner>").append(escape(c.getOwner())).append("</Owner>\r\n");
-        sb.append("<CivilCode>").append(escape(c.getCivilCode())).append("</CivilCode>\r\n");
-        sb.append("<Address>").append(escape(c.getAddress())).append("</Address>\r\n");
-        sb.append("<Parental>0</Parental>\r\n");
-        String parentId = c.getParentId();
-        sb.append("<ParentID>").append((parentId == null || parentId.isEmpty() || "0".equals(parentId)) ? nullSafe(parentDeviceGbId) : parentId).append("</ParentID>\r\n");
-        sb.append("<SafetyWay>0</SafetyWay>\r\n");
-        sb.append("<RegisterWay>").append(c.getRegisterWay() == null ? 1 : c.getRegisterWay()).append("</RegisterWay>\r\n");
-        sb.append("<Secrecy>0</Secrecy>\r\n");
-        sb.append("<Status>").append(online ? "ON" : "OFF").append("</Status>\r\n");
-        sb.append("</Item>\r\n");
     }
 
     /** 构造 MobilePosition NOTIFY body——设备移动位置变化 */

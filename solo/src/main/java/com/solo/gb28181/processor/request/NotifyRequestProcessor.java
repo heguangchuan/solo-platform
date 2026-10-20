@@ -31,7 +31,7 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class NotifyRequestProcessor extends SipRequestProcessorBase implements SipRequestProcessor {
 
-    private static final String LOG_TAG = "[NOTIFY]";
+    private static final String LOG_TAG = "[目录通知]";
 
     private final CatalogResponseMessageHandler catalogHandler;
     private final GbDeviceService gbDeviceService;
