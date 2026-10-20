@@ -43,6 +43,7 @@ public final class PlatformDeviceInfoXml {
         sb.append("<SN>").append(sn).append("</SN>\r\n");
         sb.append("<DeviceID>").append(deviceId).append("</DeviceID>\r\n");
         sb.append("<Result>").append(RESULT_OK).append("</Result>\r\n");
+        appendTag(sb, "DeviceName", device.getName());
         // 厂商/型号/固件：来自设备注册时上 ReportInfo 报文（DeviceInfoResponseMessageHandler 回填）
         appendTag(sb, "Manufacturer", device.getManufacturer());
         appendTag(sb, "Model", device.getModel());
