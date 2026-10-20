@@ -5,7 +5,7 @@ import {
   IconX,
   IconLoader2,
 } from '@tabler/icons-vue'
-import { Plus, Trash2, WandSparkles } from 'lucide-vue-next'
+import { Plus, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue'
 import Input from '@/components/ui/input/Input.vue'
@@ -21,7 +21,6 @@ import {
   removeShareApi,
   clearSharesApi,
   clearAllSharesByPlatformApi,
-  addAllSharesApi,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
@@ -234,12 +233,6 @@ const onUnmountSelected = async () => {
   shared.value = shared.value.filter((x) => !selectedIds.value.has(x.id))
   sharedTotal.value = Math.max(0, sharedTotal.value - selectedIds.value.size)
   selectedIds.value = new Set()
-}
-
-const onAddAll = async () => {
-  const res = await addAllSharesApi(props.platformId, selectedGroupId.value)
-  toast.success(`一键添加完成，新增 ${res.data.added} 条`)
-  loadShared(true)
 }
 
 const onClearAll = async () => {
@@ -465,7 +458,7 @@ onBeforeUnmount(() => {
             <IconSearch class="size-3.5 text-muted-foreground" />
             <input
               v-model="keyword"
-              class="h-6 w-32 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
+              class="h-6 w-48 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
               placeholder="名称 / 编码"
             />
             <span class="text-[11px] text-muted-foreground">共 {{ sharedTotal }} 条</span>
@@ -473,12 +466,11 @@ onBeforeUnmount(() => {
             <Button
               v-access="PERM.GB_PARENT_PLATFORM_EDIT"
               variant="ghost"
-              size="sm"
-              class="h-7 text-xs"
-              @click="onAddAll"
+              size="icon-sm"
+              title="删除"
+              @click="onUnmountSelected"
             >
-              <WandSparkles class="size-3.5" />
-              一键添加
+              <Trash2 class="size-3.5" />
             </Button>
             <Button
               v-access="PERM.GB_PARENT_PLATFORM_EDIT"
@@ -489,16 +481,6 @@ onBeforeUnmount(() => {
             >
               <Plus class="size-3.5" />
               添加
-            </Button>
-            <Button
-              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
-              variant="ghost"
-              size="sm"
-              class="h-7 text-xs text-destructive hover:text-destructive"
-              @click="onUnmountSelected"
-            >
-              <Trash2 class="size-3.5" />
-              卸载
             </Button>
           </template>
           <template v-else>
