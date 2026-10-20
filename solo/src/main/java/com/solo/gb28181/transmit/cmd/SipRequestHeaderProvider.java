@@ -410,68 +410,6 @@ public class SipRequestHeaderProvider {
     }
 
     /**
-     * 构造发给上级平台的 Catalog NOTIFY 请求
-     *
-     * @param platformGbId  上级平台国标 ID
-     * @param platformHost  上级平台 IP:port
-     * @param transport     UDP/TCP
-     * @param localDeviceId 本级设备/平台国标 ID
-     * @param callId        复用订阅 dialog 的 Call-Id（可为 null 则新建）
-     * @param xmlBody       NOTIFY XML body
-     * @param charset       body 编码
-     */
-    public Request buildCatalogNotifyToPlatform(String platformGbId, String platformHost,
-                                                String transport, String localDeviceId,
-                                                CallIdHeader callId, String xmlBody, String charset)
-            throws ParseException, InvalidArgumentException, java.io.UnsupportedEncodingException {
-        String localIp = sipLayer.getLocalIp(null);
-        String sipIp = properties.resolveSipIp(localIp);
-        int sipPort = properties.getPort();
-
-        SipURI requestUri = ADDRESS_FACTORY.createSipURI(platformGbId, platformHost);
-        List<ViaHeader> viaHeaders = new ArrayList<>();
-        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, sipPort, transport, SipUtils.newViaTag());
-        via.setRPort();
-        viaHeaders.add(via);
-
-        SipURI fromUri = ADDRESS_FACTORY.createSipURI(localDeviceId, properties.getDomain());
-        Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
-        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, null);
-
-        SipURI toUri = ADDRESS_FACTORY.createSipURI(platformGbId, platformHost);
-        Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
-        ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, null);
-
-        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
-        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.NOTIFY);
-
-        Request request;
-        if (callId != null) {
-            request = MESSAGE_FACTORY.createRequest(
-                    requestUri, Request.NOTIFY, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
-        } else {
-            request = MESSAGE_FACTORY.createRequest(
-                    requestUri, Request.NOTIFY,
-                    sipLayer.getUdpSipProvider().getNewCallId(),
-                    cseq, fromHeader, toHeader, viaHeaders, maxForwards);
-        }
-
-        SipURI contactUri = ADDRESS_FACTORY.createSipURI(localDeviceId, sipIp + ":" + sipPort);
-        Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
-        ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
-        request.addHeader(contact);
-
-        EventHeader eventHeader = HEADER_FACTORY.createEventHeader("Catalog");
-        request.addHeader(eventHeader);
-
-        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "MANSCDP+xml");
-        byte[] bodyBytes = xmlBody.getBytes(charset);
-        request.setContent(bodyBytes, ct);
-
-        return request;
-    }
-
-    /**
      * 收到设备的 BYE 后，给设备回 200 OK 响应
      */
     public Response buildResponse(int statusCode, Request request) throws ParseException {
