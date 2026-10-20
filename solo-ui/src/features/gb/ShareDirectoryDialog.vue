@@ -5,7 +5,7 @@ import {
   IconX,
   IconLoader2,
 } from '@tabler/icons-vue'
-import { Plus, Trash2 } from 'lucide-vue-next'
+import { Eraser, Plus, Send, Trash2 } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue'
 import Input from '@/components/ui/input/Input.vue'
@@ -20,6 +20,8 @@ import {
   addSharesApi,
   removeShareApi,
   clearSharesApi,
+  clearAllSharesByPlatformApi,
+  pushCatalogApi,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
@@ -232,6 +234,26 @@ const onUnmountSelected = async () => {
   shared.value = shared.value.filter((x) => !selectedIds.value.has(x.id))
   sharedTotal.value = Math.max(0, sharedTotal.value - selectedIds.value.size)
   selectedIds.value = new Set()
+}
+
+const onClearAll = async () => {
+  const ok = await confirm({
+    title: '确定清空该平台的全部挂载吗？',
+    description: '所有分组下的通道都将被卸载。',
+    confirmText: '全部清空',
+    danger: true,
+  })
+  if (!ok) return
+  const res = await clearAllSharesByPlatformApi(props.platformId)
+  toast.success(`已清空 ${res.data.cleared} 条`)
+  shared.value = []
+  sharedTotal.value = 0
+  selectedIds.value = new Set()
+}
+
+const onPushCatalog = async () => {
+  await pushCatalogApi(props.platformId)
+  toast.success('已触发推送')
 }
 
 /* ---------------- 通道选择（覆盖面板） ---------------- */
@@ -447,7 +469,30 @@ onBeforeUnmount(() => {
               placeholder="名称 / 编码"
             />
             <span class="text-[11px] text-muted-foreground">共 {{ sharedTotal }} 条</span>
-            <div class="flex-1" />
+          </template>
+          <template v-else>
+            <span class="text-xs text-muted-foreground">请先在左侧选择一个推送分组</span>
+          </template>
+          <div class="flex-1" />
+          <Button
+            v-access="PERM.GB_PARENT_PLATFORM_DELETE"
+            variant="ghost"
+            size="icon-sm"
+            title="清空平台全部挂载"
+            @click="onClearAll"
+          >
+            <Eraser class="size-3.5" />
+          </Button>
+          <Button
+            v-access="PERM.GB_PARENT_PLATFORM_EDIT"
+            variant="ghost"
+            size="icon-sm"
+            title="主动推送"
+            @click="onPushCatalog"
+          >
+            <Send class="size-3.5" />
+          </Button>
+          <template v-if="selectedGroupId">
             <Button
               v-access="PERM.GB_PARENT_PLATFORM_EDIT"
               variant="ghost"
@@ -467,9 +512,6 @@ onBeforeUnmount(() => {
               <Plus class="size-3.5" />
               添加
             </Button>
-          </template>
-          <template v-else>
-            <span class="text-xs text-muted-foreground">请先在左侧选择一个推送分组</span>
           </template>
         </div>
 

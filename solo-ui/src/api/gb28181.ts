@@ -427,6 +427,10 @@ export const clearSharesApi = (platformId: string, groupId: string) =>
 export const clearAllSharesByPlatformApi = (platformId: string) =>
   del<{ cleared: number }>(`/api/gb28181/parent-platform/${platformId}/share`)
 
+/** 主动推送目录给上级平台 */
+export const pushCatalogApi = (platformId: string) =>
+  post<void>(`/api/gb28181/parent-platform/${platformId}/push-catalog`)
+
 /** 一键添加所有未挂载通道到分组 */
 export const addAllSharesApi = (platformId: string, groupId: string) =>
   post<{ added: number }>(

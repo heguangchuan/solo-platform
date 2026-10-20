@@ -298,4 +298,18 @@ public class GbParentPlatformController {
         int n = catalogShareService.addAllUnmounted(id, groupId);
         return Result.success(Map.of("added", n));
     }
+
+    /**
+     * 主动推送目录给上级平台（手动触发一次 Catalog NOTIFY）
+     *
+     * @param id 上级平台主键 ID
+     */
+    @Operation(summary = "主动推送目录给上级平台")
+    @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
+    @PostMapping("/{id}/push-catalog")
+    @RequirePermission({"gb28181:parent-platform:edit"})
+    public Result<Void> pushCatalog(@PathVariable("id") Long id) {
+        catalogShareService.pushCatalog(id);
+        return Result.success();
+    }
 }

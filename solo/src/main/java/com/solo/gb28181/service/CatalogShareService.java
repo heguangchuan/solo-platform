@@ -117,4 +117,9 @@ public interface CatalogShareService {
      * @return 删除条数
      */
     int clearAllSharesByPlatform(Long platformId);
+
+    /**
+     * 主动推送目录给上级平台（不依赖订阅活跃状态，手动触发一次 Catalog NOTIFY）。
+     */
+    void pushCatalog(Long platformId);
 }
