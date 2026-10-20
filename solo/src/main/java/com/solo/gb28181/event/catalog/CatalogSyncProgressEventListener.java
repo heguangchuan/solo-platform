@@ -18,13 +18,13 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 通道目录同步完成级联 NOTIFY 推送。
- * <p>设备目录同步到终态后，向订阅了该设备的上级平台推该设备的通道列表；级联订阅（deviceId 空）不在这里处理。</p>
+ * 通道目录同步完成监听器。
+ * <p>目录同步到终态后，向订阅了该设备的上级平台推该设备的通道列表；级联订阅（deviceId 空）不在这里处理。</p>
  */
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class CatalogSyncNotifyListener {
+public class CatalogSyncProgressEventListener {
 
     private final SubscribeHolder subscribeHolder;
     private final NotifyFanoutSupport fanout;
