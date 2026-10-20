@@ -189,11 +189,12 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
 
         // 订阅/续订：入表
         // 级联订阅：DeviceID == 本级平台 ID → 归一化为空（订阅整个平台目录，推送按 share 过滤）
+        String subscribedDeviceId = deviceId;
         if (CMD_CATALOG.equalsIgnoreCase(cmd) && deviceId != null && deviceId.equals(properties.getId())) {
-            deviceId = "";
+            subscribedDeviceId = "";
         }
         SubscribeInfo info = new SubscribeInfo(
-                platformId, cmd, deviceId, sn, expires, LocalDateTime.now());
+                platformId, cmd, subscribedDeviceId, sn, expires, LocalDateTime.now());
         subscribeHolder.put(info);
 
         log.info("{} 接受订阅 platform={} cmd={} deviceId={} SN={} expires={}s 当前订阅总数={}",
