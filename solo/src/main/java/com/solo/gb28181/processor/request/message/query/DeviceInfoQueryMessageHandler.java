@@ -1,6 +1,6 @@
 package com.solo.gb28181.processor.request.message.query;
 
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.mapper.GbDeviceMapper;
@@ -40,6 +40,7 @@ public class DeviceInfoQueryMessageHandler extends SipRequestProcessorBase imple
 
     private final GbDeviceMapper deviceMapper;
     private final PlatformCommander platformCommander;
+    private final Gb28181Properties properties;
 
     @Override
     public String getRootType() { return "Query"; }
@@ -75,12 +76,37 @@ public class DeviceInfoQueryMessageHandler extends SipRequestProcessorBase imple
         }
 
         GbDevice device = deviceMapper.selectOne(
-                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<GbDevice>()
+                        .eq(GbDevice::getDeviceId, deviceId));
         if (device != null) {
+            if (deviceId.equals(properties.getId())
+                    && (device.getManufacturer() == null || device.getManufacturer().isBlank())) {
+                device.setManufacturer("solo");
+                device.setModel("solo-platform");
+                device.setFirmware("1.0.0");
+            }
+            if (device.getName() == null || device.getName().isBlank()) {
+                String displayName = (device.getIp() != null ? device.getIp() : "")
+                        + ":" + (device.getPort() != null ? device.getPort() : 0);
+                device.setReportName(displayName);
+                device.setName(displayName);
+            }
             log.info("{} 命中下发 platform={} SN={} deviceId={} manufacturer={} model={} firmware={}",
                     LOG_TAG, platform.getServerGbId(), sn, deviceId,
                     device.getManufacturer(), device.getModel(), device.getFirmware());
             platformCommander.sendDeviceInfoResponse(platform, sn, device);
+        } else if (deviceId.equals(properties.getId())) {
+            GbDevice self = new GbDevice();
+            self.setDeviceId(deviceId);
+            self.setManufacturer("solo");
+            self.setModel("solo-platform");
+            self.setFirmware("1.0.0");
+            String displayName = properties.getIp() + ":" + properties.getPort();
+            self.setReportName(displayName);
+            self.setName(displayName);
+            log.info("{} 本级平台信息下发 platform={} SN={} deviceId={}",
+                    LOG_TAG, platform.getServerGbId(), sn, deviceId);
+            platformCommander.sendDeviceInfoResponse(platform, sn, self);
         } else {
             log.warn("{} 设备未登记 platform={} SN={} deviceId={}",
                     LOG_TAG, platform.getServerGbId(), sn, deviceId);

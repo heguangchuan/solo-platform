@@ -9,6 +9,7 @@ import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.transmit.cmd.PlatformRegisterState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,6 +32,16 @@ public class PlatformRegisterServiceImpl implements PlatformRegisterService {
 
     private int expiresOf(GbParentPlatform p) {
         return p.getExpires() != null && p.getExpires() > 0 ? p.getExpires() : 3600;
+    }
+
+    @Async("taskExecutor")
+    @Override
+    public void register(GbParentPlatform platform) {
+        if (platform == null || platform.getEnabled() == null || platform.getEnabled() != 1) {
+            return;
+        }
+        commander.register(platform, expiresOf(platform));
+        log.info("[级联注册] 主动发起注册 → {} ({})", platform.getServerGbId(), platform.getName());
     }
 
     @Override

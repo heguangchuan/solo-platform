@@ -38,6 +38,11 @@ public interface PlatformRegisterService {
     void offline(GbParentPlatform platform);
 
     /**
+     * 对单个上级平台发起注册。
+     */
+    void register(GbParentPlatform platform);
+
+    /**
      * 关停时对所有在线上级发送注销（expires=0）。
      */
     void unregisterAll();

@@ -8,6 +8,7 @@ import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.mapper.GbParentPlatformMapper;
 import com.solo.gb28181.request.GbParentPlatformPageRequest;
 import com.solo.gb28181.service.GbParentPlatformService;
+import com.solo.gb28181.service.PlatformRegisterService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,8 @@ import java.util.List;
 @Service
 @RequiredArgsConstructor
 public class GbParentPlatformServiceImpl extends ServiceImpl<GbParentPlatformMapper, GbParentPlatform> implements GbParentPlatformService {
+
+    private final PlatformRegisterService platformRegisterService;
 
     @Override
     public Page<GbParentPlatform> pageQuery(GbParentPlatformPageRequest request) {
@@ -59,6 +62,7 @@ public class GbParentPlatformServiceImpl extends ServiceImpl<GbParentPlatformMap
         entity.setStatus(0);
         save(entity);
         log.info("[上级平台] 新增配置: serverGbId={} name={}", entity.getServerGbId(), entity.getName());
+        platformRegisterService.register(entity);
     }
 
     @Override
@@ -71,6 +75,7 @@ public class GbParentPlatformServiceImpl extends ServiceImpl<GbParentPlatformMap
         entity.setServerGbId(exist.getServerGbId());
         updateById(entity);
         log.info("[上级平台] 编辑配置: serverGbId={}", exist.getServerGbId());
+        platformRegisterService.register(entity);
     }
 
     @Override
