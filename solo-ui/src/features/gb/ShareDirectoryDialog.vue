@@ -1,299 +1,15 @@
-<template>
-  <Dialog :open="open" @update:open="(v) => (open = v)">
-    <DialogContent class="sm:max-w-5xl">
-      <DialogHeader>
-        <DialogTitle>推送目录 · {{ platformName }}</DialogTitle>
-        <DialogDescription>
-          维护向上级平台推送的目录分组与通道，仅已挂载的通道会出现在发给上级的 Catalog 中。
-        </DialogDescription>
-      </DialogHeader>
-
-      <div class="flex h-[520px] gap-3">
-        <!-- 左：分组树 -->
-        <div class="flex w-72 shrink-0 flex-col overflow-hidden rounded-lg border border-border">
-          <div class="flex h-9 shrink-0 items-center gap-1 border-b border-border px-2">
-            <span class="text-xs font-medium">推送分组</span>
-            <div class="flex-1" />
-            <Button
-              v-access="PERM.GB_SHARE_GROUP_ADD"
-              variant="ghost"
-              size="icon-sm"
-              title="新建顶级分组"
-              @click="onCreateGroup('0')"
-            >
-              <Plus class="size-3.5" />
-            </Button>
-          </div>
-          <div class="min-h-0 flex-1 overflow-y-auto p-1.5">
-            <template v-if="tree.length">
-              <GroupNode
-                v-for="node in tree"
-                :key="node.id"
-                :node="node"
-                :selected-id="selectedGroupId"
-                :expanded="expanded"
-                @select="onSelectGroup"
-                @toggle="onToggle"
-                @create-child="onCreateGroup"
-                @edit="onEditGroup"
-                @delete="onDeleteGroup"
-                @clear="onClearGroup"
-              />
-            </template>
-            <div v-else class="grid place-items-center py-10 text-xs text-muted-foreground">
-              暂无分组，点右上角新建
-            </div>
-          </div>
-        </div>
-
-        <!-- 右：已挂载通道 -->
-        <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
-          <div class="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
-            <template v-if="selectedGroupId">
-              <IconSearch class="size-3.5 text-muted-foreground" />
-              <input
-                v-model="keyword"
-                class="h-6 w-40 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
-                placeholder="名称 / 编码"
-              />
-              <span class="text-[11px] text-muted-foreground">共 {{ sharedTotal }} 条</span>
-              <div class="flex-1" />
-              <Button
-                v-access="PERM.GB_PARENT_PLATFORM_EDIT"
-                variant="ghost"
-                size="sm"
-                class="h-7 text-xs"
-                @click="onAddAll"
-              >
-                <WandSparkles class="size-3.5" />
-                一键添加
-              </Button>
-              <Button
-                v-access="PERM.GB_PARENT_PLATFORM_EDIT"
-                variant="ghost"
-                size="sm"
-                class="h-7 text-xs"
-                @click="pickerOpen = true"
-              >
-                <Plus class="size-3.5" />
-                添加
-              </Button>
-            </template>
-            <template v-else>
-              <span class="text-xs text-muted-foreground">请先在左侧选择一个推送分组</span>
-            </template>
-          </div>
-
-          <div ref="sharedScroller" class="min-h-0 flex-1 overflow-y-auto">
-            <table v-if="selectedGroupId" class="w-full table-fixed text-left text-xs">
-              <thead class="sticky top-0 z-10">
-                <tr class="bg-card text-muted-foreground">
-                  <th class="w-40 px-3 py-2 font-normal">通道名称</th>
-                  <th class="w-48 px-3 py-2 font-normal">国标编码</th>
-                  <th class="w-48 px-3 py-2 font-normal">
-                    <span class="inline-flex items-center gap-1">
-                      推送码
-                      <span title="通道国标码撞码时系统会派生新编码推送，正常情况与国标编码一致">
-                        <IconInfoCircle class="size-3" />
-                      </span>
-                    </span>
-                  </th>
-                  <th class="w-16 px-3 py-2 font-normal">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in shared" :key="c.id" class="hover:bg-muted/30">
-                  <td class="truncate px-3 py-2" :title="displayName(c)">
-                    {{ displayName(c) }}
-                  </td>
-                  <td class="px-3 py-2 font-mono text-muted-foreground">{{ c.channelId }}</td>
-                  <td class="px-3 py-2 font-mono text-muted-foreground">
-                    {{ c.exposedCode || '—' }}
-                  </td>
-                  <td class="px-3 py-2">
-                    <Button
-                      v-access="PERM.GB_PARENT_PLATFORM_EDIT"
-                      variant="ghost"
-                      size="icon-sm"
-                      class="text-destructive hover:text-destructive"
-                      title="卸载"
-                      @click="onUnmount(c)"
-                    >
-                      <IconX class="size-3.5" />
-                    </Button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div
-              v-if="selectedGroupId && !loadingShared && shared.length === 0"
-              class="grid place-items-center py-12 text-xs text-muted-foreground"
-            >
-              该分组还没有挂载通道
-            </div>
-            <div
-              v-if="!selectedGroupId"
-              class="grid place-items-center py-12 text-xs text-muted-foreground"
-            >
-              <FolderTree class="size-8 opacity-50" />
-            </div>
-
-            <div ref="sharedSentinel" class="grid place-items-center py-3">
-              <IconLoader2
-                v-if="loadingShared && shared.length"
-                class="size-4 animate-spin text-muted-foreground"
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <DialogFooter>
-        <Button
-          v-access="PERM.GB_PARENT_PLATFORM_DELETE"
-          variant="ghost"
-          size="sm"
-          class="text-destructive hover:text-destructive"
-          @click="onClearAll"
-        >
-          <Trash2 class="size-3.5" />
-          清空平台全部挂载
-        </Button>
-        <div class="flex-1" />
-        <Button variant="outline" size="sm" @click="open = false">关闭</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 分组新建/编辑弹窗 -->
-  <Dialog :open="groupFormOpen" @update:open="(v) => (groupFormOpen = v)">
-    <DialogContent class="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle>{{ groupIsEdit ? '编辑分组' : '新建分组' }}</DialogTitle>
-        <DialogDescription />
-      </DialogHeader>
-      <div class="flex flex-col gap-3">
-        <div class="flex flex-col gap-1">
-          <Label class="text-xs text-muted-foreground">
-            分组名称<span class="ml-0.5 text-destructive">*</span>
-          </Label>
-          <Input v-model="groupForm.name" maxlength="64" class="h-8 text-xs" />
-          <p v-if="groupErrors.name" class="text-[11px] text-destructive">
-            {{ groupErrors.name }}
-          </p>
-        </div>
-        <div class="flex flex-col gap-1">
-          <Label class="text-xs text-muted-foreground">
-            分组编码<span class="ml-0.5 text-destructive">*</span>
-          </Label>
-          <Input v-model="groupForm.code" maxlength="20" class="h-8 font-mono text-xs" />
-          <p class="text-[11px] text-muted-foreground">
-            20 位数字，第 11-13 位必须为 215 或 216（如 11000000002150000001）
-          </p>
-          <p v-if="groupErrors.code" class="text-[11px] text-destructive">
-            {{ groupErrors.code }}
-          </p>
-        </div>
-      </div>
-      <DialogFooter>
-        <Button variant="outline" size="sm" @click="groupFormOpen = false">取消</Button>
-        <Button size="sm" :disabled="groupSaving" @click="onSubmitGroup">确定</Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-
-  <!-- 通道选择弹窗 -->
-  <Dialog :open="pickerOpen" @update:open="(v) => (pickerOpen = v)">
-    <DialogContent class="sm:max-w-xl">
-      <DialogHeader>
-        <DialogTitle>选择要挂载的通道</DialogTitle>
-        <DialogDescription>仅列出未挂载到当前分组的通道，勾选后确认即可。</DialogDescription>
-      </DialogHeader>
-
-      <div class="flex h-8 items-center gap-2 px-1">
-        <IconSearch class="size-3.5 text-muted-foreground" />
-        <input
-          v-model="pickerKeyword"
-          class="h-6 w-52 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
-          placeholder="名称 / 编码"
-        />
-        <div class="flex-1" />
-        <Checkbox :model-value="pickerAllOnPage" @update:model-value="onPickerTogglePage" />
-        <span class="text-[11px] text-muted-foreground">本页全选</span>
-      </div>
-
-      <div ref="pickerScroller" class="h-72 overflow-y-auto rounded-lg border border-border p-2">
-        <label
-          v-for="c in pickerItems"
-          :key="c.id"
-          class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50"
-        >
-          <Checkbox
-            :model-value="pickedIds.has(c.id)"
-            @update:model-value="(v) => onPickOne(c.id, v === true)"
-          />
-          <span class="min-w-0 flex-1 truncate">{{ displayName(c) }}</span>
-          <span class="font-mono text-muted-foreground">{{ c.channelId }}</span>
-        </label>
-        <div
-          v-if="!loadingPicker && pickerItems.length === 0"
-          class="grid place-items-center py-10 text-xs text-muted-foreground"
-        >
-          没有可挂载的通道
-        </div>
-        <div ref="pickerSentinel" class="grid place-items-center py-2">
-          <IconLoader2
-            v-if="loadingPicker && pickerItems.length"
-            class="size-4 animate-spin text-muted-foreground"
-          />
-        </div>
-      </div>
-
-      <DialogFooter>
-        <span class="mr-auto text-[11px] text-muted-foreground">
-          已选 {{ pickedIds.size }} 条
-        </span>
-        <Button variant="outline" size="sm" @click="pickerOpen = false">取消</Button>
-        <Button size="sm" :disabled="adding" @click="onConfirmPicker">
-          <IconLoader2 v-if="adding" class="size-3.5 animate-spin" />
-          挂载
-        </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-</template>
-
 <script setup lang="ts">
-import { computed, h, onBeforeUnmount, ref, watch, type Slots, type VNode } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   IconSearch,
   IconX,
   IconLoader2,
-  IconInfoCircle,
 } from '@tabler/icons-vue'
-import {
-  ChevronRight as IconChevron,
-  Eraser as IconEraser,
-  Folder as IconFolder,
-  FolderTree,
-  Pencil as IconPencil,
-  Plus,
-  Trash2,
-  WandSparkles,
-} from 'lucide-vue-next'
+import { Plus, Trash2, WandSparkles } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
 import Checkbox from '@/components/ui/checkbox/Checkbox.vue'
 import Input from '@/components/ui/input/Input.vue'
-import Label from '@/components/ui/label/Label.vue'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import GroupTreeNode from './GroupTreeNode.vue'
 import {
   getParentPlatformShareGroupTreeApi,
   savePlatformGroupApi,
@@ -316,33 +32,21 @@ import type {
   GbSharedChannel,
 } from '@/types/api'
 
-/* ---------------- 弹窗开关 / 入参 ---------------- */
-const open = ref(false)
-const platformId = ref('')
-const platformName = ref('')
+const props = defineProps<{
+  platformId: string
+  platformName: string
+}>()
 
-const loadTree = async () => {
-  if (!platformId.value) return
-  tree.value = (await getParentPlatformShareGroupTreeApi(platformId.value)).data
-}
-
-const openDialog = async (id: string, name: string) => {
-  platformId.value = id
-  platformName.value = name
-  selectedGroupId.value = ''
-  keyword.value = ''
-  shared.value = []
-  sharedPage.value = 1
-  open.value = true
-  await loadTree()
-}
-
-defineExpose({ open: openDialog })
+const emit = defineEmits<{ close: [] }>()
 
 /* ---------------- 分组树 ---------------- */
 const tree = ref<GbPlatformGroup[]>([])
 const expanded = ref<Set<string>>(new Set())
 const selectedGroupId = ref('')
+
+const loadTree = async () => {
+  tree.value = (await getParentPlatformShareGroupTreeApi(props.platformId)).data
+}
 
 const onToggle = (id: string) => {
   const next = new Set(expanded.value)
@@ -358,7 +62,7 @@ const onSelectGroup = (id: string) => {
   sharedPage.value = 1
 }
 
-/* ---------------- 分组 CRUD ---------------- */
+/* ---------------- 分组 CRUD（inline 表单） ---------------- */
 const groupFormOpen = ref(false)
 const groupIsEdit = ref(false)
 const groupSaving = ref(false)
@@ -403,14 +107,14 @@ const onSubmitGroup = async () => {
   try {
     const { name, code, parentId } = groupForm.value
     if (groupIsEdit.value) {
-      await updatePlatformGroupApi(platformId.value, groupForm.value.id!, {
+      await updatePlatformGroupApi(props.platformId, groupForm.value.id!, {
         name,
         code,
         parentId,
       })
       toast.success('修改成功')
     } else {
-      await savePlatformGroupApi(platformId.value, { name, code, parentId })
+      await savePlatformGroupApi(props.platformId, { name, code, parentId })
       toast.success('新建成功')
     }
     groupFormOpen.value = false
@@ -428,7 +132,7 @@ const onDeleteGroup = async (node: GbPlatformGroup) => {
     danger: true,
   })
   if (!ok) return
-  await deletePlatformGroupApi(platformId.value, node.id)
+  await deletePlatformGroupApi(props.platformId, node.id)
   toast.success('删除成功')
   if (selectedGroupId.value === node.id) selectedGroupId.value = ''
   await loadTree()
@@ -442,7 +146,7 @@ const onClearGroup = async (node: GbPlatformGroup) => {
     danger: true,
   })
   if (!ok) return
-  const res = await clearSharesApi(platformId.value, node.id)
+  const res = await clearSharesApi(props.platformId, node.id)
   toast.success(`已清空 ${res.data.cleared} 条`)
   if (selectedGroupId.value === node.id) {
     shared.value = []
@@ -470,7 +174,7 @@ const loadShared = async (reset = false) => {
   loadingShared.value = true
   try {
     const res = await getParentPlatformSharedByGroupPageApi(
-      platformId.value,
+      props.platformId,
       selectedGroupId.value,
       { page: sharedPage.value, pageSize: 30, keyword: keyword.value.trim() || undefined },
     )
@@ -498,14 +202,14 @@ const onUnmount = async (c: GbSharedChannel) => {
     danger: true,
   })
   if (!ok) return
-  await removeShareApi(platformId.value, selectedGroupId.value, c.id)
+  await removeShareApi(props.platformId, selectedGroupId.value, c.id)
   toast.success('卸载成功')
   shared.value = shared.value.filter((x) => x.id !== c.id)
   sharedTotal.value = Math.max(0, sharedTotal.value - 1)
 }
 
 const onAddAll = async () => {
-  const res = await addAllSharesApi(platformId.value, selectedGroupId.value)
+  const res = await addAllSharesApi(props.platformId, selectedGroupId.value)
   toast.success(`一键添加完成，新增 ${res.data.added} 条`)
   loadShared(true)
 }
@@ -518,13 +222,13 @@ const onClearAll = async () => {
     danger: true,
   })
   if (!ok) return
-  const res = await clearAllSharesByPlatformApi(platformId.value)
+  const res = await clearAllSharesByPlatformApi(props.platformId)
   toast.success(`已清空 ${res.data.cleared} 条`)
   shared.value = []
   sharedTotal.value = 0
 }
 
-/* ---------------- 通道选择 picker ---------------- */
+/* ---------------- 通道选择（覆盖面板） ---------------- */
 const pickerOpen = ref(false)
 const pickerItems = ref<GbDeviceChannel[]>([])
 const pickerPage = ref(1)
@@ -544,7 +248,7 @@ const loadPicker = async (reset = false) => {
   loadingPicker.value = true
   try {
     const res = await getParentPlatformUnmountedChannelsApi(
-      platformId.value,
+      props.platformId,
       selectedGroupId.value,
       { page: pickerPage.value, pageSize: 30, keyword: pickerKeyword.value.trim() || undefined },
     )
@@ -555,13 +259,12 @@ const loadPicker = async (reset = false) => {
   }
 }
 
-watch(pickerOpen, (v) => {
-  if (v) {
-    pickedIds.value = new Set()
-    pickerKeyword.value = ''
-    loadPicker(true)
-  }
-})
+const openPicker = () => {
+  pickedIds.value = new Set()
+  pickerKeyword.value = ''
+  pickerOpen.value = true
+  loadPicker(true)
+}
 
 let pkTimer: ReturnType<typeof setTimeout> | null = null
 watch(pickerKeyword, () => {
@@ -569,16 +272,14 @@ watch(pickerKeyword, () => {
   pkTimer = setTimeout(() => loadPicker(true), 250)
 })
 
-const pickerAllOnPage = computed(
-  () =>
-    pickerItems.value.length > 0 &&
-    pickerItems.value.every((c) => pickedIds.value.has(c.id)),
-)
+const pickerAllOnPage = () =>
+  pickerItems.value.length > 0 &&
+  pickerItems.value.every((c) => pickedIds.value.has(c.id))
 
-const onPickerTogglePage = (v: boolean | 'indeterminate') => {
+const onPickerTogglePage = (v: boolean) => {
   const next = new Set(pickedIds.value)
   pickerItems.value.forEach((c) => {
-    if (v === true) next.add(c.id)
+    if (v) next.add(c.id)
     else next.delete(c.id)
   })
   pickedIds.value = next
@@ -598,7 +299,7 @@ const onConfirmPicker = async () => {
   }
   adding.value = true
   try {
-    const res = await addSharesApi(platformId.value, selectedGroupId.value, {
+    const res = await addSharesApi(props.platformId, selectedGroupId.value, {
       resourceIds: [...pickedIds.value],
     })
     toast.success(`挂载成功，新增 ${res.data.added} 条`)
@@ -608,116 +309,6 @@ const onConfirmPicker = async () => {
     adding.value = false
   }
 }
-
-/* ---------------- 树节点递归组件（函数式） ---------------- */
-interface NodeProps {
-  node: GbPlatformGroup
-  selectedId: string
-  expanded: Set<string>
-}
-
-const renderNode = (props: NodeProps): VNode => {
-  const node = props.node
-  const hasChildren = !!node.children?.length
-  const isOpen = props.expanded.has(node.id)
-  const isSelected = props.selectedId === node.id
-
-  const childRows: VNode[] = hasChildren
-    ? node.children!.map((child) =>
-        h('div', { key: child.id, class: 'pl-4' }, [
-          renderNode({ node: child, selectedId: props.selectedId, expanded: props.expanded }),
-        ]),
-      )
-    : []
-
-  return h('div', {}, [
-    h(
-      'div',
-      {
-        class: [
-          'group flex h-7 items-center gap-1 rounded px-1.5 text-xs cursor-pointer',
-          isSelected ? 'bg-primary/10 text-foreground' : 'hover:bg-muted/50',
-        ],
-        onClick: () => onSelectGroup(node.id),
-      },
-      [
-        h(
-          'button',
-          {
-            type: 'button',
-            class: 'grid size-4 shrink-0 place-items-center text-muted-foreground outline-none',
-            onClick: (e: MouseEvent) => {
-              e.stopPropagation()
-              if (hasChildren) onToggle(node.id)
-            },
-          },
-          h(IconChevron, {
-            class: ['size-3 transition-transform', isOpen ? 'rotate-90' : ''],
-          }),
-        ),
-        h(IconFolder, { class: 'size-3.5 shrink-0 text-amber-400/80' }),
-        h('span', { class: 'min-w-0 flex-1 truncate' }, node.name),
-        h('span', { class: 'font-mono text-[10px] text-muted-foreground/70' }, node.code),
-        h('span', { class: 'flex shrink-0 items-center opacity-0 group-hover:opacity-100' }, [
-          h(
-            ActionBtn,
-            { title: '新建子分组', onClick: () => onCreateGroup(node.id) },
-            { icon: () => h(Plus, { class: 'size-3' }) },
-          ),
-          h(
-            ActionBtn,
-            { title: '编辑', onClick: () => onEditGroup(node) },
-            { icon: () => h(IconPencil, { class: 'size-3' }) },
-          ),
-          h(
-            ActionBtn,
-            {
-              title: '清空本组挂载',
-              onClick: () => onClearGroup(node),
-            },
-            { icon: () => h(IconEraser, { class: 'size-3' }) },
-          ),
-          h(
-            ActionBtn,
-            {
-              title: '删除分组',
-              danger: true,
-              onClick: () => onDeleteGroup(node),
-            },
-            { icon: () => h(Trash2, { class: 'size-3' }) },
-          ),
-        ]),
-      ],
-    ),
-    isOpen && hasChildren ? h('div', {}, childRows) : null,
-  ])
-}
-
-const GroupNode = (props: NodeProps) => renderNode(props)
-GroupNode.props = ['node', 'selectedId', 'expanded']
-
-/* 树内小图标/按钮 */
-const ActionBtn = (
-  props: { title: string; danger?: boolean; onClick: () => void },
-  { slots }: { slots: Slots },
-) =>
-  h(
-    'button',
-    {
-      type: 'button',
-      title: props.title,
-      class: [
-        'grid size-5 place-items-center rounded text-muted-foreground hover:bg-muted hover:text-foreground',
-        props.danger ? 'hover:text-destructive' : '',
-      ],
-      onClick: (e: MouseEvent) => {
-        e.stopPropagation()
-        props.onClick()
-      },
-    },
-    slots.icon?.(),
-  )
-ActionBtn.props = ['title', 'danger', 'onClick']
 
 /* ---------------- observers ---------------- */
 let sharedObserver: IntersectionObserver | null = null
@@ -741,12 +332,9 @@ const setupObservers = () => {
   if (pickerSentinel.value) pickerObserver.observe(pickerSentinel.value)
 }
 
-// DOM 在弹窗首次打开后才渲染，延迟到下一个微任务后绑定
-watch(open, async (v) => {
-  if (v) {
-    await Promise.resolve()
-    setupObservers()
-  }
+onMounted(async () => {
+  await loadTree()
+  setupObservers()
 })
 
 onBeforeUnmount(() => {
@@ -756,3 +344,249 @@ onBeforeUnmount(() => {
   if (pkTimer) clearTimeout(pkTimer)
 })
 </script>
+
+<template>
+  <div class="flex h-full flex-col">
+    <!-- 头部 -->
+    <div class="flex items-center gap-3">
+      <div class="min-w-0 flex-1">
+        <div class="truncate text-base font-semibold">推送目录 · {{ platformName }}</div>
+        <div class="text-xs text-muted-foreground">
+          维护向上级平台推送的目录分组与通道
+        </div>
+      </div>
+      <Button variant="ghost" size="icon-sm" @click="emit('close')">
+        <IconX class="size-4" />
+      </Button>
+    </div>
+
+    <div class="my-4 h-px bg-border" />
+
+    <!-- 左右分栏 -->
+    <div class="flex min-h-0 flex-1 gap-3">
+      <!-- 左：分组树 -->
+      <div class="flex w-60 shrink-0 flex-col overflow-hidden rounded-lg border border-border">
+        <!-- inline 分组表单 -->
+        <div v-if="groupFormOpen" class="space-y-2 border-b border-border p-2">
+          <Input
+            v-model="groupForm.name"
+            maxlength="64"
+            placeholder="分组名称"
+            class="h-7 text-xs"
+          />
+          <Input
+            v-model="groupForm.code"
+            maxlength="20"
+            placeholder="分组编码（20位）"
+            class="h-7 font-mono text-xs"
+          />
+          <p v-if="groupErrors.name" class="text-[11px] text-destructive">
+            {{ groupErrors.name }}
+          </p>
+          <p v-if="groupErrors.code" class="text-[11px] text-destructive">
+            {{ groupErrors.code }}
+          </p>
+          <div class="flex justify-end gap-1">
+            <Button variant="ghost" size="sm" class="h-7 text-xs" @click="groupFormOpen = false">
+              取消
+            </Button>
+            <Button size="sm" class="h-7 text-xs" :disabled="groupSaving" @click="onSubmitGroup">
+              确定
+            </Button>
+          </div>
+        </div>
+
+        <div class="flex h-9 shrink-0 items-center gap-1 border-b border-border px-2">
+          <span class="text-xs font-medium">推送分组</span>
+          <div class="flex-1" />
+          <Button
+            v-access="PERM.GB_SHARE_GROUP_ADD"
+            variant="ghost"
+            size="icon-sm"
+            title="新建顶级分组"
+            @click="onCreateGroup('0')"
+          >
+            <Plus class="size-3.5" />
+          </Button>
+        </div>
+
+        <div class="min-h-0 flex-1 overflow-y-auto p-1.5">
+          <GroupTreeNode
+            v-for="node in tree"
+            :key="node.id"
+            :node="node"
+            :selected-id="selectedGroupId"
+            :expanded="expanded"
+            @select="onSelectGroup"
+            @toggle="onToggle"
+            @create-child="onCreateGroup"
+            @edit="onEditGroup"
+            @delete="onDeleteGroup"
+            @clear="onClearGroup"
+          />
+          <div v-if="!tree.length" class="grid place-items-center py-10 text-xs text-muted-foreground">
+            暂无分组，点右上角新建
+          </div>
+        </div>
+      </div>
+
+      <!-- 右：通道列表 -->
+      <div class="relative flex min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
+        <div class="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
+          <template v-if="selectedGroupId">
+            <IconSearch class="size-3.5 text-muted-foreground" />
+            <input
+              v-model="keyword"
+              class="h-6 w-32 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
+              placeholder="名称 / 编码"
+            />
+            <span class="text-[11px] text-muted-foreground">共 {{ sharedTotal }} 条</span>
+            <div class="flex-1" />
+            <Button
+              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
+              variant="ghost"
+              size="sm"
+              class="h-7 text-xs"
+              @click="onAddAll"
+            >
+              <WandSparkles class="size-3.5" />
+              一键添加
+            </Button>
+            <Button
+              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
+              variant="ghost"
+              size="sm"
+              class="h-7 text-xs"
+              @click="openPicker"
+            >
+              <Plus class="size-3.5" />
+              添加
+            </Button>
+          </template>
+          <template v-else>
+            <span class="text-xs text-muted-foreground">请先在左侧选择一个推送分组</span>
+          </template>
+        </div>
+
+        <div ref="sharedScroller" class="min-h-0 flex-1 overflow-y-auto">
+          <table v-if="selectedGroupId" class="w-full table-fixed text-left text-xs">
+            <thead class="sticky top-0 z-10">
+              <tr class="bg-card text-muted-foreground">
+                <th class="w-40 px-3 py-2 font-normal">通道名称</th>
+                <th class="w-44 px-3 py-2 font-normal">国标编码</th>
+                <th class="w-44 px-3 py-2 font-normal">推送码</th>
+                <th class="w-16 px-3 py-2 font-normal">操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="c in shared" :key="c.id" class="hover:bg-muted/30">
+                <td class="truncate px-3 py-2" :title="displayName(c)">{{ displayName(c) }}</td>
+                <td class="px-3 py-2 font-mono text-muted-foreground">{{ c.channelId }}</td>
+                <td class="px-3 py-2 font-mono text-muted-foreground">
+                  {{ c.exposedCode || '—' }}
+                </td>
+                <td class="px-3 py-2">
+                  <Button
+                    v-access="PERM.GB_PARENT_PLATFORM_EDIT"
+                    variant="ghost"
+                    size="icon-sm"
+                    class="text-destructive hover:text-destructive"
+                    title="卸载"
+                    @click="onUnmount(c)"
+                  >
+                    <IconX class="size-3.5" />
+                  </Button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div
+            v-if="selectedGroupId && !loadingShared && shared.length === 0"
+            class="grid place-items-center py-12 text-xs text-muted-foreground"
+          >
+            该分组还没有挂载通道
+          </div>
+
+          <div ref="sharedSentinel" class="grid place-items-center py-3">
+            <IconLoader2
+              v-if="loadingShared && shared.length"
+              class="size-4 animate-spin text-muted-foreground"
+            />
+          </div>
+        </div>
+
+        <div class="flex h-9 shrink-0 items-center border-t border-border px-2">
+          <Button
+            v-access="PERM.GB_PARENT_PLATFORM_DELETE"
+            variant="ghost"
+            size="sm"
+            class="h-7 text-xs text-destructive hover:text-destructive"
+            @click="onClearAll"
+          >
+            <Trash2 class="size-3.5" />
+            清空平台全部挂载
+          </Button>
+        </div>
+
+        <!-- 通道选择覆盖面板 -->
+        <div
+          v-if="pickerOpen"
+          class="absolute inset-0 z-10 flex flex-col bg-card"
+        >
+          <div class="flex h-9 shrink-0 items-center gap-2 border-b border-border px-2">
+            <IconSearch class="size-3.5 text-muted-foreground" />
+            <input
+              v-model="pickerKeyword"
+              class="h-6 w-40 rounded bg-transparent px-1.5 text-xs outline-none focus:bg-muted/70"
+              placeholder="名称 / 编码"
+            />
+            <div class="flex-1" />
+            <Checkbox :model-value="pickerAllOnPage()" @update:model-value="onPickerTogglePage($event === true)" />
+            <span class="text-[11px] text-muted-foreground">本页全选</span>
+          </div>
+
+          <div ref="pickerScroller" class="min-h-0 flex-1 overflow-y-auto p-2">
+            <label
+              v-for="c in pickerItems"
+              :key="c.id"
+              class="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-xs hover:bg-muted/50"
+            >
+              <Checkbox
+                :model-value="pickedIds.has(c.id)"
+                @update:model-value="onPickOne(c.id, $event === true)"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ displayName(c) }}</span>
+              <span class="font-mono text-muted-foreground">{{ c.channelId }}</span>
+            </label>
+            <div
+              v-if="!loadingPicker && pickerItems.length === 0"
+              class="grid place-items-center py-10 text-xs text-muted-foreground"
+            >
+              没有可挂载的通道
+            </div>
+            <div ref="pickerSentinel" class="grid place-items-center py-2">
+              <IconLoader2
+                v-if="loadingPicker && pickerItems.length"
+                class="size-4 animate-spin text-muted-foreground"
+              />
+            </div>
+          </div>
+
+          <div class="flex h-9 shrink-0 items-center gap-2 border-t border-border px-2">
+            <span class="mr-auto text-[11px] text-muted-foreground">
+              已选 {{ pickedIds.size }} 条
+            </span>
+            <Button variant="outline" size="sm" class="h-7 text-xs" @click="pickerOpen = false">
+              取消
+            </Button>
+            <Button size="sm" class="h-7 text-xs" :disabled="adding" @click="onConfirmPicker">
+              <IconLoader2 v-if="adding" class="size-3.5 animate-spin" />
+              挂载
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
