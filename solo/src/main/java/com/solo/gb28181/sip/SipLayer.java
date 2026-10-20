@@ -50,11 +50,6 @@ public class SipLayer implements CommandLineRunner {
 
     @Override
     public void run(String @NonNull ... args) {
-        if (!properties.isEnabled()) {
-            log.info("[协议栈] gb28181.enabled=false，跳过 SIP 协议栈启动");
-            return;
-        }
-
         resolveMonitorIps();
         if (monitorIps.isEmpty()) {
             log.error("[协议栈] 未解析到任何可监听 IP，请配置 gb28181.ip 后重启");

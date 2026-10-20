@@ -1,7 +1,6 @@
 package com.solo.gb28181.config;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -25,7 +24,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 @Slf4j
 @Configuration
-@ConditionalOnProperty(prefix = "gb28181", name = "enabled", havingValue = "true")
 public class Gb28181ThreadPoolConfig {
 
     private static final AtomicInteger BIZ_POOL_THREAD_NUMBER = new AtomicInteger(1);

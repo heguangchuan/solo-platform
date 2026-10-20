@@ -14,11 +14,6 @@ import org.springframework.stereotype.Component;
 public class Gb28181Properties {
 
     /**
-     * 是否启用国标服务
-     */
-    private boolean enabled = false;
-
-    /**
      * SIP 监听 IP；留空表示监听所有网卡
      */
     private String ip;
