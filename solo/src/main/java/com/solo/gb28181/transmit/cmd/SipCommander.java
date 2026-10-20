@@ -4,13 +4,16 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.sip.SipSender;
+import gov.nist.javax.sip.message.SIPRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import javax.sip.ResponseEvent;
 import javax.sip.header.CallIdHeader;
+import javax.sip.header.ToHeader;
 import javax.sip.message.Request;
+import java.text.ParseException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
@@ -87,6 +90,52 @@ public class SipCommander {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildQuery("Catalog", sn, device.getDeviceId(), charsetOf(device));
         send(device, xml, "Catalog", sn);
+    }
+
+    /**
+     * 目录订阅（SUBSCRIBE / Event: catalog）
+     * <p>首次订阅 callId/fromTag/toTag 传 null，续期/退订复用上次返回的 dialog 参数。</p>
+     *
+     * @param device    目标设备
+     * @param expires   有效期（秒），0 表示退订
+     * @param callId    首次传 null
+     * @param fromTag   首次传 null
+     * @param toTag     首次传 null
+     * @param onOk      2xx 回调
+     * @param onError   非 2xx 回调
+     * @param timeoutMs 超时（毫秒）
+     * @return 构造的 SIPRequest；发送失败返回 null
+     */
+    public SIPRequest catalogSubscribe(GbDevice device, int expires,
+                                       CallIdHeader callId, String fromTag, String toTag,
+                                       Consumer<ResponseEvent> onOk,
+                                       Consumer<ResponseEvent> onError,
+                                       long timeoutMs) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildSubscribe(
+                "Catalog", sn, device.getDeviceId(), expires, charsetOf(device));
+        try {
+            CallIdHeader cid = callId;
+            String fTag = fromTag;
+            if (cid == null) {
+                cid = headerProvider.newCallId(device);
+                fTag = com.solo.gb28181.utils.SipUtils.newFromTag();
+            }
+            Request request = headerProvider.buildSubscribeRequest(
+                    device, "catalog", xml, charsetOf(device), expires, cid, fTag, toTag);
+            if (log.isDebugEnabled()) {
+                log.debug("[目录订阅] SUBSCRIBE 请求:\n{}", request);
+            }
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, timeoutMs);
+            log.info("[目录订阅] SUBSCRIBE → 设备:{} expires:{}s SN:{}", device.getDeviceId(), expires, sn);
+            return (SIPRequest) request;
+        } catch (Exception e) {
+            log.error("[目录订阅] SUBSCRIBE 发送失败 设备:{} 错误:{}", device.getDeviceId(), e.getMessage(), e);
+            if (onError != null) {
+                try { onError.accept(null); } catch (Exception ignore) {}
+            }
+            return null;
+        }
     }
 
     /**

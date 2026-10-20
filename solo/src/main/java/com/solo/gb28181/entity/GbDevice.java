@@ -163,9 +163,17 @@ public class GbDevice implements Serializable {
     /**
      * 最后 Catalog 同步完成时间
      */
-    @Schema(description = "最近目录同步")
+    @Schema(description = "最后Catalog同步时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime lastCatalogSyncTime;
+
+    /**
+     * 目录订阅周期（秒），0 表示不订阅
+     * <p>开启后平台主动向设备发送 SUBSCRIBE（Event: catalog），
+     * 设备通道变更时通过 NOTIFY 主动推送，无需周期性全量查询。</p>
+     */
+    @Schema(description = "目录订阅周期（秒），0=不订阅")
+    private Integer subscribeCycleForCatalog;
 
     @Schema(description = "创建时间")
     @TableField(fill = com.baomidou.mybatisplus.annotation.FieldFill.INSERT)

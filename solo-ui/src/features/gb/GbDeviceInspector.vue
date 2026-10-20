@@ -129,6 +129,27 @@
             />
           </div>
         </div>
+
+        <div class="flex items-start gap-3">
+          <div class="flex w-20 shrink-0 items-center gap-1">
+            <Label class="whitespace-nowrap text-xs text-muted-foreground">目录订阅</Label>
+            <span
+              class="text-muted-foreground/60"
+              title="开启后平台订阅设备目录变化，通道有新增/删除/改名时实时推送，不用手动同步。单位：秒，0 或留空=不订阅，最小 30 秒。"
+            >
+              <IconInfoCircle class="size-3.5" />
+            </span>
+          </div>
+          <div class="flex-1">
+            <Input
+              v-model.number="form.subscribeCycleForCatalog"
+              type="number"
+              min="0"
+              placeholder="0 / 留空 = 不订阅，最小 30 秒"
+              class="h-8 font-mono text-xs"
+            />
+          </div>
+        </div>
       </div>
 
       <div class="mt-4 flex justify-end gap-2">
@@ -271,7 +292,7 @@
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { IconDeviceCctv, IconX, IconPlus, IconTrash } from '@tabler/icons-vue'
+import { IconDeviceCctv, IconX, IconPlus, IconTrash, IconInfoCircle } from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -308,6 +329,7 @@ type FormState = {
   transport: string
   charset: string
   expires: number
+  subscribeCycleForCatalog: number
 }
 
 const buildForm = (): FormState => ({
@@ -321,6 +343,7 @@ const buildForm = (): FormState => ({
   transport: props.device?.transport ?? 'UDP',
   charset: props.device?.charset ?? 'GB2312',
   expires: props.device?.expires ?? 3600,
+  subscribeCycleForCatalog: props.device?.subscribeCycleForCatalog ?? 0,
 })
 
 const form = reactive<FormState>(buildForm())
@@ -431,6 +454,7 @@ const onSave = async () => {
         transport: form.transport,
         charset: form.charset,
         expires: form.expires,
+        subscribeCycleForCatalog: form.subscribeCycleForCatalog || 0,
       })
       toast.success('已保存')
       emit('saved')

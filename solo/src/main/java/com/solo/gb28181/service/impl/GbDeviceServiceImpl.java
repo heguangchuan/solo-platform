@@ -17,6 +17,7 @@ import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.response.GbDeviceStatusCountVO;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.gb28181.subscribe.DeviceCatalogSubscribeManager;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -62,6 +63,10 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     @Lazy
     @Autowired
     private SipCommander sipCommander;
+
+    @Lazy
+    @Autowired
+    private DeviceCatalogSubscribeManager catalogSubscribeManager;
 
     @Override
     public Page<GbDevice> pageQuery(GbDevicePageRequest request) {
@@ -139,9 +144,14 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         exist.setCharset(device.getCharset());
         exist.setTransport(device.getTransport());
         exist.setExpires(device.getExpires());
+        exist.setSubscribeCycleForCatalog(device.getSubscribeCycleForCatalog());
         updateById(exist);
         evictProfileCache(exist.getDeviceId());
         log.info("[设备编辑] 更新设备资料: {}", exist.getDeviceId());
+        // 目录订阅周期可能变了，重新加载（在线才需要）
+        if (exist.getStatus() != null && exist.getStatus() == 1) {
+            catalogSubscribeManager.reload(exist.getDeviceId());
+        }
     }
 
     @Override
