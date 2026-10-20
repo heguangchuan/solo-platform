@@ -318,20 +318,19 @@ public class PlatformCommander {
      */
     public void sendNotifyCatalogList(GbParentPlatform platform, String deviceId,
                                       List<GbDeviceChannel> channels, String sn) {
-        if (channels == null || channels.isEmpty()) {
-            return;
-        }
+        // 空目录也推（SumNum=0），让上级知道该设备/平台的通道已清空
+        List<GbDeviceChannel> target = channels == null ? List.of() : channels;
         gb28181BizExecutor.execute(() -> {
             String localIp = headerProvider.localIp();
             String transport = platform.getTransport() == null ? "UDP" : platform.getTransport();
             try {
                 String xml = PlatformNotifyXml.buildCatalogList(platform,
-                        headerProvider.deviceGbId(), deviceId, channels, sn);
+                        headerProvider.deviceGbId(), deviceId, target, sn);
                 CallIdHeader callId = sipSender.newCallId(localIp, transport);
                 Request request = headerProvider.createNotifyRequest(platform, "catalog", xml, callId);
                 sipSender.send(localIp, request);
                 log.info("[级联订阅] Catalog NOTIFY 推送 上级平台:{} 设备:{} 通道:{} SN:{}",
-                        platform.getServerGbId(), deviceId, channels.size(), sn);
+                        platform.getServerGbId(), deviceId, target.size(), sn);
             } catch (Exception e) {
                 log.warn("[级联订阅] Catalog NOTIFY 失败 上级平台:{} 设备:{} 错误:{}",
                         platform.getServerGbId(), deviceId, e.getMessage(), e);
