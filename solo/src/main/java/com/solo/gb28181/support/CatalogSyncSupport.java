@@ -1,6 +1,7 @@
 package com.solo.gb28181.support;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.IdWorker;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
@@ -186,9 +187,11 @@ public class CatalogSyncSupport {
                 log.warn("[通道目录] final flush 保留残缺数据 deviceId={} ratio={} < threshold={} 保留 {} 条已入库通道，等下次 sync 补齐",
                         ctx.deviceId, String.format("%.4f", ratio), threshold, countAfter);
             }
-            // 落库后回写 lastCatalogSyncTime
-            device.setLastCatalogSyncTime(LocalDateTime.now());
-            deviceMapper.updateById(device);
+            // 落库后回写 lastCatalogSyncTime（只更这一个字段，避免覆盖并发写入的其他字段）
+            deviceMapper.update(null,
+                    new LambdaUpdateWrapper<GbDevice>()
+                            .eq(GbDevice::getId, device.getId())
+                            .set(GbDevice::getLastCatalogSyncTime, LocalDateTime.now()));
             // 失效档案缓存：lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
             deviceService.evictProfileCache(device.getDeviceId());
         }
