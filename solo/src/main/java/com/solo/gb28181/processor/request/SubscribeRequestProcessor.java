@@ -66,13 +66,19 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
 
     private static final String LOG_TAG = "[级联订阅]";
 
-    /** GB/T 28181 建议目录订阅有效期。 */
+    /**
+     * GB/T 28181 建议目录订阅有效期。
+     */
     private static final int DEFAULT_EXPIRES_SECONDS = 600;
 
-    /** 未知 CmdType 默认 Expires（30s 短期订阅，避免无谓占用订阅表）。 */
+    /**
+     * 未知 CmdType 默认 Expires（30s 短期订阅，避免无谓占用订阅表）。
+     */
     private static final int DEFAULT_UNKNOWN_EXPIRES_SECONDS = 30;
 
-    /** MANSCDP+xml 响应 body 中事件名（与 CmdType 一致，全小写驼峰）。 */
+    /**
+     * MANSCDP+xml 响应 body 中事件名（与 CmdType 一致，全小写驼峰）。
+     */
     private static final String CMD_CATALOG = "Catalog";
     private static final String CMD_MOBILE_POSITION = "MobilePosition";
     private static final String CMD_ALARM = "Alarm";
@@ -188,17 +194,17 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         }
 
         // 订阅/续订：入表
-        // 级联订阅：DeviceID == 本级平台 ID → 归一化为空（订阅整个平台目录，推送按 share 过滤）
-        String subscribedDeviceId = deviceId;
-        if (CMD_CATALOG.equalsIgnoreCase(cmd) && deviceId != null && deviceId.equals(properties.getId())) {
-            subscribedDeviceId = "";
-        }
+        // Catalog 订阅下，DeviceID 为空或 == 本级平台 ID → 归一化为空（订阅整个平台目录，推送按 share 过滤）
+        boolean platformCatalog = CMD_CATALOG.equalsIgnoreCase(cmd)
+                && (deviceId == null || deviceId.isEmpty() || deviceId.equals(properties.getId()));
+        String subscribedDeviceId = platformCatalog ? "" : deviceId;
         SubscribeInfo info = new SubscribeInfo(
                 platformId, cmd, subscribedDeviceId, sn, expires, LocalDateTime.now());
         subscribeHolder.put(info);
 
-        log.info("{} 接受订阅 platform={} cmd={} deviceId={} SN={} expires={}s 当前订阅总数={}",
-                LOG_TAG, platformId, cmd, deviceId, sn, expires, subscribeHolder.size());
+        log.info("{} 接受订阅 platform={} cmd={} deviceId={}({}) SN={} expires={}s 当前订阅总数={}",
+                LOG_TAG, platformId, cmd, deviceId,
+                platformCatalog ? "我" : "", sn, expires, subscribeHolder.size());
 
         String body = buildResponseBody(cmd, sn, deviceId);
         sipSender.send(request.getLocalAddress().getHostAddress(),
@@ -229,7 +235,9 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         return raw;
     }
 
-    /** Expires 上限：GB/T 28181 建议目录订阅最长 24h，再长没意义。 */
+    /**
+     * Expires 上限：GB/T 28181 建议目录订阅最长 24h，再长没意义。
+     */
     private static final int MAX_EXPIRES_SECONDS = 86400;
 
     private static int readExpiresRaw(SIPRequest request, Element root) {
