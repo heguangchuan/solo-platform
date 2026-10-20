@@ -104,7 +104,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         try {
             handleInternal(request, fromUser);
         } catch (javax.sip.InvalidArgumentException iae) {
-            log.warn("{} SUBSCRIBE 参数越界 from={} cmd={} : {}",
+            log.warn("{} SUBSCRIBE 参数越界 from={} : {}",
                     LOG_TAG, fromUser, iae.getMessage());
             safeResponse(request, Response.SERVER_INTERNAL_ERROR,
                     "invalid subscribe parameter");
