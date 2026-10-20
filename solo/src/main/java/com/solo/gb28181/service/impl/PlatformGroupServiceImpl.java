@@ -6,6 +6,7 @@ import com.solo.common.ServiceException;
 import com.solo.common.utils.TreeUtils;
 import com.solo.gb28181.entity.GbPlatformGroup;
 import com.solo.gb28181.entity.GbPlatformShare;
+import com.solo.gb28181.event.catalog.ShareChangedEvent;
 import com.solo.gb28181.mapper.GbPlatformGroupMapper;
 import com.solo.gb28181.mapper.GbPlatformShareMapper;
 import com.solo.gb28181.request.GbPlatformGroupSaveRequest;
@@ -14,6 +15,7 @@ import com.solo.gb28181.service.PlatformGroupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +37,7 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
 
     private final GbPlatformGroupMapper groupMapper;
     private final GbPlatformShareMapper shareMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public List<GbPlatformGroupResponse> listGroupTree(Long platformId) {
@@ -124,6 +127,7 @@ public class PlatformGroupServiceImpl implements PlatformGroupService {
         if (unmounted > 0) {
             log.info("[{}] 删分组时联动清理挂载 platformId={} groupId={} unmounted={}",
                     LOG_TAG, platformId, groupId, unmounted);
+            eventPublisher.publishEvent(new ShareChangedEvent(this, platformId));
         }
     }
 

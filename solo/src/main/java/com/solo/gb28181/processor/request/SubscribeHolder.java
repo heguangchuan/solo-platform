@@ -2,7 +2,9 @@ package com.solo.gb28181.processor.request;
 
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -60,15 +62,36 @@ public class SubscribeHolder {
     }
 
     /**
-     * 列出某事件类型下的全部订阅。catalog 变更时遍历此集合给所有订阅方推 NOTIFY。
+     * 列出某事件类型下<b>未过期</b>的订阅。catalog 变更时遍历此集合给所有订阅方推 NOTIFY。
+     * <p>顺手清理已过期的记录，避免内存无限增长。</p>
      */
     public Collection<SubscribeInfo> listByCmdType(String cmdType) {
         if (cmdType == null) {
             return java.util.Collections.emptyList();
         }
-        return map.values().stream()
+        LocalDateTime now = LocalDateTime.now();
+        List<SubscribeInfo> result = map.values().stream()
                 .filter(s -> cmdType.equals(s.getCmdType()))
+                .filter(s -> !expired(s, now))
                 .toList();
+        map.values().removeIf(s -> expired(s, now));
+        return result;
+    }
+
+    /**
+     * 取某上级某事件类型下<b>未过期</b>的订阅。
+     */
+    public Optional<SubscribeInfo> getActive(String platformId, String cmdType) {
+        SubscribeInfo info = get(platformId, cmdType).orElse(null);
+        if (info == null || expired(info, LocalDateTime.now())) {
+            return Optional.empty();
+        }
+        return Optional.of(info);
+    }
+
+    private static boolean expired(SubscribeInfo s, LocalDateTime now) {
+        return s == null || s.getAcceptedAt() == null
+                || now.isAfter(s.getAcceptedAt().plusSeconds(Math.max(s.getExpires(), 0)));
     }
 
     /** 当前订阅总数——排查/测试用，不暴露给前端。 */

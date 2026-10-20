@@ -1,5 +1,6 @@
 package com.solo.gb28181.processor.request;
 
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
@@ -79,6 +80,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
     private final SubscribeHolder subscribeHolder;
     private final GbParentPlatformService gbParentPlatformService;
     private final GbPlatformService gbPlatformService;
+    private final Gb28181Properties properties;
 
     @Override
     public String getMethod() {
@@ -186,6 +188,10 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         }
 
         // 订阅/续订：入表
+        // 级联订阅：DeviceID == 本级平台 ID → 归一化为空（订阅整个平台目录，推送按 share 过滤）
+        if (CMD_CATALOG.equalsIgnoreCase(cmd) && deviceId != null && deviceId.equals(properties.getId())) {
+            deviceId = "";
+        }
         SubscribeInfo info = new SubscribeInfo(
                 platformId, cmd, deviceId, sn, expires, LocalDateTime.now());
         subscribeHolder.put(info);
