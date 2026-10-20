@@ -156,21 +156,31 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
 
     @Override
     public void online(GbDevice device) {
-        device.setStatus(1);
         LocalDateTime now = LocalDateTime.now();
-        device.setRegisterTime(now);
-        device.setKeepaliveTime(now);
 
         GbDevice exist = lambdaQuery().eq(GbDevice::getDeviceId, device.getDeviceId()).one();
         if (exist == null) {
+            device.setStatus(1);
+            device.setRegisterTime(now);
+            device.setKeepaliveTime(now);
             device.setSource(GbSource.REGISTER);
             save(device);
             log.info("[设备上线] 新设备首次注册: {} {}", device.getDeviceId(), device.getHostAddress());
         } else {
-            device.setId(exist.getId());
-            // 不覆盖 source：保留最初来源（系统新增/导入的设备被真实注册后仍标记为原来源）
-            device.setSource(null);
-            updateById(device);
+            // 只更新注册/心跳相关字段，不覆盖已有的厂商型号名称等配置
+            lambdaUpdate()
+                    .eq(GbDevice::getId, exist.getId())
+                    .set(GbDevice::getStatus, 1)
+                    .set(GbDevice::getRegisterTime, now)
+                    .set(GbDevice::getKeepaliveTime, now)
+                    .set(GbDevice::getIp, device.getIp())
+                    .set(GbDevice::getPort, device.getPort())
+                    .set(GbDevice::getHostAddress, device.getHostAddress())
+                    .set(GbDevice::getLocalIp, device.getLocalIp())
+                    .set(GbDevice::getExpires, device.getExpires())
+                    .set(GbDevice::getTransport, device.getTransport())
+                    .set(GbDevice::getCharset, device.getCharset())
+                    .update();
             log.info("[设备上线] 重新注册: {} {}", device.getDeviceId(), device.getHostAddress());
         }
         refreshOnlineKey(device.getDeviceId());
