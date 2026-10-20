@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.entity.GbPlatformGroup;
 import com.solo.gb28181.entity.GbPlatformShare;
 import com.solo.gb28181.event.catalog.ShareChangedEvent;
@@ -17,6 +19,8 @@ import com.solo.gb28181.request.GbPlatformShareSaveRequest;
 import com.solo.gb28181.response.GbPlatformSharedResponse;
 import com.solo.gb28181.response.GbShareTreeNodeResponse;
 import com.solo.gb28181.service.CatalogShareService;
+import com.solo.gb28181.service.GbParentPlatformService;
+import com.solo.gb28181.transmit.cmd.PlatformCommander;
 import com.solo.gb28181.utils.GbCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +61,9 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     private final GbPlatformGroupMapper groupMapper;
     private final GbCodeGenerator gbCodeGenerator;
     private final ApplicationEventPublisher eventPublisher;
+    private final GbParentPlatformService gbParentPlatformService;
+    private final PlatformCommander platformCommander;
+    private final Gb28181Properties properties;
 
     @Override
     public List<GbShareTreeNodeResponse> shareTree() {
@@ -214,6 +221,19 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     @Override
     public List<GbDeviceChannel> loadSharedChannels(Long platformId) {
         return shareMapper.selectSharedChannels(platformId);
+    }
+
+    @Override
+    public void pushCatalog(Long platformId) {
+        GbParentPlatform platform = gbParentPlatformService.getById(platformId);
+        if (platform == null || !Integer.valueOf(1).equals(platform.getEnabled())) {
+            throw new com.solo.common.ServiceException("上级平台不存在或已禁用");
+        }
+        List<GbDeviceChannel> items = loadSharedCatalogItems(platformId);
+        platformCommander.sendNotifyCatalogList(platform, properties.getId(), items,
+                String.valueOf(PlatformCommander.nextSn()));
+        log.info("[{}] 主动推送 platformId={} 目录条目={}",
+                LOG_TAG, platformId, items.size());
     }
 
     // ==================== 按组增删（推送目录弹窗用） ====================
