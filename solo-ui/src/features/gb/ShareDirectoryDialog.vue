@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   IconSearch,
   IconX,
@@ -162,6 +162,7 @@ const loadingShared = ref(false)
 const keyword = ref('')
 const sharedScroller = ref<HTMLElement>()
 const sharedSentinel = ref<HTMLElement>()
+const selectedIds = ref<Set<string>>(new Set())
 
 const displayName = (c: GbDeviceChannel) => c.name || c.reportName || c.channelId
 
@@ -170,6 +171,7 @@ const loadShared = async (reset = false) => {
   if (reset) {
     sharedPage.value = 1
     shared.value = []
+    selectedIds.value = new Set()
   }
   loadingShared.value = true
   try {
@@ -194,18 +196,44 @@ watch(keyword, () => {
   kwTimer = setTimeout(() => loadShared(true), 250)
 })
 
-const onUnmount = async (c: GbSharedChannel) => {
+const allSelected = computed(
+  () => shared.value.length > 0 && shared.value.every((c) => selectedIds.value.has(c.id)),
+)
+
+const toggleAll = (v: boolean) => {
+  const next = new Set<string>()
+  if (v) shared.value.forEach((c) => next.add(c.id))
+  selectedIds.value = next
+}
+
+const toggleOne = (id: string, checked: boolean) => {
+  const next = new Set(selectedIds.value)
+  if (checked) next.add(id)
+  else next.delete(id)
+  selectedIds.value = next
+}
+
+const onUnmountSelected = async () => {
+  if (selectedIds.value.size === 0) {
+    toast.warning('请先勾选要卸载的通道')
+    return
+  }
   const ok = await confirm({
-    title: `确定从当前分组卸载 “${displayName(c)}” 吗？`,
+    title: `确定卸载选中的 ${selectedIds.value.size} 个通道吗？`,
     description: '不影响通道本身。',
     confirmText: '卸载',
     danger: true,
   })
   if (!ok) return
-  await removeShareApi(props.platformId, selectedGroupId.value, c.id)
+  await Promise.all(
+    [...selectedIds.value].map((id) =>
+      removeShareApi(props.platformId, selectedGroupId.value, id),
+    ),
+  )
   toast.success('卸载成功')
-  shared.value = shared.value.filter((x) => x.id !== c.id)
-  sharedTotal.value = Math.max(0, sharedTotal.value - 1)
+  shared.value = shared.value.filter((x) => !selectedIds.value.has(x.id))
+  sharedTotal.value = Math.max(0, sharedTotal.value - selectedIds.value.size)
+  selectedIds.value = new Set()
 }
 
 const onAddAll = async () => {
@@ -365,7 +393,7 @@ onBeforeUnmount(() => {
     <!-- 左右分栏 -->
     <div class="flex min-h-0 flex-1 gap-3">
       <!-- 左：分组树 -->
-      <div class="flex w-60 shrink-0 flex-col overflow-hidden rounded-lg border border-border">
+      <div class="flex w-80 shrink-0 flex-col overflow-hidden rounded-lg border border-border">
         <!-- inline 分组表单 -->
         <div v-if="groupFormOpen" class="space-y-2 border-b border-border p-2">
           <Input
@@ -462,6 +490,16 @@ onBeforeUnmount(() => {
               <Plus class="size-3.5" />
               添加
             </Button>
+            <Button
+              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
+              variant="ghost"
+              size="sm"
+              class="h-7 text-xs text-destructive hover:text-destructive"
+              @click="onUnmountSelected"
+            >
+              <Trash2 class="size-3.5" />
+              卸载
+            </Button>
           </template>
           <template v-else>
             <span class="text-xs text-muted-foreground">请先在左侧选择一个推送分组</span>
@@ -472,30 +510,29 @@ onBeforeUnmount(() => {
           <table v-if="selectedGroupId" class="w-full table-fixed text-left text-xs">
             <thead class="sticky top-0 z-10">
               <tr class="bg-card text-muted-foreground">
+                <th class="w-10 px-3 py-2 font-normal">
+                  <Checkbox
+                    :model-value="allSelected"
+                    @update:model-value="toggleAll($event === true)"
+                  />
+                </th>
                 <th class="w-40 px-3 py-2 font-normal">通道名称</th>
                 <th class="w-44 px-3 py-2 font-normal">国标编码</th>
                 <th class="w-44 px-3 py-2 font-normal">推送码</th>
-                <th class="w-16 px-3 py-2 font-normal">操作</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="c in shared" :key="c.id" class="hover:bg-muted/30">
+                <td class="px-3 py-2">
+                  <Checkbox
+                    :model-value="selectedIds.has(c.id)"
+                    @update:model-value="toggleOne(c.id, $event === true)"
+                  />
+                </td>
                 <td class="truncate px-3 py-2" :title="displayName(c)">{{ displayName(c) }}</td>
                 <td class="px-3 py-2 font-mono text-muted-foreground">{{ c.channelId }}</td>
                 <td class="px-3 py-2 font-mono text-muted-foreground">
                   {{ c.exposedCode || '—' }}
-                </td>
-                <td class="px-3 py-2">
-                  <Button
-                    v-access="PERM.GB_PARENT_PLATFORM_EDIT"
-                    variant="ghost"
-                    size="icon-sm"
-                    class="text-destructive hover:text-destructive"
-                    title="卸载"
-                    @click="onUnmount(c)"
-                  >
-                    <IconX class="size-3.5" />
-                  </Button>
                 </td>
               </tr>
             </tbody>
