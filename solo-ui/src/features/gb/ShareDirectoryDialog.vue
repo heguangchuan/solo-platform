@@ -20,7 +20,6 @@ import {
   addSharesApi,
   removeShareApi,
   clearSharesApi,
-  clearAllSharesByPlatformApi,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
@@ -233,20 +232,6 @@ const onUnmountSelected = async () => {
   shared.value = shared.value.filter((x) => !selectedIds.value.has(x.id))
   sharedTotal.value = Math.max(0, sharedTotal.value - selectedIds.value.size)
   selectedIds.value = new Set()
-}
-
-const onClearAll = async () => {
-  const ok = await confirm({
-    title: '确定清空该平台的全部挂载吗？',
-    description: '所有分组下的通道都将被卸载。',
-    confirmText: '全部清空',
-    danger: true,
-  })
-  if (!ok) return
-  const res = await clearAllSharesByPlatformApi(props.platformId)
-  toast.success(`已清空 ${res.data.cleared} 条`)
-  shared.value = []
-  sharedTotal.value = 0
 }
 
 /* ---------------- 通道选择（覆盖面板） ---------------- */
@@ -533,19 +518,6 @@ onBeforeUnmount(() => {
               class="size-4 animate-spin text-muted-foreground"
             />
           </div>
-        </div>
-
-        <div class="flex h-9 shrink-0 items-center border-t border-border px-2">
-          <Button
-            v-access="PERM.GB_PARENT_PLATFORM_DELETE"
-            variant="ghost"
-            size="sm"
-            class="h-7 text-xs text-destructive hover:text-destructive"
-            @click="onClearAll"
-          >
-            <Trash2 class="size-3.5" />
-            清空平台全部挂载
-          </Button>
         </div>
 
         <!-- 通道选择覆盖面板 -->
