@@ -171,13 +171,21 @@
       </div>
     </div>
 
-    <!-- 右侧：检视器 -->
+    <!-- 右侧：检视器 / 推送目录 -->
     <Transition name="inspector">
       <aside
-        v-if="creating || selected"
-        class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+        v-if="creating || selected || shareTarget"
+        class="flex shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+        :class="shareTarget ? 'w-[640px]' : 'w-[420px]'"
       >
-        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+        <div v-if="shareTarget" class="min-h-0 flex-1 overflow-y-auto p-5">
+          <ShareDirectoryDialog
+            :platform-id="shareTarget.id"
+            :platform-name="shareTarget.name || shareTarget.serverGbId"
+            @close="onCloseShare"
+          />
+        </div>
+        <div v-else class="min-h-0 flex-1 overflow-y-auto p-5">
           <GbParentPlatformInspector
             :platform="selected ?? undefined"
             :creating="creating"
@@ -190,9 +198,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- 推送目录弹窗 -->
-    <ShareDirectoryDialog ref="shareDialogRef" />
   </div>
 </template>
 
@@ -313,9 +318,12 @@ const onDeleted = (p: GbParentPlatform) => {
 }
 
 /* ---------------- 推送目录 ---------------- */
-const shareDialogRef = ref<InstanceType<typeof ShareDirectoryDialog>>()
+const shareTarget = ref<GbParentPlatform | null>(null)
 const onShare = (p: GbParentPlatform) => {
-  shareDialogRef.value?.open(p.id, p.name || p.serverGbId)
+  shareTarget.value = p
+}
+const onCloseShare = () => {
+  shareTarget.value = null
 }
 
 /* ---------------- 生命周期 / observer ---------------- */
