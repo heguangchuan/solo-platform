@@ -432,7 +432,6 @@ const validate = () => {
   if (!form.serverGbDomain.trim()) errors.serverGbDomain = '请输入上级平台国标域'
   if (!form.serverIp.trim()) errors.serverIp = '请输入上级地址 IP'
   if (!(form.serverPort > 0)) errors.serverPort = '请输入端口号'
-  if (!form.password) errors.password = '请输入认证密码'
   return Object.keys(errors).length === 0
 }
 
