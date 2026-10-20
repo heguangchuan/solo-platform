@@ -1,18 +1,21 @@
 package com.solo.gb28181.processor.request;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.event.alarm.AlarmEvent;
 import com.solo.gb28181.event.alarm.DeviceAlarm;
 import com.solo.gb28181.event.catalog.CatalogSyncProgressEvent;
+import com.solo.gb28181.event.catalog.ShareChangedEvent;
 import com.solo.gb28181.event.device.DeviceOfflineEvent;
 import com.solo.gb28181.event.device.DeviceOnlineEvent;
 import com.solo.gb28181.event.position.DevicePosition;
 import com.solo.gb28181.event.position.PositionEvent;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
+import com.solo.gb28181.service.CatalogShareService;
 import com.solo.gb28181.service.GbParentPlatformService;
 import com.solo.gb28181.support.CatalogSyncProgress;
 import com.solo.gb28181.transmit.cmd.PlatformCommander;
@@ -63,6 +66,8 @@ public class SubscribeNotifier {
     private final GbDeviceMapper deviceMapper;
     private final GbDeviceChannelMapper channelMapper;
     private final PlatformCommander platformCommander;
+    private final CatalogShareService catalogShareService;
+    private final Gb28181Properties properties;
 
     // ==================== Catalog 推送 ====================
 
@@ -117,6 +122,38 @@ public class SubscribeNotifier {
         fanoutCatalogList(deviceId, channels, null);
     }
 
+    /**
+     * 目录共享关系变化——对活跃的级联订阅（订阅整个平台目录）按最新共享通道推送。
+     * <p>只服务「订阅整个平台目录」的上级（deviceId 空）；订阅具体设备的上级不关心 share，跳过。</p>
+     */
+    @Async("gb28181BizExecutor")
+    @EventListener
+    public void onShareChanged(ShareChangedEvent event) {
+        Long platformId = event.getPlatformId();
+        if (platformId == null) {
+            return;
+        }
+        GbParentPlatform platform = gbParentPlatformService.getById(platformId);
+        if (platform == null || !Integer.valueOf(1).equals(platform.getEnabled())) {
+            return;
+        }
+        SubscribeInfo sub = subscribeHolder.getActive(platform.getServerGbId(), "Catalog").orElse(null);
+        if (sub == null) {
+            return;
+        }
+        if (sub.getDeviceId() != null && !sub.getDeviceId().isEmpty()) {
+            return;
+        }
+        List<GbDeviceChannel> channels = catalogShareService.loadSharedChannels(platformId);
+        if (channels == null) {
+            channels = List.of();
+        }
+        platformCommander.sendNotifyCatalogList(platform, properties.getId(), channels,
+                String.valueOf(PlatformCommander.nextSn()));
+        log.info("[级联订阅] share 变化推送 上级平台:{} 共享通道:{}",
+                platform.getServerGbId(), channels.size());
+    }
+
     // ==================== MobilePosition 推送 ====================
 
     @Async("gb28181BizExecutor")
@@ -147,7 +184,9 @@ public class SubscribeNotifier {
 
     private void fanoutCatalogItem(String cmdType, String deviceId, GbDevice device, String fallbackSn) {
         for (SubscribeInfo sub : subscribeHolder.listByCmdType(cmdType)) {
-            if (!matches(sub, deviceId)) continue;
+            // 级联订阅（deviceId 空 = 订阅整个平台目录）走 share 推送，不参与设备事件
+            if (sub.getDeviceId() == null || sub.getDeviceId().isEmpty()) continue;
+            if (!sub.getDeviceId().equals(deviceId)) continue;
             GbParentPlatform platform = platformOf(sub);
             if (platform == null) continue;
             String sn = sub.getSn() != null ? sub.getSn() : (fallbackSn != null ? fallbackSn : String.valueOf(PlatformCommander.nextSn()));
@@ -157,7 +196,9 @@ public class SubscribeNotifier {
 
     private void fanoutCatalogList(String deviceId, List<GbDeviceChannel> channels, String fallbackSn) {
         for (SubscribeInfo sub : subscribeHolder.listByCmdType("Catalog")) {
-            if (!matches(sub, deviceId)) continue;
+            // 级联订阅（deviceId 空）走 share 推送，不参与设备目录同步
+            if (sub.getDeviceId() == null || sub.getDeviceId().isEmpty()) continue;
+            if (!sub.getDeviceId().equals(deviceId)) continue;
             GbParentPlatform platform = platformOf(sub);
             if (platform == null) continue;
             String sn = sub.getSn() != null ? sub.getSn() : (fallbackSn != null ? fallbackSn : String.valueOf(PlatformCommander.nextSn()));

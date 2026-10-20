@@ -8,6 +8,7 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbPlatformGroup;
 import com.solo.gb28181.entity.GbPlatformShare;
+import com.solo.gb28181.event.catalog.ShareChangedEvent;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbPlatformGroupMapper;
@@ -19,6 +20,7 @@ import com.solo.gb28181.service.CatalogShareService;
 import com.solo.gb28181.utils.GbCodeGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -54,6 +56,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     private final GbPlatformShareMapper shareMapper;
     private final GbPlatformGroupMapper groupMapper;
     private final GbCodeGenerator gbCodeGenerator;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public List<GbShareTreeNodeResponse> shareTree() {
@@ -289,6 +292,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         }
         if (!toInsert.isEmpty()) {
             Db.saveBatch(toInsert);
+            eventPublisher.publishEvent(new ShareChangedEvent(this, platformId));
         }
         log.info("[{}] 批量挂载 platformId={} groupId={} groupName={} 输入={} 新增={} 撞码={}（复用旧码={}） 已挂本组跳过={}",
                 LOG_TAG, platformId, groupId, group.getName(), resourceIds.size(), toInsert.size(),
@@ -306,6 +310,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                 .eq(GbPlatformShare::getResourceId, resourceId));
         if (n > 0) {
             log.info("[{}] 卸载 platformId={} groupId={} resourceId={}", LOG_TAG, platformId, groupId, resourceId);
+            eventPublisher.publishEvent(new ShareChangedEvent(this, platformId));
         }
         return n > 0;
     }
@@ -317,6 +322,9 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         int n = shareMapper.delete(new LambdaQueryWrapper<GbPlatformShare>()
                 .eq(GbPlatformShare::getPlatformId, platformId)
                 .eq(GbPlatformShare::getGroupId, groupId));
+        if (n > 0) {
+            eventPublisher.publishEvent(new ShareChangedEvent(this, platformId));
+        }
         log.info("[{}] 清除组内挂载 platformId={} groupId={} groupName={} 删除条数={}",
                 LOG_TAG, platformId, groupId, group.getName(), n);
         return n;
@@ -327,6 +335,9 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     public int clearAllSharesByPlatform(Long platformId) {
         int n = shareMapper.delete(new LambdaQueryWrapper<GbPlatformShare>()
                 .eq(GbPlatformShare::getPlatformId, platformId));
+        if (n > 0) {
+            eventPublisher.publishEvent(new ShareChangedEvent(this, platformId));
+        }
         log.info("[{}] 清除该平台全部分组挂载 platformId={} 删除条数={}", LOG_TAG, platformId, n);
         return n;
     }
