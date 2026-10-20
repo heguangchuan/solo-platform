@@ -25,7 +25,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DeviceOfflineListener {
+public class DeviceOfflineEventListener {
 
     private final GbDeviceMapper deviceMapper;
     private final GbDeviceChannelMapper channelMapper;

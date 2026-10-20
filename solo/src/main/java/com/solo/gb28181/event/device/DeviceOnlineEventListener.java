@@ -34,7 +34,7 @@ import org.springframework.stereotype.Component;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class DeviceOnlineListener {
+public class DeviceOnlineEventListener {
 
     private final GbDeviceMapper deviceMapper;
     private final SipCommander sipCommander;
