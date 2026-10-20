@@ -10,12 +10,8 @@ import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.service.GbDeviceService;
-import com.solo.gb28181.subscribe.PlatformCatalogSubscribeManager;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Lookup;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
@@ -64,10 +60,6 @@ public class CatalogSyncSupport {
     private final GbDeviceChannelMapper channelMapper;
     private final GbDeviceMapper deviceMapper;
     private final ThreadPoolTaskExecutor executor;
-
-    @Lazy
-    @Autowired
-    private PlatformCatalogSubscribeManager catalogSubscribeManager;
 
     /**
      * 显式构造器——Lombok @RequiredArgsConstructor 不会把字段上的 @Qualifier 复制到构造器参数上，
@@ -202,10 +194,6 @@ public class CatalogSyncSupport {
                             .set(GbDevice::getLastCatalogSyncTime, LocalDateTime.now()));
             // 失效档案缓存：lastCatalogSyncTime 变了，下条 MESSAGE 应拿到最新值
             deviceService.evictProfileCache(device.getDeviceId());
-            // 通知订阅的上级平台：目录有变化
-            if (catalogSubscribeManager != null) {
-                catalogSubscribeManager.notifyChannelChange(device.getDeviceId());
-            }
         }
     }
 }
