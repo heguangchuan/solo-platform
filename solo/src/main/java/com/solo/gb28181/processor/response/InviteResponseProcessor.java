@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import javax.sip.ResponseEvent;
 import javax.sip.header.CallIdHeader;
 import javax.sip.header.ToHeader;
+import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
 
@@ -115,8 +116,16 @@ public class InviteResponseProcessor implements SipResponseProcessor {
         String remoteSsrc = SdpBuilder.extractSsrc(sdp);
 
         // 3) 构造并发送 ACK（必须在 SSRC 自适应前发，让设备先稳定 Dialog）
-        String remoteHost = response.getPeerPacketSourceAddress().getHostAddress();
-        int remotePort = response.getPeerPacketSourcePort();
+        String remoteHost;
+        int remotePort;
+        if (response.getPeerPacketSourceAddress() != null) {
+            remoteHost = response.getPeerPacketSourceAddress().getHostAddress();
+            remotePort = response.getPeerPacketSourcePort();
+        } else {
+            ViaHeader via = response.getTopmostViaHeader();
+            remoteHost = via.getReceived() != null ? via.getReceived() : via.getHost();
+            remotePort = via.getRPort() != -1 ? via.getRPort() : via.getPort();
+        }
         Request ack = headerProvider.buildAckRequest(device, response, remoteHost, remotePort);
         sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), ack);
         log.info("[实时点播] 收到 200 OK 自动发送 ACK stream={} callId={}", session.getStreamId(), callId);

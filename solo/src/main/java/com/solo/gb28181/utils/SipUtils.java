@@ -58,16 +58,27 @@ public class SipUtils {
     public static RemoteAddressInfo getRemoteAddress(SIPRequest request, boolean useSourceIpAsRemoteAddress) {
         String ip;
         int port;
-        if (useSourceIpAsRemoteAddress) {
-            ip = request.getPeerPacketSourceAddress().getHostAddress();
-            port = request.getPeerPacketSourcePort();
+        java.net.InetAddress peerAddr = request.getPeerPacketSourceAddress();
+        int peerPort = request.getPeerPacketSourcePort();
+        boolean hasPeer = peerAddr != null && peerPort > 0;
+
+        if (useSourceIpAsRemoteAddress && hasPeer) {
+            ip = peerAddr.getHostAddress();
+            port = peerPort;
         } else {
             ViaHeader via = request.getTopmostViaHeader();
             ip = via.getReceived();
             port = via.getRPort();
-            if (ip == null || ip.isBlank() || port == -1) {
-                ip = request.getPeerPacketSourceAddress().getHostAddress();
-                port = request.getPeerPacketSourcePort();
+            if ((ip == null || ip.isBlank() || port == -1) && hasPeer) {
+                ip = peerAddr.getHostAddress();
+                port = peerPort;
+            }
+            // 最后兜底：Via 头的 host/port（TCP 或特殊场景 peerAddress 可能为 null）
+            if (ip == null || ip.isBlank()) {
+                ip = via.getHost();
+            }
+            if (port == -1) {
+                port = via.getPort();
             }
         }
         return new RemoteAddressInfo(ip, port);
