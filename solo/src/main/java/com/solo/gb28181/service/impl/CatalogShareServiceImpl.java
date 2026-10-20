@@ -140,17 +140,38 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     @Override
     public List<GbDeviceChannel> loadSharedCatalogItems(Long platformId) {
         // 推送给上级的目录结构 = 推送分组树（gb_platform_group，parental=1）+ 挂载通道（parental=0）。
-        // 分组 DeviceID 用 group.code（215/216），通道 parentId 指向所在分组 code——上级看到的是本平台
-        // 在弹窗里编排的推送树，而不是设备原始目录（parental=1）层级。
+        // 分组 DeviceID 用 group.code（215/216），通道 parentId 指向所在分组 code。只推送"有通道的分组
+        // 及其祖先分组"——空分组（已清空挂载）不推给上级，避免上级残留空目录节点。
+        List<GbPlatformShare> shares = shareMapper.selectList(
+                new LambdaQueryWrapper<GbPlatformShare>()
+                        .eq(GbPlatformShare::getPlatformId, platformId));
+
         List<GbPlatformGroup> groups = groupMapper.selectList(
                 new LambdaQueryWrapper<GbPlatformGroup>()
                         .eq(GbPlatformGroup::getPlatformId, platformId)
                         .orderByAsc(GbPlatformGroup::getId));
-        Map<Long, String> codeByGroupId = groups.stream()
+        Map<Long, GbPlatformGroup> groupById = groups.stream()
+                .collect(Collectors.toMap(GbPlatformGroup::getId, g -> g, (a, b) -> a));
+        Map<Long, String> codeByGroupId = groupById.values().stream()
                 .collect(Collectors.toMap(GbPlatformGroup::getId, GbPlatformGroup::getCode, (a, b) -> a));
+
+        // 有通道的分组 + 它们的祖先分组（避免通道 ParentID 指向上级没见过的分组）
+        Set<Long> neededGroupIds = new HashSet<>();
+        for (GbPlatformShare s : shares) {
+            Long gid = s.getGroupId();
+            while (gid != null && gid != 0L && groupById.containsKey(gid)) {
+                if (!neededGroupIds.add(gid)) {
+                    break;
+                }
+                gid = groupById.get(gid).getParentId();
+            }
+        }
 
         List<GbDeviceChannel> result = new ArrayList<>();
         for (GbPlatformGroup g : groups) {
+            if (!neededGroupIds.contains(g.getId())) {
+                continue;
+            }
             GbDeviceChannel node = new GbDeviceChannel();
             node.setChannelId(g.getCode());
             node.setName(g.getName());
@@ -162,9 +183,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
             result.add(node);
         }
 
-        List<GbPlatformShare> shares = shareMapper.selectList(
-                new LambdaQueryWrapper<GbPlatformShare>()
-                        .eq(GbPlatformShare::getPlatformId, platformId));
         if (!shares.isEmpty()) {
             List<Long> resourceIds = shares.stream()
                     .map(GbPlatformShare::getResourceId)
