@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 在线用户管理
- */
 @Tag(name = "在线用户管理", description = "在线用户管理")
 @RestController
 @RequestMapping("/api/online")
@@ -27,12 +24,6 @@ public class OnlineController {
 
     private final SysOnlineService sysOnlineService;
 
-    /**
-     * 在线用户列表
-     *
-     * @param username 可选模糊匹配
-     * @param nickname 可选模糊匹配
-     */
     @Operation(summary = "在线用户列表")
     @Parameter(name = "username", description = "可选模糊匹配", in = ParameterIn.QUERY)
     @Parameter(name = "nickname", description = "可选模糊匹配", in = ParameterIn.QUERY)
@@ -44,11 +35,6 @@ public class OnlineController {
         return Result.success(sysOnlineService.list(username, nickname));
     }
 
-    /**
-     * 强制指定用户下线
-     *
-     * @param username 登录账号
-     */
     @Operation(summary = "强制指定用户下线")
     @Parameter(name = "username", description = "登录账号", in = ParameterIn.PATH)
     @DeleteMapping("/kick/{username}")

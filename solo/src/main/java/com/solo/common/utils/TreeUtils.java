@@ -11,16 +11,6 @@ import java.util.function.Predicate;
 public class TreeUtils {
 
 
-    /**
-     * @param list           合成树的list
-     * @param parentIdGetter 获取父id
-     * @param idGetter       获取id
-     * @param rootCheck      是否含根节点
-     * @param setSubChildren 设置子属性
-     * @param <T>            实体对象的父节点id类型
-     * @param <E>            实体对象
-     * @return List<E>
-     */
     public static <T, E> List<E> build(List<E> list
             , Function<E, T> parentIdGetter
             , Function<E, T> idGetter
@@ -41,8 +31,6 @@ public class TreeUtils {
         }
 
         for (E e : list) {
-            //性能优化 避免大数量时候频繁创建 ArrayList 对象造成浪费
-            // setSubChildren.accept(e, parentMap.getOrDefault(idGetter.apply(e), new ArrayList<>()));
             T id = idGetter.apply(e);
             List<E> children = parentMap.get(id);
             if (children == null) {
@@ -58,15 +46,6 @@ public class TreeUtils {
     }
 
 
-    /**
-     * @param list           合成树的list
-     * @param parentIdGetter 获取父id
-     * @param idGetter       获取id
-     * @param setChildren    设置子属性
-     * @param <T>            实体对象的父节点id类型
-     * @param <E>            实体对象
-     * @return List<E>
-     */
     public static <T, E> List<E> buildTree(
             List<E> list,
             Function<E, T> parentIdGetter,
@@ -105,12 +84,6 @@ public class TreeUtils {
         return roots;
     }
 
-    /**
-     * 将树平铺
-     *
-     * @param list           树列表
-     * @param childrenGetter 获取子节点
-     */
     public static <E> List<E> flatten(List<E> list, Function<E, List<E>> childrenGetter) {
 
         if (CollectionUtils.isEmpty(list)) {
@@ -136,14 +109,6 @@ public class TreeUtils {
     }
 
 
-    /**
-     * 获取子节点
-     *
-     * @param root           元素
-     * @param idGetter       id函数
-     * @param parentIdGetter parentId 函数
-     * @param allNodes       数据列表
-     */
     public static <E, T> List<E> sonList(
             E root,
             Function<E, T> idGetter,
@@ -154,14 +119,14 @@ public class TreeUtils {
             return Collections.emptyList();
         }
 
-        // Step 1: 构建 parentId -> children 映射（O(n)）
+        // 构建 parentId -> children 映射（O(n)）
         Map<T, List<E>> parentMap = new HashMap<>();
         for (E node : allNodes) {
             T parentId = parentIdGetter.apply(node);
             parentMap.computeIfAbsent(parentId, k -> new ArrayList<>()).add(node);
         }
 
-        // Step 2: 从 root 开始 DFS/BFS 收集所有后代
+        // 从 root 开始收集所有后代
         List<E> result = new ArrayList<>();
         Deque<E> stack = new ArrayDeque<>();
         stack.push(root);
@@ -180,16 +145,6 @@ public class TreeUtils {
     }
 
 
-    /**
-     * 获取绝对路径
-     *
-     * @param e              实体对象
-     * @param idGetter       id函数
-     * @param parentIdGetter 父id函数
-     * @param resultGetter   结果返回函数
-     * @param list           数据
-     * @param rootCheck      父节点判断
-     */
     public static <E, T, R> List<R> absolute(
             E e,
             Function<E, T> idGetter,

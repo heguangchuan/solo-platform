@@ -26,9 +26,6 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * 角色管理
- */
 @Tag(name = "角色管理", description = "角色管理")
 @RestController
 @RequestMapping("/api/role")
@@ -39,9 +36,6 @@ public class RoleController {
 
     private final SysRoleService sysRoleService;
 
-    /**
-     * 分页查询角色列表
-     */
     @Operation(summary = "分页查询角色列表")
     @PostMapping("/page")
     @RequirePermission({"system:role:list"})
@@ -50,9 +44,6 @@ public class RoleController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 导出角色为 Excel
-     */
     @Operation(summary = "导出角色为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:role:export"})
@@ -83,9 +74,6 @@ public class RoleController {
         return response;
     }
 
-    /**
-     * 新增角色
-     */
     @Operation(summary = "新增角色")
     @PostMapping
     @RequirePermission({"system:role:add"})
@@ -95,11 +83,6 @@ public class RoleController {
         return Result.success();
     }
 
-    /**
-     * 修改角色信息
-     *
-     * @param id 角色主键 ID
-     */
     @Operation(summary = "修改角色信息")
     @Parameter(name = "id", description = "角色主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -110,9 +93,6 @@ public class RoleController {
         return Result.success();
     }
 
-    /**
-     * 批量删除角色
-     */
     @Operation(summary = "批量删除角色")
     @DeleteMapping("/batch")
     @RequirePermission({"system:role:delete"})
@@ -122,9 +102,6 @@ public class RoleController {
         return Result.success();
     }
 
-    /**
-     * 全量启用角色列表
-     */
     @Operation(summary = "全量启用角色列表")
     @GetMapping("/list")
     @RequirePermission({"system:role:list"})
@@ -136,11 +113,6 @@ public class RoleController {
         return Result.success(roles);
     }
 
-    /**
-     * 删除单个角色
-     *
-     * @param id 角色主键 ID
-     */
     @Operation(summary = "删除单个角色")
     @Parameter(name = "id", description = "角色主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -151,11 +123,6 @@ public class RoleController {
         return Result.success();
     }
 
-    /**
-     * 查询角色已分配的权限 ID 列表
-     *
-     * @param roleId 角色主键 ID
-     */
     @Operation(summary = "查询角色已分配的权限 ID 列表")
     @Parameter(name = "roleId", description = "角色主键 ID", in = ParameterIn.PATH)
     @GetMapping("/p2r/{roleId}")
@@ -169,9 +136,6 @@ public class RoleController {
         return Result.success(ids);
     }
 
-    /**
-     * 给角色分配权限
-     */
     @Operation(summary = "给角色分配权限")
     @PostMapping("/p2r")
     @RequirePermission({"system:role:p2r"})

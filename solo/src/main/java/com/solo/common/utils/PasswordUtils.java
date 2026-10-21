@@ -6,22 +6,14 @@ import com.solo.system.constant.SystemConstants;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
-/**
- * 密码相关工具：加密、强度校验、默认密码生成。
- */
 public final class PasswordUtils {
 
-    /** 弱密码最小长度 */
     private static final int MIN_LENGTH = 8;
-    /** 弱密码最大长度 */
     private static final int MAX_LENGTH = 32;
 
     private PasswordUtils() {
     }
 
-    /**
-     * MD5 加密。
-     */
     public static String md5(String source) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
@@ -37,22 +29,16 @@ public final class PasswordUtils {
     }
 
     /**
-     * 根据用户名生成默认密码（明文），格式：{username}@123456。
+     * 默认密码格式：{username}@123456
      */
     public static String defaultPasswordOf(String username) {
         return String.format(SystemConstants.DEFAULT_PASSWORD_TEMPLATE, username);
     }
 
-    /**
-     * 根据用户名生成默认密码的 MD5 值，用于初始化普通用户密码。
-     */
     public static String defaultPasswordHashOf(String username) {
         return md5(defaultPasswordOf(username));
     }
 
-    /**
-     * 判断给定的密文是否等于该用户名对应的默认密码。
-     */
     public static boolean isDefaultPassword(String username, String hashedPassword) {
         if (username == null || hashedPassword == null) return false;
         return defaultPasswordHashOf(username).equals(hashedPassword);

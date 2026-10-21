@@ -13,10 +13,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 操作日志实体类
- * 对应数据库表 sys_log
- */
 @Schema(description = "操作日志")
 @Data
 @TableName("sys_log")
@@ -45,9 +41,6 @@ public class SysLog {
     @Schema(description = "请求参数")
     private String requestParam;
 
-    /**
-     * 响应状态: 0 失败 1 成功
-     */
     @Schema(description = "响应状态（0=失败，1=成功）")
     private Integer responseStatus;
 
@@ -64,9 +57,6 @@ public class SysLog {
     @Schema(description = "操作人名称")
     private String operatorName;
 
-    /**
-     * 客户端来源: web/app/...
-     */
     @Schema(description = "客户端来源")
     private String clientSource;
 

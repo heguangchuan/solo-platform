@@ -7,9 +7,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * 服务器文件管理服务接口
- */
 public interface ServerFileService {
 
     List<ServerFileResponse> listFiles(Long serverId, String path);

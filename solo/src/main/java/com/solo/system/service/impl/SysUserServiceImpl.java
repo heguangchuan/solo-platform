@@ -34,10 +34,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 系统用户服务实现类
- * 封装用户认证、信息查询、菜单构建及用户管理
- */
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {

@@ -27,9 +27,6 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * 用户管理
- */
 @Tag(name = "用户管理", description = "用户管理")
 @RestController
 @RequestMapping("/api/user")
@@ -40,9 +37,6 @@ public class UserController {
 
     private final SysUserService sysUserService;
 
-    /**
-     * 分页查询用户列表
-     */
     @Operation(summary = "分页查询用户列表")
     @PostMapping("/page")
     @RequirePermission({"system:user:list"})
@@ -51,9 +45,6 @@ public class UserController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 按状态统计用户数（全局口径，与查询条件无关）
-     */
     @Operation(summary = "按状态统计用户数")
     @GetMapping("/status-count")
     @RequirePermission({"system:user:list"})
@@ -61,9 +52,6 @@ public class UserController {
         return Result.success(sysUserService.statusCount());
     }
 
-    /**
-     * 导出用户为 Excel
-     */
     @Operation(summary = "导出用户为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:user:export"})
@@ -95,9 +83,6 @@ public class UserController {
         return response;
     }
 
-    /**
-     * 新增用户
-     */
     @Operation(summary = "新增用户")
     @PostMapping
     @RequirePermission({"system:user:add"})
@@ -107,11 +92,6 @@ public class UserController {
         return Result.success();
     }
 
-    /**
-     * 修改用户信息
-     *
-     * @param id 用户主键 ID
-     */
     @Operation(summary = "修改用户信息")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -122,12 +102,6 @@ public class UserController {
         return Result.success();
     }
 
-    /**
-     * 切换用户状态
-     *
-     * @param id 用户主键 ID
-     * @param status `0=禁用`、`1=启用`；禁用后该用户无法登录，已登录的会被踢出
-     */
     @Operation(summary = "切换用户状态")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "status", description = "0=禁用、1=启用；禁用后该用户无法登录，已登录的会被踢出", in = ParameterIn.PATH)
@@ -139,9 +113,6 @@ public class UserController {
         return Result.success();
     }
 
-    /**
-     * 批量删除用户
-     */
     @Operation(summary = "批量删除用户")
     @DeleteMapping("/batch")
     @RequirePermission({"system:user:delete"})
@@ -151,11 +122,6 @@ public class UserController {
         return Result.success();
     }
 
-    /**
-     * 删除单个用户
-     *
-     * @param id 用户主键 ID
-     */
     @Operation(summary = "删除单个用户")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -166,11 +132,6 @@ public class UserController {
         return Result.success();
     }
 
-    /**
-     * 查询用户已分配的角色 ID 列表
-     *
-     * @param userId 用户主键 ID
-     */
     @Operation(summary = "查询用户已分配的角色 ID 列表")
     @Parameter(name = "userId", description = "用户主键 ID", in = ParameterIn.PATH)
     @GetMapping("/r2u/{userId}")
@@ -183,9 +144,6 @@ public class UserController {
         return Result.success(ids);
     }
 
-    /**
-     * 给用户分配角色
-     */
     @Operation(summary = "给用户分配角色")
     @PostMapping("/r2u")
     @RequirePermission({"system:user:r2u"})

@@ -30,9 +30,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 认证与当前用户管理
- */
 @Tag(name = "认证与当前用户管理", description = "认证与当前用户管理")
 @RestController
 @RequestMapping("/api/auth")
@@ -43,9 +40,6 @@ public class AuthController {
     private final SysRoleService sysRoleService;
     private final SysPermissionService sysPermissionService;
 
-    /**
-     * 用户登录
-     */
     @Operation(summary = "用户登录")
     @PostMapping("/login")
     @OperationLog(module = "登录认证", type = BusinessType.LOGIN, description = "用户登录", recordParam = false)
@@ -54,9 +48,6 @@ public class AuthController {
         return Result.success(sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword()));
     }
 
-    /**
-     * 刷新 Token
-     */
     @Operation(summary = "刷新 Token")
     @PostMapping("/refresh")
     @RateLimiter(maxCount = 10, time = 1, timeUnit = TimeUnit.MINUTES, message = "刷新过于频繁，请稍后再试")
@@ -64,9 +55,6 @@ public class AuthController {
         return Result.success(sysUserService.refresh(request.getRefreshToken()));
     }
 
-    /**
-     * 获取当前用户菜单树
-     */
     @Operation(summary = "获取当前用户菜单树")
     @GetMapping("/me")
     public Result<List<UserAuthResponse>> me() {
@@ -81,18 +69,12 @@ public class AuthController {
         ));
     }
 
-    /**
-     * 获取当前用户权限编码列表
-     */
     @Operation(summary = "获取当前用户权限编码列表")
     @GetMapping("/permissions")
     public Result<List<String>> permissions() {
         return Result.success(sysUserService.getPermissionCodes(UserHolderUtils.getCurrentUserId()));
     }
 
-    /**
-     * 获取系统统计信息
-     */
     @Operation(summary = "获取系统统计信息")
     @GetMapping("/stats")
     @RequirePermission({"system:user:list", "system:role:list", "system:permission:list"})
@@ -104,9 +86,6 @@ public class AuthController {
         return Result.success(stats);
     }
 
-    /**
-     * 修改当前登录用户的密码
-     */
     @Operation(summary = "修改当前登录用户的密码")
     @PostMapping("/password")
     @OperationLog(module = "登录认证", type = BusinessType.EDIT, description = "修改密码", recordParam = false)
@@ -118,18 +97,12 @@ public class AuthController {
         return Result.success();
     }
 
-    /**
-     * 获取当前登录用户档案
-     */
     @Operation(summary = "获取当前登录用户档案")
     @GetMapping("/profile")
     public Result<UserInfoVO> profile() {
         return Result.success(sysUserService.getProfile(UserHolderUtils.getCurrentUserId()));
     }
 
-    /**
-     * 当前登录用户更新自身资料
-     */
     @Operation(summary = "当前登录用户更新自身资料")
     @PutMapping("/profile")
     @OperationLog(module = "个人中心", type = BusinessType.EDIT, description = "更新个人资料")
@@ -138,9 +111,6 @@ public class AuthController {
         return Result.success();
     }
 
-    /**
-     * 获取当前登录用户的角色列表
-     */
     @Operation(summary = "获取当前登录用户的角色列表")
     @GetMapping("/roles")
     public Result<List<SysRole>> myRoles() {

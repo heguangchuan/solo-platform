@@ -14,9 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 字典数据服务实现类
- */
 @Service
 public class SysDictDataServiceImpl extends ServiceImpl<SysDictDataMapper, SysDictData> implements SysDictDataService {
 

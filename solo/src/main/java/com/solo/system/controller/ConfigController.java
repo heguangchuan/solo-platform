@@ -25,9 +25,6 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * 系统参数管理
- */
 @Tag(name = "系统参数管理", description = "系统参数管理")
 @RestController
 @RequestMapping("/api/config")
@@ -38,9 +35,6 @@ public class ConfigController {
 
     private final SysConfigService sysConfigService;
 
-    /**
-     * 分页查询参数列表
-     */
     @Operation(summary = "分页查询参数列表")
     @PostMapping("/page")
     @RequirePermission({"setting:config:list"})
@@ -49,9 +43,6 @@ public class ConfigController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 导出参数为 Excel
-     */
     @Operation(summary = "导出参数为 Excel")
     @PostMapping("/export")
     @RequirePermission({"setting:config:export"})
@@ -82,9 +73,6 @@ public class ConfigController {
         return response;
     }
 
-    /**
-     * 新增参数
-     */
     @Operation(summary = "新增参数")
     @PostMapping
     @RequirePermission({"setting:config:add"})
@@ -94,11 +82,6 @@ public class ConfigController {
         return Result.success();
     }
 
-    /**
-     * 修改参数
-     *
-     * @param id 参数主键 ID
-     */
     @Operation(summary = "修改参数")
     @Parameter(name = "id", description = "参数主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -109,9 +92,6 @@ public class ConfigController {
         return Result.success();
     }
 
-    /**
-     * 批量删除参数
-     */
     @Operation(summary = "批量删除参数")
     @DeleteMapping("/batch")
     @RequirePermission({"setting:config:delete"})
@@ -121,11 +101,6 @@ public class ConfigController {
         return Result.success();
     }
 
-    /**
-     * 删除单个参数
-     *
-     * @param id 参数主键 ID
-     */
     @Operation(summary = "删除单个参数")
     @Parameter(name = "id", description = "参数主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

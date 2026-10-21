@@ -20,9 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * 服务器文件管理
- */
 @Tag(name = "服务器文件管理", description = "服务器文件管理")
 @RestController
 @RequestMapping("/api/server/file")
@@ -31,9 +28,6 @@ public class ServerFileController {
 
     private final ServerFileService serverFileService;
 
-    /**
-     * 列远端目录
-     */
     @Operation(summary = "列远端目录")
     @PostMapping("/list")
     @RequirePermission({"server:file:list"})
@@ -41,13 +35,6 @@ public class ServerFileController {
         return Result.success(serverFileService.listFiles(request.getServerId(), request.getPath()));
     }
 
-    /**
-     * 上传文件到远端路径
-     *
-     * @param serverId 服务器主键 ID
-     * @param path 远端目录绝对路径
-     * @param file 上传的文件
-     */
     @Operation(summary = "上传文件到远端路径")
     @Parameter(name = "serverId", description = "服务器主键 ID", in = ParameterIn.QUERY)
     @Parameter(name = "path", description = "远端目录绝对路径", in = ParameterIn.QUERY)
@@ -62,9 +49,6 @@ public class ServerFileController {
         return Result.success();
     }
 
-    /**
-     * 下载远端文件
-     */
     @Operation(summary = "下载远端文件")
     @PostMapping("/download")
     @RequirePermission({"server:file:download"})
@@ -73,9 +57,6 @@ public class ServerFileController {
         serverFileService.download(request.getServerId(), request.getPath(), response);
     }
 
-    /**
-     * 删除远端文件或目录
-     */
     @Operation(summary = "删除远端文件或目录")
     @DeleteMapping
     @RequirePermission({"server:file:delete"})

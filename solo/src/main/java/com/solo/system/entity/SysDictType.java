@@ -9,10 +9,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 字典类型实体类
- * 对应数据库表 sys_dict_type
- */
 @Schema(description = "字典类型")
 @Data
 @TableName("sys_dict_type")
@@ -29,9 +25,6 @@ public class SysDictType {
     @Schema(description = "字典类型")
     private String dictType;
 
-    /**
-     * 状态：0-禁用，1-启用
-     */
     @Schema(description = "状态（0=停用，1=启用）")
     private Integer status;
 

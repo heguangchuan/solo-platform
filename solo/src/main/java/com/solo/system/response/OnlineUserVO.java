@@ -8,43 +8,30 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 在线用户响应体（不含敏感的 token 原文）
- *
- * <p>对应接口 {@code GET /api/online/list}。
- * 同一用户多次登录会出现多条记录（不同 token / IP）。access 过期（30 分钟无活动）后自动从列表消失。</p>
- */
 @Schema(description = "在线用户响应体")
 @Data
 public class OnlineUserVO {
 
-    /** 用户 ID（字符串形式，规避前端大数精度问题） */
     @Schema(description = "用户 ID")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long userId;
 
-    /** 登录账号 */
     @Schema(description = "登录账号")
     private String username;
 
-    /** 用户昵称 */
     @Schema(description = "用户昵称")
     private String nickname;
 
-    /** 登录时间（{@code yyyy-MM-dd HH:mm:ss}，GMT+8） */
     @Schema(description = "登录时间")
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss", timezone = "GMT+8")
     private LocalDateTime loginTime;
 
-    /** 登录 IP */
     @Schema(description = "登录 IP")
     private String loginIp;
 
-    /** 客户端来源（{@code web} / {@code app}） */
     @Schema(description = "客户端来源")
     private String clientSource;
 
-    /** 浏览器 User-Agent（前端可做简单浏览器 / 系统识别） */
     @Schema(description = "浏览器 User-Agent")
     private String userAgent;
 }

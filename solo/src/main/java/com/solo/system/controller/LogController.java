@@ -22,9 +22,6 @@ import java.io.IOException;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * 操作日志管理
- */
 @Tag(name = "操作日志管理", description = "操作日志管理")
 @RestController
 @RequestMapping("/api/log")
@@ -35,9 +32,6 @@ public class LogController {
 
     private final SysLogService sysLogService;
 
-    /**
-     * 分页查询操作日志
-     */
     @Operation(summary = "分页查询操作日志")
     @PostMapping("/page")
     @RequirePermission({"system:log:list"})
@@ -46,9 +40,6 @@ public class LogController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 导出日志为 Excel
-     */
     @Operation(summary = "导出日志为 Excel")
     @PostMapping("/export")
     @RequirePermission({"system:log:export"})
@@ -58,9 +49,6 @@ public class LogController {
         ExcelUtils.export(response, "操作日志", "操作日志", data, LogExcelResponse.class);
     }
 
-    /**
-     * 批量删除日志
-     */
     @Operation(summary = "批量删除日志")
     @DeleteMapping("/batch")
     @RequirePermission({"system:log:delete"})
@@ -69,11 +57,6 @@ public class LogController {
         return Result.success();
     }
 
-    /**
-     * 删除单条日志
-     *
-     * @param id 日志主键 ID
-     */
     @Operation(summary = "删除单条日志")
     @Parameter(name = "id", description = "日志主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

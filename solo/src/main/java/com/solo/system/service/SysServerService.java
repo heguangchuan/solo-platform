@@ -8,9 +8,6 @@ import com.solo.system.request.ServerRequest;
 
 import java.util.List;
 
-/**
- * 服务器服务接口
- */
 public interface SysServerService extends IService<SysServer> {
 
     Page<SysServer> pageQuery(ServerPageRequest req);

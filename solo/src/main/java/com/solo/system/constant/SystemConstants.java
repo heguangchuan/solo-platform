@@ -1,9 +1,5 @@
 package com.solo.system.constant;
 
-/**
- * 系统常量定义
- * 统一管理状态值、错误码、默认值等
- */
 public final class SystemConstants {
 
     /**
