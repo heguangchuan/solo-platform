@@ -1,6 +1,8 @@
 package com.solo.gb28181.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
@@ -26,6 +28,7 @@ public class GbPtzController {
     private final GbDeviceService deviceService;
 
     @Operation(summary = "PTZ 控制")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ方向控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "command", description = "PTZ 指令：left/right/up/down/upleft/upright/downleft/downright/zoomin/zoomout/stop")
@@ -73,6 +76,7 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 聚焦控制")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ聚焦控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "direction", description = "方向：near=近 / far=远 / stop=停")
@@ -96,6 +100,7 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 光圈控制")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ光圈控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "direction", description = "方向：open=大(开) / close=小(关) / stop=停")
@@ -119,6 +124,7 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 雨刷控制")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ雨刷控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "action", description = "动作：on=开 / off=关")
