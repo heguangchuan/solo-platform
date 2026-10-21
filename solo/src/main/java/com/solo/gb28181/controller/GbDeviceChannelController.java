@@ -1,7 +1,9 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -65,6 +67,7 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "手动新增通道")
+    @OperationLog(module = "国标通道管理", type = BusinessType.ADD, description = "手动新增通道")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device-channel:add"})
     public Result<Void> save(@RequestBody GbDeviceChannel channel) {
@@ -73,6 +76,7 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "手动编辑通道资料")
+    @OperationLog(module = "国标通道管理", type = BusinessType.EDIT, description = "手动编辑通道资料")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device-channel:edit"})
     public Result<Void> update(@RequestBody GbDeviceChannel channel) {
@@ -84,6 +88,7 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "删除通道")
+    @OperationLog(module = "国标通道管理", type = BusinessType.DELETE, description = "删除通道")
     @Parameter(name = "id", description = "通道主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:device-channel:delete"})
@@ -93,6 +98,7 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "批量删除通道")
+    @OperationLog(module = "国标通道管理", type = BusinessType.DELETE, description = "批量删除通道")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:device-channel:delete"})
     @Transactional
