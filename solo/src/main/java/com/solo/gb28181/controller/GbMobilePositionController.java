@@ -1,7 +1,9 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.gb28181.entity.GbMobilePosition;
@@ -50,6 +52,7 @@ public class GbMobilePositionController {
     }
 
     @Operation(summary = "删除位置点")
+    @OperationLog(module = "移动轨迹", type = BusinessType.DELETE, description = "删除位置点")
     @Parameter(name = "id", description = "位置点主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/delete/{id}")
     @RequirePermission({"gb28181:position:delete"})
