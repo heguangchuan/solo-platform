@@ -1,7 +1,9 @@
 package com.solo.system.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.system.entity.SysLog;
@@ -41,6 +43,7 @@ public class LogController {
     }
 
     @Operation(summary = "导出日志为 Excel")
+    @OperationLog(module = "操作日志管理", type = BusinessType.EXPORT, description = "导出操作日志")
     @PostMapping("/export")
     @RequirePermission({"system:log:export"})
     public void export(@RequestBody LogExportRequest request, HttpServletResponse response) throws IOException {
@@ -50,6 +53,7 @@ public class LogController {
     }
 
     @Operation(summary = "批量删除日志")
+    @OperationLog(module = "操作日志管理", type = BusinessType.DELETE, description = "批量删除操作日志")
     @DeleteMapping("/batch")
     @RequirePermission({"system:log:delete"})
     public Result<Void> deleteBatch(@RequestBody List<Long> ids) {
@@ -58,6 +62,7 @@ public class LogController {
     }
 
     @Operation(summary = "删除单条日志")
+    @OperationLog(module = "操作日志管理", type = BusinessType.DELETE, description = "删除操作日志")
     @Parameter(name = "id", description = "日志主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"system:log:delete"})
