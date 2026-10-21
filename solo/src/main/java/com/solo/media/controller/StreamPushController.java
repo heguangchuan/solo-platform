@@ -1,7 +1,9 @@
 package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -60,6 +62,7 @@ public class StreamPushController {
     }
 
     @Operation(summary = "强制中止")
+    @OperationLog(module = "推流管理", type = BusinessType.OTHER, description = "强制中止推流")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/stop")
     public Result<Void> stop(@PathVariable Long id) {
@@ -68,6 +71,7 @@ public class StreamPushController {
     }
 
     @Operation(summary = "单条删除")
+    @OperationLog(module = "推流管理", type = BusinessType.DELETE, description = "删除推流")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:stream-push:delete"})
@@ -77,6 +81,7 @@ public class StreamPushController {
     }
 
     @Operation(summary = "批量删除")
+    @OperationLog(module = "推流管理", type = BusinessType.DELETE, description = "批量删除推流")
     @PostMapping("/batch/delete")
     @RequirePermission({"media:stream-push:delete"})
     @Transactional
