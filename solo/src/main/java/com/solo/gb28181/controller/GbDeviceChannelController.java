@@ -66,8 +66,8 @@ public class GbDeviceChannelController {
         return Result.success(list);
     }
 
-    @Operation(summary = "手动新增通道")
-    @OperationLog(module = "国标通道管理", type = BusinessType.ADD, description = "手动新增通道")
+    @Operation(summary = "新增通道")
+    @OperationLog(module = "国标通道管理", type = BusinessType.ADD, description = "新增通道")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device-channel:add"})
     public Result<Void> save(@RequestBody GbDeviceChannel channel) {
@@ -75,8 +75,8 @@ public class GbDeviceChannelController {
         return Result.success();
     }
 
-    @Operation(summary = "手动编辑通道资料")
-    @OperationLog(module = "国标通道管理", type = BusinessType.EDIT, description = "手动编辑通道资料")
+    @Operation(summary = "编辑通道")
+    @OperationLog(module = "国标通道管理", type = BusinessType.EDIT, description = "编辑通道")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device-channel:edit"})
     public Result<Void> update(@RequestBody GbDeviceChannel channel) {
