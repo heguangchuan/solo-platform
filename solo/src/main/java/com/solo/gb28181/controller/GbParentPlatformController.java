@@ -1,7 +1,9 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -46,6 +48,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "新增上级平台配置")
+    @OperationLog(module = "上级平台管理", type = BusinessType.ADD, description = "新增上级平台配置")
     @PostMapping("/save")
     @RequirePermission({"gb28181:parent-platform:add"})
     public Result<Void> save(@RequestBody GbParentPlatform platform) {
@@ -54,6 +57,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "编辑上级平台配置")
+    @OperationLog(module = "上级平台管理", type = BusinessType.EDIT, description = "编辑上级平台配置")
     @PostMapping("/update")
     @RequirePermission({"gb28181:parent-platform:edit"})
     public Result<Void> update(@RequestBody GbParentPlatform platform) {
@@ -65,6 +69,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "删除上级平台配置")
+    @OperationLog(module = "上级平台管理", type = BusinessType.DELETE, description = "删除上级平台配置")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"gb28181:parent-platform:delete"})
@@ -77,6 +82,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "批量删除上级平台配置")
+    @OperationLog(module = "上级平台管理", type = BusinessType.DELETE, description = "批量删除上级平台配置")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:parent-platform:delete"})
     public Result<Void> batchDelete(@RequestBody GbParentPlatformBatchDeleteRequest request) {
@@ -115,6 +121,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "全量覆盖保存某上级平台的共享目录/通道")
+    @OperationLog(module = "上级平台管理", type = BusinessType.EDIT, description = "保存共享目录/通道")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/shared")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -153,6 +160,7 @@ public class GbParentPlatformController {
 
 
     @Operation(summary = "批量挂载 catalog item 到某分组")
+    @OperationLog(module = "上级平台管理", type = BusinessType.EDIT, description = "批量挂载共享资源")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/share")
@@ -170,6 +178,7 @@ public class GbParentPlatformController {
     }
 
     @Operation(summary = "单条卸载")
+    @OperationLog(module = "上级平台管理", type = BusinessType.DELETE, description = "卸载共享资源")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "resourceId", description = "待卸载的资源主键 ID", in = ParameterIn.PATH)
@@ -185,6 +194,7 @@ public class GbParentPlatformController {
 
 
     @Operation(summary = "清除某上级平台某分组下的全部挂载关系")
+    @OperationLog(module = "上级平台管理", type = BusinessType.DELETE, description = "清除分组下全部共享资源")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share-group/{groupId}/share")
@@ -198,6 +208,7 @@ public class GbParentPlatformController {
 
 
     @Operation(summary = "清除某上级平台下全部挂载关系")
+    @OperationLog(module = "上级平台管理", type = BusinessType.DELETE, description = "清除上级平台全部共享资源")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -208,6 +219,7 @@ public class GbParentPlatformController {
 
 
     @Operation(summary = "一键添加所有\"未挂载到本组\"通道到该分组")
+    @OperationLog(module = "上级平台管理", type = BusinessType.EDIT, description = "一键挂载所有未挂载通道")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group/{groupId}/share-all")
@@ -221,6 +233,7 @@ public class GbParentPlatformController {
 
 
     @Operation(summary = "主动推送目录给上级平台")
+    @OperationLog(module = "上级平台管理", type = BusinessType.OTHER, description = "主动推送目录")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/push-catalog")
     @RequirePermission({"gb28181:parent-platform:edit"})
