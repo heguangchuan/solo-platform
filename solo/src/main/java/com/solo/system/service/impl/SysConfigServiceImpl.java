@@ -14,9 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 系统参数服务实现类
- */
 @Service
 public class SysConfigServiceImpl extends ServiceImpl<SysConfigMapper, SysConfig> implements SysConfigService {
 

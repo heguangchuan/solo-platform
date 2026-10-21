@@ -27,9 +27,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Vector;
 
-/**
- * 服务器文件管理服务实现类
- */
 @Service
 @RequiredArgsConstructor
 public class ServerFileServiceImpl implements ServerFileService {

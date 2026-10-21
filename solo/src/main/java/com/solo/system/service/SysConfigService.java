@@ -8,9 +8,6 @@ import com.solo.system.request.ConfigRequest;
 
 import java.util.List;
 
-/**
- * 系统参数服务接口
- */
 public interface SysConfigService extends IService<SysConfig> {
 
     Page<SysConfig> pageQuery(ConfigPageRequest req);

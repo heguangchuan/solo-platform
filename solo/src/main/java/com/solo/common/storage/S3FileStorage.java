@@ -41,7 +41,6 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class S3FileStorage implements FileStorage {
 
-    /** 预签名 URL 默认有效期：1 小时 */
     private static final int DEFAULT_PRESIGNED_EXPIRY_SEC = 3600;
 
     /** us-east-1 是 AWS SDK 的默认 region，也是唯一不需要 LocationConstraint 的 region */
@@ -51,7 +50,6 @@ public class S3FileStorage implements FileStorage {
     private final S3Presigner presigner;
     private final S3Properties props;
 
-    /** 启动时确保 bucket 存在 */
     @jakarta.annotation.PostConstruct
     public void ensureBucket() {
         String bucket = bucket();

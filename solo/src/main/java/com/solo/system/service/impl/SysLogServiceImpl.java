@@ -12,9 +12,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 操作日志服务实现
- */
 @Service
 public class SysLogServiceImpl extends ServiceImpl<SysLogMapper, SysLog> implements SysLogService {
 

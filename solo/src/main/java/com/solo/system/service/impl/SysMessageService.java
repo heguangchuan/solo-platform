@@ -15,33 +15,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 系统消息服务
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage> {
 
-    /**
-     * WebSocket 推送使用的序列化器，统一使用 Spring Boot 4 自动配置的 Jackson 3 实例，
-     * 默认支持 LocalDateTime（ISO-8601），保证 readFlag/createTime 等字段完整下发。
-     */
+
     private final ObjectMapper objectMapper;
 
-    /**
-     * 发送消息给指定用户
-     *
-     * @param username 目标用户名
-     * @param title 消息标题
-     * @param content 消息内容
-     * @param type 消息类型
-     * @param level 消息级别
-     * @param route 跳转路由（可选）
-     * @return true=在线并推送成功，false=离线仅持久化
-     */
-    public boolean sendMessage(String username, String title, String content,
-                                String type, String level, String route) {
+    public void sendMessage(String username, String title, String content,
+                            String type, String level, String route) {
         // 1. 持久化到数据库
         SysMessage message = new SysMessage();
         message.setUsername(username);
@@ -61,24 +44,9 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
         boolean pushed = SystemMessageWebSocket.sendToUser(username, jsonMessage);
         log.info("发送系统消息：用户={}, 标题={}, 在线推送={}", username, title, pushed);
 
-        return pushed;
     }
 
-    /**
-     * 发送简化版消息（默认 INFO 级别）
-     */
-    public boolean sendMessage(String username, String title, String content) {
-        return sendMessage(username, title, content, "SYSTEM", "INFO", null);
-    }
-
-    /**
-     * 广播消息给所有在线用户
-     *
-     * @param title 消息标题
-     * @param content 消息内容
-     * @param level 消息级别
-     * @return 成功推送的用户数
-     */
+    /** 广播消息给所有在线用户，不落库；返回成功推送的用户数 */
     public int broadcast(String title, String content, String level) {
         // 广播消息不持久化（或根据需求持久化给所有用户）
         Map<String, Object> msg = new HashMap<>();
@@ -101,9 +69,6 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
         }
     }
 
-    /**
-     * 获取当前用户未读消息数
-     */
     public long getUnreadCount(String username) {
         return lambdaQuery()
                 .eq(SysMessage::getUsername, username)
@@ -111,9 +76,6 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
                 .count();
     }
 
-    /**
-     * 获取当前用户消息列表
-     */
     public List<SysMessage> getUserMessages(String username, int limit) {
         return lambdaQuery()
                 .eq(SysMessage::getUsername, username)
@@ -122,24 +84,15 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
                 .list();
     }
 
-    /**
-     * 标记消息为已读
-     */
-    public boolean markRead(Long id, String username) {
-        return baseMapper.markRead(id, username) > 0;
+    public void markRead(Long id, String username) {
+        baseMapper.markRead(id, username);
     }
 
-    /**
-     * 标记所有消息为已读
-     */
-    public boolean markAllRead(String username) {
-        return baseMapper.markAllRead(username) > 0;
+    public void markAllRead(String username) {
+        baseMapper.markAllRead(username);
     }
 
-    /**
-     * 构建 WebSocket JSON 消息。统一走 Spring Boot 4 的 Jackson 3，LocalDateTime 默认可序列化，
-     * 不再需要手工拼接残数据；若真的失败则抛出而非静默降级，避免前端漏更新红点。
-     */
+    /** 构建 WebSocket JSON 消息；序列化失败时抛出而非静默降级，避免前端漏更新红点 */
     private String buildJsonMessage(SysMessage message) {
         try {
             return objectMapper.writeValueAsString(message);

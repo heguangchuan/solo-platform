@@ -88,9 +88,6 @@ public final class WebUtils {
         return truncate(ip != null ? ip : UNKNOWN, 64);
     }
 
-    /**
-     * 从当前线程绑定的请求中提取客户端 IP
-     */
     public static String getClientIp() {
         return getClientIp(currentRequest());
     }

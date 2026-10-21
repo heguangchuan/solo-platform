@@ -19,9 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 字典数据管理
- */
 @Tag(name = "字典数据管理", description = "字典数据管理")
 @RestController
 @RequestMapping("/api/dict/data")
@@ -30,9 +27,6 @@ public class DictDataController {
 
     private final SysDictDataService sysDictDataService;
 
-    /**
-     * 分页查询字典数据
-     */
     @Operation(summary = "分页查询字典数据")
     @PostMapping("/page")
     @RequirePermission({"setting:dict:data:list"})
@@ -41,11 +35,6 @@ public class DictDataController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 按 dictType 取启用数据项
-     *
-     * @param dictType 字典类型编码
-     */
     @Operation(summary = "按 dictType 取启用数据项")
     @Parameter(name = "dictType", description = "字典类型编码", in = ParameterIn.PATH)
     @GetMapping("/by-type/{dictType}")
@@ -53,9 +42,6 @@ public class DictDataController {
         return Result.success(sysDictDataService.listByType(dictType));
     }
 
-    /**
-     * 新增字典数据
-     */
     @Operation(summary = "新增字典数据")
     @PostMapping
     @RequirePermission({"setting:dict:data:add"})
@@ -65,11 +51,6 @@ public class DictDataController {
         return Result.success();
     }
 
-    /**
-     * 修改字典数据
-     *
-     * @param id 字典项主键 ID
-     */
     @Operation(summary = "修改字典数据")
     @Parameter(name = "id", description = "字典项主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -80,9 +61,6 @@ public class DictDataController {
         return Result.success();
     }
 
-    /**
-     * 批量删除字典数据
-     */
     @Operation(summary = "批量删除字典数据")
     @DeleteMapping("/batch")
     @RequirePermission({"setting:dict:data:delete"})
@@ -92,11 +70,6 @@ public class DictDataController {
         return Result.success();
     }
 
-    /**
-     * 删除单个字典数据
-     *
-     * @param id 字典项主键 ID
-     */
     @Operation(summary = "删除单个字典数据")
     @Parameter(name = "id", description = "字典项主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

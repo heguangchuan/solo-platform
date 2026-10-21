@@ -14,9 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 服务器服务实现类
- */
 @Service
 public class SysServerServiceImpl extends ServiceImpl<SysServerMapper, SysServer> implements SysServerService {
 

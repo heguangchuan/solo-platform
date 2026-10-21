@@ -9,19 +9,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-/**
- * 文件管理服务接口
- */
 public interface SysFileService extends IService<SysFile> {
 
-    /**
-     * 分页查询文件
-     */
     Page<SysFile> pageQuery(FilePageRequest req);
 
-    /**
-     * 上传文件并返回可访问 URL。
-     */
     SysFile upload(MultipartFile file);
 
     /**
@@ -34,13 +25,7 @@ public interface SysFileService extends IService<SysFile> {
      */
     SysFile saveMeta(FileSaveRequest request);
 
-    /**
-     * 软删除单个
-     */
     void deleteOne(Long id);
 
-    /**
-     * 软删除批量
-     */
     void deleteBatch(List<Long> ids);
 }

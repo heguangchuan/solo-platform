@@ -16,22 +16,6 @@ import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * JWT工具类，负责生成、解析和验证 access / refresh Token
- *
- * <p>Token 类型：
- * <ul>
- *   <li>access token：业务请求所携带，短期（默认 30 分钟）</li>
- *   <li>refresh token：登录后由前端单独保存，仅用于换发新的 access token，长期（默认 7 天）</li>
- * </ul>
- *
- * <p>Redis 数据结构：
- * <ul>
- *   <li>{@code auth:online:{username}}：Hash，存放当前会话信息（token / userId / nickname / loginTime / loginIp / userAgent / clientSource），TTL = access 有效期</li>
- *   <li>{@code auth:online}：Set，所有在线 username 的索引，便于枚举在线用户</li>
- *   <li>{@code auth:refresh:{username}}：String，当前用户的 refresh token，TTL = refresh 有效期；滚动刷新时被新 refresh token 覆盖</li>
- * </ul>
- */
 @Component
 public class JwtUtils {
 
@@ -42,7 +26,7 @@ public class JwtUtils {
     /** 单个用户当前 refresh token 的 key 前缀 */
     public static final String REFRESH_KEY_PREFIX = "auth:refresh:";
 
-    /** Hash 字段名 */
+    /** 在线信息 hash 的字段名 */
     public static final String FIELD_TOKEN = "token";
     public static final String FIELD_USER_ID = "userId";
     public static final String FIELD_NICKNAME = "nickname";
@@ -51,7 +35,7 @@ public class JwtUtils {
     public static final String FIELD_USER_AGENT = "userAgent";
     public static final String FIELD_CLIENT_SOURCE = "clientSource";
 
-    /** Token 类型 claim：access / refresh，防止两类 token 互用 */
+    /** token 类型 claim：access / refresh，防止两类 token 互用 */
     public static final String CLAIM_TOKEN_TYPE = "type";
     public static final String TOKEN_TYPE_ACCESS = "access";
     public static final String TOKEN_TYPE_REFRESH = "refresh";
@@ -64,18 +48,11 @@ public class JwtUtils {
         this.jwtProperties = jwtProperties;
     }
 
-    /**
-     * 生成密钥
-     */
     private SecretKey getSecretKey() {
         return Keys.hmacShaKeyFor(jwtProperties.getSecret().getBytes(StandardCharsets.UTF_8));
     }
 
-    /* ============================== Token 生成 ============================== */
 
-    /**
-     * 生成 access token
-     */
     public String generateToken(String username) {
         return Jwts.builder()
                 .subject(username)
@@ -86,9 +63,7 @@ public class JwtUtils {
                 .compact();
     }
 
-    /**
-     * 生成 refresh token
-     */
+
     public String generateRefreshToken(String username) {
         return Jwts.builder()
                 .subject(username)
@@ -99,32 +74,19 @@ public class JwtUtils {
                 .compact();
     }
 
-    /* ============================== Token 解析 ============================== */
 
-    /**
-     * 从Token中获取用户名
-     */
     public String getUsernameFromToken(String token) {
         return getClaims(token).getSubject();
     }
 
-    /**
-     * 从Token中获取过期时间
-     */
     public Date getExpirationFromToken(String token) {
         return getClaims(token).getExpiration();
     }
 
-    /**
-     * 从Token中获取完整的Claims对象
-     */
     public Claims getClaimsFromToken(String token) {
         return getClaims(token);
     }
 
-    /**
-     * 获取 token 的类型（access / refresh），缺失或异常返回 null
-     */
     public String getTokenType(String token) {
         Object type = getClaims(token).get(CLAIM_TOKEN_TYPE);
         return type != null ? type.toString() : null;
@@ -163,16 +125,10 @@ public class JwtUtils {
         }
     }
 
-    /**
-     * 判断Token是否过期
-     */
     public boolean isTokenExpired(String token) {
         return getClaims(token).getExpiration().before(new Date());
     }
 
-    /**
-     * 解析Token获取Claims
-     */
     private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSecretKey())
@@ -183,9 +139,6 @@ public class JwtUtils {
 
     /* ============================== 会话存储（access token） ============================== */
 
-    /**
-     * 保存会话信息（登录时调用）
-     */
     public void saveSession(String username, String token, Map<String, Object> meta) {
         String key = ONLINE_KEY_PREFIX + username;
         Map<String, Object> data = new HashMap<>();
@@ -203,9 +156,6 @@ public class JwtUtils {
         saveSession(username, token, null);
     }
 
-    /**
-     * 根据用户名获取当前Token
-     */
     public String getToken(String username) {
         Object token = redisTemplate.opsForHash().get(ONLINE_KEY_PREFIX + username, FIELD_TOKEN);
         return token != null ? token.toString() : null;
@@ -218,9 +168,6 @@ public class JwtUtils {
         return redisTemplate.opsForHash().entries(ONLINE_KEY_PREFIX + username);
     }
 
-    /**
-     * 枚举所有在线用户名
-     */
     public Set<String> listOnlineUsernames() {
         Set<Object> raw = redisTemplate.opsForSet().members(ONLINE_INDEX_KEY);
         Set<String> result = new LinkedHashSet<>();
@@ -252,17 +199,11 @@ public class JwtUtils {
                 Duration.ofMillis(jwtProperties.getRefreshExpiration()));
     }
 
-    /**
-     * 获取当前用户的 refresh token，不存在返回 null
-     */
     public String getRefreshToken(String username) {
         Object v = redisTemplate.opsForValue().get(REFRESH_KEY_PREFIX + username);
         return v != null ? v.toString() : null;
     }
 
-    /**
-     * 删除当前用户的 refresh token
-     */
     public void removeRefreshToken(String username) {
         redisTemplate.delete(REFRESH_KEY_PREFIX + username);
     }

@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 站内消息管理
- */
 @Tag(name = "站内消息管理", description = "站内消息管理")
 @RestController
 @RequestMapping("/api/message")
@@ -27,11 +24,6 @@ public class MessageController {
 
     private final SysMessageService messageService;
 
-    /**
-     * 获取当前用户消息列表
-     *
-     * @param limit 最多返回条数
-     */
     @Operation(summary = "获取当前用户消息列表")
     @Parameter(name = "limit", description = "最多返回条数", in = ParameterIn.QUERY)
     @GetMapping("/list")
@@ -41,9 +33,6 @@ public class MessageController {
         return Result.success(messages);
     }
 
-    /**
-     * 获取未读消息数
-     */
     @Operation(summary = "获取未读消息数")
     @GetMapping("/unread-count")
     public Result<Long> unreadCount() {
@@ -52,11 +41,6 @@ public class MessageController {
         return Result.success(count);
     }
 
-    /**
-     * 标记单条消息为已读
-     *
-     * @param id 消息主键 ID
-     */
     @Operation(summary = "标记单条消息为已读")
     @Parameter(name = "id", description = "消息主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/read")
@@ -66,9 +50,6 @@ public class MessageController {
         return Result.success();
     }
 
-    /**
-     * 标记所有消息为已读
-     */
     @Operation(summary = "标记所有消息为已读")
     @PostMapping("/read-all")
     public Result<Void> markAllRead() {
@@ -77,10 +58,7 @@ public class MessageController {
         return Result.success();
     }
 
-    /**
-     * 后台：发送消息给指定用户
-     */
-    @Operation(summary = "后台：发送消息给指定用户")
+    @Operation(summary = "发送消息给指定用户")
     @PostMapping("/send")
     public Result<Void> sendMessage(@RequestBody SendMessageRequest request) {
         messageService.sendMessage(
@@ -94,9 +72,6 @@ public class MessageController {
         return Result.success();
     }
 
-    /**
-     * 后台：广播消息给所有在线用户
-     */
     @Operation(summary = "后台：广播消息给所有在线用户")
     @PostMapping("/broadcast")
     public Result<Integer> broadcast(@RequestBody BroadcastMessageRequest request) {
@@ -104,9 +79,6 @@ public class MessageController {
         return Result.success(count);
     }
 
-    /**
-     * 获取 WebSocket 当前在线用户数
-     */
     @Operation(summary = "获取 WebSocket 当前在线用户数")
     @GetMapping("/online-count")
     public Result<Integer> onlineCount() {

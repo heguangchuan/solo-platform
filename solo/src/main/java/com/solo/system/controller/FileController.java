@@ -20,9 +20,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-/**
- * 文件管理
- */
 @Tag(name = "文件管理", description = "文件管理")
 @RestController
 @RequestMapping("/api/file")
@@ -31,9 +28,6 @@ public class FileController {
 
     private final SysFileService sysFileService;
 
-    /**
-     * 分页查询文件
-     */
     @Operation(summary = "分页查询文件")
     @PostMapping("/page")
     @RequirePermission({"system:file:list"})
@@ -42,11 +36,6 @@ public class FileController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 上传文件
-     *
-     * @param file 上传的文件本体
-     */
     @Operation(summary = "上传文件")
     @Parameter(name = "file", description = "上传的文件本体", in = ParameterIn.QUERY)
     @PostMapping("/upload")
@@ -56,9 +45,6 @@ public class FileController {
         return Result.success(sysFileService.upload(file));
     }
 
-    /**
-     * 仅落库元数据
-     */
     @Operation(summary = "仅落库元数据")
     @PostMapping("/meta")
     @RequirePermission({"system:file:upload"})
@@ -67,11 +53,6 @@ public class FileController {
         return Result.success(sysFileService.saveMeta(request));
     }
 
-    /**
-     * 删除单个文件
-     *
-     * @param id 文件主键 ID
-     */
     @Operation(summary = "删除单个文件")
     @Parameter(name = "id", description = "文件主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -82,9 +63,6 @@ public class FileController {
         return Result.success();
     }
 
-    /**
-     * 批量删除文件
-     */
     @Operation(summary = "批量删除文件")
     @DeleteMapping("/batch")
     @RequirePermission({"system:file:delete"})

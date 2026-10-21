@@ -9,10 +9,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 字典数据实体类
- * 对应数据库表 sys_dict_data
- */
 @Schema(description = "字典数据")
 @Data
 @TableName("sys_dict_data")
@@ -35,9 +31,6 @@ public class SysDictData {
     @Schema(description = "排序（升序）")
     private Integer sort;
 
-    /**
-     * 状态：0-禁用，1-启用
-     */
     @Schema(description = "状态（0=停用，1=启用）")
     private Integer status;
 

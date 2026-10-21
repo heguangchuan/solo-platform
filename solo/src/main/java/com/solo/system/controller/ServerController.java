@@ -19,9 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 服务器管理
- */
 @Tag(name = "服务器管理", description = "服务器管理")
 @RestController
 @RequestMapping("/api/server")
@@ -30,9 +27,6 @@ public class ServerController {
 
     private final SysServerService sysServerService;
 
-    /**
-     * 分页查询服务器
-     */
     @Operation(summary = "分页查询服务器")
     @PostMapping("/page")
     @RequirePermission({"server:list"})
@@ -41,9 +35,6 @@ public class ServerController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 新增服务器
-     */
     @Operation(summary = "新增服务器")
     @PostMapping
     @RequirePermission({"server:add"})
@@ -53,11 +44,6 @@ public class ServerController {
         return Result.success();
     }
 
-    /**
-     * 修改服务器
-     *
-     * @param id 服务器主键 ID
-     */
     @Operation(summary = "修改服务器")
     @Parameter(name = "id", description = "服务器主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -68,9 +54,6 @@ public class ServerController {
         return Result.success();
     }
 
-    /**
-     * 批量删除服务器
-     */
     @Operation(summary = "批量删除服务器")
     @DeleteMapping("/batch")
     @RequirePermission({"server:delete"})
@@ -80,11 +63,6 @@ public class ServerController {
         return Result.success();
     }
 
-    /**
-     * 删除单个服务器
-     *
-     * @param id 服务器主键 ID
-     */
     @Operation(summary = "删除单个服务器")
     @Parameter(name = "id", description = "服务器主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

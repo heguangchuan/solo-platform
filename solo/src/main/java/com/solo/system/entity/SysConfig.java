@@ -9,10 +9,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 系统参数实体类
- * 对应数据库表 sys_config
- */
 @Schema(description = "系统参数")
 @Data
 @TableName("sys_config")

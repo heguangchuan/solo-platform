@@ -15,9 +15,6 @@ import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
-/**
- * SSH Web 终端服务实现类
- */
 @Service
 @RequiredArgsConstructor
 public class SshTerminalServiceImpl implements SshTerminalService {

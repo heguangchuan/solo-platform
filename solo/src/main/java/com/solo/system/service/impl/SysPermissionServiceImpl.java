@@ -1,24 +1,18 @@
 package com.solo.system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
-import com.solo.system.request.PermissionRequest;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.common.utils.TreeUtils;
 import com.solo.system.constant.SystemConstants;
 import com.solo.system.entity.SysPermission;
 import com.solo.system.mapper.SysPermissionMapper;
+import com.solo.system.request.PermissionRequest;
 import com.solo.system.service.SysPermissionService;
-import com.solo.common.utils.TreeUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static org.springframework.beans.BeanUtils.copyProperties;
-
-/**
- * 系统权限服务实现类
- * 封装权限相关的业务逻辑，包括树形结构构建和CRUD操作
- */
 @Service
 public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, SysPermission> implements SysPermissionService {
 
@@ -81,7 +75,7 @@ public class SysPermissionServiceImpl extends ServiceImpl<SysPermissionMapper, S
                 SysPermission::getParentId,
                 SysPermission::getId,
                 p -> p.getParentId() != null && p.getParentId().equals(parentId),
-                (parent, children) -> parent.setChildren(children)
+                SysPermission::setChildren
         );
     }
 }

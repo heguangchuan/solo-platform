@@ -11,23 +11,13 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-/**
- * FastExcel监听
- * <a href="https://FastExcel.opensource.alibaba.com/docs/current/quickstart/read">...</a>
- */
 @EqualsAndHashCode(callSuper = true)
 @Slf4j
 @Data
 public class ExcelListener<T> extends AnalysisEventListener<T> {
 
-    /**
-     * 每隔5条存储数据库，实际使用中可以100条，然后清理list ，方便内存回收
-     */
     private static final int BATCH_COUNT = 500;
 
-    /**
-     * 缓存的数据
-     */
     private List<T> cachedDataList = ListUtils.newArrayListWithExpectedSize(BATCH_COUNT);
 
     private Predicate<T> predicate;

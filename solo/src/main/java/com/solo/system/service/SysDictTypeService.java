@@ -8,9 +8,6 @@ import com.solo.system.request.DictTypeRequest;
 
 import java.util.List;
 
-/**
- * 字典类型服务接口
- */
 public interface SysDictTypeService extends IService<SysDictType> {
 
     Page<SysDictType> pageQuery(DictTypePageRequest req);
@@ -19,9 +16,7 @@ public interface SysDictTypeService extends IService<SysDictType> {
 
     void updateDictType(Long id, DictTypeRequest request);
 
-    /**
-     * 删除字典类型，并级联删除其下的字典数据
-     */
+    /** 删除字典类型时级联删除其下的字典数据 */
     void deleteDictType(Long id);
 
     void deleteBatch(List<Long> ids);

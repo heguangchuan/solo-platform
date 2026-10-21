@@ -22,9 +22,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.UUID;
 
-/**
- * 文件管理服务实现。
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

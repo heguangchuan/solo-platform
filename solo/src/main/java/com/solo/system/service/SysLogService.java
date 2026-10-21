@@ -8,9 +8,6 @@ import com.solo.system.request.LogPageRequest;
 
 import java.util.List;
 
-/**
- * 操作日志服务接口
- */
 public interface SysLogService extends IService<SysLog> {
 
     Page<SysLog> pageQuery(LogPageRequest req);

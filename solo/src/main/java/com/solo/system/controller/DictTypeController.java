@@ -19,9 +19,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 字典类型管理
- */
 @Tag(name = "字典类型管理", description = "字典类型管理")
 @RestController
 @RequestMapping("/api/dict/type")
@@ -30,9 +27,6 @@ public class DictTypeController {
 
     private final SysDictTypeService sysDictTypeService;
 
-    /**
-     * 分页查询字典类型
-     */
     @Operation(summary = "分页查询字典类型")
     @PostMapping("/page")
     @RequirePermission({"setting:dict:type:list"})
@@ -41,9 +35,6 @@ public class DictTypeController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 全量启用类型列表
-     */
     @Operation(summary = "全量启用类型列表")
     @GetMapping("/list")
     @RequirePermission({"setting:dict:type:list"})
@@ -55,9 +46,6 @@ public class DictTypeController {
         return Result.success(types);
     }
 
-    /**
-     * 新增字典类型
-     */
     @Operation(summary = "新增字典类型")
     @PostMapping
     @RequirePermission({"setting:dict:type:add"})
@@ -67,11 +55,6 @@ public class DictTypeController {
         return Result.success();
     }
 
-    /**
-     * 修改字典类型
-     *
-     * @param id 字典类型主键 ID
-     */
     @Operation(summary = "修改字典类型")
     @Parameter(name = "id", description = "字典类型主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
@@ -82,9 +65,6 @@ public class DictTypeController {
         return Result.success();
     }
 
-    /**
-     * 批量删除字典类型
-     */
     @Operation(summary = "批量删除字典类型")
     @DeleteMapping("/batch")
     @RequirePermission({"setting:dict:type:delete"})
@@ -94,11 +74,6 @@ public class DictTypeController {
         return Result.success();
     }
 
-    /**
-     * 删除单个字典类型
-     *
-     * @param id 字典类型主键 ID
-     */
     @Operation(summary = "删除单个字典类型")
     @Parameter(name = "id", description = "字典类型主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

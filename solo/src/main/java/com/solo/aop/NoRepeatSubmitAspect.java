@@ -1,9 +1,9 @@
 package com.solo.aop;
 
 import com.solo.common.ServiceException;
-import com.solo.system.constant.SystemConstants;
 import com.solo.common.utils.UserHolderUtils;
 import com.solo.common.utils.WebUtils;
+import com.solo.system.constant.SystemConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 防重复提交切面
@@ -51,8 +52,8 @@ public class NoRepeatSubmitAspect {
     /**
      * 降级计数器，用于抑制日志风暴（Redis 故障时每秒只打一次告警日志）
      */
-    private final java.util.concurrent.atomic.AtomicLong degradeCount = new java.util.concurrent.atomic.AtomicLong(0);
-    private final java.util.concurrent.atomic.AtomicLong lastDegradeLogTime = new java.util.concurrent.atomic.AtomicLong(0);
+    private final AtomicLong degradeCount = new AtomicLong(0);
+    private final AtomicLong lastDegradeLogTime = new AtomicLong(0);
 
     @jakarta.annotation.PostConstruct
     public void init() {

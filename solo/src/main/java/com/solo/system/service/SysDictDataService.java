@@ -8,9 +8,6 @@ import com.solo.system.request.DictDataRequest;
 
 import java.util.List;
 
-/**
- * 字典数据服务接口
- */
 public interface SysDictDataService extends IService<SysDictData> {
 
     Page<SysDictData> pageQuery(DictDataPageRequest req);
