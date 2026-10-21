@@ -201,6 +201,18 @@ solo-platform/
 - [CLAUDE.md](CLAUDE.md) — 仓库约定速览（日志规范、包结构、SQL 流程）
 - 接口文档：后端启动后访问 Knife4j 文档页（`/doc.html`）
 
+## 国标未实现功能清单
+
+> 记录 GB/T 28181 标准中有定义、但本项目暂未实现的能力，便于后续按需补齐。
+> 按优先级从高到低排列，持续补充。
+
+| 功能 | 国标对应 | 说明 | 未实现原因 |
+|---|---|---|---|
+| DeviceStatus 设备状态查询 | `Query/DeviceStatus` | 查询设备每通道的在线/录像/布防/告警/故障等运行状态 | Catalog 同步已携带通道 Status，DeviceInfo 探活已能判断设备死活，日常运维够用；设备兼容性参差不齐，多用于批量巡检/健康度大盘等特定场景 |
+| DeviceConfig 设备配置查询与下发 | `Query/DeviceConfig` / `Control/DeviceConfig` | 远程查询或修改设备视频参数、OSD、网络、云台等配置 | 各厂商实现差异大、兼容性差；直接登设备 Web 管理界面配置更直观可靠；远程改网络/端口等参数风险高（配错设备会失联） |
+| ConfigDownload 配置下载 | `Query/ConfigDownload` | 下载设备完整配置文件，用于备份/恢复/克隆 | 各厂商配置文件 schema 不兼容，跨品牌无法复用；同品牌批量克隆一般用厂商自有工具；实际项目几乎不用 |
+| Query/Alarm 报警查询 | `Query/Alarm` | 平台主动向设备查询历史报警记录 | 报警主要靠 Notify 实时推送，平台自身也有报警库；断网漏报设备通常会补发 Notify；使用率很低，优先级不高 |
+
 ## 路线图
 
 ### 已完成
@@ -219,7 +231,7 @@ solo-platform/
 - [ ] **录像计划**：按通道配置周计划，定时 startRecord / stopRecord 自动录制
 - [ ] **语音对讲 / 语音广播**：反向音频 INVITE（`a=recvonly`）与广播通知
 - [ ] **云端录像中心**：录像文件检索、保留期 / 生命周期管理、截图抓拍
-- [ ] **设备配置管理**：DeviceConfig 下发、DeviceStatus 状态查询、报警主动订阅
+- [ ] **报警主动订阅**：平台主动向设备 SUBSCRIBE 报警，而非被动等设备 Notify
 - [ ] **一键部署**：docker-compose（ZLM + Solo + MySQL + Redis + RustFS）
 - [ ] **数据库迁移**：引入 Flyway/Liquibase，提供生产平滑升级路径
 - [ ] **集群高可用**：下载任务 / 订阅状态分布式化，支持多副本部署
