@@ -77,6 +77,25 @@ public class GbPtzPresetServiceImpl extends ServiceImpl<GbPtzPresetMapper, GbPtz
         sendPresetCmd(preset, "[预置点调用]", SipUtils.buildPtzCallPreset(preset.getPresetId()));
     }
 
+    @Override
+    public void syncFromDevice(Long channelDbId) {
+        GbDeviceChannel channel = channelMapper.selectById(channelDbId);
+        if (channel == null) {
+            throw new com.solo.common.ServiceException("通道不存在");
+        }
+        GbDevice device = deviceMapper.selectOne(
+                new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, channel.getDeviceId()));
+        if (device == null) {
+            throw new com.solo.common.ServiceException("设备不存在");
+        }
+        if (device.getStatus() == null || device.getStatus() != 1) {
+            throw new com.solo.common.ServiceException("设备离线，无法同步预置位");
+        }
+        int sn = sipCommander.queryPreset(device, channel.getChannelId(), channelDbId);
+        log.info("[云台预置位] 同步查询已下发 deviceId={} channelId={} sn={}",
+                device.getDeviceId(), channel.getChannelId(), sn);
+    }
+
     /**
      * 向设备发送预置位 PTZ 指令
      */

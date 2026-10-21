@@ -14,4 +14,11 @@ public interface GbPtzPresetService extends IService<GbPtzPreset> {
     void deletePreset(Long id);
 
     void call(Long id);
+
+    /**
+     * 向设备发起预置位查询（fire-and-forget，响应由 handler 异步落库）
+     *
+     * @param channelDbId 通道数据库主键
+     */
+    void syncFromDevice(Long channelDbId);
 }
