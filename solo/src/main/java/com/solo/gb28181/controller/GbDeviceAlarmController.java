@@ -1,7 +1,9 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.utils.UserHolderUtils;
@@ -43,6 +45,7 @@ public class GbDeviceAlarmController {
     }
 
     @Operation(summary = "处置报警（确认/已处置/误报）")
+    @OperationLog(module = "报警中心", type = BusinessType.EDIT, description = "处置报警")
     @PostMapping("/handle")
     @RequirePermission({"gb28181:alarm:handle"})
     public Result<Void> handle(@RequestBody GbDeviceAlarmHandleRequest request) {
@@ -51,6 +54,7 @@ public class GbDeviceAlarmController {
     }
 
     @Operation(summary = "删除报警")
+    @OperationLog(module = "报警中心", type = BusinessType.DELETE, description = "删除报警")
     @Parameter(name = "id", description = "报警主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/delete/{id}")
     @RequirePermission({"gb28181:alarm:delete"})
