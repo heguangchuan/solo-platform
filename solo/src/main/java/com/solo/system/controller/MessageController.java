@@ -1,6 +1,8 @@
 package com.solo.system.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.common.Result;
+import com.solo.common.enums.BusinessType;
 import com.solo.system.entity.SysMessage;
 import com.solo.system.request.BroadcastMessageRequest;
 import com.solo.system.request.SendMessageRequest;
@@ -42,6 +44,7 @@ public class MessageController {
     }
 
     @Operation(summary = "标记单条消息为已读")
+    @OperationLog(module = "站内消息", type = BusinessType.EDIT, description = "标记消息已读")
     @Parameter(name = "id", description = "消息主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/read")
     public Result<Void> markRead(@PathVariable Long id) {
@@ -51,6 +54,7 @@ public class MessageController {
     }
 
     @Operation(summary = "标记所有消息为已读")
+    @OperationLog(module = "站内消息", type = BusinessType.EDIT, description = "标记全部消息已读")
     @PostMapping("/read-all")
     public Result<Void> markAllRead() {
         String username = UserHolderUtils.getCurrentUsername();
@@ -59,6 +63,7 @@ public class MessageController {
     }
 
     @Operation(summary = "发送消息给指定用户")
+    @OperationLog(module = "站内消息", type = BusinessType.ADD, description = "发送站内消息")
     @PostMapping("/send")
     public Result<Void> sendMessage(@RequestBody SendMessageRequest request) {
         messageService.sendMessage(
@@ -73,6 +78,7 @@ public class MessageController {
     }
 
     @Operation(summary = "后台：广播消息给所有在线用户")
+    @OperationLog(module = "站内消息", type = BusinessType.ADD, description = "广播消息")
     @PostMapping("/broadcast")
     public Result<Integer> broadcast(@RequestBody BroadcastMessageRequest request) {
         int count = messageService.broadcast(request.getTitle(), request.getContent(), request.getLevel());
