@@ -1,6 +1,8 @@
 package com.solo.gb28181.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.Result;
 import com.solo.gb28181.entity.GbPtzCruise;
 import com.solo.gb28181.entity.GbPtzCruisePoint;
@@ -49,6 +51,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "新增巡航路线（含巡航点）")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.ADD, description = "新增巡航路线")
     @PostMapping("/save")
     @RequirePermission("gb28181:ptz:cruise:add")
     public Result<Void> save(@RequestBody GbPtzCruiseSaveRequest request) {
@@ -71,6 +74,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "编辑巡航路线")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.EDIT, description = "编辑巡航路线")
     @PostMapping("/update")
     @RequirePermission("gb28181:ptz:cruise:edit")
     public Result<Void> update(@RequestBody GbPtzCruise cruise) {
@@ -79,6 +83,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "删除巡航路线")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.DELETE, description = "删除巡航路线")
     @Parameter(name = "id", description = "巡航路线 ID", in = ParameterIn.PATH)
     @DeleteMapping("/delete/{id}")
     @RequirePermission("gb28181:ptz:cruise:delete")
@@ -88,6 +93,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "添加单个巡航点")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.ADD, description = "添加巡航点")
     @Parameter(name = "id", description = "巡航路线 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/add-point")
     @RequirePermission("gb28181:ptz:cruise:edit")
@@ -97,6 +103,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "删除单个巡航点")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.DELETE, description = "删除巡航点")
     @Parameter(name = "id", description = "巡航路线 ID", in = ParameterIn.PATH)
     @Parameter(name = "presetId", description = "预置位编号", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/remove-point/{presetId}")
@@ -107,6 +114,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "开始巡航")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.OTHER, description = "开始巡航")
     @Parameter(name = "id", description = "巡航路线 ID", in = ParameterIn.PATH)
     @PostMapping("/start/{id}")
     @RequirePermission("gb28181:ptz:control")
@@ -116,6 +124,7 @@ public class GbPtzCruiseController {
     }
 
     @Operation(summary = "停止巡航")
+    @OperationLog(module = "云台巡航路线", type = BusinessType.OTHER, description = "停止巡航")
     @Parameter(name = "id", description = "巡航路线 ID", in = ParameterIn.PATH)
     @PostMapping("/stop/{id}")
     @RequirePermission("gb28181:ptz:control")
