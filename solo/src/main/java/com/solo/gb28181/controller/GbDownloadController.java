@@ -1,6 +1,8 @@
 package com.solo.gb28181.controller;
 
+import com.solo.aop.OperationLog;
 import com.solo.common.Result;
+import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.request.DownloadStartRequest;
 import com.solo.gb28181.response.DownloadResultResponse;
 import com.solo.gb28181.service.GbDownloadService;
@@ -25,6 +27,7 @@ public class GbDownloadController {
     private final GbDownloadService downloadService;
 
     @Operation(summary = "发起录像下载")
+    @OperationLog(module = "录像下载", type = BusinessType.OTHER, description = "发起录像下载")
     @PostMapping("/start")
     public Result<DownloadResultResponse> start(@RequestBody DownloadStartRequest req) {
         return Result.success(downloadService.start(req));
@@ -38,6 +41,7 @@ public class GbDownloadController {
     }
 
     @Operation(summary = "主动停止下载")
+    @OperationLog(module = "录像下载", type = BusinessType.OTHER, description = "停止录像下载")
     @Parameter(name = "streamId", description = "任务 ID", in = ParameterIn.PATH)
     @PostMapping("/{streamId}/stop")
     public Result<Void> stop(@PathVariable String streamId) {
