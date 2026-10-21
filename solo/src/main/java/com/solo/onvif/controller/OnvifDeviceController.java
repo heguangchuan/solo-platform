@@ -1,7 +1,9 @@
 package com.solo.onvif.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -50,6 +52,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "新增设备")
+    @OperationLog(module = "ONVIF设备管理", type = BusinessType.ADD, description = "新增ONVIF设备")
     @PostMapping("/save")
     @RequirePermission({"onvif:device:add"})
     public Result<Void> save(@RequestBody OnvifDevice device) {
@@ -59,6 +62,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "编辑设备")
+    @OperationLog(module = "ONVIF设备管理", type = BusinessType.EDIT, description = "编辑ONVIF设备")
     @PostMapping("/update")
     @RequirePermission({"onvif:device:edit"})
     public Result<Void> update(@RequestBody OnvifDevice device) {
@@ -70,6 +74,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "主动探测一次")
+    @OperationLog(module = "ONVIF设备管理", type = BusinessType.OTHER, description = "主动探测设备")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/probe")
     @RequirePermission({"onvif:device:probe"})
@@ -79,6 +84,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "删除设备")
+    @OperationLog(module = "ONVIF设备管理", type = BusinessType.DELETE, description = "删除ONVIF设备")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"onvif:device:delete"})
