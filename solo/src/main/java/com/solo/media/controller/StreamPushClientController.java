@@ -19,9 +19,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 推流方鉴权管理
- */
 @Tag(name = "推流方鉴权管理", description = "推流方鉴权管理")
 @RestController
 @RequestMapping("/api/stream-push-client")
@@ -30,9 +27,6 @@ public class StreamPushClientController {
 
     private final StreamPushClientService service;
 
-    /**
-     * 推流方分页查询
-     */
     @Operation(summary = "推流方分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:stream-push-client:list"})
@@ -41,9 +35,6 @@ public class StreamPushClientController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 新增推流方
-     */
     @Operation(summary = "新增推流方")
     @PostMapping("/save")
     @RequirePermission({"media:stream-push-client:add"})
@@ -51,9 +42,6 @@ public class StreamPushClientController {
         return Result.success(service.createClient(input));
     }
 
-    /**
-     * 更新推流方
-     */
     @Operation(summary = "更新推流方")
     @PostMapping("/update")
     @RequirePermission({"media:stream-push-client:edit"})
@@ -62,11 +50,6 @@ public class StreamPushClientController {
         return Result.success();
     }
 
-    /**
-     * 重置 token
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "重置 token")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/reset-token")
@@ -75,11 +58,6 @@ public class StreamPushClientController {
         return Result.success(service.resetToken(id));
     }
 
-    /**
-     * 删除推流方
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "删除推流方")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

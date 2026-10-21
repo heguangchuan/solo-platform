@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
- * 一次目录同步的内存上下文（滚动缓冲 + 累计 + 重传去重 + 收尾标志）。
  * <p>由 {@link com.solo.gb28181.processor.request.message.response.CatalogDataCache}
  * 创建并维护，调用方拿到后调 {@code accumulate()} 即可。</p>
  *

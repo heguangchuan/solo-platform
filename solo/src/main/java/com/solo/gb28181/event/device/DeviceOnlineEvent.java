@@ -4,7 +4,6 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * 设备上线事件
  * <p>由 REGISTER 流程在设备入库/重新注册成功后发布。订阅者可异步触发 DeviceInfo / Catalog 拉取等动作。</p>
  */
 @Getter

@@ -4,7 +4,6 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * 设备离线事件
  * <p>由 REGISTER 注销 / 心跳超时 / 手动下线发布。</p>
  */
 @Getter

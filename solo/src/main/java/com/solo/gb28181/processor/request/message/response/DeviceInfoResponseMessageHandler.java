@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import javax.sip.RequestEvent;
 
 /**
- * DeviceInfo 响应处理（<Response><CmdType>DeviceInfo</CmdType>...）
  * <p>设备主动 Notify 也用同样字段名，先按 Response 解析；设备会回填 name/manufacturer/model/firmware/channel</p>
  */
 @Slf4j

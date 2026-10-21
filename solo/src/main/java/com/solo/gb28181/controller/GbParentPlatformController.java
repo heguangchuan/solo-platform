@@ -27,9 +27,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 上级平台管理
- */
 @Tag(name = "上级平台管理", description = "上级平台管理")
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
@@ -40,9 +37,6 @@ public class GbParentPlatformController {
     private final CatalogShareService catalogShareService;
     private final Gb28181Properties gb28181Properties;
 
-    /**
-     * 分页查询上级平台配置
-     */
     @Operation(summary = "分页查询上级平台配置")
     @PostMapping("/page")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -51,9 +45,6 @@ public class GbParentPlatformController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 新增上级平台配置
-     */
     @Operation(summary = "新增上级平台配置")
     @PostMapping("/save")
     @RequirePermission({"gb28181:parent-platform:add"})
@@ -62,9 +53,6 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 编辑上级平台配置
-     */
     @Operation(summary = "编辑上级平台配置")
     @PostMapping("/update")
     @RequirePermission({"gb28181:parent-platform:edit"})
@@ -76,11 +64,6 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 删除上级平台配置
-     *
-     * @param id 上级平台主键 ID
-     */
     @Operation(summary = "删除上级平台配置")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -93,9 +76,6 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 批量删除上级平台配置
-     */
     @Operation(summary = "批量删除上级平台配置")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:parent-platform:delete"})
@@ -104,9 +84,6 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 获取本平台国标身份
-     */
     @Operation(summary = "获取本平台国标身份")
     @GetMapping("/local-info")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -121,11 +98,7 @@ public class GbParentPlatformController {
         return Result.success(info);
     }
 
-    // ==================== 通道推送 ====================
 
-    /**
-     * 获取可共享的资源目录树
-     */
     @Operation(summary = "获取可共享的资源目录树")
     @GetMapping("/share-tree")
     @RequirePermission({"gb28181:parent-platform:list"})
@@ -133,11 +106,6 @@ public class GbParentPlatformController {
         return Result.success(catalogShareService.shareTree());
     }
 
-    /**
-     * 获取某上级平台已共享的目录 / 通道节点 id
-     *
-     * @param id 上级平台主键 ID
-     */
     @Operation(summary = "获取某上级平台已共享的目录/通道节点 id")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/shared")
@@ -146,11 +114,6 @@ public class GbParentPlatformController {
         return Result.success(catalogShareService.getShared(id));
     }
 
-    /**
-     * 全量覆盖保存某上级平台的共享目录 / 通道
-     *
-     * @param id 上级平台主键 ID
-     */
     @Operation(summary = "全量覆盖保存某上级平台的共享目录/通道")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/shared")
@@ -160,12 +123,6 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 分页查询某上级平台某分组下已挂载的 catalog item
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     */
     @Operation(summary = "分页查询某上级平台某分组下已挂载的 catalog item")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -180,12 +137,6 @@ public class GbParentPlatformController {
         return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
     }
 
-    /**
-     * 分页查询某上级平台"未挂载到本组"的通道
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     */
     @Operation(summary = "分页查询某上级平台\"未挂载到本组\"的通道")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -200,14 +151,7 @@ public class GbParentPlatformController {
         return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
     }
 
-    /**
-     * 批量挂载 catalog item 到某分组
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     * @param body 请求体：`{"resourceIds": [id1, id2, ...]`}，resourceIds 不能为空，否则 400
-     * @return 响应：`{"added": N`}，N 为实际新增条数
-     */
+
     @Operation(summary = "批量挂载 catalog item 到某分组")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -225,13 +169,6 @@ public class GbParentPlatformController {
         return Result.success(Map.of("added", n));
     }
 
-    /**
-     * 单条卸载
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     * @param resourceId 待卸载的资源主键 ID
-     */
     @Operation(summary = "单条卸载")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -246,13 +183,7 @@ public class GbParentPlatformController {
         return Result.success();
     }
 
-    /**
-     * 清除某上级平台某分组下的全部挂载关系
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     * @return 响应：`{"cleared": N`}，N 为实际删除条数
-     */
+
     @Operation(summary = "清除某上级平台某分组下的全部挂载关系")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -265,12 +196,7 @@ public class GbParentPlatformController {
         return Result.success(Map.of("cleared", n));
     }
 
-    /**
-     * 清除某上级平台下全部挂载关系
-     *
-     * @param id 上级平台主键 ID
-     * @return 响应：`{"cleared": N`}，N 为实际删除条数
-     */
+
     @Operation(summary = "清除某上级平台下全部挂载关系")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}/share")
@@ -280,13 +206,7 @@ public class GbParentPlatformController {
         return Result.success(Map.of("cleared", n));
     }
 
-    /**
-     * 一键添加所有"未挂载到本组"通道到该分组
-     *
-     * @param id 上级平台主键 ID
-     * @param groupId 推送分组主键 ID
-     * @return 响应：`{"added": N`}，N 为实际新增条数
-     */
+
     @Operation(summary = "一键添加所有\"未挂载到本组\"通道到该分组")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "推送分组主键 ID", in = ParameterIn.PATH)
@@ -299,11 +219,7 @@ public class GbParentPlatformController {
         return Result.success(Map.of("added", n));
     }
 
-    /**
-     * 主动推送目录给上级平台（手动触发一次 Catalog NOTIFY）
-     *
-     * @param id 上级平台主键 ID
-     */
+
     @Operation(summary = "主动推送目录给上级平台")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/push-catalog")

@@ -13,40 +13,24 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 云台预置位
- * <p>每个通道可以配置多个预置位，保存角度记忆，一键调用转到预设位置。</p>
- */
 @Schema(description = "云台预置位")
 @Data
 @TableName("gb_ptz_preset")
 public class GbPtzPreset {
 
-    /**
-     * 主键 ID
-     */
     @Schema(description = "主键 ID")
     @TableId(type = IdType.ASSIGN_ID)
     @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
-    /**
-     * 通道数据库主键（gb_device_channel.id）
-     */
-    @Schema(description = "通道数据库主键")
+    @Schema(description = "通道数据库主键（gb_device_channel.id）")
     @JsonSerialize(using = ToStringSerializer.class)
     private Long channelDbId;
 
-    /**
-     * 预置位编号（设备侧编号，从 1 开始）
-     */
-    @Schema(description = "预置位编号")
+    @Schema(description = "预置位编号（设备侧编号，从 1 开始）")
     private Integer presetId;
 
-    /**
-     * 预置位名称（如"大门入口"）
-     */
-    @Schema(description = "预置位名称")
+    @Schema(description = "预置位名称（如\"大门入口\"）")
     private String name;
 
     @Schema(description = "创建时间")

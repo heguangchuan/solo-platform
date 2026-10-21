@@ -4,79 +4,61 @@ import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
-/**
- * GB/T 28181 国标平台配置
- * 对应 application.yaml 中 gb28181 段
- */
 @Data
 @Component
 @ConfigurationProperties(prefix = "gb28181")
 public class Gb28181Properties {
 
-    /**
-     * SIP 监听 IP；留空表示监听所有网卡
-     */
+    // SIP 监听 IP，留空就监听所有网卡
     private String ip;
 
     /**
-     * SIP 公网 IP；NAT/公网部署时必填，用于构造 Via/Contact 头，让下级/设备能正常回包
-     * 留空则使用 ip 字段的值
+     * SIP 公网 IP，NAT/公网部署的时候要填，用来构造 Via/Contact 头，
+     * 不然下级/设备回包找不到路。留空就用 ip 字段的值。
      */
     private String publicIp;
 
     /**
-     * 取构造 Via/Contact 用的 SIP IP：{@link #publicIp} 非空白时返回它，否则回落到本机 IP。
-     * <p>注意：Spring Boot 加载 YAML 会把 {@code public-ip:}（空值）拍平成空串 {@code ""} 而非 {@code null}，
-     * 所以判空必须看空白，不能 {@code != null}——否则空串会被当成有效公网 IP 写进 Via host，
-     * 导致对端按空 host 无法回包（设备查询全部无响应）。</p>
-     *
-     * @param localIp 本机接入网卡 IP（{@code SipLayer.getLocalIp} 的结果）
-     * @return 有效的 SIP IP
+     * 取实际用于构造 SIP 消息的 IP：公网 IP 配了就用公网的，没配就用本机的。
+     * <p>
+     * 注意：Spring Boot 读 YAML 时 public-ip 空值会变成空串""，不是 null，
+     * 所以判断的时候必须用 isBlank()，不能用 != null。
+     * 之前踩过坑——空串被当成有效 IP 写进 Via 头，设备按空 host 回包，
+     * 结果就是 DeviceInfo 查询啥的全没响应。
      */
     public String resolveSipIp(String localIp) {
         return (publicIp == null || publicIp.isBlank()) ? localIp : publicIp;
     }
 
-    /**
-     * SIP 监听端口
-     */
+    // SIP 监听端口
     private int port = 5060;
 
-    /**
-     * 本平台 SIP ID（20 位）
-     */
+    // 本平台 SIP ID，20 位国标编码
     private String id;
 
-    /**
-     * 本平台 SIP 域
-     */
+    // 本平台 SIP 域
     private String domain;
 
-    /**
-     * 设备注册鉴权密码
-     */
+    // 设备注册鉴权密码，空密码就是开放模式，不挑战直接放行
     private String password;
 
-    /**
-     * 设备注册有效期（秒）
-     */
+    // 设备注册有效期，单位秒
     private int registerExpires = 3600;
 
-    /**
-     * 心跳超时倍数（multiplier × Keepalive 周期未收到心跳即判定离线）
-     */
+    // 心跳超时倍数，超过这个数 × 心跳周期没收到心跳就算离线
     private int keepaliveTimeoutMultiplier = 3;
 
     /**
-     * 手动存活探测超时（毫秒）。向设备发 DeviceInfo 查询后等待应答的时长，
-     * 超时无应答判定离线。NAT 后 / 广域网 / 老旧设备响应慢，不宜过短。
+     * 手动存活探测超时时间，毫秒。
+     * 向设备发 DeviceInfo 查询后等多久算超时。
+     * NAT 后、广域网、老设备响应慢的，别设太短。
      */
     private long detectTimeoutMs = 10000;
 
     /**
-     * 是否优先使用 SIP 报文的源 IP/端口作为设备地址。
-     * <p>true ：直接取 UDP/TCP 收包源（适合大多数 NAT 后设备）</p>
-     * <p>false：优先取 Via 头的 received/rport（适合公网直连且要求严格按 Via 路由的场景）</p>
+     * 优先用报文源 IP/端口当设备地址。
+     * true：直接取 UDP/TCP 收包源地址，适合 NAT 后的设备（大多数情况）
+     * false：优先取 Via 头的 received/rport，适合公网直连、要严格按 Via 路由的场景
      */
     private boolean useSourceIpAsRemoteAddress = true;
 
@@ -113,13 +95,9 @@ public class Gb28181Properties {
      */
     private CatalogSyncPool catalogSyncPool = new CatalogSyncPool();
 
-    /**
-     * 移动位置（GPS 轨迹）配置。
-     */
     private Position position = new Position();
 
     /**
-     * 级联下级侧配置。
      * <p>本平台作为下级向上级平台推送数据（Catalog 响应、Notify 变更）时的分片/节奏控制。</p>
      */
     @Data
@@ -165,7 +143,6 @@ public class Gb28181Properties {
     }
 
     /**
-     * Catalog 分片累积调优。
      * <p>设备响应 Catalog 时按 SumNum 分多个 MESSAGE 报文分批送回，平台无法从协议层判定"已发完"，
      * {@link #expireMs} 用来兜底——完全多少毫秒无任何响应（含空响应）→ 强制收尾，
      * 防止 4w+ 大目录慢流时内存堆积。其余几项是"边收边落"的刷盘策略。普通小目录通常 10s 内收齐，
@@ -211,7 +188,6 @@ public class Gb28181Properties {
     }
 
     /**
-     * Catalog 同步落库线程池配置。
      * <p>调优思路：DB 写并发受 MySQL 连接池（默认 10）和单行锁竞争约束，
      * 线程数过多只会增加上下文切换。core 20 / max 50 / queue 5000 适合单库 10w+ 通道批写；
      * 撑满后 CallerRunsPolicy 让上游（CatalogDataCache flush 线程）回压，自然限流。</p>
@@ -219,18 +195,23 @@ public class Gb28181Properties {
     @Data
     public static class CatalogSyncPool {
 
-        /** 核心线程数 */
+        /**
+         * 核心线程数
+         */
         private int corePoolSize = 20;
 
-        /** 最大线程数 */
+        /**
+         * 最大线程数
+         */
         private int maxPoolSize = 50;
 
-        /** 队列容量（每个任务是一次 flush 批次，500-1000 条） */
+        /**
+         * 队列容量（每个任务是一次 flush 批次，500-1000 条）
+         */
         private int queueCapacity = 5000;
     }
 
     /**
-     * 移动位置（GPS 轨迹）配置。
      * <p>设备可按 5s/次高频上报 MobilePosition，全量长期保留会让 {@code gb_mobile_position}
      * 无限膨胀，因此按保留天数每日清理过期数据。</p>
      */

@@ -18,7 +18,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
 /**
- * SIP 主动命令入口
  * <p>所有"本平台向下级设备发起的业务命令"在这里组装并发送。</p>
  * <p>每个命令的 XML 报文体单独抽到 {@link DeviceCommandXml} 中，便于复用与测试。</p>
  */

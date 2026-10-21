@@ -10,17 +10,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 防重复提交测试管理
- */
 @Tag(name = "防重复提交测试管理", description = "防重复提交测试管理")
 @RestController
 @RequestMapping("/api/test/repeat-submit")
 public class RepeatSubmitTestController {
 
-    /**
-     * 快速释放防重测试
-     */
     @Operation(summary = "快速释放防重测试")
     @PostMapping("/quick-unlock")
     @NoRepeatSubmit(expire = 3, timeUnit = TimeUnit.SECONDS,
@@ -30,9 +24,6 @@ public class RepeatSubmitTestController {
         return Result.success(buildResponse("快速释放防重测试通过", request));
     }
 
-    /**
-     * 固定窗口防重测试
-     */
     @Operation(summary = "固定窗口防重测试")
     @PostMapping("/fixed-window")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false,
@@ -42,9 +33,6 @@ public class RepeatSubmitTestController {
         return Result.success(buildResponse("固定窗口防重测试通过", request));
     }
 
-    /**
-     * 参数级防重测试
-     */
     @Operation(summary = "参数级防重测试")
     @PostMapping("/include-params")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false, includeParams = true,
@@ -54,9 +42,6 @@ public class RepeatSubmitTestController {
         return Result.success(buildResponse("参数级防重测试通过", request));
     }
 
-    /**
-     * 全局防重测试
-     */
     @Operation(summary = "全局防重测试")
     @PostMapping("/global")
     @NoRepeatSubmit(expire = 5, timeUnit = TimeUnit.SECONDS, unlockWhenFinish = false,
@@ -88,9 +73,6 @@ public class RepeatSubmitTestController {
         }
     }
 
-    /**
-     * 防重复提交测试请求
-     */
     public static class RepeatSubmitRequest {
         private String bizNo;
         private String content;

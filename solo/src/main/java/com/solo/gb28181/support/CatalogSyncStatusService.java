@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import java.time.Duration;
 
 /**
- * Catalog 同步状态（Redis 持久 + 进度订阅）。
  * <p>提供三件事：</p>
  * <ol>
  *   <li><b>同步锁</b>：{@code gb28181:sync:lock:{deviceId}} SETNX 短锁（5 分钟 TTL），

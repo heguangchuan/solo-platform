@@ -3,12 +3,6 @@ package com.solo.gb28181.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 上级平台推送目录：通道分页查询请求
- *
- * <p>对应 {@code POST /api/gb28181/parent-platform/{id}/share-group/{groupId}/unmounted-channels/page}，
- * 也复用于"已挂载"分页接口。</p>
- */
 @Schema(description = "上级平台推送目录通道分页查询请求")
 @Data
 public class UnmountedChannelPageRequest {

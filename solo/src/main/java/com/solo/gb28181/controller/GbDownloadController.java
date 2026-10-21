@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 录像下载管理
- */
 @Tag(name = "录像下载管理", description = "录像下载管理")
 @RestController
 @RequestMapping("/api/gb28181/download")
@@ -27,20 +24,12 @@ public class GbDownloadController {
 
     private final GbDownloadService downloadService;
 
-    /**
-     * 发起录像下载
-     */
     @Operation(summary = "发起录像下载")
     @PostMapping("/start")
     public Result<DownloadResultResponse> start(@RequestBody DownloadStartRequest req) {
         return Result.success(downloadService.start(req));
     }
 
-    /**
-     * 查任务状态
-     *
-     * @param streamId 任务 ID
-     */
     @Operation(summary = "查任务状态")
     @Parameter(name = "streamId", description = "任务 ID", in = ParameterIn.PATH)
     @GetMapping("/{streamId}")
@@ -48,11 +37,6 @@ public class GbDownloadController {
         return Result.success(downloadService.getStatus(streamId));
     }
 
-    /**
-     * 主动停止下载
-     *
-     * @param streamId 任务 ID
-     */
     @Operation(summary = "主动停止下载")
     @Parameter(name = "streamId", description = "任务 ID", in = ParameterIn.PATH)
     @PostMapping("/{streamId}/stop")

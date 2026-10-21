@@ -9,7 +9,6 @@ import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * GB28181 业务线程池配置
  * <p>
  * 专门的线程池处理 SIP 消息、心跳、点播回调等业务，避免占用 Spring MVC 默认线程池，
  * 保证高并发下发国标业务不会阻塞主业务请求。

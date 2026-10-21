@@ -24,9 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 拉流代理管理
- */
 @Tag(name = "拉流代理管理", description = "拉流代理管理")
 @RestController
 @RequestMapping("/api/stream-proxy")
@@ -35,9 +32,6 @@ public class StreamProxyController {
 
     private final StreamProxyService streamProxyService;
 
-    /**
-     * 拉流代理分页查询
-     */
     @Operation(summary = "拉流代理分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:stream-proxy:list"})
@@ -46,11 +40,6 @@ public class StreamProxyController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 代理详情
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "代理详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
@@ -63,9 +52,6 @@ public class StreamProxyController {
         return Result.success(p);
     }
 
-    /**
-     * 新增代理
-     */
     @Operation(summary = "新增代理")
     @PostMapping("/save")
     @RequirePermission({"media:stream-proxy:add"})
@@ -75,9 +61,6 @@ public class StreamProxyController {
         return Result.success();
     }
 
-    /**
-     * 编辑代理
-     */
     @Operation(summary = "编辑代理")
     @PostMapping("/update")
     @RequirePermission({"media:stream-proxy:edit"})
@@ -89,11 +72,6 @@ public class StreamProxyController {
         return Result.success();
     }
 
-    /**
-     * 启用
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "启用")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/enable")
@@ -102,11 +80,6 @@ public class StreamProxyController {
         return Result.success();
     }
 
-    /**
-     * 停用
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "停用")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/disable")
@@ -115,11 +88,6 @@ public class StreamProxyController {
         return Result.success();
     }
 
-    /**
-     * 播放地址
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "播放地址")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/play-urls")
@@ -127,11 +95,6 @@ public class StreamProxyController {
         return Result.success(streamProxyService.getPlayUrls(id));
     }
 
-    /**
-     * 删除代理
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "删除代理")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -141,9 +104,6 @@ public class StreamProxyController {
         return Result.success();
     }
 
-    /**
-     * 批量删除
-     */
     @Operation(summary = "批量删除")
     @PostMapping("/batch/delete")
     @RequirePermission({"media:stream-proxy:delete"})

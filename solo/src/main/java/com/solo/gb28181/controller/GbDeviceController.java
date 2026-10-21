@@ -26,9 +26,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 国标设备管理
- */
 @Tag(name = "国标设备管理", description = "国标设备管理")
 @RestController
 @RequestMapping("/api/gb28181/device")
@@ -39,9 +36,6 @@ public class GbDeviceController {
     private final GbDeviceChannelService gbDeviceChannelService;
     private final CatalogSyncStatusService catalogSyncStatusService;
 
-    /**
-     * 分页查询设备
-     */
     @Operation(summary = "分页查询设备")
     @PostMapping("/page")
     @RequirePermission({"gb28181:device:list"})
@@ -50,9 +44,7 @@ public class GbDeviceController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 按状态统计设备数（全局口径，与查询条件无关）
-     */
+
     @Operation(summary = "按状态统计设备数")
     @GetMapping("/status-count")
     @RequirePermission({"gb28181:device:list"})
@@ -60,9 +52,7 @@ public class GbDeviceController {
         return Result.success(gbDeviceService.statusCount());
     }
 
-    /**
-     * 按关键词搜索设备（同时匹配设备编码/名称/上报名称，模糊匹配）
-     */
+
     @Operation(summary = "按关键词搜索设备")
     @GetMapping("/search")
     @RequirePermission({"gb28181:device:list"})
@@ -74,11 +64,6 @@ public class GbDeviceController {
         return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
     }
 
-    /**
-     * 设备详情
-     *
-     * @param deviceId 设备国标 20 位 ID
-     */
     @Operation(summary = "设备详情")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}")
@@ -91,9 +76,6 @@ public class GbDeviceController {
         return Result.success(device);
     }
 
-    /**
-     * 手动新增设备，同时可新增多条通道
-     */
     @Operation(summary = "手动新增设备")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device:add"})
@@ -102,9 +84,6 @@ public class GbDeviceController {
         return Result.success();
     }
 
-    /**
-     * 手动编辑设备资料
-     */
     @Operation(summary = "手动编辑设备资料")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device:edit"})
@@ -116,11 +95,6 @@ public class GbDeviceController {
         return Result.success();
     }
 
-    /**
-     * 手动触发设备信息 + 通道目录同步
-     *
-     * @param deviceId 设备国标 20 位 ID
-     */
     @Operation(summary = "手动触发设备信息 + 通道目录同步")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @PostMapping("/{deviceId}/sync")
@@ -147,11 +121,6 @@ public class GbDeviceController {
         }
     }
 
-    /**
-     * 拉取当前设备同步进度
-     *
-     * @param deviceId 设备国标 20 位 ID
-     */
     @Operation(summary = "拉取当前设备同步进度")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}/sync-status")
@@ -165,9 +134,6 @@ public class GbDeviceController {
         return Result.success(raw);
     }
 
-    /**
-     * 批量探测设备存活
-     */
     @Operation(summary = "批量探测设备存活")
     @PostMapping("/detect")
     @RequirePermission({"gb28181:device:sync"})
@@ -175,11 +141,6 @@ public class GbDeviceController {
         return Result.success(gbDeviceService.detectBatch(request.getIds()));
     }
 
-    /**
-     * 删除设备记录，连同其名下所有通道
-     *
-     * @param deviceId 设备国标 20 位 ID
-     */
     @Operation(summary = "删除设备记录，连同其名下所有通道")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{deviceId}")
@@ -194,9 +155,6 @@ public class GbDeviceController {
         return Result.success();
     }
 
-    /**
-     * 批量删除设备记录，连同每台设备名下所有通道
-     */
     @Operation(summary = "批量删除设备记录，连同每台设备名下所有通道")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:device:delete"})
@@ -206,24 +164,12 @@ public class GbDeviceController {
         return Result.success();
     }
 
-    /**
-     * 同步触发响应。
-     */
     @Schema(description = "同步触发响应")
     public record SyncTriggerResponse(
-            /*
-              触发结果：`TRIGGERED` / `ALREADY_RUNNING`
-             */
             @Schema(description = "触发结果：TRIGGERED / ALREADY_RUNNING")
             String result,
-            /*
-              设备国标 20 位 ID
-             */
             @Schema(description = "设备国标 20 位 ID")
             String deviceId,
-            /*
-              当前同步进度 JSON 字符串
-             */
             @Schema(description = "当前同步进度 JSON 字符串")
             String status) {}
 }

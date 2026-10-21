@@ -6,7 +6,6 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * 流媒体模块定时任务统一入口
  * <p>与 {@code com.solo.gb28181.task.GbScheduledTasks} 风格保持一致：
  * 业务类只保留纯业务方法（{@link MediaServerHealthDetector#probe()}），
  * 本类持有 {@link Scheduled} 触发点后逐个委派，方便统一管理调度周期。</p>

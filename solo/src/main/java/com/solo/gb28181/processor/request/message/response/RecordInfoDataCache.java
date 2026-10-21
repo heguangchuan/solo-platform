@@ -11,8 +11,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * RecordInfo 分片缓存
- *
  * <p>设备的 RecordInfo 回复会按 SumNum 分多个 MESSAGE 报文分批送回，必须先在内存缓存累计；
  * 收齐 SumNum 条后再一次性回调给 service 层的等待 future。</p>
  *

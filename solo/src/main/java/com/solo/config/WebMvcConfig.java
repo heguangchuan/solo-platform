@@ -9,11 +9,8 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import java.util.List;
 
 /**
- * Web MVC 配置类。
- * 配置 JWT 拦截器，仅放行公开登录 / 刷新接口；注册 XSS 字符串参数解析器。
- *
- * <p>文件存储已统一使用 MinIO，对外访问由 MinIO 自身或 CDN/反代承担，
- * 服务端不再以静态资源方式暴露本地目录。</p>
+ * 文件存储已统一使用 MinIO，对外访问由 MinIO 自身或 CDN/反代承担，
+ * 服务端不再以静态资源方式暴露本地目录。
  */
 @Configuration
 @RequiredArgsConstructor

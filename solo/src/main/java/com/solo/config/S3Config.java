@@ -17,8 +17,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import java.net.URI;
 
 /**
- * S3 兼容存储客户端配置。
- *
  * <p>注册两个 bean：</p>
  * <ul>
  *   <li>{@link S3Client}：常规读写（上传、下载、删除、桶管理）</li>

@@ -26,7 +26,6 @@ import javax.sip.message.Request;
 import javax.sip.message.Response;
 
 /**
- * INVITE 响应处理器
  * <p>本平台主动发出 INVITE 后，设备会以 100/180/200 响应。此处只关心 2xx：
  * <ol>
  *     <li>解析 SDP 中的 {@code o=} 用户名 + {@code y=} SSRC</li>

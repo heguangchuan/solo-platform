@@ -17,8 +17,6 @@ import javax.sip.RequestEvent;
 import java.time.LocalDateTime;
 
 /**
- * 国标设备定位通知处理（Notify / CmdType = MobilePosition）
- *
  * <h3>报文结构</h3>
  * <pre>
  * &lt;Notify&gt;

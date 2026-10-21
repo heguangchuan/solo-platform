@@ -13,9 +13,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 实时点播管理
- */
 @Tag(name = "实时点播管理", description = "实时点播管理")
 @RestController
 @RequestMapping("/api/gb28181/play")
@@ -24,18 +21,12 @@ public class GbPlayController {
 
     private final GbPlayService playService;
 
-    /**
-     * 开始点播
-     */
     @Operation(summary = "开始点播")
     @PostMapping("/start")
     public Result<PlayResultResponse> start(@RequestBody PlayStartRequest req) {
         return Result.success(playService.start(req));
     }
 
-    /**
-     * 停止点播
-     */
     @Operation(summary = "停止点播")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody PlayStopRequest req) {

@@ -21,7 +21,6 @@ import javax.sip.message.Request;
 import javax.sip.message.Response;
 
 /**
- * 设备主动 BYE 请求处理器
  * <p>设备掉电、被远端踢、自身判定无观看人后会主动 BYE。本平台必须立即回 200 OK，
  * 然后按会话类型走清扫路径（点播 → GbPlayService、回放 → GbPlaybackService）。</p>
  *

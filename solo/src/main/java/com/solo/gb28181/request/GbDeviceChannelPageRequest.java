@@ -3,13 +3,6 @@ package com.solo.gb28181.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 国标资源目录项分页查询请求（通道 + 分组合一）
- *
- * <p>对应 {@code POST /api/gb28181/device-channel/page}。
- * 通道 / 分组同表，由 {@link #parental} 区分：
- * {@code null}=全部、{@code 0}=仅通道、{@code 1}=仅分组。</p>
- */
 @Schema(description = "国标资源目录项分页查询请求")
 @Data
 public class GbDeviceChannelPageRequest {

@@ -8,8 +8,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
- * 移动位置落库监听器
- *
  * <p>与只打日志的 {@link PositionEventListener} 并行订阅 {@link PositionEvent}，互不影响：
  * 本监听器负责把轨迹点写入 {@code gb_mobile_position}（历史轨迹数据源）。
  * 异步执行，不阻塞 SIP 报文处理线程。定位高频上报但不做实时推送，故不广播 WebSocket。</p>

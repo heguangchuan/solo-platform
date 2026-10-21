@@ -18,9 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 历史回放管理
- */
 @Tag(name = "历史回放管理", description = "历史回放管理")
 @RestController
 @RequestMapping("/api/gb28181/playback")
@@ -29,27 +26,18 @@ public class GbPlaybackController {
 
     private final GbPlaybackService playbackService;
 
-    /**
-     * 录像查询
-     */
     @Operation(summary = "录像查询")
     @PostMapping("/query")
     public Result<List<RecordItemResponse>> query(@RequestBody RecordInfoQueryRequest req) {
         return Result.success(playbackService.queryRecordInfo(req));
     }
 
-    /**
-     * 开始回放
-     */
     @Operation(summary = "开始回放")
     @PostMapping("/start")
     public Result<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req) {
         return Result.success(playbackService.start(req));
     }
 
-    /**
-     * 停止回放
-     */
     @Operation(summary = "停止回放")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody PlaybackStopRequest req) {
@@ -57,9 +45,6 @@ public class GbPlaybackController {
         return Result.success();
     }
 
-    /**
-     * 回放控制
-     */
     @Operation(summary = "回放控制")
     @PostMapping("/control")
     public Result<Void> control(@RequestBody PlaybackControlRequest req) {

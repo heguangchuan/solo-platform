@@ -4,8 +4,6 @@ import java.util.Locale;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * RTSP-over-SIP-INFO 控制报文构造（GB28181 历史回放控制）
- *
  * <p>SIP INFO 携带 {@code Application/MANSRTSP} body，把 RTSP 的 PAUSE/PLAY/Scale 指令带给设备，
  * 设备收到后调整推流行为（暂停/继续/跳转/变速）。</p>
  *

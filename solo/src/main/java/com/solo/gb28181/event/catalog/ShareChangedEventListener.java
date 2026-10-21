@@ -17,7 +17,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 目录共享关系变化监听器。
  * <p>share 增删后，对活跃的级联订阅（deviceId 空 = 订阅整个平台目录）按最新共享通道推送。</p>
  */
 @Slf4j

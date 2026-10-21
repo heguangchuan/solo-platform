@@ -13,7 +13,6 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 /**
- * SIP Digest 服务端鉴权辅助（RFC 2617）
  * <p>完整实现包含 qop=auth + cnonce + nc 的版本，符合国标设备实际行为：
  * 海康/大华/宇视/华为等设备 401 挑战收到 qop=auth 后，都会按完整 KD 算 response。</p>
  *

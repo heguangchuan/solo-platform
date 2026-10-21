@@ -6,8 +6,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 级联注册态缓存（进程内）
- *
  * <p>solo 单机部署，级联态无需 Redis（与设备在线态用 Redis 作权威的用途不同，见 ADR-018）。
  * 仅维护两类瞬态：</p>
  * <ul>

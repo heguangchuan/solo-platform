@@ -13,12 +13,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 设备移动位置（GPS 轨迹点）
- *
- * <p>由 SIP Notify/CmdType=MobilePosition 报文异步落库生成。
- * 设备可能按 5s/次高频上报，靠 {@code gb28181.position.retention-days} 定期清理控制表膨胀。</p>
- */
 @Schema(description = "设备移动位置")
 @Data
 @TableName("gb_mobile_position")

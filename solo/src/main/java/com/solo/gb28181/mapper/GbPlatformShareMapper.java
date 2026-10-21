@@ -11,8 +11,6 @@ import org.apache.ibatis.annotations.Param;
 import java.util.List;
 
 /**
- * 上级平台共享 Mapper（gb_platform_share，ADR-023 / ADR-020 / ADR-026）。
- *
  * <p>{@code gb_platform_share} <b>只存通道</b>（{@code gb_device_channel} 中 {@code parental=0} 的行），
  * 本表存 {@code (platform_id, group_id, resource_id)} + 可选撞码重映射 {@code exposed_code}。
  * 复杂查询（JOIN 派生、NOT EXISTS 排除等）写在 {@code mapper/xml/GbPlatformShareMapper.xml}，
@@ -25,33 +23,18 @@ import java.util.List;
 @Mapper
 public interface GbPlatformShareMapper extends BaseMapper<GbPlatformShare> {
 
-    /**
-     * 查询某上级平台已共享的所有通道明细（全量，<b>仅通道</b>）。供
-     * CascadeSendService 处理上级 INVITE 时校验共享 + 定位真实通道——INVITE 反查按
-     * channelId 精确匹配通道，不需要分组。
-     */
     List<GbDeviceChannel> selectSharedChannels(Long platformId);
 
-    /**
-     * 分页查询某上级平台某推送分组下已挂载的通道（推送目录弹窗"已挂载"列表）。
-     */
     IPage<GbDeviceChannel> selectSharedByGroupPage(Page<GbDeviceChannel> page,
                                                    @Param("platformId") Long platformId,
                                                    @Param("groupId") Long groupId,
                                                    @Param("keyword") String keyword);
 
-    /**
-     * 分页查询某上级平台"未挂载"的通道（推送目录弹窗"添加"picker）。
-     * <p>未挂载 = 不在该平台任何 share 里（任意分组都算已挂载）——同一通道在本平台只能挂一次。</p>
-     */
     IPage<GbDeviceChannel> selectUnmountedByGroupPage(Page<GbDeviceChannel> page,
                                                       @Param("platformId") Long platformId,
                                                       @Param("groupId") Long groupId,
                                                       @Param("keyword") String keyword);
 
-    /**
-     * 列出某平台"未挂载"的所有通道 id（不分页），供"一键添加"使用。
-     */
     List<Long> selectUnmountedByGroupAllIds(@Param("platformId") Long platformId,
                                             @Param("groupId") Long groupId);
 }

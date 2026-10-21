@@ -16,7 +16,6 @@ import static com.solo.gb28181.processor.SipRequestProcessorBase.HEADER_FACTORY;
 import static com.solo.gb28181.processor.SipRequestProcessorBase.MESSAGE_FACTORY;
 
 /**
- * SUBSCRIBE 200 OK 响应构造器（ADR-029）。
  * <p>SUBSCRIBE 200 OK 区别于普通 200 OK：必须带 {@code Event}、{@code Expires}、{@code Subscription-State}
  * 三件套（RFC 6665 / GB/T 28181-2016 §9 硬性要求），
  * 不带这些头，故单独抽出本工具。</p>

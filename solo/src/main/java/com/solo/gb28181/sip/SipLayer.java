@@ -29,11 +29,16 @@ import java.util.TooManyListenersException;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SIP 协议栈层
- * <p>启动时机：使用 {@link CommandLineRunner} + {@code @Order(10)}，保证 Spring 上下文完全 ready。</p>
- * <p>多 IP 监听：配置留空时自动扫描本机所有非 loopback / 非 docker 的 IPv4 网卡；
- * 配置写多个 IP（逗号分隔）时按各 IP 分别建栈。</p>
- * <p>每个 IP 建一个独立 SipStack，UDP 和 TCP 各一个 ListeningPoint+Provider。</p>
+ * SIP 协议栈启动器。
+ *
+ * 用 CommandLineRunner + @Order(10) 启动，确保 Spring 上下文加载完再启栈。
+ * 多 IP 场景：配置留空就自动扫本机网卡（跳过 loopback 和 docker 虚拟网卡），
+ * 配置写死的话就按逗号分隔逐 IP 建栈。
+ *
+ * 每个 IP 对应一个 SipStack，里面建 UDP + TCP 两个 ListeningPoint 和 Provider。
+ *
+ * 踩坑记录：JAIN-SIP 不能在构造函数里初始化，必须等 Spring 全起来再弄，
+ * 不然 StackLogger 注入会有问题（具体见 ADR-001）。
  */
 @Slf4j
 @Component
@@ -44,6 +49,7 @@ public class SipLayer implements CommandLineRunner {
     private final Gb28181Properties properties;
     private final SipProcessorObserver sipProcessorObserver;
 
+    // key = ip，存对应 provider
     private final Map<String, SipProviderImpl> udpProviderMap = new ConcurrentHashMap<>();
     private final Map<String, SipProviderImpl> tcpProviderMap = new ConcurrentHashMap<>();
     private final List<String> monitorIps = new ArrayList<>();
@@ -68,7 +74,7 @@ public class SipLayer implements CommandLineRunner {
                 monitorIps, properties.getPort(), properties.getId(), properties.getDomain());
     }
 
-    /** 解析监听 IP：空配置走自动扫描；非空按逗号分割 */
+    // 解析监听 IP：配置了就按逗号拆，没配置就自动扫网卡
     private void resolveMonitorIps() {
         String cfg = properties.getIp();
         if (cfg != null && !cfg.isBlank()) {

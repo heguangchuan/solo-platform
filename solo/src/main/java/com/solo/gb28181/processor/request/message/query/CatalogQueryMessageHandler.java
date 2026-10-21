@@ -19,7 +19,6 @@ import javax.sip.message.Response;
 import java.util.List;
 
 /**
- * 上级平台 Catalog 查询处理
  * <p>本平台作为下级挂上级时，上级发来
  * {@code <Query><CmdType>Catalog</CmdType>...</Query>} 索要资源目录，本 handler：</p>
  * <ol>

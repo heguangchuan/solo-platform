@@ -25,9 +25,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "WHERE u.id = #{userId} AND u.deleted = 0 AND r.deleted = 0 AND r.status = 1 AND p.deleted = 0")
     List<String> selectPermissionCodes(Long userId);
 
-    /**
-     * 查询用户可见的菜单（仅 type=1，去掉不需要的 sys_user 表，返回渲染所需字段）
-     */
     @Select("SELECT p.id, p.permission_name,p.url, p.icon, p.parent_id, p.sort " +
             "FROM sys_user_role ur " +
             "JOIN sys_role_permission rp ON ur.role_id = rp.role_id " +
@@ -37,9 +34,6 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
             "ORDER BY p.sort ASC")
     List<UserAuthResponse> auth(Long userId);
 
-    /**
-     * 按状态分组统计用户数（全局口径，与列表查询条件无关）
-     */
     @Select("SELECT status, COUNT(*) AS count FROM sys_user WHERE deleted = 0 GROUP BY status")
     List<UserStatusCountVO> selectStatusCount();
 }

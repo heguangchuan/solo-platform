@@ -18,9 +18,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 国标接入禁用名单管理
- */
 @Tag(name = "国标接入禁用名单管理", description = "国标接入禁用名单管理")
 @RestController
 @RequestMapping("/api/gb28181/platform")
@@ -29,9 +26,6 @@ public class GbPlatformController {
 
     private final GbPlatformService gbPlatformService;
 
-    /**
-     * 分页查询禁用名单，关联设备表回填在线状态
-     */
     @Operation(summary = "分页查询禁用名单")
     @PostMapping("/page")
     @RequirePermission({"gb28181:platform:list"})
@@ -40,9 +34,6 @@ public class GbPlatformController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 新增禁用项
-     */
     @Operation(summary = "新增禁用项")
     @PostMapping("/save")
     @RequirePermission({"gb28181:platform:add"})
@@ -51,9 +42,6 @@ public class GbPlatformController {
         return Result.success();
     }
 
-    /**
-     * 编辑禁用项
-     */
     @Operation(summary = "编辑禁用项")
     @PostMapping("/update")
     @RequirePermission({"gb28181:platform:edit"})
@@ -65,11 +53,6 @@ public class GbPlatformController {
         return Result.success();
     }
 
-    /**
-     * 移出禁用名单
-     *
-     * @param id 禁用项主键 ID
-     */
     @Operation(summary = "移出禁用名单")
     @Parameter(name = "id", description = "禁用项主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -79,9 +62,6 @@ public class GbPlatformController {
         return Result.success();
     }
 
-    /**
-     * 批量移出禁用名单
-     */
     @Operation(summary = "批量移出禁用名单")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:platform:delete"})

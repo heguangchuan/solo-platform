@@ -33,17 +33,13 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
-/**
- * 国标设备服务实现
- * <p>在线状态双写：MySQL {@code status} 字段 + Redis {@link GbRedisKeys#DEVICE_ONLINE_PREFIX}{deviceId} TTL</p>
- * <p>TTL = max(register_expires, keepalive_default × multiplier)</p>
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> implements GbDeviceService {
 
-    /** 国标默认 Keepalive 周期（秒） */
+    // 默认心跳周期 60s，国标一般都是这个值
     private static final long DEFAULT_KEEPALIVE_INTERVAL = 60L;
 
     private final StringRedisTemplate redisTemplate;
@@ -51,15 +47,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private final GbInviteSessionService inviteSessionService;
     private final GbDeviceChannelMapper channelMapper;
 
-    /**
-     * {@code @Lazy} 注入打破循环依赖：
-     * <pre>
-     *   GbDeviceServiceImpl → SipCommander → SipLayer → SipProcessorObserver →
-     *   MessageRequestProcessor → KeepaliveNotifyMessageHandler → GbDeviceService
-     * </pre>
-     * 与 {@link com.solo.gb28181.sip.SipSender} / {@link com.solo.gb28181.transmit.cmd.SipRequestHeaderProvider}
-     * 对 {@link com.solo.gb28181.sip.SipLayer} 的处理方式一致。手动探测才会用到，延迟初始化无副作用。
-     */
+
     @Lazy
     @Autowired
     private SipCommander sipCommander;
@@ -102,16 +90,16 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         if (dup) {
             throw new ServiceException("设备国标ID已存在：" + device.getDeviceId());
         }
-        // 状态与来源由系统决定，忽略入参
+        // 状态和来源由系统决定，前端传的不算
         device.setId(null);
         device.setStatus(GbSource.DEVICE_STATUS_UNREGISTERED);
         device.setSource(GbSource.SYSTEM);
-        // 清空 SIP 运行期字段，避免手工录入脏值
+        // SIP 运行期字段清空，别让手工录入带进脏数据
         device.setRegisterTime(null);
         device.setKeepaliveTime(null);
         device.setLastCatalogSyncTime(null);
         save(device);
-        // 保存同步新增的通道
+        // 同步新增通道
         log.info("[设备新增] request.channels size = {}", channels != null ? channels.size() : "null");
         if (channels != null && !channels.isEmpty()) {
             for (GbDeviceChannel ch : channels) {

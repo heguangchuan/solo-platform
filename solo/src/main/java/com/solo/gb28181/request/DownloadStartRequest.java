@@ -3,13 +3,6 @@ package com.solo.gb28181.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 开始录像下载请求
- *
- * <p>对应 {@code POST /api/gb28181/download/start}。</p>
- *
- * <p>下载字段集与历史回放一致，唯一差异是 {@link #speed}（下载倍速）。</p>
- */
 @Schema(description = "开始录像下载请求")
 @Data
 public class DownloadStartRequest {

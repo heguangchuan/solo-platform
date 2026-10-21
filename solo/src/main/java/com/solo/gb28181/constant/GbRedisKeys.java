@@ -1,76 +1,79 @@
 package com.solo.gb28181.constant;
 
 /**
- * GB28181 Redis Key 常量定义
- * <p>
- * 命名规范：统一前缀 {@code gb28181:} + 模块分类 + 冒号分隔
- * 格式：{@code gb28181:<category>:<sub>:<key>}
- * </p>
+ * Redis Key 常量。
+ *
+ * 命名规则：gb28181:<模块>:<子分类>:<具体key>
+ * 统一前缀方便排查和清理。
  */
 public interface GbRedisKeys {
 
-    // ========== 设备在线状态 ==========
+    // ===== 设备在线状态 =====
 
-    /** 设备在线 Key 前缀：gb28181:device:online:{deviceId} */
+    // 设备在线 key 前缀，值就是 "1"，靠 TTL 维持
     String DEVICE_ONLINE_PREFIX = "gb28181:device:online:";
 
     /**
-     * 设备档案缓存前缀：gb28181:device:profile:{deviceId}
-     * <p>缓存整个 {@code GbDevice} POJO，TTL 10 分钟。用于 {@code MessageRequestProcessor} 等
-     * SIP 入口按 {@code deviceId} 查设备时减少 SQL：catalog 同步期间 4w+ 条 MESSAGE 只在首条 miss。</p>
-     * <p>写入路径在 {@code GbDeviceServiceImpl}（online / offline / updateByManual / deleteBatch）
-     * 和 {@code CatalogSyncSupport}（final flush 回写 lastCatalogSyncTime）触发
-     * {@code delete} 主动失效，TTL 是兜底。</p>
+     * 设备档案缓存前缀，存整个 GbDevice 对象，TTL 10 分钟。
+     *
+     * 为啥搞这个：SIP 入口（MESSAGE 处理之类的）每条消息都要查设备信息，
+     * catalog 同步的时候一个设备能发几万条 MESSAGE，每条都查 DB 扛不住。
+     * 首条 miss 查库放缓存，后面的都走缓存。
+     *
+     * 主动失效时机：设备上下线、手动更新、删除、catalog 同步完回写。
+     * TTL 只是兜底。
      */
     String DEVICE_PROFILE_PREFIX = "gb28181:device:profile:";
 
     /**
-     * 接入禁用名单缓存：gb28181:device:blocked（Redis Set，成员是被禁用的 deviceId）
-     * <p>SIP 入口（REGISTER / MESSAGE）每条报文都要判"是否被拉黑"，catalog 同步期间
-     * 单设备 4w+ 条 MESSAGE，逐条查 {@code gb_platform} 不可接受。整表加载成一个 Set，
-     * TTL 5 分钟；{@code GbPlatformServiceImpl} 的增删改主动 delete 失效。</p>
-     * <p>用 Set 而非逐 key：黑名单预期条目很少（几条到几十条），一次 SMEMBERS 加载后
-     * SISMEMBER 判定是 O(1)，比 N 个 key 更省内存也更好整体失效。</p>
+     * 接入禁用名单，Redis Set，存被禁用的 deviceId。
+     *
+     * 背景：SIP 入口每条消息都要判断是否被拉黑，catalog 同步的时候消息量太大，
+     * 每条查 gb_platform 表不行。整表加载成 Set 放 Redis，TTL 5 分钟，
+     * 增删改的时候主动删掉让它重建。
+     *
+     * 为啥用 Set 不用逐个 key：黑名单本来就没几条（几条到几十条），
+     * 一个 Set 存完，SISMEMBER O(1)，比一堆 key 省内存也好管理。
      */
     String DEVICE_BLOCKED_SET = "gb28181:device:blocked";
 
-    // ========== 点播/回放会话 ==========
+    // ===== 点播/回放会话 =====
 
-    /** 邀请会话前缀 */
+    // 会话前缀
     String INVITE_PREFIX = "gb28181:invite:";
 
-    /** 会话主体：s:{streamId} */
+    // 会话主体，key = s:{streamId}
     String INVITE_SESSION = INVITE_PREFIX + "s:";
 
-    /** Call-ID 索引：c:{callId} */
+    // Call-ID 索引：c:{callId} → streamId
     String INVITE_BY_CALL = INVITE_PREFIX + "c:";
 
-    /** SSRC 索引：y:{ssrc} */
+    // SSRC 索引：y:{ssrc} → streamId
     String INVITE_BY_SSRC = INVITE_PREFIX + "y:";
 
-    /** 设备通道索引：d:{deviceId}:{channelId} = Set&lt;streamId&gt;（同通道可并存多路码流） */
+    // 设备通道索引：d:{deviceId}:{channelId} → Set<streamId>
+    // 一个通道可能同时有主流和子码流两路
     String INVITE_BY_DEVICE_CHANNEL = INVITE_PREFIX + "d:";
 
-    /** 所有活跃会话全集 Set */
+    // 所有活跃会话的全集 Set
     String INVITE_ALL_ACTIVE = INVITE_PREFIX + "all";
 
-    // ========== 级联推流会话（本平台作为下级被上级点播，向上级 sendRtp）==========
+    // ===== 级联推流会话（作为下级被上级点播，sendRtp 往上推）=====
 
-    /** 级联推流会话前缀 */
     String CASCADE_SEND_PREFIX = "gb28181:cascade:send:";
 
-    /** 会话主体：s:{sendStreamId} */
+    // 会话主体：s:{sendStreamId}
     String CASCADE_SEND_SESSION = CASCADE_SEND_PREFIX + "s:";
 
-    /** 上级 INVITE Call-ID 索引：c:{callId} = sendStreamId */
+    // 上级 INVITE 的 Call-ID 索引：c:{callId} → sendStreamId
     String CASCADE_SEND_BY_CALL = CASCADE_SEND_PREFIX + "c:";
 
-    /** 源流（ZLM app/stream 里的 stream）索引：st:{srcStream} = Set&lt;sendStreamId&gt;（一路源流可被多个上级点播） */
+    // 源流索引：st:{srcStream} → Set<sendStreamId>，一路源流可能被多个上级点播
     String CASCADE_SEND_BY_SRC_STREAM = CASCADE_SEND_PREFIX + "st:";
 
-    /** 所有活跃推流会话全集 Set */
+    // 所有活跃推流会话全集
     String CASCADE_SEND_ALL_ACTIVE = CASCADE_SEND_PREFIX + "all";
 
-    /** 本地发送端口分配自增计数器 */
+    // 本地发送端口分配的自增计数器
     String CASCADE_SEND_PORT_SEQ = CASCADE_SEND_PREFIX + "portseq";
 }

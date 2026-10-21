@@ -23,7 +23,6 @@ import javax.sip.message.Response;
 import java.util.List;
 
 /**
- * 上级平台 RecordInfo 查询处理（ADR-031 已落地）。
  * <p>本平台作为下级挂上级时，上级发来
  * {@code <Query><CmdType>RecordInfo</CmdType>...</Query>} 索要某通道某时段录像列表。
  * 本平台不存录像，必须主动向下级设备转发同样的 {@code Query/RecordInfo}：</p>

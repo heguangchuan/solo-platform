@@ -22,9 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 上级平台推送目录分组管理
- */
 @Tag(name = "上级平台推送目录分组管理", description = "上级平台推送目录分组管理")
 @RestController
 @RequestMapping("/api/gb28181/parent-platform")
@@ -33,11 +30,6 @@ public class PlatformGroupController {
 
     private final PlatformGroupService platformGroupService;
 
-    /**
-     * 拉取该上级平台的推送目录分组树
-     *
-     * @param id 上级平台主键 ID
-     */
     @Operation(summary = "拉取该上级平台的推送目录分组树")
     @Parameter(name = "id", description = "上级平台主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/share-group-tree")
@@ -46,12 +38,6 @@ public class PlatformGroupController {
         return Result.success(platformGroupService.listGroupTree(id));
     }
 
-    /**
-     * 新建该上级平台下的推送分组
-     *
-     * @param platformId 路径参数：上级平台主键 ID
-     * @param req 分组资料：name 必填、code 必填、parentId 必填
-     */
     @Operation(summary = "新建该上级平台下的推送分组")
     @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
     @PostMapping("/{id}/share-group")
@@ -63,13 +49,6 @@ public class PlatformGroupController {
         return Result.success();
     }
 
-    /**
-     * 改该上级平台下的推送分组
-     *
-     * @param platformId 路径参数：上级平台主键 ID
-     * @param groupId 路径参数：分组主键 ID
-     * @param req 分组资料：name 必填、code 必填、parentId 必填
-     */
     @Operation(summary = "改该上级平台下的推送分组")
     @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "分组主键 ID（路径参数）", in = ParameterIn.PATH)
@@ -83,12 +62,6 @@ public class PlatformGroupController {
         return Result.success();
     }
 
-    /**
-     * 删除该上级平台下的推送分组
-     *
-     * @param platformId 路径参数：上级平台主键 ID
-     * @param groupId 路径参数：分组主键 ID
-     */
     @Operation(summary = "删除该上级平台下的推送分组")
     @Parameter(name = "id", description = "上级平台主键 ID（路径参数）", in = ParameterIn.PATH)
     @Parameter(name = "groupId", description = "分组主键 ID（路径参数）", in = ParameterIn.PATH)

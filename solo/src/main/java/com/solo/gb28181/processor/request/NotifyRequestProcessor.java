@@ -23,7 +23,6 @@ import javax.sip.message.Response;
 import java.util.concurrent.TimeUnit;
 
 /**
- * NOTIFY 请求处理器
  * <p>设备订阅目录变更后推送的通知，目前只处理 Catalog，其他类型回 200 OK 忽略。</p>
  */
 @Slf4j

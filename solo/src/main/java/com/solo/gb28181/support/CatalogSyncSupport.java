@@ -21,7 +21,6 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Catalog 同步落库执行器（异步批量写，ADR-023）。
  * <p>由 {@link com.solo.gb28181.processor.request.message.response.CatalogDataCache}
  * 在阈值/收尾时调 {@link #executeFlush} 提交一次 flush 任务。任务在
  * {@code catalogSyncExecutor} 上跑，DB 写不占用 SIP 消息分发线程。</p>

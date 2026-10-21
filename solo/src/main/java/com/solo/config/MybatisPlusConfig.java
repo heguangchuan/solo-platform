@@ -11,10 +11,6 @@ import org.springframework.context.annotation.Configuration;
 
 import java.time.LocalDateTime;
 
-/**
- * MyBatis-Plus配置类
- * 配置分页插件和自动填充字段处理器
- */
 @Configuration
 public class MybatisPlusConfig {
 
@@ -26,9 +22,6 @@ public class MybatisPlusConfig {
         return interceptor;
     }
 
-    /**
-     * 自动填充处理器，自动填充createTime和updateTime字段
-     */
     @Bean
     public MetaObjectHandler metaObjectHandler() {
         return new MetaObjectHandler() {

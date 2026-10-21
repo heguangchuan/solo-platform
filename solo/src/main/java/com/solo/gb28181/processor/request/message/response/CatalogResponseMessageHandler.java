@@ -22,7 +22,6 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * Catalog 响应处理（&lt;Response&gt;&lt;CmdType&gt;Catalog&lt;/CmdType&gt;...）。
  * <p>10w+ 通道重写：handler 不再持有"目录节点 ID 解析 + 父 group 映射 + 平台根目录创建"等业务逻辑，
  * 只负责 XML 解析 + Item 分流 + 调 {@link CatalogDataCache#accumulate}。
  * 落库在 {@code catalogSyncExecutor} 上异步跑，handler 立即返回，不阻塞 SIP 分发线程。</p>

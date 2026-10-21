@@ -22,15 +22,12 @@ public interface SysUserService extends IService<SysUser> {
 
     List<String> getPermissionCodes(Long userId);
 
-    /** 用户登录认证，认证失败抛出携带 401/403 状态码的 ServiceException */
     LoginResponse login(String username, String password);
 
-    /** 用 refresh token 换发新的 access / refresh token（滚动刷新），失效时抛出 401 ServiceException */
     RefreshTokenResponse refresh(String refreshToken);
 
     Page<SysUser> pageQuery(UserPageRequest req);
 
-    /** 按状态统计用户数（全局口径，与查询条件无关） */
     List<UserStatusCountVO> statusCount();
 
     void createUser(UserRequest request);
@@ -45,15 +42,11 @@ public interface SysUserService extends IService<SysUser> {
 
     List<Long> listRoleIds(Long userId);
 
-    /** 给用户分配角色（覆盖式） */
     void assignRoles(Long userId, List<Long> roleIds);
 
-    /** 修改当前登录用户的密码（强密码校验、清除强制改密标记） */
     void changePassword(Long userId, String oldPassword, String newPassword);
 
-    /** 获取当前登录用户的精简档案（含强制改密标记） */
     UserInfoVO getProfile(Long userId);
 
-    /** 当前登录用户更新自身资料，仅可修改昵称/邮箱/手机号/头像 */
     void updateProfile(Long userId, ProfileUpdateRequest request);
 }

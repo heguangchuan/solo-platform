@@ -4,13 +4,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
-/**
- * 历史回放响应（在 {@link PlayResultResponse} 之上加回放时段元数据）
- *
- * <p>对应 {@code POST /api/gb28181/playback/start}。</p>
- *
- * <p>前端时间轴用 {@link #startEpochSec} / {@link #endEpochSec} / {@link #durationSec} 渲染。</p>
- */
 @Schema(description = "历史回放响应")
 @Data
 @EqualsAndHashCode(callSuper = true)

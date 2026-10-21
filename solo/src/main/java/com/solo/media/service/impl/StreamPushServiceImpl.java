@@ -25,13 +25,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * 推流服务实现
- *
- * <p>入表来源只有 ZLM Hook 的注册事件，判定推流类型用 ZLM 上报的 {@code originTypeStr}
- * 字符串（{@code rtmp_push / rtsp_push / rtc_push}），而不是整数 ordinal——
- * ZLM 未来在枚举中间插入新类型时 ordinal 会错位。国标 RTP 推送 / 拉流代理 / VOD 都会被过滤掉。</p>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -277,7 +270,6 @@ public class StreamPushServiceImpl extends ServiceImpl<StreamPushMapper, StreamP
         }
     }
 
-    /** 解析 ZLM 上报的 params 串（形如 {@code token=abc&other=1}）取指定 key */
     private static String parseParam(String params, String key) {
         if (params == null || params.isEmpty() || key == null) {
             return null;

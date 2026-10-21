@@ -20,7 +20,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 设备目录订阅管理
  * <p>设备上线后按配置周期发起 Catalog 订阅，到期自动续期，离线时退订。</p>
  */
 @Slf4j

@@ -16,9 +16,8 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 权限验证切面
- * <p>拦截 {@link RequirePermission} 标注的方法，校验当前用户是否拥有所需权限。
- * 权限数据从 {@link PermissionCache} 获取；缓存刷新逻辑由业务 Service 在变更点显式触发。</p>
+ * 拦截 {@link RequirePermission} 标注的方法，校验当前用户是否拥有所需权限。
+ * <p>权限数据从 {@link PermissionCache} 获取；缓存刷新逻辑由业务 Service 在变更点显式触发。</p>
  */
 @Aspect
 @Component

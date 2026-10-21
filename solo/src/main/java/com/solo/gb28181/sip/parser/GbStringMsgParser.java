@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 
 /**
- * 国标专用 SIP 消息解析器
  * <p>JAIN-SIP 默认按 ISO-8859-1 解析 SIP 行/头，遇到中文设备名/地址会乱码。
  * 本类强制按 UTF-8 解码所有 SIP 行/头，报文体（XML）仍按字节传递给业务层处理。</p>
  * <p>兼容 MESSAGE 体长度的特殊判断（部分国标设备的 Content-Length 与实际体长不一致，需按字节兜底）。</p>

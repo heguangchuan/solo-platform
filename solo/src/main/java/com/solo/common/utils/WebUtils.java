@@ -6,7 +6,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * Web 请求相关工具：客户端 IP、来源、UA 提取。
  * <p>IP 获取兼容主流反向代理 / CDN / WAF 场景。
  */
 public final class WebUtils {

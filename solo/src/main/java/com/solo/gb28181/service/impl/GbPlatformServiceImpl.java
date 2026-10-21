@@ -22,9 +22,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * 国标接入禁用名单服务实现（黑名单）
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

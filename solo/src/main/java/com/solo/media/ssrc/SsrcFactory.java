@@ -16,41 +16,16 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * SSRC 池：按 ZLM 节点分桶维护占用情况，池存储在 Redis Set 中以保证集群安全。
- *
- * <h3>SSRC 国标规则（GB/T 28181-2016 D.1）</h3>
- * <p>10 位十进制字符串，结构 {@code D HHHHH NNNN}：</p>
- * <ul>
- *     <li>D：1 位，0=实时视频，1=历史回放</li>
- *     <li>HHHHH：5 位，SIP 域中段（取平台域的 3-7 位，{@code 6000000004} 取 {@code 00000}；不足左补 0）</li>
- *     <li>NNNN：4 位，序号 0001-9999</li>
- * </ul>
- *
- * <h3>Redis 存储</h3>
- * <p>key = {@code media:ssrc:pool:{serverId}}，成员为 4 位序号字符串 {@code 0001..9999}。</p>
- * <ul>
- *     <li>分配：{@code SPOP} 原子弹出一个序号</li>
- *     <li>释放：{@code SADD} 把序号还回池</li>
- *     <li>重灌：池耗尽 / Redis 丢 key 时按需触发</li>
- * </ul>
- *
- * <p>同节点 SSRC 必须全局唯一（否则 ZLM 会拒绝下一次 openRtpServer）。
- * 释放时机：closeRtpServer 成功之后再 release，<b>严禁先 release 再 closeRtpServer</b>。</p>
- *
- * <h3>跨 JVM 安全</h3>
- * <p>Redis SPOP 是原子操作，多 JVM 共用 Redis 也不会重号。池丢失后 {@link #acquire}
- * 会触发自动重灌（兜底），不会让服务不可用。</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class SsrcFactory {
 
-    /** SSRC 序号位宽 */
     private static final int SLOT_COUNT = 9999;
 
-    /** Redis key 前缀：完整 key = {@code media:ssrc:pool:{serverId}} */
+    /**
+     * Redis key 前缀：完整 key = {@code media:ssrc:pool:{serverId}}
+     */
     private static final String POOL_KEY_PREFIX = "media:ssrc:pool:";
 
     private final Gb28181Properties sipProperties;
@@ -59,7 +34,9 @@ public class SsrcFactory {
     private final GbMediaServerMapper mediaServerMapper;
     private final StringRedisTemplate redis;
 
-    /** SSRC 前缀（D + HHHHH，共 6 位）— 跨节点共享 */
+    /**
+     * SSRC 前缀（D + HHHHH，共 6 位）— 跨节点共享
+     */
     private volatile String prefix;
 
     @PostConstruct
@@ -99,12 +76,6 @@ public class SsrcFactory {
                 prefix, servers.size(), reclaimed);
     }
 
-    /**
-     * 申请一个 SSRC
-     *
-     * @param serverId   ZLM 节点
-     * @param isPlayback 是否回放（影响第 1 位 D）
-     */
     public synchronized String acquire(String serverId, boolean isPlayback) {
         if (serverId == null || serverId.isBlank()) {
             throw new ServiceException("serverId 不能为空");
@@ -125,9 +96,6 @@ public class SsrcFactory {
         return formatSsrc(isPlayback, slot);
     }
 
-    /**
-     * 释放 SSRC
-     */
     public synchronized void release(String serverId, String ssrc) {
         if (serverId == null || ssrc == null) {
             return;
@@ -139,9 +107,6 @@ public class SsrcFactory {
         redis.opsForSet().add(POOL_KEY_PREFIX + serverId, String.format("%04d", slot));
     }
 
-    /**
-     * 池不存在时灌满 0001..9999
-     */
     private void initPoolIfMissing(String serverId) {
         if (serverId == null || serverId.isBlank()) {
             return;

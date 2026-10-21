@@ -1,7 +1,6 @@
 package com.solo.gb28181.transmit.cmd;
 
 /**
- * GB28181 INVITE SDP 报文体构造
  * <p>实时点播（{@code s=Play}）/ 历史回放（{@code s=Playback}）/ 录像下载（{@code s=Download}）共用
  * {@link #buildInternal} 内部构造，仅会话名 / t= / downloadspeed 不同。</p>
  *

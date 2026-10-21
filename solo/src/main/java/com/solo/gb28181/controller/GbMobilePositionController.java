@@ -17,9 +17,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 设备移动位置（GPS 轨迹）
- */
 @Tag(name = "移动轨迹", description = "设备 GPS 位置点查询与历史轨迹")
 @Slf4j
 @RestController

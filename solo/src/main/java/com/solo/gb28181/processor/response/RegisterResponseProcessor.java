@@ -20,8 +20,6 @@ import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.Response;
 
 /**
- * REGISTER 响应处理器（级联下级侧）
- *
  * <p>SIP REGISTER 响应按方法名分发到本处理器：</p>
  * <ul>
  *   <li><b>401</b> — 收到 WWW-Authenticate 挑战，带 Digest 应答重发 REGISTER；</li>

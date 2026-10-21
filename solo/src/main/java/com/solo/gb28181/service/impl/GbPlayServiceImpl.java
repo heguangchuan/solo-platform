@@ -38,8 +38,6 @@ import java.util.Map;
 import java.util.concurrent.*;
 
 /**
- * 实时点播编排实现
- *
  * <h3>关键流程（start）</h3>
  * <ol>
  *     <li>校验设备 / 通道 / 节点；幂等性：已 READY 直接返回</li>

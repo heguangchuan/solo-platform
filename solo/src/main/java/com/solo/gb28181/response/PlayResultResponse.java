@@ -3,13 +3,6 @@ package com.solo.gb28181.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 点播开始响应
- *
- * <p>对应 {@code POST /api/gb28181/play/start}。</p>
- * <p>同时提供 {@code wsFlv} / {@code flv} / {@code hls} / {@code rtc} 多协议播放地址，前端按 player 能力挑一个用。
- * 截图功能由 jessibuca 播放器自带，不走后端。</p>
- */
 @Schema(description = "点播开始响应")
 @Data
 public class PlayResultResponse {

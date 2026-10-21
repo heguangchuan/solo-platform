@@ -11,8 +11,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * 「对上级暴露」通道国标码生成器（GB/T 28181-2016 附录 D 编码结构，ADR-026 哈希派生版）。
- *
  * <p>20 位国标编码结构：{@code [10位 domain][3位 131][7位 hash 末位]}。前 10 位统一取本平台
  * {@link Gb28181Properties#getDomain()}（即本平台的行政区划中心编码），第 11-13 位固定通道类型码
  * 131（摄像机），末 7 位由 {@code SHA-256(deviceId + "|" + channelId)} 截前 8 字节作为 long

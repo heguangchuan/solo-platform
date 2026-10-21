@@ -25,7 +25,6 @@ import static com.solo.gb28181.processor.request.SubscribeResponseBuilder.buildS
 import static com.solo.gb28181.processor.request.SubscribeResponseBuilder.buildTerminated;
 
 /**
- * SUBSCRIBE 请求处理器（ADR-029）。
  * <p>本平台作为下级时，收到上级对 {@code Event: catalog} / {@code Event: mobilePosition} 的 SUBSCRIBE
  * 后回 200 OK（含 {@code Subscription-State: active;expires=N} + {@code Event} 头 + MANSCDP+xml body）
  * 并把订阅关系登记到 {@link SubscribeHolder}，供后续变更 NOTIFY 推送使用（ADR-030 跟进）。</p>

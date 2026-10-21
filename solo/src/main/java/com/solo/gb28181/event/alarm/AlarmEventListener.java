@@ -12,8 +12,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
- * 设备报警监听器
- *
  * <h3>当前职责</h3>
  * <p>仅按统一格式日志输出报警内容，<b>不入库</b>（按用户要求）。
  * 海康 / 大华 / 宇视现场触发时，运维 grep 关键字 {@code [设备报警]} 即可定位。</p>

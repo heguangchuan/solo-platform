@@ -9,7 +9,6 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SUBSCRIBE 订阅内存表（ADR-029）。
  * <p>本平台作为下级时收到的上级 SUBSCRIBE 订阅关系都登记在此，供后续变更 NOTIFY 推送（ADR-030）取用。
  * ConcurrentHashMap 按 {@code (platformId, cmdType)} 维度索引——同上级对同事件重复 SUBSCRIBE 视为续订
  * （覆盖 expires / acceptedAt），符合 RFC 6665 语义。</p>

@@ -12,9 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-/**
- * 国标模块所有定时任务的统一入口
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor

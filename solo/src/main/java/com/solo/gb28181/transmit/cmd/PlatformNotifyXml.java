@@ -10,8 +10,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 级联 NOTIFY 报文体（XML）构造（ADR-030）。
- *
  * <p>本平台作为下级向上级推送订阅事件时使用。NOTIFY body 是 MANSCDP+xml 格式，
  * 形如：</p>
  * <pre>

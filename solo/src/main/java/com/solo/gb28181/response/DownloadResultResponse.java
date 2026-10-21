@@ -3,22 +3,6 @@ package com.solo.gb28181.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 录像下载响应
- *
- * <p>对应 {@code POST /api/gb28181/download/start} 与 {@code GET /api/gb28181/download/{streamId}}。</p>
- *
- * <h3>状态机（按值取不同 UI）</h3>
- * <ul>
- *   <li>{@link #STATUS_INVITING} — 黄色加载中：已开始下载指令，设备未应答 / 流未就绪</li>
- *   <li>{@link #STATUS_RECORDING} — 蓝色录制中：流就绪，正在生成 MP4</li>
- *   <li>{@link #STATUS_READY} — 绿色就绪：文件已落盘，{@link #downloadUrl} 可用</li>
- *   <li>{@link #STATUS_FAILED} — 红色失败：详见 {@link #errorMsg}</li>
- *   <li>{@link #STATUS_TIMEOUT} — 红色超时未完成</li>
- * </ul>
- *
- * <p>任务仅在内存中按 streamId 索引，不入库——重启即丢，前端只能拿当前返回的状态，不能查历史。</p>
- */
 @Schema(description = "录像下载响应")
 @Data
 public class DownloadResultResponse {

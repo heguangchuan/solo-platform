@@ -11,8 +11,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * XSS 过滤测试管理
- * <p>
  * <b>警告：本组接口仅供开发 / 测试环境使用</b>
  */
 @Tag(name = "XSS 过滤测试管理", description = "XSS 过滤测试管理")
@@ -20,9 +18,6 @@ import java.util.Map;
 @RequestMapping("/api/test/xss")
 public class XssTestController {
 
-    /**
-     * Body 体 XSS 过滤测试
-     */
     @Operation(summary = "Body 体 XSS 过滤测试")
     @PostMapping("/body")
     public Result<Map<String, Object>> body(@RequestBody XssTestRequest request) {
@@ -35,12 +30,6 @@ public class XssTestController {
         return Result.success(data);
     }
 
-    /**
-     * 查询参数 XSS 过滤测试
-     *
-     * @param keyword 查询关键词
-     * @param remark 备注
-     */
     @Operation(summary = "查询参数 XSS 过滤测试")
     @Parameter(name = "keyword", description = "查询关键词", in = ParameterIn.QUERY)
     @Parameter(name = "remark", description = "备注", in = ParameterIn.QUERY)
@@ -54,9 +43,6 @@ public class XssTestController {
         return Result.success(data);
     }
 
-    /**
-     * XSS 过滤测试请求
-     */
     public static class XssTestRequest {
         private String title;
         private String content;

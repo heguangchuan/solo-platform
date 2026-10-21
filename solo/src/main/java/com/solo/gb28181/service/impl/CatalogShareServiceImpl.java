@@ -4,12 +4,9 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.toolkit.Db;
+import com.solo.common.ServiceException;
 import com.solo.gb28181.config.Gb28181Properties;
-import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.entity.GbDeviceChannel;
-import com.solo.gb28181.entity.GbParentPlatform;
-import com.solo.gb28181.entity.GbPlatformGroup;
-import com.solo.gb28181.entity.GbPlatformShare;
+import com.solo.gb28181.entity.*;
 import com.solo.gb28181.event.catalog.ShareChangedEvent;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
@@ -33,7 +30,6 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 /**
- * 目录共享服务实现（ADR-023 / 2026-08 改造按组挂载）。
  * <p>{@code gb_platform_share} <b>只存通道</b>（{@code gb_device_channel} 中 parental=0 的行）。
  * 分组是本平台内部的目录组织，当前不推送给上级（Catalog XML 只发通道 Item）。</p>
  * <p>share 表与推送分组（{@code gb_platform_group}）关联：UI 强制先在弹窗左侧选中分组才能挂载。
@@ -227,7 +223,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
     public void pushCatalog(Long platformId) {
         GbParentPlatform platform = gbParentPlatformService.getById(platformId);
         if (platform == null || !Integer.valueOf(1).equals(platform.getEnabled())) {
-            throw new com.solo.common.ServiceException("上级平台不存在或已禁用");
+            throw new ServiceException("上级平台不存在或已禁用");
         }
         List<GbDeviceChannel> items = loadSharedCatalogItems(platformId);
         platformCommander.sendNotifyCatalogList(platform, properties.getId(), items,

@@ -20,8 +20,6 @@ import java.util.Iterator;
 import java.util.List;
 
 /**
- * RecordInfo 响应处理（{@code <Response><CmdType>RecordInfo</CmdType>...}）
- *
  * <p>设备录像列表会分片送回（每片若干 Item，分多个 MESSAGE），本类负责：</p>
  * <ol>
  *   <li>解析单片 Item 列表（{@code <RecordList><Item>...} 节点）</li>

@@ -2,10 +2,6 @@ package com.solo.aop;
 
 import java.lang.annotation.*;
 
-/**
- * 权限注解
- * 标注在 Controller 方法上，校验请求是否拥有指定权限编码
- */
 @Target({ElementType.METHOD, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
@@ -23,9 +19,6 @@ public @interface RequirePermission {
      */
     RequireMode mode() default RequireMode.ANY;
 
-    /**
-     * 权限验证模式枚举
-     */
     enum RequireMode {
         ALL,
         ANY

@@ -6,12 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 设备移动位置分页 / 轨迹查询请求
- *
- * <p>{@code POST /api/gb28181/position/page} 用分页字段；
- * {@code POST /api/gb28181/position/track} 复用本 DTO，按 deviceId + 时间段返回时间升序轨迹点。</p>
- */
 @Schema(description = "设备移动位置分页查询请求")
 @Data
 public class GbMobilePositionPageRequest {

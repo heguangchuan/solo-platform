@@ -6,15 +6,6 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
 
-/**
- * 新建 / 编辑上级平台推送分组请求
- *
- * <p>对应 {@code POST /api/gb28181/parent-platform/{id}/share-group} 与
- * {@code PUT /api/gb28181/parent-platform/{id}/share-group/{groupId}}。</p>
- *
- * <p>platformId 从 URL 路径传入，body 只携带分组自身属性。
- * parentId = 0 表示根节点；非 0 时必须属于同一 platformId。</p>
- */
 @Schema(description = "新建/编辑上级平台推送分组请求")
 @Data
 public class GbPlatformGroupSaveRequest {

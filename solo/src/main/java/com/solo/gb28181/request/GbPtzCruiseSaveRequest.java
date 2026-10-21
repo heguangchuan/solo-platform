@@ -5,10 +5,6 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * 新增巡航路线请求
- * <p>对应 {@code POST /api/gb28181/ptz/cruise/save}。</p>
- */
 @Schema(description = "新增巡航路线请求")
 @Data
 public class GbPtzCruiseSaveRequest {

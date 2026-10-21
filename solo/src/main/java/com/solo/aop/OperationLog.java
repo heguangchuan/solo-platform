@@ -8,7 +8,6 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * 操作日志注解
  * 标注在 controller 写操作方法上，由 OperationLogAspect 异步记录到 sys_log
  */
 @Target(ElementType.METHOD)

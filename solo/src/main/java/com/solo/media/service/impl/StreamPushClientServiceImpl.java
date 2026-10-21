@@ -14,13 +14,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.UUID;
 
-/**
- * 推流方鉴权服务实现
- *
- * <p>token 生成：UUID v4 去掉连字符，32 字符十六进制，122 位熵。
- * {@code UUID.randomUUID()} 底层走 {@code SecureRandom}，安全性足够；
- * 且字符集纯 [0-9a-f]，URL 里 {@code ?token=...} 无需任何编码。</p>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -109,12 +102,10 @@ public class StreamPushClientServiceImpl extends ServiceImpl<StreamPushClientMap
         return hit == null ? null : hit.getClientId();
     }
 
-    /** 生成 token：UUID v4 去掉连字符，32 字符 [0-9a-f]，URL 全安全 */
     private static String newToken() {
         return UUID.randomUUID().toString().replace("-", "");
     }
 
-    /** 日志脱敏：只显示前 6 位 + *** */
     private static String tokenPrefix(String token) {
         if (token == null || token.length() < 6) {
             return "***";

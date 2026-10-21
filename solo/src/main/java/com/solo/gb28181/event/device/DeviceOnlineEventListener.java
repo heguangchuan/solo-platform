@@ -19,7 +19,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
- * 设备上线监听器
  * <p>设备注册成功后异步拉取 DeviceInfo 和 Catalog；
  * 间隔 500ms 避免设备瞬时处理压力，且 DeviceInfo 通常先到便于先填厂商型号。</p>
  *

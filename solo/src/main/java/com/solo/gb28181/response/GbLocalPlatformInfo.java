@@ -3,12 +3,6 @@ package com.solo.gb28181.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 本平台国标身份（级联配置时给上级平台参考用）
- *
- * <p>对应 {@code GET /api/gb28181/parent-platform/local-info}。
- * 数据来自全局配置（{@code application.yaml} 的国标段），只读展示，不参与任何写入。</p>
- */
 @Schema(description = "本平台国标身份")
 @Data
 public class GbLocalPlatformInfo {

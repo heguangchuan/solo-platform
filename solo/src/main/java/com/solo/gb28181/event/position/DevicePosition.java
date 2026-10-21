@@ -5,8 +5,6 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 国标设备定位 DTO
- *
  * <p>承载从 SIP 定位通知报文（Notify/CmdType=MobilePosition）中解析出来的字段，
  * 跨 {@code MobilePositionNotifyMessageHandler} → {@link PositionEvent} →
  * 日志监听器 {@link PositionEventListener} 与落库监听器

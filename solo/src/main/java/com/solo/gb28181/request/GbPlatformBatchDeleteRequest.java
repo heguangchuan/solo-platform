@@ -5,12 +5,6 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * 批量删除下级级联平台请求
- *
- * <p>对应 {@code POST /api/gb28181/platform/batch/delete}。
- * 单条走 {@code DELETE /{id}}，复用同一服务方法以确保拦截名单缓存立即失效。</p>
- */
 @Schema(description = "批量删除下级级联平台请求")
 @Data
 public class GbPlatformBatchDeleteRequest {

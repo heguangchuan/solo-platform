@@ -26,8 +26,6 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * ZLM Hook 业务编排
- *
  * <h3>职责</h3>
  * <ul>
  *   <li>消息字段解析（{@code stringOf / booleanOf}）</li>
@@ -303,17 +301,6 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
-    /**
-     * 按 streamId 反查 session.sessionType。
-     * <p>路由依据：</p>
-     * <ul>
-     *   <li>{@code "PLAY"} — 实时点播（GbPlayService）</li>
-     *   <li>{@code "PLAYBACK"} — 历史回放（GbPlaybackService）</li>
-     *   <li>{@code "DOWNLOAD"} — 录像下载（GbDownloadService）</li>
-     *   <li>{@code null} — 找不到 session（流已被清扫 / 外部推流），按"实时点播"兜底；
-     *       业务 service 内部若再 get 不到会无副作用返回</li>
-     * </ul>
-     */
     private String sessionTypeOf(String streamId) {
         if (streamId == null) return null;
         GbInviteSession s = inviteSessionService.getByStreamId(streamId);
@@ -463,7 +450,6 @@ public class ZlmHookService {
         return sb.toString();
     }
 
-    /** 日志脱敏：token 只保留前 6 位 */
     private static String maskToken(String token) {
         if (token == null) return "null";
         if (token.length() < 6) return "***";

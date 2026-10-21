@@ -1,7 +1,6 @@
 package com.solo.gb28181.constant;
 
 /**
- * 设备 / 通道数据来源常量，以及"系统新增/导入"记录的默认状态常量。
  * <p>状态字段只能由 SIP 交互改变，手动新增/导入的记录一律落默认态：
  * 设备 {@link #DEVICE_STATUS_UNREGISTERED}，通道 {@link #CHANNEL_STATUS_UNREGISTERED}。</p>
  */

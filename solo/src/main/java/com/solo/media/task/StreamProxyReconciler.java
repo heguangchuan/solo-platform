@@ -14,8 +14,6 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * 拉流代理状态对账
- *
  * <h3>为什么需要</h3>
  * <p>ZLM 对 {@code addStreamProxy} 创建的流不像 push 那样有 {@code on_stream_changed} 兜底，
  * 源流挂了 / ZLM 重启 / 网络分区都不会主动通知。{@code stream_proxy.status=1} 是
@@ -74,10 +72,6 @@ public class StreamProxyReconciler {
         log.info("[拉流代理对账] 实例标识已生成 instanceId={}", instanceId);
     }
 
-    /**
-     * 入口：对账所有 ZLM 节点上的代理
-     * <p>由 {@code MediaScheduledTasks#reconcileStreamProxies} 每 30s 触发一次。</p>
-     */
     public void reconcile() {
         if (!tryAcquireLock()) {
             log.debug("[拉流代理对账] 抢锁失败，本轮跳过 instanceId={}", instanceId);

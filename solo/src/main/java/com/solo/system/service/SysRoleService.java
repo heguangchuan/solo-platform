@@ -22,8 +22,5 @@ public interface SysRoleService extends IService<SysRole> {
 
     List<Long> listPermissionIds(Long roleId);
 
-    /**
-     * 给角色分配权限（覆盖式：先全清，再写入）
-     */
     void assignPermissions(Long roleId, List<Long> permissionIds);
 }

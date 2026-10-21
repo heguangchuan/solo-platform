@@ -3,12 +3,6 @@ package com.solo.media.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 流媒体节点分页查询请求
- *
- * <p>对应 {@code POST /api/media-server/page}。
- * 列表页直接绑定该 DTO；后端按所传条件过滤后返回 {@code { total, rows }} 形式的分页结果。</p>
- */
 @Schema(description = "流媒体节点分页查询请求")
 @Data
 public class GbMediaServerPageRequest {

@@ -27,9 +27,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 国标设备通道管理
- */
 @Tag(name = "国标设备通道管理", description = "国标设备通道管理")
 @RestController
 @RequestMapping("/api/gb28181/device-channel")
@@ -38,9 +35,6 @@ public class GbDeviceChannelController {
 
     private final GbDeviceChannelService channelService;
 
-    /**
-     * 分页查询通道
-     */
     @Operation(summary = "分页查询通道")
     @PostMapping("/page")
     @RequirePermission({"gb28181:device-channel:list"})
@@ -49,9 +43,7 @@ public class GbDeviceChannelController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 按状态统计通道数（全局口径，与查询条件无关；按 parental 区分通道/分组）
-     */
+
     @Operation(summary = "按状态统计通道数")
     @GetMapping("/status-count")
     @RequirePermission({"gb28181:device-channel:list"})
@@ -59,11 +51,6 @@ public class GbDeviceChannelController {
         return Result.success(channelService.statusCount());
     }
 
-    /**
-     * 按设备国标ID列出全部通道
-     *
-     * @param deviceId 设备国标 20 位 ID
-     */
     @Operation(summary = "按设备国标ID列出全部通道")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/by-device/{deviceId}")
@@ -77,11 +64,6 @@ public class GbDeviceChannelController {
         return Result.success(list);
     }
 
-    /**
-     * 手动新增通道
-     *
-     * @param channel 通道完整资料
-     */
     @Operation(summary = "手动新增通道")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device-channel:add"})
@@ -90,9 +72,6 @@ public class GbDeviceChannelController {
         return Result.success();
     }
 
-    /**
-     * 手动编辑通道资料
-     */
     @Operation(summary = "手动编辑通道资料")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device-channel:edit"})
@@ -104,11 +83,6 @@ public class GbDeviceChannelController {
         return Result.success();
     }
 
-    /**
-     * 删除通道
-     *
-     * @param id 通道主键 ID
-     */
     @Operation(summary = "删除通道")
     @Parameter(name = "id", description = "通道主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -118,11 +92,6 @@ public class GbDeviceChannelController {
         return Result.success();
     }
 
-    /**
-     * 批量删除通道
-     *
-     * @param request 含 ids 字段：通道主键 ID 列表
-     */
     @Operation(summary = "批量删除通道")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:device-channel:delete"})

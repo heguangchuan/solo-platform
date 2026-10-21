@@ -3,13 +3,6 @@ package com.solo.media.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 首页概览统计响应体
- *
- * <p>对应接口 {@code GET /api/home/overview}。
- * 聚合设备接入侧的核心运行指标（国标设备 / 国标通道 / ONVIF 设备 / 媒体节点），
- * 每组给出总数与在线数，供首页卡片直接展示。</p>
- */
 @Schema(description = "首页概览统计响应体")
 @Data
 public class HomeOverviewResponse {

@@ -15,8 +15,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 录像下载任务注册表（内存表，按 streamId 索引）。
- *
  * <h3>三个时间窗</h3>
  * <ul>
  *   <li><b>邀请超时</b>：{@link #INVITE_TIMEOUT} 30 分钟。INVITE 已发但流没就绪 / 设备没应答，

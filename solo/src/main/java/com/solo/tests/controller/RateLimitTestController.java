@@ -13,18 +13,12 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-/**
- * 限流测试管理
- */
 @Tag(name = "限流测试管理", description = "限流测试管理")
 @Slf4j
 @RestController
 @RequestMapping("/api/test/rate-limit")
 public class RateLimitTestController {
 
-    /**
-     * 基础限流测试 - 宽松配置
-     */
     @Operation(summary = "基础限流测试 - 宽松配置")
     @GetMapping("/basic")
     @RateLimiter(key = "test:basic:", maxCount = 5, time = 10, timeUnit = TimeUnit.SECONDS,
@@ -33,9 +27,6 @@ public class RateLimitTestController {
         return Result.success(buildResponse("基础限流测试通过", 5, 10, "秒"));
     }
 
-    /**
-     * 严格限流测试 - 快速触发
-     */
     @Operation(summary = "严格限流测试 - 快速触发")
     @GetMapping("/strict")
     @RateLimiter(key = "test:strict:", maxCount = 2, time = 3, timeUnit = TimeUnit.SECONDS,
@@ -44,9 +35,6 @@ public class RateLimitTestController {
         return Result.success(buildResponse("严格限流测试通过", 2, 3, "秒"));
     }
 
-    /**
-     * 高压限流测试 - 性能测试用
-     */
     @Operation(summary = "高压限流测试 - 性能测试用")
     @GetMapping("/high-pressure")
     @RateLimiter(key = "test:high:", maxCount = 100, time = 1, timeUnit = TimeUnit.SECONDS,
@@ -55,9 +43,6 @@ public class RateLimitTestController {
         return Result.success(buildResponse("高压限流测试通过", 100, 1, "秒"));
     }
 
-    /**
-     * 按用户限流测试 - 登录后有效
-     */
     @Operation(summary = "按用户限流测试 - 登录后有效")
     @GetMapping("/user")
     @RateLimiter(key = "test:user:", maxCount = 3, time = 10, timeUnit = TimeUnit.SECONDS,
@@ -67,9 +52,6 @@ public class RateLimitTestController {
         return Result.success(buildResponse("用户限流测试通过", 3, 10, "秒"));
     }
 
-    /**
-     * 全局限流测试 - 不区分 IP 和用户
-     */
     @Operation(summary = "全局限流测试 - 不区分 IP 和用户")
     @GetMapping("/global")
     @RateLimiter(key = "test:global:", maxCount = 10, time = 5, timeUnit = TimeUnit.SECONDS,
@@ -79,11 +61,6 @@ public class RateLimitTestController {
         return Result.success(buildResponse("全局限流测试通过", 10, 5, "秒"));
     }
 
-    /**
-     * 可配置限流测试 - 通过参数动态调整
-     *
-     * @param name query 参数，仅做回显，不影响限流判定
-     */
     @Operation(summary = "可配置限流测试 - 通过参数动态调整")
     @Parameter(name = "name", description = "query 参数，仅做回显，不影响限流判定", in = ParameterIn.QUERY)
     @GetMapping("/custom")
@@ -96,9 +73,6 @@ public class RateLimitTestController {
         return Result.success(data);
     }
 
-    /**
-     * 构建统一响应格式
-     */
     private Map<String, Object> buildResponse(String message, int maxCount, long time, String unit) {
         Map<String, Object> data = new HashMap<>();
         data.put("timestamp", System.currentTimeMillis());

@@ -7,8 +7,6 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 录像下载任务（内存状态对象，{@link DownloadTaskRegistry} 按 streamId 索引）。
- *
  * <h3>状态机</h3>
  * <pre>
  *  PENDING ──发 INVITE──▶ INVITING ──流就绪──▶ RECORDING ──文件落 S3 兼容存储──▶ READY

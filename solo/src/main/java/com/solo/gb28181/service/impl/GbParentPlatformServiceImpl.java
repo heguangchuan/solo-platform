@@ -15,9 +15,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 上级平台服务实现
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

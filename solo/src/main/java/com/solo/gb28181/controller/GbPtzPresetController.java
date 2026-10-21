@@ -14,9 +14,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/**
- * 云台预置位管理
- */
 @Tag(name = "云台预置位管理", description = "云台预置位管理")
 @Slf4j
 @RestController
@@ -25,11 +22,6 @@ import java.util.List;
 public class GbPtzPresetController {
     private final GbPtzPresetService presetService;
 
-    /**
-     * 按通道主键 ID 列出预置位
-     *
-     * @param channelDbId 通道主键 ID
-     */
     @Operation(summary = "按通道主键 ID 列出预置位")
     @Parameter(name = "channelDbId", description = "通道主键 ID", in = ParameterIn.PATH)
     @GetMapping("/list/{channelDbId}")
@@ -38,9 +30,6 @@ public class GbPtzPresetController {
         return Result.success(presetService.listByChannel(channelDbId));
     }
 
-    /**
-     * 新增预置位
-     */
     @Operation(summary = "新增预置位")
     @PostMapping("/save")
     @RequirePermission({"gb28181:ptz:preset:add"})
@@ -49,11 +38,6 @@ public class GbPtzPresetController {
         return Result.success();
     }
 
-    /**
-     * 删除预置位
-     *
-     * @param id 预置位主键 ID
-     */
     @Operation(summary = "删除预置位")
     @Parameter(name = "id", description = "预置位主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/delete/{id}")
@@ -63,11 +47,6 @@ public class GbPtzPresetController {
         return Result.success();
     }
 
-    /**
-     * 调预置位：让设备云台转到指定预置位
-     *
-     * @param id 预置位主键 ID
-     */
     @Operation(summary = "调预置位：让设备云台转到指定预置位")
     @Parameter(name = "id", description = "预置位主键 ID", in = ParameterIn.PATH)
     @PostMapping("/call/{id}")

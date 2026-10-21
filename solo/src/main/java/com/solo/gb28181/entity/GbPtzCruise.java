@@ -13,9 +13,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 云台巡航路线
- */
 @Schema(description = "云台巡航路线")
 @Data
 @TableName("gb_ptz_cruise")

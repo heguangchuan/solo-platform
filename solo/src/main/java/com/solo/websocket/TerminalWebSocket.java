@@ -25,8 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 服务器 Web 终端 WebSocket 端点
- * <p>连接地址：ws://localhost:8080/api/ws/terminal/{serverId}?token=xxx
+ * 连接地址：ws://localhost:8080/api/ws/terminal/{serverId}?token=xxx
  */
 @Slf4j
 @Component

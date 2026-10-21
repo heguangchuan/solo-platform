@@ -18,9 +18,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 设备移动位置（GPS 轨迹）服务实现
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

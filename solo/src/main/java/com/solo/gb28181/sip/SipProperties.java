@@ -3,7 +3,6 @@ package com.solo.gb28181.sip;
 import java.util.Properties;
 
 /**
- * JAIN-SIP Stack 启动属性工厂
  * <p>关键属性说明见每一项注释。</p>
  * <p>完整可选项见 gov.nist.javax.sip.SipStackImpl</p>
  */
