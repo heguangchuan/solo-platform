@@ -195,11 +195,6 @@ solo-platform/
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
 ```
 
-## 文档
-
-- [gb28181.md](gb28181.md) — 国标模块 Sprint 计划与 ADR 架构决策记录（动手改国标代码前必读）
-- [CLAUDE.md](CLAUDE.md) — 仓库约定速览（日志规范、包结构、SQL 流程）
-- 接口文档：后端启动后访问 Knife4j 文档页（`/doc.html`）
 
 ## 国标不计划实现清单
 
