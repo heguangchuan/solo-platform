@@ -12,8 +12,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * OpenAPI 3.0 + knife4j 配置
- *
  * <p>对应注解：{@link io.swagger.v3.oas.annotations.tags.Tag}（Controller 类）/ {@link io.swagger.v3.oas.annotations.Operation}（方法）。
  * knife4j 自动读 Spring 注解（{@code @RestController} / {@code @GetMapping} 等）生成 OpenAPI 3.0 规范，
  * 额外补 {@code @Tag} / {@code @Operation} / {@code @Parameter} / {@code @Schema} 提供中文描述给前端看。</p>
@@ -25,7 +23,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class Knife4jConfig {
 
-    /** 全局 OpenAPI 元信息 + JWT Bearer 鉴权 */
     @Bean
     public OpenAPI customOpenAPI() {
         SecurityScheme bearerScheme = new SecurityScheme()

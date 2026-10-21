@@ -6,11 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 设备报警分页查询请求
- *
- * <p>对应 {@code POST /api/gb28181/alarm/page}。响应结构为 {@code { total, rows }}。</p>
- */
 @Schema(description = "设备报警分页查询请求")
 @Data
 public class GbDeviceAlarmPageRequest {

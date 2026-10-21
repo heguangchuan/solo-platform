@@ -19,9 +19,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Set;
 
-/**
- * 设备报警服务实现
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

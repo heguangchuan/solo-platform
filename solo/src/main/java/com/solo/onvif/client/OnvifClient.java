@@ -28,8 +28,6 @@ import java.util.Date;
 import java.util.SimpleTimeZone;
 
 /**
- * ONVIF SOAP 客户端
- *
  * <p>只覆盖设备维护 + 点播需要的 3 个操作：GetDeviceInformation / GetProfiles / GetStreamUri。
  * 用 dom4j + Java 21 HttpClient 手写 SOAP 报文，鉴权走 WS-Security UsernameToken PasswordDigest
  * （ONVIF 规范推荐方式）。</p>

@@ -14,7 +14,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Catalog 分片缓冲（10w+ 通道场景专用）。
  * <p>原"接收即落库"模型：所有 Item 堆在 {@code List<GbDeviceChannel>}
  * 里等 {@code sumNum} 收齐才一次性入库，4w 通道即 OOM。改为：</p>
  * <ul>

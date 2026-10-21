@@ -14,8 +14,6 @@ import javax.sip.header.CallIdHeader;
 import javax.sip.message.Request;
 
 /**
- * 入站 ACK 请求处理器。
- *
  * <p>ACK 不需要应答。当前唯一用途：上级点播场景（S6.b-3）本平台回 200 OK 后，上级回 ACK，
  * 此时对 UDP / TCP 被动会话真正触发 {@code startSendRtp} 把流推给上级
  * （TCP 主动会话已在回 200 时 {@code startSendRtpPassive} 开监听，幂等跳过）。</p>

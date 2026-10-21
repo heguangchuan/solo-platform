@@ -17,9 +17,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-/**
- * 云台预置位服务实现
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

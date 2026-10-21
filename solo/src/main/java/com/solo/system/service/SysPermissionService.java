@@ -8,7 +8,6 @@ import java.util.List;
 
 public interface SysPermissionService extends IService<SysPermission> {
 
-    /** 获取权限树（按父级 ID、排序号排列） */
     List<SysPermission> getTree();
 
     void createPermission(PermissionRequest request);
@@ -19,6 +18,5 @@ public interface SysPermissionService extends IService<SysPermission> {
 
     void deleteBatch(List<Long> ids);
 
-    /** 从完整权限列表中按 parentId 递归构建树形结构 */
     List<SysPermission> buildTree(List<SysPermission> allPermissions, Long parentId);
 }

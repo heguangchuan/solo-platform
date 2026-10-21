@@ -38,7 +38,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * SIP 主动请求头构造器
  * <p>为 MESSAGE / INVITE / SUBSCRIBE / INFO / BYE / NOTIFY 等"本平台主动发起"的请求统一生成头部。</p>
  * <p>关键点：</p>
  * <ul>

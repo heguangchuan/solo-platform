@@ -15,8 +15,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 报警落库与实时推送监听器
- *
  * <p>与只打日志的 {@link AlarmEventListener} 并行订阅 {@link AlarmEvent}，互不影响：
  * 本监听器负责落库（报警中心数据源）并通过 WebSocket 广播给所有在线用户。
  * 异步执行，不阻塞 SIP 报文处理线程。</p>

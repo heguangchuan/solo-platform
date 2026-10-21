@@ -17,8 +17,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * INVITE 会话清扫实现，点播 / 回放 / 下载共用。
- *
  * <p>S3 引入 — 原先散在 {@code GbPlayServiceImpl} 里的私有 helper 抽到这里，
  * 让 {@code GbPlaybackServiceImpl} 也能复用，避免大段重复。</p>
  *

@@ -10,8 +10,6 @@ import javax.sip.SipStack;
 import java.util.Properties;
 
 /**
- * JAIN-SIP ServerLogger 适配（占位）
- *
  * <p>本类必须保留：JAIN-SIP 启动时无条件通过 {@code gov.nist.javax.sip.SERVER_LOGGER} 属性
  * 反射加载，漏设即回落到 {@code StackLoggerImpl}（依赖 log4j 1.x）抛
  * {@code NoClassDefFoundError: org/apache/log4j/Priority}，见 ADR-001。</p>

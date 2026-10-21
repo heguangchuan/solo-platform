@@ -3,7 +3,6 @@ package com.solo.gb28181.support;
 import java.time.LocalDateTime;
 
 /**
- * Catalog 同步进度快照（公共只读结构，给前端 / 接口 / WebSocket 用）。
  * <p>{@link #status} 取值：</p>
  * <ul>
  *   <li>{@code IDLE}：从未同步过 / 上下文已清理</li>

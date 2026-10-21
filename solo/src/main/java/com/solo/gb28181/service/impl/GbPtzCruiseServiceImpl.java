@@ -23,9 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-/**
- * 云台巡航路线服务实现
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor

@@ -4,8 +4,6 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
 
 /**
- * 级联 DeviceInfo Response 报文体（XML）构造（ADR-031 落地）。
- *
  * <p>本平台作为下级，收到上级 {@code <Query><CmdType>DeviceInfo</CmdType>...</Query>}
  * 后回包使用。与 {@link PlatformCatalogXml} 同构：构造侧只管拼 XML，发包走
  * {@link PlatformCommander}。</p>

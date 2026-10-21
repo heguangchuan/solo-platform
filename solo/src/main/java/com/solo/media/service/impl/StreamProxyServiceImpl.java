@@ -23,18 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * 拉流代理服务实现
- *
- * <p>ZLM 侧的接口只有 addStreamProxy / delStreamProxy 两条，所以：</p>
- * <ul>
- *   <li>enable → 选节点 → addStreamProxy → 回填 proxy_key/status/mediaServerId</li>
- *   <li>disable → delStreamProxy → 清 proxy_key/status</li>
- *   <li>saveOrUpdate 时若原来在推流：先 disable 再按新 enabled 决定要不要重推</li>
- *   <li>delete 先 disable 再删记录</li>
- * </ul>
- * <p>失败原因写 last_error 便于前端展示，不抛给用户面（新增/编辑保存本身不因 ZLM 不通失败）。</p>
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor

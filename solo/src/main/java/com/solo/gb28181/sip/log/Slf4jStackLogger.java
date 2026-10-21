@@ -8,7 +8,6 @@ import org.slf4j.spi.LocationAwareLogger;
 import java.util.Properties;
 
 /**
- * JAIN-SIP StackLogger 的 SLF4J 适配
  * <p>替代 log4j-over-slf4j 桥接：JAIN-SIP 通过 {@code gov.nist.javax.sip.STACK_LOGGER} 属性注入本实现，
  * 所有协议栈内部日志都直接桥接到 SLF4J（项目用 Logback），caller location 准确，无额外依赖。</p>
  *

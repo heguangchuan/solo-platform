@@ -10,8 +10,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 用户权限缓存
- *
  * <p>用户第一次通过 {@link PermissionAspect} 时把权限列表加载进内存，之后同一 userId 直接命中。
  * 权限变更后（角色 / 分配 / 删除）必须显式失效——本组件对外只暴露 {@link #evict(Long)} 和
  * {@link #evictAll()}，业务侧调用不需要感知底层数据结构。</p>

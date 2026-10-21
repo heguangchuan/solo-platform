@@ -1,8 +1,5 @@
 package com.solo.gb28181.transmit.cmd;
 
-/**
- * GB28181 MESSAGE 报文体（XML）构造
- */
 public final class DeviceCommandXml {
 
     private DeviceCommandXml() {}

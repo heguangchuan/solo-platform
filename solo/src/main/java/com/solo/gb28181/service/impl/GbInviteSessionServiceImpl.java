@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 点播会话 Redis 实现
- *
  * <h3>Key 布局（前缀 {@link GbRedisKeys#INVITE_PREFIX}）</h3>
  * <ul>
  *   <li>{@link GbRedisKeys#INVITE_SESSION}{streamId}  主体 JSON（业务唯一标识，单点写入）</li>

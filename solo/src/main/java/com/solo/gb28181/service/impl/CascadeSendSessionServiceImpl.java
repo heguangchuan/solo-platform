@@ -16,8 +16,6 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 级联推流会话 Redis 实现（仿 {@link GbInviteSessionServiceImpl}）。
- *
  * <h3>Key 布局（前缀 {@link GbRedisKeys#CASCADE_SEND_PREFIX}）</h3>
  * <ul>
  *   <li>{@link GbRedisKeys#CASCADE_SEND_SESSION}{sendStreamId}  主体 JSON</li>

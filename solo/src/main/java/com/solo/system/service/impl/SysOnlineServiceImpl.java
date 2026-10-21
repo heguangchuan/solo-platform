@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * 在线用户服务实现：基于 Redis 中的 {@code auth:online} 集合与 hash 数据。
+ * 基于 Redis 中的 {@code auth:online} 集合与 hash 数据。
  */
 @Service
 @RequiredArgsConstructor

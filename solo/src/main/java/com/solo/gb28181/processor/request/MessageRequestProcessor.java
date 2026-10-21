@@ -28,24 +28,26 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
- * MESSAGE 请求总入口
- * <p>两级分发：根元素名（Notify/Query/Control/Response）→ CmdType（Keepalive/Catalog/DeviceInfo/...）</p>
- * <p>所有 {@link MessageHandler} 实现会被 Spring 自动注入，{@code @PostConstruct} 中注册到映射表。</p>
- * <p>发送方身份识别：先按 fromUser 查 {@link GbDevice}（下级设备/下级级联平台）；未命中再查
- * {@link GbParentPlatform#getServerGbId()}（本平台作为下级挂上级场景，上级发来的 Query/Notify）。</p>
+ * MESSAGE 请求处理器，两级分发：
+ *   第一级按 XML 根元素名（Notify/Query/Control/Response）分，
+ *   第二级按 CmdType（Keepalive/Catalog/DeviceInfo...）分。
  *
- * <h3>未注册来源处理策略</h3>
- * <ul>
- *   <li>有设备：调 {@link MessageHandler#handleForDevice}，handler 内部按需打日志。</li>
- *   <li>有平台：调 {@link MessageHandler#handleForPlatform}，handler 内部按需打日志。</li>
- *   <li>设备/平台都不在库，按 cmdType 分支：</li>
- *   <li>　<b>Catalog</b>：完全静默——不打日志、不发 SIP 响应。NVR 每 3-4s 一个分片，
- *       持续发会刷屏；GB 协议未规定"未注册"目录订阅的应答，设备按自身重传机制处理。</li>
- *   <li>　<b>Keepalive</b>：回 403 逼设备重新 REGISTER，实现删除后快速自愈，打 WARN 留痕。</li>
- *   <li>　<b>其他</b>：回 200 OK 避免设备重传，打 INFO 留痕。</li>
- *   <li>报文解析失败：记 WARN + 回 400（语法层错误要告诉对方）。</li>
- *   <li>未注册的根元素/CmdType（无 handler）：回 200 OK 让设备别重传。</li>
- * </ul>
+ * 所有 MessageHandler 实现由 Spring 自动注入，启动时注册到 handlerMap。
+ *
+ * 发送方身份识别：先查设备（fromUser 匹配 deviceId），
+ * 没查到再查上级平台（匹配 server_gb_id）——因为本平台作为下级时，
+ * 上级发过来的 Query/Notify 也走这个入口。
+ *
+ * 未注册来源的处理策略（踩过的坑都在这了）：
+ *  - 查到设备/平台：走对应 handler，handler 自己决定打不打日志
+ *  - 都查不到，按 cmdType 分：
+ *      Catalog → 完全静默，不打日志不回响应。NVR 每 3-4 秒一个分片，
+ *                持续发会把日志刷爆。而且国标也没规定"未注册"的目录订阅要应答，
+ *                让设备自己按重传机制退去吧。
+ *      Keepalive → 回 403 逼它重新 REGISTER，删掉的设备能快速自愈。打个 WARN 留痕。
+ *      其他 → 回 200 OK 别让它重传骚扰我们，打 INFO 留痕。
+ *  - 报文解析失败 → WARN + 回 400，语法错误得告诉对端
+ *  - 根元素或 CmdType 没见过 → 回 200 OK，别让设备死循环重传
  */
 @Slf4j
 @Component
@@ -60,22 +62,22 @@ public class MessageRequestProcessor extends SipRequestProcessorBase implements 
     @Autowired
     private GbParentPlatformService gbParentPlatformService;
 
-    /** 接入禁用名单：SIP 入口拦截"先注册后拉黑"的设备，走 Redis Set 缓存不打 SQL */
+    // 接入禁用名单，SIP 入口拦截用，走 Redis Set 不直接打 SQL
     @Autowired
     private GbPlatformService gbPlatformService;
 
     /**
-     * 设备档案缓存。catalog 同步期间 4w+ 条 MESSAGE 都按 {@code deviceId} 查设备，
-     * 走缓存避免每条都打 SQL。TTL 10 min，写路径（online/offline/updateByManual/deleteBatch/
-     * CatalogSyncSupport final flush）已主动失效。
+     * 设备档案缓存。catalog 同步的时候几万条 MESSAGE 都按 deviceId 查设备，
+     * 全走 DB 扛不住，放 Redis 缓存 10 分钟。
+     * 写操作（上下线、更新、删除、catalog 同步完）都主动删缓存，TTL 只是兜底。
      */
     @Autowired
     private RedisTemplate<String, Object> deviceProfileRedisTemplate;
 
-    /** 设备档案缓存 TTL：10 分钟。catalog 同步期间只需首条 miss 走 DB。 */
+    // 设备档案缓存 10 分钟，catalog 同步期间只需要首条 miss 查库
     private static final long DEVICE_PROFILE_TTL_MINUTES = 10L;
 
-    /** rootType -> cmdType -> handler */
+    // 两级 map：rootType -> cmdType -> handler
     private final Map<String, Map<String, MessageHandler>> handlerMap = new HashMap<>();
 
     @PostConstruct

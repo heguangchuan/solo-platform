@@ -3,19 +3,6 @@ package com.solo.gb28181.response;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 录像段信息项（设备录像列表的单条记录）
- *
- * <p>对应 {@code POST /api/gb28181/playback/query} 返回数组的元素。</p>
- *
- * <p>字段含义：</p>
- * <ul>
- *   <li>{@link #startTime} / {@link #endTime} — 设备原始 ISO-8601 字符串（如 {@code 2026-06-30T08:00:00}）</li>
- *   <li>{@link #type} — {@code time} 计划 / {@code alarm} 报警 / {@code manual} 手动</li>
- *   <li>{@link #fileSize} — 字节，可能为 0（设备未提供）</li>
- *   <li>{@link #secrecy} — 保密属性，{@code 0} 不限、{@code 1} 涉密</li>
- * </ul>
- */
 @Schema(description = "录像段信息项")
 @Data
 public class RecordItemResponse {

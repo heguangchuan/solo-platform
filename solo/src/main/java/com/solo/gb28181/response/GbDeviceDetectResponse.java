@@ -8,14 +8,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 批量检测设备存活结果（fire-and-forget）
- *
- * <p>对应 {@code POST /api/gb28181/device/detect} 返回体。</p>
- * <p>探测采用异步更新：本响应只汇报「已发起多少台探测、跳过多少台」，
- * 真实在线/离线结论由 SIP 应答/超时回调异步写回设备在线状态字段，
- * 前端提示后自行刷新列表查看最新状态。</p>
- */
 @Schema(description = "批量检测设备存活结果")
 @Data
 public class GbDeviceDetectResponse {

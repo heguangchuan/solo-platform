@@ -4,8 +4,7 @@ import java.lang.annotation.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 限流注解
- * <p>基于 Redis 滑动窗口实现，支持：
+ * 基于 Redis 滑动窗口实现，支持：
  * <ul>
  *   <li>按 IP 限流（默认）</li>
  *   <li>按用户限流（登录后）</li>
@@ -47,9 +46,6 @@ public @interface RateLimiter {
      */
     String message() default "请求过于频繁，请稍后再试";
 
-    /**
-     * 限流类型枚举
-     */
     enum LimitType {
         /**
          * 按请求者 IP 限流

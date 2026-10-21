@@ -7,7 +7,6 @@ import javax.sip.ResponseEvent;
 import java.util.function.Consumer;
 
 /**
- * SIP 异步事件
  * <p>主动发起一个 SIP 请求后，业务侧需要等响应到达。{@link SipSubscribe} 用 Call-Id+CSeq 作为 key
  * 记录回调，{@link SipProcessorObserver} 收到响应时取出回调触发。</p>
  */

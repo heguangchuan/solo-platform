@@ -18,7 +18,6 @@ import javax.sip.RequestEvent;
 import javax.sip.message.Response;
 
 /**
- * 上级平台 DeviceInfo 查询处理（ADR-031 已落地）。
  * <p>本平台作为下级挂上级时，上级发来
  * {@code <Query><CmdType>DeviceInfo</CmdType>...</Query>} 索要下级某设备的厂商/型号/固件。
  * 本 handler：</p>

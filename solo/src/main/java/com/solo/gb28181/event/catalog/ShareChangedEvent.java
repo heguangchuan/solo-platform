@@ -4,7 +4,6 @@ import lombok.Getter;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * 目录共享关系变化事件。
  * <p>{@code gb_platform_share} 增删后发布，供级联订阅方按最新共享目录推送 NOTIFY。</p>
  */
 @Getter

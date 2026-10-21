@@ -49,8 +49,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * 录像下载服务实现（S3 阶段）
- *
  * <h3>异步下载流程</h3>
  * <ol>
  *   <li>{@link #start} 同步发 DOWNLOAD INVITE，注册 {@link DownloadTask}，立即返回

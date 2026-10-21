@@ -16,7 +16,6 @@ public interface SysDictTypeService extends IService<SysDictType> {
 
     void updateDictType(Long id, DictTypeRequest request);
 
-    /** 删除字典类型时级联删除其下的字典数据 */
     void deleteDictType(Long id);
 
     void deleteBatch(List<Long> ids);

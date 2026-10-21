@@ -12,8 +12,6 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 /**
- * 设备定位监听器
- *
  * <h3>当前职责</h3>
  * <p>仅按统一格式日志输出定位内容，<b>不负责入库</b>。落库由并行订阅的
  * {@link PositionPersistenceListener} 完成；本类保留是为了运维 grep

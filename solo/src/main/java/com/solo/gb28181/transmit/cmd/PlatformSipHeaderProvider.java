@@ -42,8 +42,6 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 级联出站 SIP 头构造器（本平台作为下级向上级平台发起请求）
- *
  * <p>与设备侧 {@link SipRequestHeaderProvider} 的区别：身份信息（本平台国标编号 / 域 / 出口 IP / 端口）一律
  * 取自全局 {@link Gb28181Properties}，per-upper 只存对端配置（{@code serverGbId} / {@code serverIp} / {@code serverPort} /
  * {@code username} / {@code password}）。故独立成类，见 ADR-018 + ADR-036。</p>

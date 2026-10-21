@@ -14,9 +14,6 @@ import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * ZLMediaKit Hook 入口
- */
 @Slf4j
 @RestController
 @RequestMapping("/api/hook")
@@ -86,13 +83,6 @@ public class ZlmHookController {
         return hookService.onSendRtpStopped(body).toMap();
     }
 
-    // ============================================================
-    //  Secret 校验
-    // ============================================================
-
-    /**
-     * 校验 hook 请求携带的 secret。返回 true 表示通过、false 表示拒绝。
-     */
     private boolean checkSecret(HttpServletRequest req, Map<String, Object> body) {
         String expected = mediaProperties.getHookSecret();
         if (expected == null || expected.isBlank()) {
@@ -114,8 +104,6 @@ public class ZlmHookController {
         return true;
     }
 
-    /** 从 body 或 URL query 中取 secret */
-/** 从 body 或 URL query 中取 secret */
     private static String extractSecret(HttpServletRequest req, Map<String, Object> body) {
         if (body != null) {
             Object v = body.get("secret");
@@ -124,9 +112,7 @@ public class ZlmHookController {
         String q = req.getParameter("secret");
         return q == null || q.isBlank() ? null : q;
     }
-
-    /** 常量时间字符串比较，避免定时侧信道 */
-/** 常量时间字符串比较，避免定时侧信道 */
+    
     private static boolean constantTimeEquals(String a, String b) {
         byte[] ab = a.getBytes(StandardCharsets.UTF_8);
         byte[] bb = b.getBytes(StandardCharsets.UTF_8);

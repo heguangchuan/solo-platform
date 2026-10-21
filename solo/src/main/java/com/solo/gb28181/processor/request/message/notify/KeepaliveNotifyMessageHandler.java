@@ -18,7 +18,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * Keepalive 心跳处理
  * <p>大规模设备同时心跳会打爆 DB，所以采用<b>队列削峰 + 定时批处理</b>模式：
  * 收到心跳时直接入队（200 OK 已由 {@code MessageRequestProcessor} 在分发前回复），
  * {@link com.solo.gb28181.task.GbScheduledTasks} 每 100ms 调 {@link #drain()} 把队列里的批量处理。</p>

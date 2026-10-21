@@ -17,9 +17,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 设备报警（报警中心）
- */
 @Tag(name = "报警中心", description = "设备报警查询与处置")
 @Slf4j
 @RestController

@@ -18,8 +18,6 @@ import javax.sip.message.Response;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * 入站 INVITE 请求处理器（本平台作为<strong>被叫</strong>）。
- *
  * <p>当前仅处理 <strong>上级平台点播</strong>本平台共享通道的场景（S6.b-3）：
  * 上级发 INVITE → 本平台向真实下级取流 → sendRtp 推给上级。设备主动 INVITE（语音对讲）暂不支持。</p>
  *

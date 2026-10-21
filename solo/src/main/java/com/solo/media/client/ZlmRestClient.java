@@ -20,55 +20,22 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * ZLMediaKit REST API 客户端
- * <p>ZLM 接口约定（form-data，secret 走 query 或 body 均可，这里统一拼到 body）：
- * {@code POST http://<host>:<httpPort>/index/api/<method>?secret=xxx&k=v...}</p>
- * <p>所有调用都走 form-urlencoded body；响应统一 JSON：{@code {"code":0,...}}，
- * code != 0 抛 {@link ServiceException}。</p>
- *
- * <h3>覆盖的接口（S2.1/S2.2 + ONVIF）</h3>
- * <ul>
- *     <li>{@code openRtpServer}        — 申请 RTP 收流端口（国标 INVITE）</li>
- *     <li>{@code closeRtpServer}       — 关闭 RTP 收流端口</li>
- *     <li>{@code getMediaList}         — 查询流是否还活着</li>
- *     <li>{@code getRtpInfo}           — 查询 RTP 端口状态（保活）</li>
- *     <li>{@code addStreamProxy}       — 让 ZLM 从 RTSP/RTMP 源拉流（ONVIF 点播）</li>
- *     <li>{@code delStreamProxy}       — 移除拉流代理</li>
- *     <li>{@code startSendRtp}         — 把 ZLM 里一路流按 PS/RTP 推到指定 ip:port（级联上级点播）</li>
- *     <li>{@code startSendRtpPassive}  — 开监听端口等对端来连后推流（TCP 主动模式，上级来连本平台）</li>
- *     <li>{@code stopSendRtp}          — 停止推流</li>
- * </ul>
- * <p>注：截图由 jessibuca 播放器自带，不在本类。</p>
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ZlmRestClient {
 
-    /** 统一使用 Spring Boot 4 自动配置的 Jackson 3 实例解析 ZLM 响应 */
+    /**
+     * 统一使用 Spring Boot 4 自动配置的 Jackson 3 实例解析 ZLM 响应
+     */
     private final ObjectMapper objectMapper;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
-    // ---------------- 公共 API ----------------
 
-    /**
-     * 打开一个 RTP 收流端口
-     *
-     * <p>本平台固定<b>多端口</b>收流，每路流独占一个 RTP 端口，靠端口即可唯一定位流，
-     * 因此<b>不下发 {@code ssrc} 参数</b>——ZLM 收下该端口上的任意 SSRC。
-     * 下级级联平台普遍自报 SSRC、无视上级 INVITE 里给的值，按 SSRC 过滤会直接把包丢掉。
-     * 详见 ADR-025。</p>
-     *
-     * @param server   节点
-     * @param streamId ZLM stream 名（约定 app=rtp、stream=&lt;deviceId&gt;_&lt;channelId&gt;，传完整 stream 部分即可）
-     * @param tcpMode  0=UDP，1=TCP-passive，2=TCP-active
-     * @param port     0=自动分配（推荐），&gt;0=指定端口
-     * @return ZLM 实际分配的端口
-     */
     public int openRtpServer(MediaServer server, String streamId, int tcpMode, int port) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
@@ -84,11 +51,7 @@ public class ZlmRestClient {
         return actualPort;
     }
 
-    /**
-     * 关闭 RTP 收流端口
-     *
-     * @return true=确实关闭了；false=已经不存在
-     */
+
     public boolean closeRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
@@ -105,9 +68,6 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 流是否存在
-     */
     public boolean isMediaOnline(MediaServer server, String app, String stream) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("app", app);
@@ -121,12 +81,7 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 获取节点上的所有流列表（推流管理"兜底同步"用）
-     * <p>与 {@link #isMediaOnline} 复用同一底层，只是不加过滤参数，全量拉。</p>
-     *
-     * @return 每条包含 app/stream/schema/originType/originTypeStr/originUrl/totalReaderCount/aliveSecond 等
-     */
+
     public List<JsonNode> getMediaList(MediaServer server) {
         try {
             JsonNode resp = post(server, "getMediaList", new LinkedHashMap<>());
@@ -141,13 +96,8 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 关闭指定 app/stream 的流（强制中止推流用）
-     *
-     * @param force true=不管有没有观众都关
-     * @return true=有一路流被关；false=不存在或失败
-     */
-    public boolean closeStream(MediaServer server, String app, String stream, boolean force) {
+
+    public void closeStream(MediaServer server, String app, String stream, boolean force) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("app", app);
         params.put("stream", stream);
@@ -157,17 +107,12 @@ public class ZlmRestClient {
             int count = resp.path("count_hit").asInt(0);
             log.info("[流媒体] close_streams 结果:成功 节点:{} 应用:{} 流ID:{} 命中数:{}",
                     server.getServerId(), app, stream, count);
-            return count > 0;
         } catch (ServiceException e) {
             log.warn("[流媒体] close_streams 失败 节点:{} 应用:{} 流ID:{} 错误:{}",
                     server.getServerId(), app, stream, e.getMessage(), e);
-            return false;
         }
     }
 
-    /**
-     * RTP 端口保活查询
-     */
     public boolean isRtpServerAlive(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
@@ -179,14 +124,7 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 暂停 ZLM 端 RTP 收流（不向设备发任何 SIP 报文，纯 ZLM 侧停收）。
-     * <p>用于历史回放 pause 场景：MANSRTSP PAUSE 设备不响应时，靠这个让 ZLM 立刻停收，
-     * 不依赖设备固件行为。流注册（{@code on_publish} / {@code on_stream_changed}）不会被触发，
-     * 后续 {@link #resumeRtpServer} 可恢复接收同一路 RTP，不需要重新 INVITE。</p>
-     *
-     * @return true=ZLM 接受（code=0）；false=调用失败（异常已捕获，记 WARN，不抛）
-     */
+
     public boolean pauseRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
@@ -202,23 +140,17 @@ public class ZlmRestClient {
         }
     }
 
-    /**
-     * 恢复 ZLM 端 RTP 收流（与 {@link #pauseRtpServer} 配对）。
-     *
-     * @return true=ZLM 接受（code=0）；false=调用失败
-     */
-    public boolean resumeRtpServer(MediaServer server, String streamId) {
+
+    public void resumeRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         try {
             JsonNode resp = post(server, "resumeRtpServer", params);
             log.info("[流媒体] resumeRtpServer 结果:成功 节点:{} 流ID:{} 命中:{}",
                     server.getServerId(), streamId, resp.path("hit").asInt(0));
-            return true;
         } catch (Exception e) {
             log.warn("[流媒体] resumeRtpServer 失败 节点:{} 流ID:{} 错误:{}",
                     server.getServerId(), streamId, e.getMessage(), e);
-            return false;
         }
     }
 
@@ -226,11 +158,11 @@ public class ZlmRestClient {
      * 让 ZLM 从一个 RTSP/RTMP 源拉流，产出 app/stream 名下的可分发流。
      * <p>ONVIF 点播场景：源是 {@code rtsp://user:pwd@host:port/path}，ZLM 拉起后暴露 HTTP-FLV/HLS/WS-FLV/WebRTC。</p>
      *
-     * @param server   节点
-     * @param app      app 名（ONVIF 约定 {@code rtsp}，与国标 GB 用的 {@code rtp} 区分）
-     * @param stream   stream 名（ONVIF 约定 {@code onvif_<deviceId>}）
-     * @param url      源 URL（含账密）
-     * @param rtpType  RTSP 传输：0=TCP+UDP 自适应，1=TCP，2=UDP，3=组播
+     * @param server  节点
+     * @param app     app 名（ONVIF 约定 {@code rtsp}，与国标 GB 用的 {@code rtp} 区分）
+     * @param stream  stream 名（ONVIF 约定 {@code onvif_<deviceId>}）
+     * @param url     源 URL（含账密）
+     * @param rtpType RTSP 传输：0=TCP+UDP 自适应，1=TCP，2=UDP，3=组播
      * @return ZLM 分配的代理 key（addStreamProxy.data.key），用于 delStreamProxy
      */
     public String addStreamProxy(MediaServer server, String app, String stream, String url, int rtpType) {
@@ -250,14 +182,10 @@ public class ZlmRestClient {
         return key;
     }
 
-    /**
-     * 移除拉流代理
-     *
-     * @return true=命中并关闭；false=已经不存在
-     */
-    public boolean delStreamProxy(MediaServer server, String key) {
+
+    public void delStreamProxy(MediaServer server, String key) {
         if (key == null || key.isBlank()) {
-            return false;
+            return;
         }
         Map<String, String> params = new LinkedHashMap<>();
         params.put("key", key);
@@ -266,17 +194,11 @@ public class ZlmRestClient {
             boolean flag = resp.path("data").path("flag").asBoolean(false);
             log.info("[流媒体] delStreamProxy 节点:{} key:{} 成功:{}",
                     server.getServerId(), key, flag);
-            return flag;
         } catch (ServiceException e) {
             log.warn("[流媒体] delStreamProxy 失败(忽略) 节点:{} key:{} 错误:{}",
                     server.getServerId(), key, e.getMessage(), e);
-            return false;
         }
     }
-
-    // 注：截图功能由 jessibuca 播放器自带（操作栏内置 screenshot 按钮），不走后端 ZLM API。
-
-    // ---------------- 级联推流（sendRtp）----------------
 
     /**
      * 把 ZLM 里的一路流按 PS/RTP 主动推到指定目的地址（UDP 或 TCP 主动去连对端）。
@@ -340,8 +262,6 @@ public class ZlmRestClient {
     }
 
     /**
-     * 停止推流。
-     *
      * @return true=确实停了；false=已不存在/异常（忽略）
      */
     public boolean stopSendRtp(MediaServer server, String app, String stream, String ssrc) {
@@ -364,7 +284,6 @@ public class ZlmRestClient {
         }
     }
 
-    // ---------------- 录像（S3 录像下载） ----------------
 
     /**
      * 触发 ZLM 把当前活跃流录成 MP4。
@@ -456,19 +375,7 @@ public class ZlmRestClient {
         }
     }
 
-    // ---------------- 底层 POST ----------------
 
-    /**
-     * 健康探测：调 ZLM {@code /index/api/version} 接口，能正常返回即视为在线
-     *
-     * <p>选用 {@code /version} 是因为它返回 payload 极小（仅 ZLM 版本号），
-     * 不读任何运行时状态，是 ZLM 自身监控脚本的标准 ping 端点。
-     * 任何异常（连接拒绝 / 超时 / 非 200 / code != 0）一律视为离线。</p>
-     *
-     * <p>超时受 {@link #httpClient}（5s 连接）+ {@code HttpRequest.timeout(10s)} 约束。
-     * 上层 {@code CompletableFuture.orTimeout} 可提前打断，但底层线程在 connect 阶段
-     * 不可中断，会一直占位到 5s 兜底——10s 探测周期足够释放，不会拖垮线程池。</p>
-     */
     public boolean ping(MediaServer server) {
         try {
             post(server, "version", new LinkedHashMap<>());

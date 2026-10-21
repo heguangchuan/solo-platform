@@ -21,9 +21,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * ONVIF 设备管理
- */
 @Tag(name = "ONVIF 设备管理", description = "ONVIF 设备管理")
 @RestController
 @RequestMapping("/api/onvif/device")
@@ -32,9 +29,6 @@ public class OnvifDeviceController {
 
     private final OnvifDeviceService onvifDeviceService;
 
-    /**
-     * 设备分页查询
-     */
     @Operation(summary = "设备分页查询")
     @PostMapping("/page")
     @RequirePermission({"onvif:device:list"})
@@ -43,11 +37,6 @@ public class OnvifDeviceController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 设备详情
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "设备详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
@@ -60,9 +49,6 @@ public class OnvifDeviceController {
         return Result.success(device);
     }
 
-    /**
-     * 新增设备
-     */
     @Operation(summary = "新增设备")
     @PostMapping("/save")
     @RequirePermission({"onvif:device:add"})
@@ -72,9 +58,6 @@ public class OnvifDeviceController {
         return Result.success();
     }
 
-    /**
-     * 编辑设备
-     */
     @Operation(summary = "编辑设备")
     @PostMapping("/update")
     @RequirePermission({"onvif:device:edit"})
@@ -86,11 +69,6 @@ public class OnvifDeviceController {
         return Result.success();
     }
 
-    /**
-     * 主动探测一次
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "主动探测一次")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/probe")
@@ -100,11 +78,6 @@ public class OnvifDeviceController {
         return Result.success();
     }
 
-    /**
-     * 删除设备
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "删除设备")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

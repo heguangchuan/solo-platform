@@ -9,7 +9,6 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * 重写 JAIN-SIP SIPDate 以适配国标时间格式
  * <p>JAIN-SIP 默认 Date 头格式：<code>Mon, 29 Jun 2026 23:30:00 GMT</code>（HTTP 格式）</p>
  * <p>国标要求：<code>2026-06-29T23:30:00.000</code>（ISO8601 本地时间）</p>
  * <p>部分设备依据此头校时，缺失或格式错误会导致设备时间错乱。</p>

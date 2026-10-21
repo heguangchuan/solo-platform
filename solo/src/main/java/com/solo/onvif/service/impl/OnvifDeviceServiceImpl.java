@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 
 /**
- * ONVIF 设备服务实现
  * <p>状态权威由 {@link com.solo.onvif.task.OnvifDeviceStatusTask} 定时探测更新，与国标"SIP 交互改状态"路径不同。</p>
  */
 @Slf4j

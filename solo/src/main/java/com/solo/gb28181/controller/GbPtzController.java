@@ -15,9 +15,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * 云台控制管理
- */
 @Tag(name = "云台控制管理", description = "云台控制管理")
 @Slf4j
 @RestController
@@ -28,15 +25,6 @@ public class GbPtzController {
     private final SipCommander sipCommander;
     private final GbDeviceService deviceService;
 
-    /**
-     * PTZ 控制
-     *
-     * @param deviceId  设备国标 20 位 ID
-     * @param channelId 通道国标 20 位 ID
-     * @param command   方向/动作：`left` / `right` / `up` / `down` /
-     * @param speed     移动速度 0-255，默认 100
-     * @param zoomSpeed 缩放速度 0-15，默认 5
-     */
     @Operation(summary = "PTZ 控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
@@ -84,9 +72,6 @@ public class GbPtzController {
         return Result.success();
     }
 
-    /**
-     * 聚焦控制
-     */
     @Operation(summary = "PTZ 聚焦控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
@@ -110,9 +95,6 @@ public class GbPtzController {
         return Result.success();
     }
 
-    /**
-     * 光圈控制
-     */
     @Operation(summary = "PTZ 光圈控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
@@ -136,9 +118,6 @@ public class GbPtzController {
         return Result.success();
     }
 
-    /**
-     * 雨刷控制
-     */
     @Operation(summary = "PTZ 雨刷控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)

@@ -19,8 +19,7 @@ import java.lang.reflect.Method;
 import java.util.Collections;
 
 /**
- * 限流切面
- * <p>基于 Redis + Lua 脚本实现原子性滑动窗口限流：
+ * 基于 Redis + Lua 脚本实现原子性滑动窗口限流：
  * <ol>
  *   <li>移除时间窗口之外的旧请求记录</li>
  *   <li>统计当前窗口内的请求数</li>
@@ -201,9 +200,6 @@ public class RateLimiterAspect {
         return joinPoint.proceed();
     }
 
-    /**
-     * 根据限流类型构建对应的 Redis key
-     */
     private String buildLimitKey(RateLimiter rateLimiter, Method method) {
         // 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
         String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
@@ -216,9 +212,6 @@ public class RateLimiterAspect {
         };
     }
 
-    /**
-     * 安全获取当前登录用户名，未登录返回 "anonymous"
-     */
     private String getCurrentUsernameSafe() {
         try {
             String username = UserHolderUtils.getCurrentUsername();

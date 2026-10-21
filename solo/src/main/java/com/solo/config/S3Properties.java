@@ -5,8 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * S3 兼容存储配置。
- *
  * <p>通过 {@code endpoint-override} 指向任意 S3 兼容服务的访问入口，适配 MinIO / 阿里云 OSS /
  * 腾讯云 COS / 华为云 OBS / Ceph RGW / AWS S3 等。</p>
  *
@@ -37,7 +35,6 @@ public class S3Properties {
     private String accessKey;
     private String secretKey;
 
-    /** 默认桶 */
     private String bucket;
 
     /** 对外访问域名（可选）。空则用 endpoint 拼接 URL */

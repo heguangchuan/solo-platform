@@ -28,9 +28,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 流媒体节点管理
- */
 @Tag(name = "流媒体节点管理", description = "流媒体节点管理")
 @RestController
 @RequestMapping("/api/media-server")
@@ -39,9 +36,6 @@ public class MediaServerController {
 
     private final MediaServerService mediaServerService;
 
-    /**
-     * 节点分页查询
-     */
     @Operation(summary = "节点分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:server:list"})
@@ -50,11 +44,6 @@ public class MediaServerController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 节点流统计 KPI 概要
-     *
-     * @param serverId 节点 serverId
-     */
     @Operation(summary = "节点流统计 KPI 概要", description = "按 Tab 懒加载，弹窗首屏只发 summary")
     @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/summary")
@@ -63,11 +52,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.getStreamStatsSummary(serverId));
     }
 
-    /**
-     * 国标点播 / 回放会话明细
-     *
-     * @param serverId 节点 serverId
-     */
     @Operation(summary = "国标点播 / 回放会话明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
     @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/gb")
@@ -76,11 +60,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.getStreamStatsGbDetail(serverId));
     }
 
-    /**
-     * 第三方推流明细
-     *
-     * @param serverId 节点 serverId
-     */
     @Operation(summary = "第三方推流明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
     @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/push")
@@ -89,11 +68,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.getStreamStatsPushDetail(serverId));
     }
 
-    /**
-     * 拉流代理明细
-     *
-     * @param serverId 节点 serverId
-     */
     @Operation(summary = "拉流代理明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
     @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/proxy")
@@ -102,11 +76,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.getStreamStatsProxyDetail(serverId));
     }
 
-    /**
-     * ONVIF 实时点播会话明细
-     *
-     * @param serverId 节点 serverId
-     */
     @Operation(summary = "ONVIF 实时点播会话明细", description = "按 Tab 懒加载，弹窗首屏只发 summary")
     @Parameter(name = "serverId", description = "节点 serverId", in = ParameterIn.PATH)
     @GetMapping("/{serverId}/stream-stats/onvif")
@@ -115,9 +84,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.getStreamStatsOnvifDetail(serverId));
     }
 
-    /**
-     * 节点列表
-     */
     @Operation(summary = "节点列表")
     @GetMapping("/list")
     @RequirePermission({"media:server:list"})
@@ -125,11 +91,6 @@ public class MediaServerController {
         return Result.success(mediaServerService.list());
     }
 
-    /**
-     * 节点详情
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "节点详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
@@ -142,9 +103,6 @@ public class MediaServerController {
         return Result.success(server);
     }
 
-    /**
-     * 新增 / 更新节点
-     */
     @Operation(summary = "新增 / 更新节点")
     @PostMapping("/save")
     @RequirePermission({"media:server:save"})
@@ -159,11 +117,6 @@ public class MediaServerController {
         return Result.success();
     }
 
-    /**
-     * 删除节点
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "删除节点")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")

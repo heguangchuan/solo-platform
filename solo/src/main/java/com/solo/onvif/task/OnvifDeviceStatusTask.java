@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * ONVIF 设备在线状态定时探测
  * <p>与国标"SIP 交互改状态"路径不同，ONVIF 靠平台主动探测：每 30s 遍历库里所有设备，
  * TCP ping → SOAP 探测 → 回写 status。</p>
  * <p>用 GB 已有的 taskExecutor 线程池并发，避免设备多时串行探测把周期拖长。</p>

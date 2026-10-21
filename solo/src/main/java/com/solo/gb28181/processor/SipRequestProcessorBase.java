@@ -21,7 +21,6 @@ import javax.sip.message.Response;
 import java.text.ParseException;
 
 /**
- * 请求处理器抽象基类
  * <p>提供 SIP 响应构造和 XML 报文解析的通用方法，所有 RequestProcessor 继承本类。</p>
  */
 @Slf4j

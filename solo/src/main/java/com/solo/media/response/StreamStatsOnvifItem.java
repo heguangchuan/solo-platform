@@ -6,13 +6,6 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-/**
- * 节点流统计 - ONVIF 实时点播会话明细项
- *
- * <p>对应 {@code GET /api/media-server/{serverId}/stream-stats/onvif} 列表元素。
- * 字段为管理台弹窗表格所需最小集（{@code streamId / deviceId / proxyKey / startTime}），
- * 命名风格与国标明细项对齐，便于前端表格组件复用。</p>
- */
 @Schema(description = "节点流统计 - ONVIF 实时点播会话明细项")
 @Data
 public class StreamStatsOnvifItem {

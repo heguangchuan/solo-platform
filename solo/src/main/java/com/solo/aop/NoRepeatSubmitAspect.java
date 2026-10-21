@@ -4,6 +4,8 @@ import com.solo.common.ServiceException;
 import com.solo.common.utils.UserHolderUtils;
 import com.solo.common.utils.WebUtils;
 import com.solo.system.constant.SystemConstants;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -13,15 +15,16 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.lang.reflect.Method;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * 防重复提交切面
- * <p>基于 Redis 分布式锁实现，SETNX + PX 原子命令保证并发安全
+ * 基于 Redis 分布式锁实现，SETNX + PX 原子命令保证并发安全
  * <p>故障降级：Redis 不可用时直接放行，不影响主业务
  */
 @Slf4j
@@ -116,9 +119,6 @@ public class NoRepeatSubmitAspect {
         }
     }
 
-    /**
-     * 根据锁粒度构建对应的 Redis key
-     */
     private String buildLockKey(NoRepeatSubmit noRepeatSubmit, Method method, Object[] args) {
         // 使用完整类名（含包名），避免不同包同名类 + 同名方法碰撞
         String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
@@ -143,9 +143,7 @@ public class NoRepeatSubmitAspect {
     }
 
     /**
-     * 计算参数 hash，用于参数级防重
-     * <p>采用分层累积哈希，碰撞概率远低于单个 hashCode
-     * <p>性能：纯内存计算，无序列化开销，适合高并发场景
+     * 分层累积哈希，碰撞概率远低于单个 hashCode；纯内存计算，无序列化开销，适合高并发场景
      */
     private long argsHash(Object[] args) {
         // 使用 long (64位) 替代 int (32位)，碰撞概率从 2^31 降到 2^63
@@ -156,20 +154,16 @@ public class NoRepeatSubmitAspect {
         return result;
     }
 
-    /**
-     * 单个对象的哈希计算，递归处理数组/集合，处理不可序列化参数
-     */
-    @SuppressWarnings("unchecked")
     private long singleObjHash(Object arg) {
         if (arg == null) {
             return 0;
         }
 
         // 不可序列化的请求/响应/二进制对象，不参与 hash
-        if (arg instanceof jakarta.servlet.ServletRequest
-                || arg instanceof jakarta.servlet.ServletResponse
-                || arg instanceof org.springframework.web.multipart.MultipartFile
-                || arg instanceof org.springframework.web.multipart.MultipartFile[]) {
+        if (arg instanceof ServletRequest
+                || arg instanceof ServletResponse
+                || arg instanceof MultipartFile
+                || arg instanceof MultipartFile[]) {
             return 0;
         }
 
@@ -182,21 +176,21 @@ public class NoRepeatSubmitAspect {
                 }
                 return hash;
             } else if (arg instanceof byte[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof int[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof long[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof boolean[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof char[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof double[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof float[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             } else if (arg instanceof short[] arr) {
-                return java.util.Arrays.hashCode(arr);
+                return Arrays.hashCode(arr);
             }
         }
 
@@ -223,9 +217,6 @@ public class NoRepeatSubmitAspect {
         return arg.hashCode();
     }
 
-    /**
-     * 安全获取当前用户名，未登录返回 anonymous
-     */
     private String getCurrentUsernameSafe() {
         try {
             String username = UserHolderUtils.getCurrentUsername();

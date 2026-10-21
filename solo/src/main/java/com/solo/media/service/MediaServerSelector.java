@@ -10,21 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-/**
- * 流媒体节点选择器
- *
- * <p>选点优先级：</p>
- * <ol>
- *     <li>{@link MediaServerLoader#pickLeastLoadedServerId()} —— 升序 ZSet 首成员 = 活跃流数最少
- *         （拿到 serverId 后由本类查 MySQL 拿完整配置；Loader 不再持有 MediaServer 实体职责）</li>
- *     <li>兜底：按 {@code status=1} 选第一个登记行（Redis 抖动 / 索引空时）</li>
- *     <li>兜底：返回首个登记行（即使离线，至少不让点播接口 500）</li>
- *     <li>全无登记节点：抛 {@link ServiceException}</li>
- * </ol>
- *
- * <p>供国标点播 / 回放、ONVIF 点播、拉流代理等所有需要 ZLM 节点的编排层共用，
- * 避免各自重复实现选点逻辑。</p>
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -33,11 +19,6 @@ public class MediaServerSelector {
     private final GbMediaServerMapper mediaServerMapper;
     private final MediaServerLoader loadIndex;
 
-    /**
-     * 挑一个可用节点
-     *
-     * @throws ServiceException 无任何登记节点
-     */
     public MediaServer pick() {
         // 1. 优先按负载索引选最闲的：Loader 只返 serverId，MySQL 查实体由本类做
         String leastId = loadIndex.pickLeastLoadedServerId();

@@ -17,16 +17,11 @@ import javax.sip.message.Request;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
-/**
- * SIP 报文字段提取与 GB28181 协议工具集
- */
 @Slf4j
 @UtilityClass
 public class SipUtils {
 
-    // ---------------- 地址 / 用户名 ----------------
 
-    /** 从 From 头取 SIP 用户名（GB28181 里通常是设备 ID 或平台 ID） */
     public static String getUserIdFromFromHeader(Request request) {
         FromHeader from = (FromHeader) request.getHeader(FromHeader.NAME);
         return getUser(from);
@@ -49,11 +44,11 @@ public class SipUtils {
     }
 
     /**
-     * 从请求获取设备真实地址
-     * <p>NAT 场景：From 里的 IP 可能是设备内网 IP，必须取 Via.received/rport 或 socket 源端。</p>
+     * 取设备/对端真实地址。
      *
-     * @param request                          请求
-     * @param useSourceIpAsRemoteAddress       true=直接取 UDP/TCP 收包源；false=优先取 Via 头
+     * NAT 场景下 From 头里的 IP 是内网的，没用，得用 Via 头的 received/rport 或者 socket 源地址。
+     * useSourceIpAsRemoteAddress=true 就直接取收包的源 IP/端口（更准），
+     * false 的话优先用 Via 头，拿不到再兜底到源地址。
      */
     public static RemoteAddressInfo getRemoteAddress(SIPRequest request, boolean useSourceIpAsRemoteAddress) {
         String ip;
@@ -152,19 +147,12 @@ public class SipUtils {
         return type > 130 && type < 199;
     }
 
-    /**
-     * 将任意 20 位国标码的类型段（第 11-13 位）替换为 215（业务分组），
-     * 行政区划+行业段（前 10 位）和序号段（后 7 位）保留不变。
-     * <p>用于把下级平台的 200 系国标 ID 转成合规的业务分组 ID，
-     * 作为自动创建的平台根目录的 groupId，避免 validateGroupId 校验失败。</p>
-     */
     public static String toBusinessGroupId(String gbCode) {
         if (gbCode == null || gbCode.length() != 20) return gbCode;
         return gbCode.substring(0, 10) + "215" + gbCode.substring(13);
     }
 
-    // ---------------- PTZ 控制码（GB/T 28181-2016 附录 A） ----------------
-
+    
     /**
      * 国标 PTZ 控制码计算
      *
@@ -246,8 +234,6 @@ public class SipUtils {
         return String.format("A50F01%02X00%02X00%02X", cmdCode, preset, checkCode);
     }
 
-    // ---------------- 聚焦控制码 ----------------
-
     /**
      * 聚焦控制 PTZ 命令编码
      * <p>字节3组合码1：bit6=聚焦近(0x40)，bit7=聚焦远(0x80)</p>
@@ -267,7 +253,6 @@ public class SipUtils {
         return String.format("A50F01%02X0000%02X%02X", cmdCode, focusByte, checkCode);
     }
 
-    // ---------------- 光圈控制码 ----------------
 
     /**
      * 光圈控制 PTZ 命令编码
@@ -288,8 +273,6 @@ public class SipUtils {
         return String.format("A50F0100%02X00%02X%02X", cmdCode2, irisByte, checkCode);
     }
 
-    // ---------------- 雨刷控制码 ----------------
-
     /**
      * 雨刷控制 PTZ 命令编码
      * <p>走辅助开关指令，使用扩展字节</p>
@@ -302,8 +285,6 @@ public class SipUtils {
         int checkCode = (0xA5 + 0x0F + 0x01 + cmd + 0x00 + 0x00 + 0x00) & 0xFF;
         return String.format("A50F01%02X000000%02X", cmd, checkCode);
     }
-
-    // ---------------- 巡航控制码（扩展指令 0x84~0x89） ----------------
 
     /**
      * 添加巡航点
@@ -363,7 +344,6 @@ public class SipUtils {
         return String.format("A50F01%02X%02X%02X%02X%02X", cmdCode, b3, b4, b5, checkCode);
     }
 
-    // ---------------- 内嵌类 ----------------
 
     /** 设备远端地址（IP+Port） */
     public record RemoteAddressInfo(String ip, int port) {

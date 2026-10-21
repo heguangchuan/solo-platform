@@ -8,16 +8,18 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * SIP 订阅管理器
- * <p>主动发起请求后注册一个 {@link SipSubscribeEvent}，{@link SipProcessorObserver}
- * 收到对应响应（按 Call-Id+CSeq 匹配）后回调并清理。</p>
- * <p>过期清理由 {@link com.solo.gb28181.task.GbScheduledTasks} 每 5 秒调 {@link #sweep()}：
- * 移除已超过 timeout 的订阅并触发 onTimeout。</p>
+ * 主动请求 -> 等响应的订阅管理器。
+ * 按 Call-Id + CSeq 存，SipProcessorObserver 收到响应对上回调。
+ * sweep() 定时清超时的，每 5 秒扫一次。
+ *
+ * 之前想过用 Guava Cache 带过期回调，但这边量不大（也就几百个并发请求），
+ * ConcurrentHashMap + 定时扫够用了，少引个依赖。
  */
 @Slf4j
 @Component
 public class SipSubscribe {
 
+    // key = callId + ":" + cseq，见 SipSubscribeEvent#getKey
     private final Map<String, SipSubscribeEvent> subscribes = new ConcurrentHashMap<>();
 
     public void add(SipSubscribeEvent event) {
@@ -36,6 +38,11 @@ public class SipSubscribe {
         return subscribes.size();
     }
 
+    /**
+     * 清理超时订阅。超时的触发 onTimeout 然后删掉。
+     * 注意 removeIf 里直接跑回调，别搞太重的逻辑，
+     * 真有耗时操作让回调自己丢线程池去。
+     */
     public void sweep() {
         long now = System.currentTimeMillis();
         subscribes.entrySet().removeIf(e -> {

@@ -18,9 +18,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * 云台巡航路线管理
- */
 @Tag(name = "云台巡航路线管理", description = "云台巡航路线管理")
 @Slf4j
 @RestController

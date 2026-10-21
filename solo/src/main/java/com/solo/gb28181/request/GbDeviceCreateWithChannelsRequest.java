@@ -7,12 +7,6 @@ import lombok.Data;
 
 import java.util.List;
 
-/**
- * 手动新增设备 + 同步新增多条通道请求
- *
- * <p>对应 {@code POST /api/gb28181/device/save}。
- * 设备 / 通道的状态与来源由后端强制设定，前端入参的这两个字段会被忽略。</p>
- */
 @Schema(description = "手动新增设备 + 同步新增多条通道请求")
 @Data
 public class GbDeviceCreateWithChannelsRequest {

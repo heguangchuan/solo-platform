@@ -3,8 +3,6 @@ package com.solo.gb28181.support;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * 录像下载任务超时事件（Spring ApplicationEvent）。
- *
  * <p>{@link DownloadTaskRegistry#sweep()} 命中超时任务时发布（{@code status=INVITING/RECORDING} 超 30 分钟）。
  * 由 {@link com.solo.gb28181.service.impl.GbDownloadServiceImpl#onDownloadTimeout} 订阅处理，
  * 负责关 ZLM 端口、释放 SSRC、删会话、清理资源。</p>

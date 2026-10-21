@@ -24,9 +24,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 推流管理
- */
 @Tag(name = "推流管理", description = "推流管理")
 @RestController
 @RequestMapping("/api/stream-push")
@@ -35,9 +32,6 @@ public class StreamPushController {
 
     private final StreamPushService streamPushService;
 
-    /**
-     * 推流分页查询
-     */
     @Operation(summary = "推流分页查询")
     @PostMapping("/page")
     @RequirePermission({"media:stream-push:list"})
@@ -46,11 +40,6 @@ public class StreamPushController {
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
-    /**
-     * 推流详情
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "推流详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
@@ -63,11 +52,6 @@ public class StreamPushController {
         return Result.success(p);
     }
 
-    /**
-     * 播放地址
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "播放地址")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/play-urls")
@@ -75,11 +59,6 @@ public class StreamPushController {
         return Result.success(streamPushService.getPlayUrls(id));
     }
 
-    /**
-     * 强制中止
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "强制中止")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/stop")
@@ -88,11 +67,6 @@ public class StreamPushController {
         return Result.success();
     }
 
-    /**
-     * 单条删除
-     *
-     * @param id 主键 ID
-     */
     @Operation(summary = "单条删除")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
@@ -102,9 +76,6 @@ public class StreamPushController {
         return Result.success();
     }
 
-    /**
-     * 批量删除
-     */
     @Operation(summary = "批量删除")
     @PostMapping("/batch/delete")
     @RequirePermission({"media:stream-push:delete"})

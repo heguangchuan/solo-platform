@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 
 /**
- * 设备离线检测
  * <p>Redis 在线 key TTL 是真权威；定时扫库 status=1 的设备，逐个检查 Redis key 是否存在：</p>
  * <ul>
  *   <li>不存在 → 设置 status=0 + 发 {@link DeviceOfflineEvent}</li>

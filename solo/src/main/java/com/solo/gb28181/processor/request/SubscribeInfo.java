@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * SUBSCRIBE 订阅记录（ADR-029）。
  * <p>本平台作为下级收到上级 SUBSCRIBE 后保存的订阅上下文——后续 catalog / mobilePosition
  * 变更 NOTIFY 推送（ADR-030 待启动）需要从这里取订阅方地址、过期时间。</p>
  * <p>当前仅入内存（{@link SubscribeHolder}），不持久化：GB/T 28181 没有"订阅持久化"要求，

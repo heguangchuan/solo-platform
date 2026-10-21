@@ -24,10 +24,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * SIP 事件统一观察者
- * <p>请求按方法名分发到 {@link SipRequestProcessor}；响应除按方法名分发外，
- * 还按 (CallId+CSeq) 匹配回调到 {@link SipSubscribe}（主动发起请求等响应）。</p>
- * <p>处理逻辑放到 {@code taskExecutor} 异步线程池，避免阻塞 SIP listener 线程。</p>
+ * SIP 消息分发器，实现 SipListener 接口。
+ *
+ * 请求进来按方法名（REGISTER/MESSAGE/INVITE...）分发给对应的 SipRequestProcessor。
+ * 响应除了按方法名分发给 SipResponseProcessor，还会走 SipSubscribe 回调——
+ * 就是主动发请求出去等响应的那种场景。
+ *
+ * 处理都异步丢到 taskExecutor，别阻塞 SIP listener 线程，
+ * 那玩意儿是协议栈的 IO 线程，堵了整个栈都卡。
  */
 @Slf4j
 @Component
@@ -45,6 +49,7 @@ public class SipProcessorObserver implements SipListener {
     private final Map<String, SipRequestProcessor> requestMap = new HashMap<>();
     private final Map<String, SipResponseProcessor> responseMap = new HashMap<>();
 
+    // Spring 启动时把所有 processor 注册到 map 里，按方法名查
     @PostConstruct
     public void init() {
         if (requestProcessors != null) {
@@ -86,18 +91,18 @@ public class SipProcessorObserver implements SipListener {
         CSeqHeader cSeqHeader = response.getCSeqHeader();
         String method = cSeqHeader == null ? null : cSeqHeader.getMethod();
 
-        // 1xx 不处理（180 Ringing 等）
+        // 1xx  provisional 响应直接跳过，比如 100 Trying、180 Ringing
         if (status >= Response.TRYING && status < Response.OK) {
             return;
         }
 
-        // 记录设备对 MESSAGE 指令（云台/巡航/预置位等）的应答状态码
+        // MESSAGE 指令的应答单独打个 info 日志，方便查云台/巡航这些有没有成功
         if ("MESSAGE".equalsIgnoreCase(method)) {
             log.info("[SIP应答] MESSAGE → status={} callId={}", status,
                     callIdHeader == null ? null : callIdHeader.getCallId());
         }
 
-        // 按方法名分发给响应处理器
+        // 先按方法名分发给响应处理器
         if (method != null) {
             SipResponseProcessor processor = responseMap.get(method.toUpperCase());
             if (processor != null) {

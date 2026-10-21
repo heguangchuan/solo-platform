@@ -23,7 +23,7 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * 上级平台推送目录分组服务实现（推送树 CRUD；share 表由 CatalogShareService 管理）。
+ * 推送树 CRUD；share 表由 CatalogShareService 管理。
  *
  * <p>2026-08：删分组时联动清理该组下所有 share，避免出现"分组删了但 share 还挂着 group_id"
  * 孤儿数据。</p>

@@ -25,8 +25,6 @@ import java.io.InputStream;
 import java.time.Duration;
 
 /**
- * S3 兼容存储实现（唯一存储实现）。
- *
  * <p>通过 {@code S3Properties.endpoint-override} 适配 MinIO / 阿里云 OSS / 腾讯云 COS /
  * 华为云 OBS / Ceph RGW / AWS S3 等任意 S3 兼容服务。</p>
  *

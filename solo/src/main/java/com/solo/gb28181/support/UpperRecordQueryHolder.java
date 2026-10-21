@@ -13,8 +13,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 上级平台 RecordInfo 查询映射表（ADR-031 落地）。
- *
  * <p>本平台作为下级挂上级时，上级发来 {@code Query/RecordInfo}，本平台要主动向下级设备
  * 转发同样格式的 {@code Query/RecordInfo}。但响应回来时携带的是本平台生成的 inner SN，
  * 上级认的是 outer SN——所以需要这个映射表把 inner SN → (platform, outer SN, channelId) 记录下来，

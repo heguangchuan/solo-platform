@@ -17,8 +17,6 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 
 /**
- * XSS 请求体消毒（@RequestBody 入参）
- *
  * <p>对所有 {@link RestController} / {@link Controller} 的 {@code @RequestBody} JSON 入参递归
  * 清洗：{@code String} 字段过 {@link XssUtils#sanitize}；Map / Collection / 数组 / 嵌套对象
  * 递归清洗；{@code com.solo.request} / {@code com.solo.controller} 包外的对象不递归（避免
@@ -31,14 +29,8 @@ import java.util.Map;
 public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
 
     /**
-     * 是否启用本次消毒
-     * <p>始终返回 {@code true}——所有 {@code @RequestBody} 入参都走消毒；如需关闭，
-     * 在 {@code application.yaml} 切 {@code xss.enabled=false} 即可（见 {@code XssProperties}）。</p>
-     *
-     * @param methodParameter 当前请求的方法参数
-     * @param targetType 目标类型（集合 / 数组 / 单对象）
-     * @param converterType 消息转换器类型
-     * @return 始终 {@code true}
+     * 始终返回 {@code true}——所有 {@code @RequestBody} 入参都走消毒；如需关闭，
+     * 在 {@code application.yaml} 切 {@code xss.enabled=false}（见 {@code XssProperties}）。
      */
     @Override
     public boolean supports(MethodParameter methodParameter, Type targetType,
@@ -47,15 +39,7 @@ public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
     }
 
     /**
-     * 反序列化后清洗入参
-     * <p>入口；递归调用 {@link #sanitizeObject} 处理对象图，循环引用由 {@code visited} 集合防爆栈。</p>
-     *
-     * @param body 已反序列化的入参对象
-     * @param inputMessage HTTP 输入消息
-     * @param parameter 方法参数
-     * @param targetType 目标类型
-     * @param converterType 消息转换器类型
-     * @return 清洗后的对象（原地修改）
+     * 循环引用由 {@code visited} 集合防死循环
      */
     @Override
     public Object afterBodyRead(Object body, HttpInputMessage inputMessage, MethodParameter parameter,

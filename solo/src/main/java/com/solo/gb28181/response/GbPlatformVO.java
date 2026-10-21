@@ -7,12 +7,6 @@ import lombok.EqualsAndHashCode;
 
 import java.time.LocalDateTime;
 
-/**
- * 接入禁用名单列表响应项：在黑名单字段之上，附加关联设备的运行态字段
- *
- * <p>对应 {@code POST /api/gb28181/platform/page} 返回项。</p>
- * <p>被拉黑的 ID 可能之前注册过，展示在线状态/心跳便于运维确认"拉黑后是否真的断了"。</p>
- */
 @Schema(description = "接入禁用名单列表响应项")
 @Data
 @EqualsAndHashCode(callSuper = true)

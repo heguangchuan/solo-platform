@@ -4,7 +4,6 @@ import com.solo.gb28181.support.CatalogSyncProgress;
 import org.springframework.context.ApplicationEvent;
 
 /**
- * Catalog 同步进度事件（Spring ApplicationEvent）。
  * <p>由 {@link com.solo.gb28181.processor.request.message.response.CatalogDataCache} 在
  * 阈值 flush / 收尾时发布。当前订阅者：
  * {@link com.solo.gb28181.support.CatalogSyncStatusService} 落 Redis（供 {@code GET /sync-status} 接口读）+

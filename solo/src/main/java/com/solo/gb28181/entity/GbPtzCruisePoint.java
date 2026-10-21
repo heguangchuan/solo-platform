@@ -13,9 +13,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 云台巡航点（一条巡航路线包含多个巡航点，每个巡航点关联一个预置位）
- */
 @Schema(description = "云台巡航点")
 @Data
 @TableName("gb_ptz_cruise_point")

@@ -13,11 +13,6 @@ import tools.jackson.databind.ser.std.ToStringSerializer;
 
 import java.time.LocalDateTime;
 
-/**
- * 设备报警（报警中心）
- *
- * <p>由 SIP Alarm 通知报文落库生成。处置流：0 未处理 → 1 已确认 → 2 已处置 / 3 误报。</p>
- */
 @Schema(description = "设备报警")
 @Data
 @TableName("gb_device_alarm")

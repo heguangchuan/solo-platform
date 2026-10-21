@@ -18,8 +18,6 @@ import javax.sip.RequestEvent;
 import java.time.LocalDateTime;
 
 /**
- * 国标报警通知处理（Notify / CmdType = Alarm）
- *
  * <h3>报文结构</h3>
  * <pre>
  * &lt;Notify&gt;

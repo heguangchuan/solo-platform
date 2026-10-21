@@ -29,8 +29,6 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * ONVIF 实时点播服务实现
- *
  * <h3>流程（start）</h3>
  * <ol>
  *   <li>校验设备已探测出 stream_uri</li>

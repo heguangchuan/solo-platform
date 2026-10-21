@@ -15,8 +15,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * 系统消息 WebSocket 端点
- * <p>连接地址：ws://localhost:8080/api/ws/message?token=xxx
+ * 连接地址：ws://localhost:8080/api/ws/message?token=xxx
  * <p>消息格式：JSON，包含类型、标题、内容、时间等
  */
 @Slf4j
@@ -24,21 +23,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 @ServerEndpoint("/api/ws/message")
 public class SystemMessageWebSocket {
 
-    /**
-     * 全局在线连接数
-     */
     private static final AtomicInteger ONLINE_COUNT = new AtomicInteger(0);
 
     /**
-     * 会话存储：username -> Sessions
      * 注意：@ServerEndpoint 是多例的，必须用 static 集合共享会话。
      * 同一用户可能打开多个浏览器标签页，允许多连接并存，避免互相踢下线后反复重连。
      */
     private static final Map<String, Set<Session>> SESSION_MAP = new ConcurrentHashMap<>();
 
-    /**
-     * 当前连接的用户名
-     */
     private String username;
 
     private static JwtUtils jwtUtils;
@@ -48,9 +40,6 @@ public class SystemMessageWebSocket {
         SystemMessageWebSocket.jwtUtils = jwtUtils;
     }
 
-    /**
-     * 连接建立成功
-     */
     @OnOpen
     public void onOpen(Session session, EndpointConfig config) {
         log.info("WebSocket 连接请求：sessionId={}, query={}", session.getId(), session.getQueryString());
@@ -87,9 +76,6 @@ public class SystemMessageWebSocket {
         }
     }
 
-    /**
-     * 连接关闭
-     */
     @OnClose
     public void onClose(Session session, CloseReason reason) {
         if (username != null) {
@@ -107,7 +93,7 @@ public class SystemMessageWebSocket {
     }
 
     /**
-     * 收到客户端消息（通常系统消息是服务端主动推送，客户端消息用于心跳保活）
+     * 系统消息是服务端主动推送，客户端消息仅用于心跳保活
      */
     @OnMessage
     public void onMessage(String message, Session session) {
@@ -121,20 +107,13 @@ public class SystemMessageWebSocket {
         }
     }
 
-    /**
-     * 异常处理
-     */
     @OnError
     public void onError(Session session, Throwable error) {
         log.error("WebSocket 异常：用户={}, 错误={}", username, error.getMessage(), error);
     }
 
     /**
-     * 发送消息给指定用户
-     *
-     * @param targetUsername 目标用户名
-     * @param message 消息内容（JSON 字符串）
-     * @return true=发送成功，false=用户不在线
+     * @return false 表示用户不在线（无可用会话）
      */
     public static boolean sendToUser(String targetUsername, String message) {
         Set<Session> sessions = SESSION_MAP.get(targetUsername);
@@ -158,10 +137,7 @@ public class SystemMessageWebSocket {
     }
 
     /**
-     * 广播消息给所有在线用户
-     *
-     * @param message 消息内容（JSON 字符串）
-     * @return 成功发送的用户数
+     * @return 成功发送的会话数
      */
     public static int broadcast(String message) {
         int successCount = 0;
@@ -180,23 +156,17 @@ public class SystemMessageWebSocket {
         return successCount;
     }
 
-    /**
-     * 获取当前在线用户数
-     */
     public static int getOnlineCount() {
         return ONLINE_COUNT.get();
     }
 
-    /**
-     * 检查指定用户是否在线
-     */
     public static boolean isOnline(String username) {
         Set<Session> sessions = SESSION_MAP.get(username);
         return sessions != null && sessions.stream().anyMatch(Session::isOpen);
     }
 
     /**
-     * 从 query 字符串提取 token（兼容 token=xxx 和 Authorization=Bearer xxx 两种格式）
+     * 兼容 token=xxx 和 Authorization=Bearer xxx 两种 query 格式
      */
     private String extractToken(String query) {
         if (query == null || query.isEmpty()) {
@@ -215,9 +185,6 @@ public class SystemMessageWebSocket {
         return null;
     }
 
-    /**
-     * 验证 token 有效性
-     */
     private boolean validateToken(String token) {
         if (token == null || token.isEmpty()) {
             return false;

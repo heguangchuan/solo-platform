@@ -6,8 +6,6 @@ import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 
 /**
- * 实时点播 / 回放 / 下载编排服务
- *
  * <h3>职责</h3>
  * <ul>
  *     <li>承接 controller 调用：start / stop</li>
@@ -20,59 +18,21 @@ import com.solo.gb28181.response.PlayResultResponse;
  */
 public interface GbPlayService {
 
-    /**
-     * 开始点播；同步阻塞等待流就绪或超时。
-     *
-     * @return 已就绪的播放地址聚合
-     */
     PlayResultResponse start(PlayStartRequest req);
 
-    /**
-     * 主动停止点播：发 BYE → closeRtpServer → 释放 SSRC → session=STOPPED
-     */
     void stop(PlayStopRequest req);
 
     // ============ 内部钩子（由 ZlmHookController / InviteResponseProcessor / ByeRequestProcessor 调用）============
 
-    /**
-     * INVITE 收到 2xx 时由 {@link com.solo.gb28181.processor.response.InviteResponseProcessor} 调用。
-     *
-     * <p>处理远端 SDP 里 {@code y=} 与本平台分配的 SSRC 不一致的情况（下级级联平台普遍自报 SSRC）：
-     * 本平台固定多端口收流、<b>不按 SSRC 过滤</b>，任意 SSRC 都能收下，因此这里只把会话记录里的
-     * SSRC 同步成远端实际在用的值，保持库内与现网一致。取舍理由见 gb28181.md ADR-025。</p>
-     *
-     * @param callId    INVITE Dialog Call-Id（按它反查会话）
-     * @param remoteSsrc 200 OK SDP 中 {@code y=} 行解析出的 SSRC；为 null 表示设备没回 y=
-     */
     void onInviteOk(String callId, String remoteSsrc);
 
-    /**
-     * ZLM hook {@code on_stream_changed regist=true}：流就绪
-     * <p>找到 INVITING 会话，置为 READY、回填播放 URL、完成等待的 future。</p>
-     */
     void onStreamReady(String app, String stream, String mediaServerId);
 
-    /**
-     * ZLM hook {@code on_stream_changed regist=false}：流断开
-     */
     void onStreamStopped(String app, String stream, String mediaServerId);
 
-    /**
-     * ZLM hook {@code on_rtp_server_timeout}：RTP 端口无人推流超时
-     */
     void onRtpServerTimeout(String streamId);
 
-    /**
-     * 收到设备主动 BYE：清扫，不再发本端 BYE
-     */
     void onDeviceBye(GbInviteSession session);
 
-    /**
-     * 自动起点播（供 autoApplyPlay 按需拉流调用，异步执行）
-     * @param deviceId   设备国标ID
-     * @param channelId  通道国标ID
-     * @param serverId   媒体服务器ID
-     */
     void autoStartPlay(String deviceId, String channelId, String serverId);
 }
-

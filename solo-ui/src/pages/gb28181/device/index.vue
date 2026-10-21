@@ -347,7 +347,8 @@ const status = ref<number | null>(null)
 const sourceFilter = ref<'__all__' | '1' | '2' | '3'>('__all__')
 const statusFilter = ref<'__all__' | '1' | '0' | '2'>('__all__')
 
-// 表头状态漏斗 ↔ 顶部状态 tab：共用 status，双向同步
+// 表头状态筛选 ↔ 顶部状态 tab 双向同步，两边共用一个 status 值
+// 改一边另一边自动跟着变，省得写两套逻辑
 watch(statusFilter, (v) => {
   const next = v === '__all__' ? null : Number(v)
   if (status.value === next) return
@@ -378,7 +379,7 @@ const fetchStatusCount = async () => {
   counts.value = { all: online + offline + unregistered, online, offline, unregistered }
 }
 
-/** 手动刷新：重拉列表（保留当前筛选）+ 状态统计 */
+// 手动刷新：重拉列表 + 状态统计，筛选条件保留
 const onRefresh = () =>
   Promise.all([resource.load(true), fetchStatusCount()])
 

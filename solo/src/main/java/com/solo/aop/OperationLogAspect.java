@@ -28,7 +28,6 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * 操作日志切面
  * 拦截 @OperationLog 注解的方法，异步写入 sys_log
  * 主流程不阻塞，日志失败仅 warn 不抛出
  */

@@ -6,8 +6,6 @@ import com.solo.gb28181.entity.GbParentPlatform;
 import java.util.List;
 
 /**
- * 级联 Catalog Response 报文体（XML）构造（ADR-023 合并版）。
- *
  * <p>本平台作为下级向上级回复 Catalog 查询时使用。与 {@link DeviceCommandXml} 分离：
  * 后者构造发往下级设备的短命令，本类构造回给上级的目录分片。</p>
  *

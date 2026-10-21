@@ -5,8 +5,6 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 国标设备报警 DTO
- *
  * <p>承载从 SIP 报警通知报文中解析出来的字段，跨 {@code AlarmNotifyMessageHandler} →
  * {@code AlarmEvent} → {@code AlarmEventListener} 三层传递。报警按当前 Sprint 决定
  * <b>不落库</b>，只在监听器里日志输出——所以这里没有对应的 MyBatis-Plus 实体映射，

@@ -19,8 +19,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * 流媒体节点健康探测
- *
  * <h3>职责</h3>
  * <p>每 10s 遍历所有 {@code media_server} 登记行，对每个 ZLM 调 {@code /index/api/version}
  * 探活，根据结果回写 MySQL {@code status / hook_alive_time} 与 Redis 负载索引：</p>
@@ -81,10 +79,6 @@ public class MediaServerHealthDetector {
         log.info("[流媒体健康探测] 实例标识已生成 instanceId={}", instanceId);
     }
 
-    /**
-     * 入口：探测一轮所有 ZLM 节点
-     * <p>由 {@code MediaScheduledTasks#probeMediaServers} 每 10s 触发一次。</p>
-     */
     public void probe() {
         if (!tryAcquireLock()) {
             log.debug("[流媒体健康探测] 抢锁失败，本轮跳过 instanceId={}", instanceId);
@@ -119,11 +113,6 @@ public class MediaServerHealthDetector {
         }
     }
 
-    /**
-     * 单节点探测：调 ZLM ping + 写回 DB 与 Redis 索引
-     *
-     * @return true=在线；false=离线（ping 失败 / 异常）
-     */
     private boolean doProbe(MediaServer server) {
         boolean alive = zlmRestClient.ping(server);
         try {

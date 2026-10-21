@@ -5,8 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * JWT 配置，对应 application.yaml 中 jwt.* 段。
- *
  * <p>字段命名走 Spring Boot RelaxedBinding：YAML 的 kebab-case
  * （如 {@code access-expiration}）会自动绑定到 camelCase 字段（{@code accessExpiration}）。</p>
  */

@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 /**
- * 级联 NOTIFY 推送的公共 fanout 逻辑。
  * <p>各 event 包的 {@code *NotifyListener} 共用：按订阅方查上级平台、订阅匹配。</p>
  */
 @Component

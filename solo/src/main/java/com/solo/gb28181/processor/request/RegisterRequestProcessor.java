@@ -3,7 +3,6 @@ package com.solo.gb28181.processor.request;
 import com.solo.gb28181.auth.DigestServerAuthenticationHelper;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
-import com.solo.gb28181.entity.GbPlatform;
 import com.solo.gb28181.event.device.DeviceOfflineEvent;
 import com.solo.gb28181.event.device.DeviceOnlineEvent;
 import com.solo.gb28181.processor.SipRequestProcessor;
@@ -29,24 +28,17 @@ import java.util.Calendar;
 import java.util.Locale;
 
 /**
- * REGISTER 请求处理器
- *
- * <p>分支：</p>
- * <ol>
- *   <li><b>无 Authorization</b> → 401 + 挑战</li>
- *   <li><b>有 Authorization & 鉴权失败</b> → 403</li>
- *   <li><b>Expires=0 & 鉴权通过</b> → 200 + offline</li>
- *   <li><b>Expires>0 & 鉴权通过</b> → 200 + online</li>
- *   <li><b>同 Call-Id 续订（如果将来支持持久化 SipTransactionInfo）</b> → 跳过挑战直接 200</li>
- * </ol>
- *
- * <p>响应要点：</p>
- * <ul>
- *   <li>带 GB-Date 头（ISO8601，部分设备依此校时）</li>
- *   <li>带原 Contact 头（按 RFC 3261）</li>
- *   <li>带原 Expires 头</li>
- *   <li>设备地址走 NAT 真实地址（Via.received/rport 兜底 socket 源）</li>
- * </ul>
+ * REGISTER 请求处理器。
+ * 处理分支：
+ * 1. 没带 Authorization → 401 发挑战（密码不为空才挑战，空密码直接放行）
+ * 2. 带了 Authorization 但鉴权失败 → 403
+ * 3. 鉴权通过 + Expires=0 → 200 + 注销下线
+ * 4. 鉴权通过 + Expires>0 → 200 + 注册上线
+ * 注意：
+ * - 响应带 GB-Date 头，部分设备靠这个校时
+ * - 响应带原 Contact 头（RFC 3261 要求）
+ * - 设备地址走 NAT 真实地址，别用 From 头里的内网 IP
+ * - 禁用名单（gb_platform.enabled=0）直接静默丢弃，不回响应
  */
 @Slf4j
 @Component
@@ -68,7 +60,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         SIPRequest request = (SIPRequest) event.getRequest();
         String deviceId = SipUtils.getUserIdFromFromHeader(request);
 
-        // 取 Expires，部分设备没带 Expires 头时用配置默认值
+        // 部分设备没带 Expires 头，取配置的默认值
         int expires = properties.getRegisterExpires();
         if (request.getExpires() != null) {
             expires = request.getExpires().getExpires();
@@ -82,11 +74,12 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
         SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request, properties.isUseSourceIpAsRemoteAddress());
         String requestAddress = remote.hostAddress();
 
-        // 黑名单拦截：gb_platform 现在是"禁用名单"——设备与下级平台默认自由注册，
-        // 只有在本表登记且 enabled=0 的国标 ID 才被拦。鉴权与本表无关（走 gb28181.password）。
-        // 命中直接静默丢弃：不回任何 SIP 响应（403 反而确认了"这个 ID 被我们识别"），
-        // 不入库、不发事件。对端按自身 SIP 重传机制处理，本平台零状态。
-        // MESSAGE 入口有同样的拦截，挡住"先注册后拉黑"的设备继续推目录/心跳。
+        // 黑名单拦截：
+        // gb_platform 现在是"禁用名单"——设备和下级平台默认自由注册，
+        // 只有在表里登记且 enabled=0 的国标ID才拦。鉴权走 gb28181.password，跟这表没关系。
+        // 命中了直接静默丢弃，啥响应都不回（回 403 反而告诉对方"这个 ID 我们认识"），
+        // 也不入库不发事件。对方自己按 SIP 重传去吧，我们这边零状态。
+        // MESSAGE 入口也有同样的拦截，防止"先注册后拉黑"的设备继续推目录/心跳。
         if (gbPlatformService.isBlocked(deviceId)) {
             log.warn("[设备注册] 命中禁用名单，静默丢弃 REGISTER: deviceId={}", deviceId);
             return;

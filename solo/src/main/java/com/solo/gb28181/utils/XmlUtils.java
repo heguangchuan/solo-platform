@@ -18,17 +18,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+
 /**
- * GB28181 MESSAGE 报文 XML 工具
- * <p>编码处理：先看报文 XML 声明的 {@code encoding}——若为中文族（GB2312/GBK/GB18030）则直接按 GB18030 解码，
- * 因为这类编码的中文字节常恰好是合法 UTF-8 序列，纯嗅探会误判为 UTF-8 而乱码（海康声明 GB18030 却被解成"韩文"即此故）。
- * 声明为 UTF-8 或无声明时，再按字节嗅探：能严格 UTF-8 解码则判 UTF-8，否则回退 GBK。
- * 这样无论设备声明与否、是否撒谎，中文都不会乱码。</p>
- * <p>包含海康设备的两个兼容补丁：</p>
- * <ol>
- *   <li>未转义的 {@code &} 字符（仅允许 {@code &lt;/&gt;/&amp;/&apos;/&quot;}）</li>
- *   <li>{@code <Address>} 字段含未转义 {@code <} 导致 XML 解析失败 → 整行删除重试</li>
- * </ol>
+ * XML 解析工具，专门对付国标设备各种千奇百怪的报文。
+ *
+ * 主要坑点：
+ *  - 编码乱七八糟：UTF-8、GB2312、GBK、GB18030 都有，海康还爱声明 GB18030 实发 GBK
+ *  - 海康的报文里 & 不转义，直接就塞进来了，dom4j 会炸
+ *  - XML 声明的 encoding 不能信，得自己嗅探
+ *
+ * 解析策略（ADR-009）：
+ *  1. 先清理裸 &（转成 &amp;，已转义的不动）
+ *  2. 解码优先级：显式 charset > 声明是 GB 族就直接用 GB18030 > 否则嗅探
+ *  3. 解码后抹掉 XML 声明里的 encoding，再丢给 dom4j
  */
 @Slf4j
 @UtilityClass
@@ -43,23 +45,21 @@ public class XmlUtils {
             "&quot;".getBytes()
     };
 
-    /** UTF-8 无法解码时的回退编码：GBK 是 GB2312 超集，覆盖更全避免丢字 */
+    // UTF-8 解不出来就回退 GBK，GBK 是 GB2312 超集，覆盖全一点
     private static final Charset FALLBACK_CHARSET = Charset.forName("GBK");
-    /** 匹配并移除 XML 声明中的 encoding="xxx"（我们已用 Reader 传入解码后的字符，声明反而会干扰 dom4j） */
+    // 把 XML 声明里的 encoding 去掉，因为我们已经用自己解码好的字符串传给 dom4j 了，声明反而会干扰
     private static final Pattern ENCODING_DECL =
             Pattern.compile("\\s+encoding\\s*=\\s*[\"'][^\"']*[\"']", Pattern.CASE_INSENSITIVE);
-    /** 从 XML 声明提取 encoding 属性值，如 {@code GB18030}、{@code UTF-8}；无声明返回 null */
+    // 从 XML 声明里把 encoding 值抠出来，没声明就返回 null
     private static final Pattern ENCODING_VALUE =
             Pattern.compile("encoding\\s*=\\s*[\"']([^\"']+)[\"']", Pattern.CASE_INSENSITIVE);
 
-    /** 从字节数组解析 XML，返回根元素；编码按 {@link #resolveCharset} 判定（中文族声明优先，否则嗅探）。失败返回 null */
+    // 字节数组解析 XML，返回根元素。编码自己判定，解析失败返回 null
     public static Element parseRoot(byte[] content) {
         return parseRoot(content, null);
     }
 
-    /**
-     * @param charset 显式指定编码（最高优先级）；传 null 则按声明/嗅探判定，见 {@link #resolveCharset}。
-     */
+    // charset 传了就用指定编码（最高优先级），传 null 就自己嗅探
     public static Element parseRoot(byte[] content, String charset) {
         if (content == null || content.length == 0) return null;
         byte[] sanitized = stripBareAmpersand(content);

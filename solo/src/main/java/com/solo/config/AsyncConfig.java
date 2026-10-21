@@ -7,9 +7,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.ThreadPoolExecutor;
 
-/**
- * 异步任务配置
- */
 @Configuration
 @EnableAsync
 public class AsyncConfig {
@@ -31,9 +28,6 @@ public class AsyncConfig {
         return executor;
     }
 
-    /**
-     * AI 长耗时任务线程池
-     */
     @Bean("aiTaskExecutor")
     public ThreadPoolTaskExecutor aiTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();

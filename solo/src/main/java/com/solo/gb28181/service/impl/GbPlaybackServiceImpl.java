@@ -48,8 +48,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 历史回放编排实现
- *
  * <h3>关键流程</h3>
  *
  * <p><b>RecordInfo 查询</b>：</p>

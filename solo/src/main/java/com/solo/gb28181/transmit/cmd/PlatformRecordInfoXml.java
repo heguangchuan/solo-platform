@@ -6,8 +6,6 @@ import com.solo.gb28181.response.RecordItemResponse;
 import java.util.List;
 
 /**
- * 级联 RecordInfo Response 报文体（XML）构造（ADR-031 落地）。
- *
  * <p>本平台作为下级，收到上级 {@code <Query><CmdType>RecordInfo</CmdType>...</Query>}
  * 后回包使用。数据源：本平台不存录像，收到查询后主动 {@code SipCommander.queryRecordInfo}
  * 转发给下属设备，把设备响应按相同字段集转回上级（SN 改为外层 SN，详见

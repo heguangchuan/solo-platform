@@ -3,12 +3,6 @@ package com.solo.gb28181.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-/**
- * 实时点播开始请求
- * <p>对应 {@code POST /api/gb28181/play/start}。</p>
- * <p>点播提交后立即返回带 streamId 的 INVITING 状态，
- * 前端按 {@code GET /xxx/status} 轮询到 READY 取播放地址。</p>
- */
 @Schema(description = "实时点播开始请求")
 @Data
 public class PlayStartRequest {

@@ -5,8 +5,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 流媒体（ZLMediaKit）相关配置，对应 application.yaml 中 media.* 段。
- *
  * <p>注意 ZLM 是独立部署的（Docker），本服务通过两条通道与之交互：</p>
  * <ul>
  *     <li>ZLM REST API（出站）：openRtpServer / closeRtpServer / getMediaList 等</li>
@@ -71,9 +69,6 @@ public class MediaProperties {
      */
     @Data
     public static class DefaultServer {
-        /**
-         * 是否在启动时自动 upsert 默认节点
-         */
         private boolean enabled = true;
         private String serverId = "zlmediakit-local";
         private String name = "默认节点";

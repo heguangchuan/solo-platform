@@ -12,9 +12,6 @@ public interface SysDictDataService extends IService<SysDictData> {
 
     Page<SysDictData> pageQuery(DictDataPageRequest req);
 
-    /**
-     * 按字典类型查询启用的字典项（前端下拉选用）
-     */
     List<SysDictData> listByType(String dictType);
 
     void createDictData(DictDataRequest request);
