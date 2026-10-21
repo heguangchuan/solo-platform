@@ -432,6 +432,17 @@
             class="menu-popover absolute bottom-full mb-2 w-[260px] rounded-md border border-white/10 bg-neutral-900/95 p-3 text-sm shadow-xl backdrop-blur-sm"
             :class="ptzMenuOpen ? 'left-[260px]' : 'left-0'"
           >
+            <div class="mb-2 flex items-center justify-between">
+              <span class="text-xs font-medium text-white/70">预置位</span>
+              <button
+                title="从设备同步"
+                class="grid h-6 w-6 place-items-center rounded text-white/50 transition-colors hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-40"
+                :disabled="syncPresetBusy"
+                @click="onSyncPresets"
+              >
+                <RotateCw class="h-3.5 w-3.5" :class="{ 'animate-spin': syncPresetBusy }" />
+              </button>
+            </div>
             <ul class="flex max-h-60 flex-col gap-0.5 overflow-y-auto pr-0.5">
               <li
                 v-for="slot in presetSlots"
@@ -981,6 +992,8 @@ const emit = defineEmits<{
   'preset-delete': [id: string, presetId: number]
   /** 调用预置位（云台转到该视角） */
   'preset-call': [id: string]
+  /** 从设备同步预置位 */
+  'preset-sync': []
   /** 新建巡航路线（含初始巡航点） */
   'cruise-save': [
     data: {
@@ -1530,6 +1543,18 @@ const presetSlots = computed(() => {
 
 /** 进行中的预置位动作（sN=设置中、dN=删除中），避免重复点击 */
 const presetBusyId = ref('')
+/** 同步预置位是否进行中 */
+const syncPresetBusy = ref(false)
+
+const onSyncPresets = () => {
+  if (syncPresetBusy.value) return
+  syncPresetBusy.value = true
+  emit('preset-sync')
+  // 同步是异步的，按钮转圈至少 1.5 秒让用户感知到操作
+  setTimeout(() => {
+    syncPresetBusy.value = false
+  }, 1500)
+}
 
 const onSetPreset = (presetId: number) => {
   if (presetBusyId.value) return

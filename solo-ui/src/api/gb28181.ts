@@ -247,6 +247,10 @@ export const deletePtzPresetApi = (id: string) =>
 export const callPtzPresetApi = (id: string) =>
   post<void>(`/api/gb28181/ptz/preset/call/${id}`)
 
+/** 从设备同步预置位（以设备端为准全量覆盖） */
+export const syncPtzPresetApi = (channelDbId: string) =>
+  post<void>(`/api/gb28181/ptz/preset/sync/${channelDbId}`)
+
 /* ----------------------- 云台巡航 ----------------------- */
 
 /** 按通道主键列出巡航路线 */

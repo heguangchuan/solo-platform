@@ -4,6 +4,7 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.sip.SipSender;
+import com.solo.gb28181.support.PresetQueryHolder;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -11,9 +12,7 @@ import org.springframework.stereotype.Component;
 
 import javax.sip.ResponseEvent;
 import javax.sip.header.CallIdHeader;
-import javax.sip.header.ToHeader;
 import javax.sip.message.Request;
-import java.text.ParseException;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
@@ -89,6 +88,24 @@ public class SipCommander {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildQuery("Catalog", sn, device.getDeviceId(), charsetOf(device));
         send(device, xml, "Catalog", sn);
+    }
+
+    /**
+     * 查询通道预置位（Query/Preset）
+     * <p>设备通过 Response/Preset 报文返回预置位列表，由 PresetResponseMessageHandler 处理并落库。</p>
+     *
+     * @param device      目标设备
+     * @param channelId   通道国标 ID
+     * @param channelDbId 通道数据库主键（用于响应落库时关联）
+     * @return 本次查询的 SN
+     */
+    public int queryPreset(GbDevice device, String channelId, Long channelDbId) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildPresetQuery(sn, channelId, charsetOf(device));
+        // 注册 SN → channelDbId 映射，响应回来时用
+        PresetQueryHolder.register(sn, channelDbId);
+        send(device, xml, "Preset", sn);
+        return sn;
     }
 
     /**

@@ -59,4 +59,14 @@ public class GbPtzPresetController {
         presetService.call(id);
         return Result.success();
     }
+
+    @Operation(summary = "从设备同步预置位（以设备端为准全量覆盖）")
+    @OperationLog(module = "云台预置位", type = BusinessType.OTHER, description = "从设备同步预置位")
+    @Parameter(name = "channelDbId", description = "通道主键 ID", in = ParameterIn.PATH)
+    @PostMapping("/sync/{channelDbId}")
+    @RequirePermission({"gb28181:ptz:preset"})
+    public Result<Void> sync(@PathVariable Long channelDbId) {
+        presetService.syncFromDevice(channelDbId);
+        return Result.success();
+    }
 }

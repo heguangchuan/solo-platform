@@ -24,6 +24,7 @@ import {
   savePtzPresetApi,
   deletePtzPresetApi,
   callPtzPresetApi,
+  syncPtzPresetApi,
   listPtzCruiseApi,
   getPtzCruiseApi,
   savePtzCruiseApi,
@@ -308,6 +309,19 @@ const onPresetDelete = async (id: string) => {
   }
 }
 
+const onPresetSync = async () => {
+  if (!props.channel?.id) return
+  try {
+    await syncPtzPresetApi(props.channel.id)
+    // 同步是异步的，等 2 秒后刷新列表（设备响应一般 1~2 秒内回）
+    setTimeout(async () => {
+      await fetchPresets()
+    }, 2000)
+  } catch {
+    /* 忽略 */
+  }
+}
+
 /* ---------------- 巡航 ---------------- */
 
 const cruises = ref<GbPtzCruise[]>([])
@@ -476,6 +490,7 @@ const onCruiseStop = async (id: string) => {
             @preset-save="onPresetSave"
             @preset-delete="onPresetDelete"
             @preset-call="onPresetCall"
+            @preset-sync="onPresetSync"
             @cruise-select="onCruiseSelect"
             @cruise-save="onCruiseSave"
             @cruise-update="onCruiseUpdate"

@@ -104,6 +104,26 @@ public final class DeviceCommandXml {
     }
 
     /**
+     * 构造预置位查询 Query 报文（Query/Preset）
+     *
+     * <p>设备返回 Response/Preset，其中 PresetList/Item 列出设备端所有预置位。</p>
+     *
+     * @param sn        命令序号（响应回来时按 SN 关联）
+     * @param channelId 通道国标 ID（预置位按通道查询）
+     * @param charset   设备字符集
+     */
+    public static String buildPresetQuery(int sn, String channelId, String charset) {
+        StringBuilder sb = new StringBuilder(260);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Query>\r\n");
+        sb.append("<CmdType>Preset</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(channelId).append("</DeviceID>\r\n");
+        sb.append("</Query>\r\n");
+        return sb.toString();
+    }
+
+    /**
      * 构造 SUBSCRIBE XML 报文（Catalog / MobilePosition / Alarm 共用）
      */
     public static String buildSubscribe(String cmdType, int sn, String deviceId, int expires, String charset) {
