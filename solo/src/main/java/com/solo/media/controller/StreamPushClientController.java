@@ -1,7 +1,9 @@
 package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.media.entity.StreamPushClient;
@@ -36,6 +38,7 @@ public class StreamPushClientController {
     }
 
     @Operation(summary = "新增推流方")
+    @OperationLog(module = "推流方鉴权管理", type = BusinessType.ADD, description = "新增推流方")
     @PostMapping("/save")
     @RequirePermission({"media:stream-push-client:add"})
     public Result<StreamPushClient> save(@RequestBody StreamPushClient input) {
@@ -43,6 +46,7 @@ public class StreamPushClientController {
     }
 
     @Operation(summary = "更新推流方")
+    @OperationLog(module = "推流方鉴权管理", type = BusinessType.EDIT, description = "更新推流方")
     @PostMapping("/update")
     @RequirePermission({"media:stream-push-client:edit"})
     public Result<Void> update(@RequestBody StreamPushClient input) {
@@ -51,6 +55,7 @@ public class StreamPushClientController {
     }
 
     @Operation(summary = "重置 token")
+    @OperationLog(module = "推流方鉴权管理", type = BusinessType.EDIT, description = "重置推流方token")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/reset-token")
     @RequirePermission({"media:stream-push-client:edit"})
@@ -59,6 +64,7 @@ public class StreamPushClientController {
     }
 
     @Operation(summary = "删除推流方")
+    @OperationLog(module = "推流方鉴权管理", type = BusinessType.DELETE, description = "删除推流方")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:stream-push-client:delete"})
