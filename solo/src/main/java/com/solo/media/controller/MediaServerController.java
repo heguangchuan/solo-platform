@@ -1,7 +1,9 @@
 package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -104,6 +106,7 @@ public class MediaServerController {
     }
 
     @Operation(summary = "新增 / 更新节点")
+    @OperationLog(module = "流媒体节点管理", type = BusinessType.EDIT, description = "保存流媒体节点")
     @PostMapping("/save")
     @RequirePermission({"media:server:save"})
     public Result<Void> save(@RequestBody MediaServer server) {
@@ -118,6 +121,7 @@ public class MediaServerController {
     }
 
     @Operation(summary = "删除节点")
+    @OperationLog(module = "流媒体节点管理", type = BusinessType.DELETE, description = "删除流媒体节点")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
     @RequirePermission({"media:server:delete"})
