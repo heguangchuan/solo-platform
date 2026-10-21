@@ -1,7 +1,9 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -77,6 +79,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "手动新增设备")
+    @OperationLog(module = "国标设备管理", type = BusinessType.ADD, description = "手动新增设备")
     @PostMapping("/save")
     @RequirePermission({"gb28181:device:add"})
     public Result<Void> save(@RequestBody GbDeviceCreateWithChannelsRequest request) {
@@ -85,6 +88,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "手动编辑设备资料")
+    @OperationLog(module = "国标设备管理", type = BusinessType.EDIT, description = "手动编辑设备资料")
     @PostMapping("/update")
     @RequirePermission({"gb28181:device:edit"})
     public Result<Void> update(@RequestBody GbDevice device) {
@@ -96,6 +100,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "手动触发设备信息 + 通道目录同步")
+    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "触发设备目录同步")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @PostMapping("/{deviceId}/sync")
     @RequirePermission({"gb28181:device:sync"})
@@ -135,6 +140,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "批量探测设备存活")
+    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "批量探测设备存活")
     @PostMapping("/detect")
     @RequirePermission({"gb28181:device:sync"})
     public Result<GbDeviceDetectResponse> detect(@RequestBody GbDeviceDetectRequest request) {
@@ -142,6 +148,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "删除设备记录，连同其名下所有通道")
+    @OperationLog(module = "国标设备管理", type = BusinessType.DELETE, description = "删除设备")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{deviceId}")
     @RequirePermission({"gb28181:device:delete"})
@@ -156,6 +163,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "批量删除设备记录，连同每台设备名下所有通道")
+    @OperationLog(module = "国标设备管理", type = BusinessType.DELETE, description = "批量删除设备")
     @PostMapping("/batch/delete")
     @RequirePermission({"gb28181:device:delete"})
     @Transactional
