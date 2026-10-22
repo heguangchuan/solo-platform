@@ -332,7 +332,7 @@ CREATE TABLE gb_record_file
     duration      double                DEFAULT NULL COMMENT '时长(秒)',
     file_size     bigint                DEFAULT NULL COMMENT '文件大小(字节)',
     object_name   varchar(500)          DEFAULT NULL COMMENT 'S3对象名(gb28181/record/...mp4)',
-    thumb_object  varchar(500)          DEFAULT NULL COMMENT '缩略图S3对象名(截图抓拍，预留)',
+    thumb_object_name varchar(500)        DEFAULT NULL COMMENT '缩略图S3对象名(截图抓拍，预留)',
     status        tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0上传中 1成功 2失败',
     fail_reason   varchar(500)          DEFAULT NULL COMMENT '最近一次失败原因',
     retry_count   int          NOT NULL DEFAULT 0 COMMENT '已重试次数',
