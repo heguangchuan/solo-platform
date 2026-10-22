@@ -46,25 +46,23 @@ public class ZlmRestClient {
         if (actualPort <= 0) {
             throw new ServiceException("ZLM openRtpServer 未返回有效端口: " + resp);
         }
-        log.info("[流媒体] openRtpServer 结果:成功 节点:{} 流ID:{} 端口:{}（不按 SSRC 过滤）",
+        log.info("[流媒体-收流端口] openRtpServer 结果:成功 节点:{} 流ID:{} 端口:{}（不按 SSRC 过滤）",
                 server.getServerId(), streamId, actualPort);
         return actualPort;
     }
 
 
-    public boolean closeRtpServer(MediaServer server, String streamId) {
+    public void closeRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         try {
             JsonNode resp = post(server, "closeRtpServer", params);
             boolean hit = resp.path("hit").asInt(0) == 1;
-            log.info("[流媒体] closeRtpServer 节点:{} 流ID:{} 命中:{}",
+            log.info("[流媒体-收流端口] closeRtpServer 节点:{} 流ID:{} 命中:{}",
                     server.getServerId(), streamId, hit);
-            return hit;
         } catch (ServiceException e) {
-            log.warn("[流媒体] closeRtpServer 失败(忽略) 节点:{} 流ID:{} 错误:{}",
+            log.warn("[流媒体-收流端口] closeRtpServer 失败(忽略) 节点:{} 流ID:{} 错误:{}",
                     server.getServerId(), streamId, e.getMessage(), e);
-            return false;
         }
     }
 
@@ -91,7 +89,7 @@ public class ZlmRestClient {
             data.forEach(out::add);
             return out;
         } catch (ServiceException e) {
-            log.warn("[流媒体] getMediaList 失败 节点:{} 错误:{}", server.getServerId(), e.getMessage(), e);
+            log.warn("[流媒体-流列表] getMediaList 失败 节点:{} 错误:{}", server.getServerId(), e.getMessage(), e);
             return List.of();
         }
     }
@@ -105,10 +103,10 @@ public class ZlmRestClient {
         try {
             JsonNode resp = post(server, "close_streams", params);
             int count = resp.path("count_hit").asInt(0);
-            log.info("[流媒体] close_streams 结果:成功 节点:{} 应用:{} 流ID:{} 命中数:{}",
+            log.info("[流媒体-关流] close_streams 结果:成功 节点:{} 应用:{} 流ID:{} 命中数:{}",
                     server.getServerId(), app, stream, count);
         } catch (ServiceException e) {
-            log.warn("[流媒体] close_streams 失败 节点:{} 应用:{} 流ID:{} 错误:{}",
+            log.warn("[流媒体-关流] close_streams 失败 节点:{} 应用:{} 流ID:{} 错误:{}",
                     server.getServerId(), app, stream, e.getMessage(), e);
         }
     }
@@ -125,18 +123,16 @@ public class ZlmRestClient {
     }
 
 
-    public boolean pauseRtpServer(MediaServer server, String streamId) {
+    public void pauseRtpServer(MediaServer server, String streamId) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("stream_id", streamId);
         try {
             JsonNode resp = post(server, "pauseRtpServer", params);
-            log.info("[流媒体] pauseRtpServer 结果:成功 节点:{} 流ID:{} 命中:{}",
+            log.info("[流媒体-收流端口] pauseRtpServer 结果:成功 节点:{} 流ID:{} 命中:{}",
                     server.getServerId(), streamId, resp.path("hit").asInt(0));
-            return true;
         } catch (Exception e) {
-            log.warn("[流媒体] pauseRtpServer 失败 节点:{} 流ID:{} 错误:{}",
+            log.warn("[流媒体-收流端口] pauseRtpServer 失败 节点:{} 流ID:{} 错误:{}",
                     server.getServerId(), streamId, e.getMessage(), e);
-            return false;
         }
     }
 
@@ -146,10 +142,10 @@ public class ZlmRestClient {
         params.put("stream_id", streamId);
         try {
             JsonNode resp = post(server, "resumeRtpServer", params);
-            log.info("[流媒体] resumeRtpServer 结果:成功 节点:{} 流ID:{} 命中:{}",
+            log.info("[流媒体-收流端口] resumeRtpServer 结果:成功 节点:{} 流ID:{} 命中:{}",
                     server.getServerId(), streamId, resp.path("hit").asInt(0));
         } catch (Exception e) {
-            log.warn("[流媒体] resumeRtpServer 失败 节点:{} 流ID:{} 错误:{}",
+            log.warn("[流媒体-收流端口] resumeRtpServer 失败 节点:{} 流ID:{} 错误:{}",
                     server.getServerId(), streamId, e.getMessage(), e);
         }
     }
@@ -177,7 +173,7 @@ public class ZlmRestClient {
         if (key == null || key.isBlank()) {
             throw new ServiceException("ZLM addStreamProxy 未返回 key: " + resp);
         }
-        log.info("[流媒体] addStreamProxy 结果:成功 节点:{} 应用:{} 流ID:{} 传输:{} key:{}",
+        log.info("[流媒体-拉流代理] addStreamProxy 结果:成功 节点:{} 应用:{} 流ID:{} 传输:{} key:{}",
                 server.getServerId(), app, stream, rtpType, key);
         return key;
     }
@@ -192,10 +188,10 @@ public class ZlmRestClient {
         try {
             JsonNode resp = post(server, "delStreamProxy", params);
             boolean flag = resp.path("data").path("flag").asBoolean(false);
-            log.info("[流媒体] delStreamProxy 节点:{} key:{} 成功:{}",
+            log.info("[流媒体-拉流代理] delStreamProxy 节点:{} key:{} 成功:{}",
                     server.getServerId(), key, flag);
         } catch (ServiceException e) {
-            log.warn("[流媒体] delStreamProxy 失败(忽略) 节点:{} key:{} 错误:{}",
+            log.warn("[流媒体-拉流代理] delStreamProxy 失败(忽略) 节点:{} key:{} 错误:{}",
                     server.getServerId(), key, e.getMessage(), e);
         }
     }
@@ -232,7 +228,7 @@ public class ZlmRestClient {
         }
         JsonNode resp = post(server, "startSendRtp", params);
         int localPort = resp.path("local_port").asInt(0);
-        log.info("[流媒体] startSendRtp 结果:成功 节点:{} 应用:{} 流ID:{} SSRC:{} 目的:{}:{} UDP:{} 本地端口:{}",
+        log.info("[流媒体-级联推流] startSendRtp 结果:成功 节点:{} 应用:{} 流ID:{} SSRC:{} 目的:{}:{} UDP:{} 本地端口:{}",
                 server.getServerId(), app, stream, ssrc, dstIp, dstPort, udp, localPort);
         return localPort;
     }
@@ -256,15 +252,15 @@ public class ZlmRestClient {
         if (localPort <= 0) {
             throw new ServiceException("ZLM startSendRtpPassive 未返回有效端口: " + resp);
         }
-        log.info("[流媒体] startSendRtpPassive 结果:成功 节点:{} 应用:{} 流ID:{} SSRC:{} 本地端口:{}",
+        log.info("[流媒体-级联推流] startSendRtpPassive 结果:成功 节点:{} 应用:{} 流ID:{} SSRC:{} 本地端口:{}",
                 server.getServerId(), app, stream, ssrc, localPort);
         return localPort;
     }
 
     /**
-     * @return true=确实停了；false=已不存在/异常（忽略）
+     *
      */
-    public boolean stopSendRtp(MediaServer server, String app, String stream, String ssrc) {
+    public void stopSendRtp(MediaServer server, String app, String stream, String ssrc) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vhost", "__defaultVhost__");
         params.put("app", app);
@@ -276,11 +272,9 @@ public class ZlmRestClient {
             post(server, "stopSendRtp", params);
             log.info("[流媒体] stopSendRtp 结果:成功 节点:{} 应用:{} 流ID:{} SSRC:{}",
                     server.getServerId(), app, stream, ssrc);
-            return true;
         } catch (ServiceException e) {
             log.warn("[流媒体] stopSendRtp 失败(忽略) 节点:{} 应用:{} 流ID:{} 错误:{}",
                     server.getServerId(), app, stream, e.getMessage(), e);
-            return false;
         }
     }
 
@@ -309,11 +303,11 @@ public class ZlmRestClient {
         params.put("max_second", String.valueOf(maxSecond));
         try {
             post(server, "startRecord", params);
-            log.info("[流媒体] startRecord ok 节点:{} 应用:{} 流:{} 周期:{} 最长:{}s",
+            log.info("[流媒体开始录制] 成功 节点:{} 应用:{} 流:{} 周期:{} 最长:{}s",
                     server.getServerId(), app, stream, period, maxSecond);
             return true;
         } catch (ServiceException e) {
-            log.warn("[流媒体] startRecord 失败 节点:{} 应用:{} 流:{} 原因:{}",
+            log.warn("[流媒体开始录制] 失败 节点:{} 应用:{} 流:{} 原因:{}",
                     server.getServerId(), app, stream, e.getMessage());
             return false;
         }
