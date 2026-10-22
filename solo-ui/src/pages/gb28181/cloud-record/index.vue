@@ -1,6 +1,6 @@
 <template>
-  <div class="flex h-full flex-col overflow-hidden p-3">
-    <div class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
+  <div class="flex h-full gap-3 overflow-hidden p-3">
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <!-- 工具栏 -->
       <div class="flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
         <span class="text-[13px] font-medium">云端录像中心</span>
@@ -77,7 +77,6 @@
               <th class="w-24 px-3 py-2 font-normal">时长</th>
               <th class="w-24 px-3 py-2 font-normal">大小</th>
               <th class="w-24 px-3 py-2 font-normal">状态</th>
-              <th class="w-28 px-3 py-2 font-normal">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -85,11 +84,21 @@
               v-for="(f, i) in filteredItems"
               :key="f.id"
               :data-row="i"
-              class="group"
-              :class="cursor === i ? 'bg-muted/50' : 'hover:bg-muted/30'"
-              @click="cursor = i"
+              class="group cursor-pointer"
+              :class="
+                selected?.id === f.id
+                  ? 'bg-primary/[0.07]'
+                  : cursor === i
+                    ? 'bg-muted/50'
+                    : 'hover:bg-muted/30'
+              "
+              @click="onRowClick(f, i)"
             >
-              <td class="px-3 py-2">
+              <td class="relative px-3 py-2">
+                <span
+                  v-if="selected?.id === f.id"
+                  class="absolute inset-y-0 left-0 w-0.5 bg-primary"
+                />
                 <div class="truncate font-mono text-xs">{{ f.deviceId || '—' }}</div>
                 <div class="truncate font-mono text-[11px] text-muted-foreground">
                   {{ f.channelId || '—' }}
@@ -114,34 +123,6 @@
                 >
                   {{ statusView(f.status).text }}
                 </span>
-              </td>
-              <td class="px-3 py-2">
-                <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    v-if="f.status === 1"
-                    class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="播放"
-                    @click.stop="onPlay(f)"
-                  >
-                    <Play class="size-3.5" />
-                  </button>
-                  <button
-                    v-if="f.status === 1"
-                    class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="下载"
-                    @click.stop="onDownload(f)"
-                  >
-                    <Download class="size-3.5" />
-                  </button>
-                  <button
-                    v-access="PERM.GB_RECORD_DELETE"
-                    class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-red-400"
-                    title="删除"
-                    @click.stop="onDelete(f)"
-                  >
-                    <Trash2 class="size-3.5" />
-                  </button>
-                </div>
               </td>
             </tr>
           </tbody>
@@ -178,40 +159,27 @@
         class="flex h-8 shrink-0 items-center gap-3 border-t border-border px-3 text-[11px] text-muted-foreground/70"
       >
         <span><kbd>J</kbd><kbd>K</kbd> 移动</span>
+        <span><kbd>Enter</kbd> 查看</span>
         <div class="flex-1" />
         <span>共 {{ resource.total.value }} 条录像</span>
       </div>
     </div>
 
-    <!-- 播放弹窗 -->
-    <Dialog v-model:open="playOpen">
-      <DialogContent class="sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle class="text-base">云端录像回放</DialogTitle>
-          <DialogDescription />
-        </DialogHeader>
-        <div v-if="playRow" class="space-y-3">
-          <div class="space-y-1 font-mono text-xs text-muted-foreground">
-            <div class="truncate">{{ playRow.deviceId }} / {{ playRow.channelId }}</div>
-            <div>{{ playRow.startTime }} ~ {{ playRow.endTime }}</div>
-          </div>
-          <div v-if="playError" class="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-            {{ playError }}
-          </div>
-          <div class="relative grid min-h-[240px] place-items-center overflow-hidden rounded-md bg-black">
-            <IconLoader2 v-if="playLoading" class="size-6 animate-spin text-neutral-400" />
-            <video
-              v-else-if="playUrl"
-              :src="playUrl"
-              controls
-              autoplay
-              class="max-h-[480px] w-full"
-            />
-          </div>
-          <div class="text-xs text-muted-foreground">播放地址为 S3 预签名链接，1 小时内有效。</div>
+    <!-- 右侧：检视器（回放 / 下载 / 元数据 / 删除） -->
+    <Transition name="inspector">
+      <aside
+        v-if="selected"
+        class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+      >
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <GbCloudRecordInspector
+            :file="selected"
+            @close="onCloseInspector"
+            @deleted="onDeleted"
+          />
         </div>
-      </DialogContent>
-    </Dialog>
+      </aside>
+    </Transition>
 
     <!-- 手动录制弹窗（开始） -->
     <Dialog v-model:open="startOpen">
@@ -223,8 +191,8 @@
         <div class="space-y-3">
           <div class="space-y-1.5">
             <Label>设备</Label>
-            <div class="h-9 w-full rounded-md border border-border px-1">
-              <GbDeviceSelect v-model="manual.deviceId" class="w-full" />
+            <div class="device-select h-9 w-full rounded-md border border-border px-1">
+              <GbDeviceSelect v-model="manual.deviceId" />
             </div>
           </div>
           <div class="space-y-1.5">
@@ -247,12 +215,15 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
               <Label>收流模式</Label>
-              <Select v-model="manual.transport">
+              <Select
+                :model-value="manual.transport || '__default__'"
+                @update:model-value="(v: string) => (manual.transport = v === '__default__' ? '' : v)"
+              >
                 <RawSelectTrigger class="h-9 w-full px-2 text-[13px]">
                   <SelectValue placeholder="随设备" />
                 </RawSelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">随设备</SelectItem>
+                  <SelectItem value="__default__">随设备</SelectItem>
                   <SelectItem value="UDP">UDP</SelectItem>
                   <SelectItem value="TCP-passive">TCP 被动</SelectItem>
                   <SelectItem value="TCP-active">TCP 主动</SelectItem>
@@ -261,12 +232,15 @@
             </div>
             <div class="space-y-1.5">
               <Label>码流</Label>
-              <Select v-model="manual.streamNumber">
+              <Select
+                :model-value="manual.streamNumber || '__default__'"
+                @update:model-value="(v: string) => (manual.streamNumber = v === '__default__' ? '' : v)"
+              >
                 <RawSelectTrigger class="h-9 w-full px-2 text-[13px]">
                   <SelectValue placeholder="主码流" />
                 </RawSelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">主码流</SelectItem>
+                  <SelectItem value="__default__">主码流</SelectItem>
                   <SelectItem value="stream:1">子码流</SelectItem>
                 </SelectContent>
               </Select>
@@ -314,12 +288,11 @@
 /**
  * 云端录像中心
  * - 分页查询 S3 上的录像文件（无限滚动）
- * - 成功文件可在线播放 / 下载（预签名地址，1 小时有效）
- * - 手动录制：开始后本地留存 streamId，同页可停止
+ * - 行点击打开右侧 Inspector：在线回放 / 下载预签名地址 / 元数据 / 删除
+ * - 手动录制是即时操作流，保留开始 / 录制中两个弹窗；本地留存 streamId，同页可停止
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { IconLoader2, IconMovie, IconX, IconCircle } from '@tabler/icons-vue'
-import { Play, Download, Trash2 } from 'lucide-vue-next'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Label } from '@/components/ui/label'
@@ -334,14 +307,12 @@ import {
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
+import GbCloudRecordInspector from '@/features/gb/GbCloudRecordInspector.vue'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
-import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import {
   getCloudRecordPageApi,
-  getCloudRecordUrlApi,
-  deleteCloudRecordApi,
   startCloudRecordApi,
   stopCloudRecordApi,
   getGbDeviceChannelPageApi,
@@ -410,6 +381,23 @@ watch(deviceIdQ, () => {
 })
 watch([startTimeQ, endTimeQ], triggerSearch)
 
+/* ---------------- 检视器 ---------------- */
+const selected = ref<GbRecordFile | null>(null)
+
+const onRowClick = (f: GbRecordFile, i: number) => {
+  cursor.value = i
+  selected.value = f
+}
+
+const onCloseInspector = () => {
+  selected.value = null
+}
+
+const onDeleted = (f: GbRecordFile) => {
+  resource.removeWhere((item) => item.id === f.id)
+  selected.value = null
+}
+
 /* ---------------- 展示辅助 ---------------- */
 const statusView = (status: number) => {
   if (status === 1) return { text: '上传成功', cls: 'border-transparent bg-green-50 text-green-600' }
@@ -431,60 +419,6 @@ function fmtSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${bytes} B`
-}
-
-/* ---------------- 播放 / 下载 / 删除 ---------------- */
-const playOpen = ref(false)
-const playRow = ref<GbRecordFile | null>(null)
-const playUrl = ref('')
-const playLoading = ref(false)
-const playError = ref('')
-
-async function resolveUrl(f: GbRecordFile) {
-  const { data } = await getCloudRecordUrlApi(f.id)
-  return data
-}
-
-const onPlay = async (f: GbRecordFile) => {
-  playRow.value = f
-  playUrl.value = ''
-  playError.value = ''
-  playLoading.value = true
-  playOpen.value = true
-  try {
-    playUrl.value = await resolveUrl(f)
-  } catch (e) {
-    playError.value = e instanceof Error ? e.message : String(e)
-  } finally {
-    playLoading.value = false
-  }
-}
-
-const onDownload = async (f: GbRecordFile) => {
-  try {
-    const url = await resolveUrl(f)
-    // 预签名 URL 带 query 参数，直接交给浏览器下载
-    const a = document.createElement('a')
-    a.href = url
-    a.download = ''
-    a.target = '_blank'
-    a.click()
-  } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
-  }
-}
-
-const onDelete = async (f: GbRecordFile) => {
-  const ok = await confirm({
-    title: '确定删除该录像文件吗？',
-    description: '云端存储对象会一并删除，删除后不可恢复。',
-    confirmText: '删除',
-    danger: true,
-  })
-  if (!ok) return
-  await deleteCloudRecordApi(f.id)
-  toast.success('删除成功')
-  resource.removeWhere((item) => item.id === f.id)
 }
 
 /* ---------------- 手动录制 ---------------- */
@@ -624,6 +558,11 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       cursor.value = Math.max(0, cursor.value - 1)
       scrollCursorIntoView()
       break
+    case 'Enter':
+      // 检视器或弹窗打开时不抢占回车
+      if (selected.value || startOpen.value || recordingOpen.value) return
+      if (list[cursor.value]) onRowClick(list[cursor.value], cursor.value)
+      break
   }
 }
 
@@ -650,6 +589,24 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.inspector-enter-active,
+.inspector-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+.inspector-enter-from,
+.inspector-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
+}
+
+/* GbDeviceSelect 内部 trigger 是定宽按钮，弹窗内拉通 */
+.device-select :deep(button) {
+  width: 100%;
+  height: 2rem;
+}
+
 kbd {
   display: inline-block;
   border: 1px solid var(--border);
