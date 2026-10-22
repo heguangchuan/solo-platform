@@ -148,6 +148,17 @@ export const PERM = {
   GB_PLATFORM_ADD: 'gb28181:platform:add',
   GB_PLATFORM_EDIT: 'gb28181:platform:edit',
   GB_PLATFORM_DELETE: 'gb28181:platform:delete',
+  // 云端录像
+  GB_CLOUD_RECORD: 'gb28181:cloud-record',
+  GB_RECORD_LIST: 'gb28181:record:list',
+  GB_RECORD_CONTROL: 'gb28181:record:control',
+  GB_RECORD_DELETE: 'gb28181:record:delete',
+  // 录像计划
+  GB_RECORD_PLAN: 'gb28181:record-plan',
+  GB_RECORD_PLAN_VIEW: 'gb28181:record:plan',
+  GB_RECORD_PLAN_ADD: 'gb28181:record:plan:add',
+  GB_RECORD_PLAN_EDIT: 'gb28181:record:plan:edit',
+  GB_RECORD_PLAN_DELETE: 'gb28181:record:plan:delete',
 
   // ===== ONVIF 管理 onvif =====
   ONVIF: 'onvif',

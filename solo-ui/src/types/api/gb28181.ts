@@ -614,3 +614,61 @@ export interface GbPlatformPageRequest extends PageRequest {
   name?: string
   enabled?: number
 }
+
+/* ----------------------- 云端录像中心 ----------------------- */
+
+/** 云端录像文件视图（status 0上传中 1成功 2失败） */
+export interface GbRecordFile {
+  id: string
+  deviceId?: string
+  channelId?: string
+  startTime?: string
+  endTime?: string
+  /** 时长（秒），上传中的文件可能为空 */
+  duration?: number | null
+  /** 文件大小（字节） */
+  fileSize?: number | null
+  status: number
+  createTime?: string
+}
+
+/** 录像文件分页查询参数（注意后端分页字段是 size，不是 pageSize） */
+export interface GbRecordFilePageRequest extends PageRequest {
+  deviceId?: string
+  channelId?: string
+  /** yyyy-MM-dd HH:mm:ss */
+  start?: string
+  /** yyyy-MM-dd HH:mm:ss */
+  end?: string
+}
+
+/* ----------------------- 云端录像计划 ----------------------- */
+
+/** 录像计划周时段（dayOfWeek 1周一 ~ 7周日，时间 HH:mm，支持跨午夜） */
+export interface GbRecordPlanPeriod {
+  id?: string
+  planId?: string
+  dayOfWeek: number
+  startTime: string
+  endTime: string
+}
+
+/** 云端录像计划（周计划） */
+export interface GbRecordPlan {
+  id?: string
+  name?: string
+  deviceId: string
+  channelId: string
+  /** 0停 1启 */
+  enabled?: number
+  /** UDP / TCP-active / TCP-passive，空随设备 */
+  transport?: string
+  /** 码流 token，空=主码流 */
+  streamNumber?: string
+  /** 保留天数，0=跟随全局 */
+  retentionDays?: number
+  createTime?: string
+  updateTime?: string
+  /** 周时段，仅详情/保存时携带 */
+  periods?: GbRecordPlanPeriod[]
+}

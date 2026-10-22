@@ -318,5 +318,64 @@ CREATE TABLE gb_mobile_position
     KEY idx_create_time (create_time)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备移动位置（GPS 轨迹）';
 
+DROP TABLE IF EXISTS gb_record_file;
+CREATE TABLE gb_record_file
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    device_id     varchar(50)           DEFAULT NULL COMMENT '设备国标ID',
+    channel_id    varchar(50)           DEFAULT NULL COMMENT '通道国标ID',
+    stream_id     varchar(100) NOT NULL COMMENT 'ZLM流ID（GbInviteSession.streamId）',
+    app           varchar(50)  NOT NULL DEFAULT 'rtp' COMMENT 'ZLM app名',
+    server_id     varchar(64)           DEFAULT NULL COMMENT 'ZLM节点ID',
+    start_time    datetime              DEFAULT NULL COMMENT '录像段开始时间（优先取ZLM回调start_time）',
+    end_time      datetime              DEFAULT NULL COMMENT '录像段结束时间',
+    duration      double                DEFAULT NULL COMMENT '时长(秒)',
+    file_size     bigint                DEFAULT NULL COMMENT '文件大小(字节)',
+    object_name   varchar(500)          DEFAULT NULL COMMENT 'S3对象名(gb28181/record/...mp4)',
+    thumb_object  varchar(500)          DEFAULT NULL COMMENT '缩略图S3对象名(截图抓拍，预留)',
+    status        tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0上传中 1成功 2失败',
+    fail_reason   varchar(500)          DEFAULT NULL COMMENT '最近一次失败原因',
+    retry_count   int          NOT NULL DEFAULT 0 COMMENT '已重试次数',
+    source_url    varchar(1000)         DEFAULT NULL COMMENT 'ZLM回调的MP4下载地址（失败重试要用）',
+    hook_key      varchar(500)          DEFAULT NULL COMMENT '幂等键（ZLM回调path），同一切片只落一次',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hook_key (hook_key),
+    KEY idx_device_channel (device_id, channel_id),
+    KEY idx_start_time (start_time),
+    KEY idx_status_create (status, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云端录像文件元数据';
+
+DROP TABLE IF EXISTS gb_record_plan;
+CREATE TABLE gb_record_plan
+(
+    id             bigint       NOT NULL COMMENT '主键ID',
+    name           varchar(100)          DEFAULT NULL COMMENT '计划名称',
+    device_id      varchar(50)  NOT NULL COMMENT '设备国标ID',
+    channel_id     varchar(50)  NOT NULL COMMENT '通道国标ID',
+    enabled        tinyint      NOT NULL DEFAULT 1 COMMENT '是否启用 0停 1启',
+    transport      varchar(20)           DEFAULT NULL COMMENT '传输模式 UDP/TCP-active/TCP-passive，空随设备',
+    stream_number  varchar(20)           DEFAULT NULL COMMENT '码流token（空=主码流）',
+    retention_days int          NOT NULL DEFAULT 30 COMMENT '本计划录像保留天数，0=跟随全局',
+    create_time    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_device_channel (device_id, channel_id),
+    KEY idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云端录像计划（周计划）';
+
+DROP TABLE IF EXISTS gb_record_plan_period;
+CREATE TABLE gb_record_plan_period
+(
+    id         bigint      NOT NULL COMMENT '主键ID',
+    plan_id    bigint      NOT NULL COMMENT '所属录像计划ID',
+    day_of_week tinyint    NOT NULL COMMENT '星期 1周一 ... 7周日',
+    start_time varchar(8)  NOT NULL COMMENT '开始时间 HH:mm（支持跨午夜，如23:00-06:00）',
+    end_time   varchar(8)  NOT NULL COMMENT '结束时间 HH:mm，跨午夜时早于开始时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_plan_day_start (plan_id, day_of_week, start_time),
+    KEY idx_plan (plan_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='录像计划周时段';
+
 SET
 FOREIGN_KEY_CHECKS = 1;

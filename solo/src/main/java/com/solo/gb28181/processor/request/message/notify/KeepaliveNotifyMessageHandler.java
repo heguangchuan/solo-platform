@@ -20,7 +20,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 /**
  * <p>大规模设备同时心跳会打爆 DB，所以采用<b>队列削峰 + 定时批处理</b>模式：
  * 收到心跳时直接入队（200 OK 已由 {@code MessageRequestProcessor} 在分发前回复），
- * {@link com.solo.gb28181.task.GbScheduledTasks} 每 100ms 调 {@link #drain()} 把队列里的批量处理。</p>
+ * {@link com.solo.gb28181.task.GbHealthScheduledTasks} 每 100ms 调 {@link #drain()} 把队列里的批量处理。</p>
  *
  * <p>海康兼容：海康某些设备 Keepalive 报文 From 字段是通道 ID 而不是设备 ID。
  * 后续 Sprint 加入 SsrcTransaction 后可以反查；当前阶段直接以 deviceId 查不到时按设备 ID 长度兜底

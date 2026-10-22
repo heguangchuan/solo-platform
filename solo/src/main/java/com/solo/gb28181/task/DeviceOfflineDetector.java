@@ -20,7 +20,7 @@ import java.util.List;
  *   <li>不存在 → 设置 status=0 + 发 {@link DeviceOfflineEvent}</li>
  * </ul>
  * <p>同时清理 {@link CatalogDataCache} 里超时的分片缓存。</p>
- * <p>调度由 {@link GbScheduledTasks} 每 30s 触发。</p>
+ * <p>调度由 {@link GbHealthScheduledTasks} 每 30s 触发。</p>
  */
 @Slf4j
 @Component

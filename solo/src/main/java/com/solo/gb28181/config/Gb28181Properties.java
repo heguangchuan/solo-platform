@@ -97,6 +97,8 @@ public class Gb28181Properties {
 
     private Position position = new Position();
 
+    private Record record = new Record();
+
     /**
      * <p>本平台作为下级向上级平台推送数据（Catalog 响应、Notify 变更）时的分片/节奏控制。</p>
      */
@@ -113,7 +115,7 @@ public class Gb28181Properties {
         /**
          * Catalog 响应等 ACK 超时（毫秒）。每发一片 MESSAGE，等上级回 200 OK 的最长等待时间；
          * 超时则按 {@link #catalogPageIntervalMs} 兜底节奏发下一片，避免对端死掉时整条链路卡死。
-         * <p>5s 粒度受 {@link com.solo.gb28181.task.GbScheduledTasks#sweepSipSubscribe} 限制，
+         * <p>5s 粒度受 {@link com.solo.gb28181.task.GbHealthScheduledTasks#sweepSipSubscribe} 限制，
          * 实际最坏情况 ≈ 5s + 3s。3s 适合内网主流平台；公网 / 老国标可上调到 5-8s。</p>
          */
         private long catalogAckTimeoutMs = 3000;
@@ -222,5 +224,29 @@ public class Gb28181Properties {
          * 轨迹保留天数，超过的记录每日凌晨清理。设为 0 或负数表示不自动清理。默认 30 天。
          */
         private int retentionDays = 30;
+    }
+
+    /**
+     * <p>云端录像：切片落存储失败的重试次数和录像保留天数。</p>
+     */
+    @Data
+    public static class Record {
+
+        /**
+         * 录像保留天数，每日凌晨清理更旧的成功切片（存储对象一并删除）。
+         * 0 或负数不自动清理。计划上配了 retentionDays 时以计划为准，计划为 0 时回落到这个全局值。
+         */
+        private int retentionDays = 30;
+
+        /**
+         * on_record_mp4 拉 MP4 落存储失败后的最大重试次数。超过后切片停留在 FAILED，
+         * 源 URL 是 ZLM 本机地址，ZLM 重启/切片目录清理后大概率已经拉不到，重试太多没意义。
+         */
+        private int maxRetry = 3;
+
+        /**
+         * 上传中（ZLM 回调后进程崩溃等）卡在 UPLOADING 多久算僵死，由重试任务重新拉取，单位分钟。
+         */
+        private int uploadingStuckMinutes = 30;
     }
 }
