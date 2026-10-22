@@ -1,6 +1,7 @@
 package com.solo.gb28181.task;
 
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.gb28181.processor.request.SubscribeHolder;
 import com.solo.gb28181.processor.request.message.notify.KeepaliveNotifyMessageHandler;
 import com.solo.gb28181.service.GbMobilePositionService;
 import com.solo.gb28181.service.PlatformRegisterService;
@@ -24,6 +25,7 @@ public class GbScheduledTasks {
     private final CascadeSendService cascadeSendService;
     private final GbMobilePositionService mobilePositionService;
     private final Gb28181Properties gb28181Properties;
+    private final SubscribeHolder subscribeHolder;
 
     /**
      * 设备离线检测：每 30s 扫库比对 Redis 在线 key，并清理目录分片缓存
@@ -47,6 +49,16 @@ public class GbScheduledTasks {
     @Scheduled(initialDelay = 5_000, fixedDelay = 5_000)
     public void sweepSipSubscribe() {
         sipSubscribe.sweep();
+    }
+
+    /**
+     * 国标订阅（Catalog/MobilePosition/Alarm）过期清理：每 5 分钟扫一次。
+     * <p>之前是 listByCmdType 每次调用时顺手清理，GPS 上报频率高（5-30s/次）时浪费 CPU；
+     * 改成定时扫，订阅时效本身就是分钟级的，5 分钟误差完全可接受。</p>
+     */
+    @Scheduled(initialDelay = 60_000, fixedDelay = 300_000)
+    public void sweepExpiredSubscribes() {
+        subscribeHolder.sweepExpired();
     }
 
     /**

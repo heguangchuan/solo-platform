@@ -247,6 +247,36 @@ public class PlatformCommander {
         sendSingleMessageResponse(platform, xml, "设备信息-ERROR", sn);
     }
 
+    // ==================== DeviceStatus 业务应答（ADR-031 同范式） ====================
+
+    /**
+     * 响应上级 {@code Query/DeviceStatus}：回设备在线/健康状态。
+     * <p>异步走业务线程池；fire-and-forget（不订阅响应，上级是否回 ACK 不重要）。</p>
+     */
+    public void sendDeviceStatusResponse(GbParentPlatform platform, String sn, GbDevice device) {
+        String xml = PlatformDeviceStatusXml.buildResponse(platform, device.getDeviceId(), sn, device);
+        sendSingleMessageResponse(platform, xml, "设备状态", sn);
+    }
+
+    /**
+     * 响应上级 {@code Query/DeviceStatus}：回通道在线状态（通道维度，国标 DeviceStatus 本义）。
+     * <p>{@code channelStatus} 取 {@code GbDeviceChannel#getStatus()} 的
+     * {@code ON}/{@code OFF}/{@code UNREGISTERED} 字符串。</p>
+     */
+    public void sendDeviceStatusResponse(GbParentPlatform platform, String sn,
+                                          String deviceId, String channelStatus) {
+        String xml = PlatformDeviceStatusXml.buildResponse(platform, deviceId, sn, channelStatus);
+        sendSingleMessageResponse(platform, xml, "设备状态-通道", sn);
+    }
+
+    /**
+     * 响应上级 {@code Query/DeviceStatus}：设备未登记，回 {@code Result=ERROR}。
+     */
+    public void sendDeviceStatusError(GbParentPlatform platform, String deviceId, String sn, String reason) {
+        String xml = PlatformDeviceStatusXml.buildErrorResponse(platform, deviceId, sn, reason);
+        sendSingleMessageResponse(platform, xml, "设备状态-ERROR", sn);
+    }
+
     // ==================== RecordInfo 业务应答（ADR-031） ====================
 
     /**
