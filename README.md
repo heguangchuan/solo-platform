@@ -207,6 +207,7 @@ solo-platform/
 | DeviceConfig 设备配置查询与下发 | `Query/DeviceConfig` / `Control/DeviceConfig` | 远程查询或修改设备视频参数、OSD、网络、云台等配置 | 各厂商实现差异大、兼容性差；直接登设备 Web 管理界面配置更直观可靠；远程改网络/端口等参数风险高（配错设备会失联） |
 | ConfigDownload 配置下载 | `Query/ConfigDownload` | 下载设备完整配置文件，用于备份/恢复/克隆 | 各厂商配置文件 schema 不兼容，跨品牌无法复用；同品牌批量克隆一般用厂商自有工具；实际项目几乎不用 |
 | Query/Alarm 报警查询 | `Query/Alarm` | 平台主动向设备查询历史报警记录 | 报警主要靠 Notify 实时推送，平台自身也有报警库；断网漏报设备通常会补发 Notify；使用率很低，优先级不高 |
+| 报警主动订阅 | `SUBSCRIBE Alarm` | 平台主动向设备发起报警订阅，约定有效期和上报方式 | 主流设备报警默认就会 Notify，不订阅也能收到；少数需要订阅才上报的设备占比很低，遇到具体项目再补即可 |
 | 拉框放大/缩小（DragZoom） | `DeviceControl/DragZoomIn` / `DeviceControl/DragZoomOut` | 在画面拉矩形框，云台自动对准并变倍放大/缩小 | 只有球机用得上，属于体验优化功能（手动调方向+变倍也能用）；不同厂商坐标体系兼容性坑多 |
 | 看守位（HomePosition） | `DeviceControl/HomePosition` | 空闲一段时间后摄像头自动回到预设位置 | 园区/小区等场景有用，但非核心功能，属于"做了更专业，不做也能用"的增强项 |
 
