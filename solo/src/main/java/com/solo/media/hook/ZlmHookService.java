@@ -359,6 +359,17 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
+    /**
+     * TS 切片录像回调：平台只消费 MP4（on_record_mp4），这里仅应答成功，不落任何业务。
+     * ZLM 侧若开启了 TS 录制会周期性回调，缺这个端点会刷 NoResourceFoundException。
+     */
+    public HookResult onRecordTs(Map<String, Object> body) {
+        if (log.isDebugEnabled()) {
+            log.debug("[ZLM 回调] on_record_ts 忽略 stream={}", body == null ? null : body.get("stream"));
+        }
+        return HookResult.ok();
+    }
+
     public HookResult onSendRtpStopped(Map<String, Object> body) {
         log.info("[ZLM 回调] on_send_rtp_stopped {}", body);
         // 级联推流被 ZLM 中止（对端断开 / 超时）：按 stream + ssrc 清理级联推流会话（S6.b-3）

@@ -77,6 +77,13 @@ public class ZlmHookController {
         return hookService.onRecordMp4(body).toMap();
     }
 
+    @PostMapping("/on_record_ts")
+    public Map<String, Object> onRecordTs(HttpServletRequest req, @RequestBody(required = false) Map<String, Object> body) {
+        if (!checkSecret(req, body)) return unauthorized();
+        // 平台只消费 MP4 切片，TS 录像回调直接放行，避免 ZLM 侧报 404
+        return hookService.onRecordTs(body).toMap();
+    }
+
     @PostMapping("/on_send_rtp_stopped")
     public Map<String, Object> onSendRtpStopped(HttpServletRequest req, @RequestBody(required = false) Map<String, Object> body) {
         if (!checkSecret(req, body)) return unauthorized();
