@@ -261,7 +261,7 @@ public class CascadeSendService {
     }
 
     /**
-     * 扫描 WAIT_ACK 超时会话：回 200 OK 后迟迟收不到上级 ACK → 释放并 BYE 上级。由 GbScheduledTasks 定时调用。
+     * 扫描 WAIT_ACK 超时会话：回 200 OK 后迟迟收不到上级 ACK → 释放并 BYE 上级。由 GbHealthScheduledTasks 定时调用。
      */
     public void sweepAckTimeout() {
         long timeoutMs = properties.getCascade().getSendAckTimeoutMs();

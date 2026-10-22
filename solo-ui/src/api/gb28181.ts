@@ -42,6 +42,8 @@ import type {
   GbSharedChannel,
   GbPlatform,
   GbPlatformPageRequest,
+  GbRecordFile,
+  GbRecordPlan,
   PageResult,
 } from '@/types/api'
 
@@ -462,3 +464,70 @@ export const deleteGbPlatformApi = (id: string) =>
 /** 批量删除黑名单 */
 export const batchDeleteGbPlatformApi = (ids: string[]) =>
   post<void>('/api/gb28181/platform/batch/delete', { ids })
+
+/* ===== 云端录像中心 ===== */
+
+/** 录像文件分页（后端分页字段是 size，由调用方把 pageSize 映射过来） */
+export const getCloudRecordPageApi = (params: {
+  deviceId?: string
+  channelId?: string
+  start?: string
+  end?: string
+  page?: number
+  size?: number
+}) => get<PageResult<GbRecordFile>>('/api/gb28181/cloud-record/page', { params })
+
+/** 取录像播放/下载预签名地址（1 小时有效） */
+export const getCloudRecordUrlApi = (id: string) =>
+  get<string>(`/api/gb28181/cloud-record/${id}/url`)
+
+/** 手动开始录制，返回 streamId */
+export const startCloudRecordApi = (data: {
+  deviceId: string
+  channelId: string
+  transport?: string
+  streamNumber?: string
+}) => {
+  const query = new URLSearchParams()
+  query.set('deviceId', data.deviceId)
+  query.set('channelId', data.channelId)
+  if (data.transport) query.set('transport', data.transport)
+  if (data.streamNumber) query.set('streamNumber', data.streamNumber)
+  return post<string>(`/api/gb28181/cloud-record/start?${query.toString()}`)
+}
+
+/** 手动停止录制 */
+export const stopCloudRecordApi = (streamId: string) =>
+  post<void>(`/api/gb28181/cloud-record/stop?streamId=${encodeURIComponent(streamId)}`)
+
+/** 删除录像文件（同时删 S3 对象） */
+export const deleteCloudRecordApi = (id: string) =>
+  del<void>(`/api/gb28181/cloud-record/${id}`)
+
+/* ===== 云端录像计划 ===== */
+
+/** 录像计划列表（可按设备过滤，不分页） */
+export const getRecordPlanListApi = (deviceId?: string) =>
+  get<GbRecordPlan[]>('/api/gb28181/record-plan/list', { params: { deviceId } })
+
+/** 录像计划详情（含周时段） */
+export const getRecordPlanApi = (id: string) =>
+  get<GbRecordPlan>(`/api/gb28181/record-plan/${id}`)
+
+/** 新增录像计划 */
+export const saveRecordPlanApi = (data: GbRecordPlan) =>
+  post<void>('/api/gb28181/record-plan/save', data)
+
+/** 编辑录像计划（周时段整体覆盖） */
+export const updateRecordPlanApi = (data: GbRecordPlan) =>
+  post<void>('/api/gb28181/record-plan/update', data)
+
+/** 删除录像计划 */
+export const deleteRecordPlanApi = (id: string) =>
+  del<void>(`/api/gb28181/record-plan/delete/${id}`)
+
+/** 启用/停用录像计划 */
+export const toggleRecordPlanApi = (id: string, enabled: boolean) =>
+  post<void>(
+    `/api/gb28181/record-plan/toggle/${id}?enabled=${enabled ? 'true' : 'false'}`,
+  )

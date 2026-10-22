@@ -5,6 +5,7 @@ import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.CascadeSendSessionService;
+import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
@@ -54,6 +55,11 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
     @Lazy
     private CascadeSendService cascadeSendService;
 
+    /** 同样用 @Lazy 避开 SIP 组件初始化期的循环依赖 */
+    @Autowired
+    @Lazy
+    private GbCloudRecordService cloudRecordService;
+
     @Override
     public String getMethod() {
         return Request.BYE;
@@ -87,7 +93,9 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
         }
         log.info("[设备 BYE] stream={} callId={} sessionType={}",
                 session.getStreamId(), callId, session.getSessionType());
-        if (GbInviteSession.TYPE_PLAYBACK.equals(session.getSessionType())
+        if (GbInviteSession.TYPE_RECORD.equals(session.getSessionType())) {
+            cloudRecordService.onDeviceBye(session);
+        } else if (GbInviteSession.TYPE_PLAYBACK.equals(session.getSessionType())
                 || GbInviteSession.TYPE_DOWNLOAD.equals(session.getSessionType())) {
             playbackService.onDeviceBye(session);
         } else {

@@ -19,6 +19,7 @@ public class GbInviteSession {
     public static final String TYPE_PLAY = "PLAY";
     public static final String TYPE_PLAYBACK = "PLAYBACK";
     public static final String TYPE_DOWNLOAD = "DOWNLOAD";
+    public static final String TYPE_RECORD = "RECORD";
 
     @Schema(description = "业务流 ID（ZLM stream 名，格式 deviceId_channelId，回放再附时间段后缀）")
     private String streamId;
@@ -53,7 +54,7 @@ public class GbInviteSession {
     @Schema(description = "SIP To-tag")
     private String toTag;
 
-    @Schema(description = "会话类型 PLAY/PLAYBACK/DOWNLOAD")
+    @Schema(description = "会话类型 PLAY/PLAYBACK/DOWNLOAD/RECORD")
     private String sessionType;
 
     @Schema(description = "回放起始时间（Unix epoch 字符串），实时点播留空")

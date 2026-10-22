@@ -15,7 +15,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * <p>调度由 {@link com.solo.gb28181.task.GbScheduledTasks} 触发。本类只保留业务方法：
+ * <p>调度由 {@link com.solo.gb28181.task.CascadeScheduledTasks} 触发。本类只保留业务方法：
  * 注册 / 刷新 / 心跳 / 上下线回填。注册响应异步由
  * {@link com.solo.gb28181.processor.response.RegisterResponseProcessor} 处理后回调 {@link #online}/{@link #offline}。</p>
  */

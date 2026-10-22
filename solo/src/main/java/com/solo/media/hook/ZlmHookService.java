@@ -3,8 +3,10 @@ package com.solo.media.hook;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbInviteSession;
+import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbDownloadService;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.gb28181.service.GbRecordFileService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
@@ -64,6 +66,8 @@ public class ZlmHookService {
     private final GbPlayService playService;
     private final GbPlaybackService playbackService;
     private final GbDownloadService downloadService;
+    private final GbCloudRecordService cloudRecordService;
+    private final GbRecordFileService recordFileService;
     private final StreamPushService streamPushService;
     private final StreamProxyService streamProxyService;
     private final CascadeSendService cascadeSendService;
@@ -213,6 +217,7 @@ public class ZlmHookService {
         try {
             // 按 streamId 反查 session.sessionType 路由到对应业务：
             //  - DOWNLOAD → 录像下载（GbDownloadService）走 MP4 录制 + MinIO 落库
+            //  - RECORD   → 云端录像（GbCloudRecordService）走 startRecord/断流清扫
             //  - PLAYBACK → 历史回放（GbPlaybackService）走流就绪补 URL
             //  - PLAY     → 实时点播（GbPlayService）走流就绪补 URL
             //  - null     → 找不到 session（流已被清扫 / 外部推流），按实时点播兜底；
@@ -225,6 +230,7 @@ public class ZlmHookService {
                 } else {
                     switch (sessionType) {
                         case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamReady(app, stream, mediaServerId);
+                        case GbInviteSession.TYPE_RECORD -> cloudRecordService.onStreamReady(app, stream, mediaServerId);
                         case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamReady(app, stream, mediaServerId);
                         default -> playService.onStreamReady(app, stream, mediaServerId);
                     }
@@ -237,6 +243,7 @@ public class ZlmHookService {
                 } else {
                     switch (sessionType) {
                         case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamStopped(app, stream, mediaServerId);
+                        case GbInviteSession.TYPE_RECORD -> cloudRecordService.onStreamStopped(app, stream, mediaServerId);
                         case GbInviteSession.TYPE_PLAYBACK -> playbackService.onStreamStopped(app, stream, mediaServerId);
                         default -> playService.onStreamStopped(app, stream, mediaServerId);
                     }
@@ -269,14 +276,21 @@ public class ZlmHookService {
             return HookResult.ok().put("close", false);
         }
 
-        // 平台自起的流（GB INVITE / ONVIF 拉流代理 / 兜底）：无人观看立即关。
+        // 云端录像流没有播放端是常态（只录制不分发），绝不能因无人观看被关，
+        // 否则计划流刚被对账拉起就被 ZLM 回收。录像流统一以 REC_ 前缀命名。
+        GbInviteSession session = inviteSessionService.getByStreamId(stream);
+        if (session != null && GbInviteSession.TYPE_RECORD.equals(session.getSessionType())) {
+            log.info("[ZLM 回调] on_stream_none_reader app={} stream={} -> 云端录像流，保持不关", app, stream);
+            return HookResult.ok().put("close", false);
+        }
+
+        // 其余平台自起的流（GB INVITE 点播/回放 / ONVIF 拉流代理 / 兜底）：无人观看立即关。
         // GB 重连代价是重新走 SIP INVITE（几百 ms），ONVIF 重连代价是再 addStreamProxy，
         // 都可接受。关流后 ZLM 内部会发 on_stream_changed(regist=false)，由对应服务的 cleanup 兜底。
         boolean close = true;
-        boolean known = inviteSessionService.getByStreamId(stream) != null;
 
         log.info("[ZLM 回调] on_stream_none_reader app={} stream={} originType={} 会话在册={} onvif={} -> close={}",
-                app, stream, originTypeStr, known, isOnvif, close);
+                app, stream, originTypeStr, session != null, isOnvif, close);
         return HookResult.ok().put("close", close);
     }
 
@@ -291,6 +305,7 @@ public class ZlmHookService {
             } else {
                 switch (sessionType) {
                     case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onRtpServerTimeout(streamId);
+                    case GbInviteSession.TYPE_RECORD -> cloudRecordService.onRtpServerTimeout(streamId);
                     case GbInviteSession.TYPE_PLAYBACK -> playbackService.onRtpServerTimeout(streamId);
                     default -> playService.onRtpServerTimeout(streamId);
                 }
@@ -311,6 +326,11 @@ public class ZlmHookService {
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
         String url = stringOf(body, "url");
+        // path 是 ZLM 本机绝对路径，全局唯一，作为 hook 重推去重的 key；url 是相对下载地址
+        String path = stringOf(body, "path");
+        // start_time 为切片开始的 unix 秒；老版本/异常情况可能给 0，业务侧再回退估算
+        long startRaw = longOf(body, "start_time");
+        Long startTime = startRaw > 0 ? startRaw : null;
         long fileSize = longOf(body, "file_size");
         double duration = doubleOf(body, "time_len");
         log.info("[ZLM 回调] on_record_mp4 app={} stream={} url={} fileSize={} duration={}s",
@@ -318,15 +338,21 @@ public class ZlmHookService {
         if (stream == null) {
             return HookResult.ok();
         }
-        // 路由判定：只有 DOWNLOAD sessionType 才走下载业务；
-        // 若该 stream 找不到 session（已被清理 / 兜底走 playback），记日志放过即可
         GbInviteSession session = inviteSessionService.getByStreamId(stream);
-        if (session == null || !GbInviteSession.TYPE_DOWNLOAD.equals(session.getSessionType())) {
-            log.info("[ZLM 回调] on_record_mp4 非下载流/无 session，跳过 stream={}", stream);
+        if (session == null) {
+            log.info("[ZLM 回调] on_record_mp4 无 session，跳过 stream={}", stream);
             return HookResult.ok();
         }
+        // 按会话类型路由：下载走下载业务，云端录像走录像中心
         try {
-            downloadService.onRecordMp4(app, stream, url, fileSize, duration);
+            String type = session.getSessionType();
+            if (GbInviteSession.TYPE_DOWNLOAD.equals(type)) {
+                downloadService.onRecordMp4(app, stream, url, fileSize, duration);
+            } else if (GbInviteSession.TYPE_RECORD.equals(type)) {
+                recordFileService.onRecordMp4(app, stream, url, path, startTime, fileSize, duration);
+            } else {
+                log.info("[ZLM 回调] on_record_mp4 非录制/下载流，跳过 type={} stream={}", type, stream);
+            }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_record_mp4 业务异常 stream={}", stream, e);
         }
