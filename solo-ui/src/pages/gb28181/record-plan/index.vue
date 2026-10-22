@@ -22,9 +22,18 @@
       <!-- 搜索行 -->
       <div class="flex h-12 shrink-0 items-center gap-2 px-3">
         <GbDeviceSelect v-model="deviceIdQ" />
-        <span v-if="plans.length" class="text-xs text-muted-foreground">
-          共 {{ plans.length }} 个计划
-        </span>
+        <GbChannelSelect v-model="channelIdQ" :device-id="deviceIdQ" />
+        <div class="flex-1" />
+        <Button
+          v-if="hasCondition"
+          variant="ghost"
+          size="sm"
+          class="h-7 text-xs text-muted-foreground"
+          @click="onClear"
+        >
+          <IconX class="size-3.5" />
+          清除
+        </Button>
       </div>
 
       <!-- 列表 -->
@@ -38,7 +47,31 @@
               <th class="w-20 px-3 py-2 font-normal">码流</th>
               <th class="w-24 px-3 py-2 font-normal">保留天数</th>
               <th class="w-40 px-3 py-2 font-normal">创建时间</th>
-              <th class="w-20 px-3 py-2 font-normal">启用</th>
+              <th class="w-24 px-3 py-2 font-normal">
+                <span class="inline-flex items-center gap-1">
+                  录像状态
+                  <Select v-model="enabledQ">
+                    <RawSelectTrigger
+                      title="按启用状态筛选"
+                      class="inline-flex size-4 items-center justify-center rounded outline-none hover:text-foreground"
+                    >
+                      <IconFilter
+                        class="size-3.5"
+                        :class="
+                          enabledQ !== '__all__'
+                            ? 'text-primary'
+                            : 'text-muted-foreground/60'
+                        "
+                      />
+                    </RawSelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">全部</SelectItem>
+                      <SelectItem value="1">已启用</SelectItem>
+                      <SelectItem value="0">已停用</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -78,12 +111,10 @@
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
                 {{ p.createTime || '—' }}
               </td>
-              <td class="px-3 py-2" @click.stop>
-                <Switch
-                  :model-value="p.enabled === 1"
-                  :disabled="!hasEditPerm || togglingId === p.id"
-                  @update:model-value="(v: boolean) => onToggle(p, v)"
-                />
+              <td class="px-3 py-2 text-xs">
+                <span :class="p.enabled === 1 ? 'text-green-600' : 'text-muted-foreground'">
+                  {{ p.enabled === 1 ? '已启用' : '已停用' }}
+                </span>
               </td>
             </tr>
           </tbody>
@@ -138,44 +169,54 @@
  * 云端录像计划
  * - 列表不分页（计划数量有限），可按设备过滤
  * - 详情 / 新增 / 编辑 / 删除统一走右侧 Inspector（与设备页一致）
- * - 停用/启用直接调 toggle，不进检视器
+ * - 启用状态在检视器内编辑保存，列表仅展示状态徽标
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { IconLoader2, IconPlus, IconCalendarTime } from '@tabler/icons-vue'
+import { IconLoader2, IconPlus, IconCalendarTime, IconX, IconFilter } from '@tabler/icons-vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
-import { Switch } from '@/components/ui/switch'
+import { Select, SelectContent, SelectItem } from '@/components/ui/select'
+import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
+import GbChannelSelect from '@/features/gb/GbChannelSelect.vue'
 import GbRecordPlanInspector from '@/features/gb/GbRecordPlanInspector.vue'
 import { PERM } from '@/features/access/permissions'
-import { useAccess } from '@/features/access/useAccess'
-import { toast } from '@/lib/toast'
-import {
-  getRecordPlanListApi,
-  toggleRecordPlanApi,
-} from '@/api/gb28181'
+import { getRecordPlanListApi } from '@/api/gb28181'
 import type { GbRecordPlan } from '@/types/api'
 
 /* ---------------- 列表 ---------------- */
 const plans = ref<GbRecordPlan[]>([])
 const loading = ref(false)
 const deviceIdQ = ref<string | undefined>(undefined)
-const togglingId = ref('')
+const channelIdQ = ref<string | undefined>(undefined)
+// __all__ 占位，避免空串在 Select 里的歧义
+const enabledQ = ref<'__all__' | '1' | '0'>('__all__')
 
-const { has } = useAccess()
-const hasEditPerm = computed(() => has(PERM.GB_RECORD_PLAN_EDIT))
+const hasCondition = computed(
+  () => !!deviceIdQ.value || !!channelIdQ.value || enabledQ.value !== '__all__',
+)
+
+const onClear = () => {
+  deviceIdQ.value = undefined
+  channelIdQ.value = undefined
+  enabledQ.value = '__all__'
+}
 
 const loadList = async () => {
   loading.value = true
   try {
-    const { data } = await getRecordPlanListApi(deviceIdQ.value || undefined)
+    const { data } = await getRecordPlanListApi(
+      deviceIdQ.value || undefined,
+      channelIdQ.value || undefined,
+      enabledQ.value === '__all__' ? undefined : Number(enabledQ.value),
+    )
     plans.value = data || []
   } finally {
     loading.value = false
   }
 }
 
-watch(deviceIdQ, () => loadList())
+watch([deviceIdQ, channelIdQ, enabledQ], () => loadList())
 
 const isTypingTarget = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
@@ -237,20 +278,6 @@ const transportLabel = (t?: string) => {
   if (t === 'TCP-passive') return 'TCP 被动'
   if (t === 'TCP-active') return 'TCP 主动'
   return '随设备'
-}
-
-const onToggle = async (p: GbRecordPlan, enabled: boolean) => {
-  if (!p.id) return
-  togglingId.value = p.id
-  try {
-    await toggleRecordPlanApi(p.id, enabled)
-    p.enabled = enabled ? 1 : 0
-    toast.success(enabled ? '已启用' : '已停用')
-  } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
-  } finally {
-    togglingId.value = ''
-  }
 }
 </script>
 

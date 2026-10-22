@@ -33,8 +33,11 @@ public class GbRecordPlanController {
     @Operation(summary = "录像计划列表")
     @GetMapping("/list")
     @RequirePermission("gb28181:record:plan")
-    public Result<List<GbRecordPlan>> list(@RequestParam(required = false) String deviceId) {
-        return Result.success(recordPlanService.listPlans(deviceId));
+    public Result<List<GbRecordPlan>> list(
+            @RequestParam(required = false) String deviceId,
+            @RequestParam(required = false) String channelId,
+            @RequestParam(required = false) Integer enabled) {
+        return Result.success(recordPlanService.listPlans(deviceId, channelId, enabled));
     }
 
     @Operation(summary = "录像计划详情（含周时段）")

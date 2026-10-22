@@ -507,8 +507,14 @@ export const deleteCloudRecordApi = (id: string) =>
 /* ===== 云端录像计划 ===== */
 
 /** 录像计划列表（可按设备过滤，不分页） */
-export const getRecordPlanListApi = (deviceId?: string) =>
-  get<GbRecordPlan[]>('/api/gb28181/record-plan/list', { params: { deviceId } })
+export const getRecordPlanListApi = (
+  deviceId?: string,
+  channelId?: string,
+  enabled?: number,
+) =>
+  get<GbRecordPlan[]>('/api/gb28181/record-plan/list', {
+    params: { deviceId, channelId, enabled },
+  })
 
 /** 录像计划详情（含周时段） */
 export const getRecordPlanApi = (id: string) =>
