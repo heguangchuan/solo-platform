@@ -13,13 +13,13 @@ public class GbDeviceChannelPageRequest {
     @Schema(description = "每页条数")
     private Long pageSize = 20L;
 
-    @Schema(description = "所属设备国标 ID（精确匹配）")
+    @Schema(description = "所属设备国标 ID")
     private String deviceId;
 
-    @Schema(description = "20 位国标通道码（模糊匹配）")
+    @Schema(description = "20 位国标通道码")
     private String channelId;
 
-    @Schema(description = "名称（模糊匹配）")
+    @Schema(description = "名称")
     private String name;
 
     @Schema(description = "在线状态：ON / OFF / UNREGISTERED")

@@ -48,17 +48,8 @@
           <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">
             通道<span class="ml-0.5 text-destructive">*</span>
           </Label>
-          <div class="flex-1">
-            <Select v-model="form.channelId">
-              <SelectTrigger class="h-8 w-full text-xs">
-                <SelectValue :placeholder="channelsLoading ? '通道加载中...' : '请选择通道'" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem v-for="c in channels" :key="c.channelId" :value="c.channelId">
-                  {{ c.name || c.reportName || c.channelId }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
+          <div class="channel-select flex-1">
+            <GbChannelSelect v-model="form.channelId" :device-id="form.deviceId" />
           </div>
         </div>
 
@@ -246,6 +237,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import GbDeviceSelect from './GbDeviceSelect.vue'
+import GbChannelSelect from './GbChannelSelect.vue'
 import { PERM } from '@/features/access/permissions'
 import { useAccess } from '@/features/access/useAccess'
 import { confirm } from '@/lib/confirm'
@@ -255,9 +247,8 @@ import {
   saveRecordPlanApi,
   updateRecordPlanApi,
   deleteRecordPlanApi,
-  getGbDeviceChannelPageApi,
 } from '@/api/gb28181'
-import type { GbRecordPlan, GbRecordPlanPeriod, GbDeviceChannel } from '@/types/api'
+import type { GbRecordPlan, GbRecordPlanPeriod } from '@/types/api'
 
 const props = defineProps<{
   plan?: GbRecordPlan
@@ -303,15 +294,12 @@ const emptyForm = (): FormState => ({
 })
 
 const form = reactive<FormState>(emptyForm())
-const channels = ref<GbDeviceChannel[]>([])
-const channelsLoading = ref(false)
 const detailLoading = ref(false)
 const saving = ref(false)
 
 /* ---------------- 初始化 / 详情加载 ---------------- */
 const hydrateFromPlan = async (plan: GbRecordPlan) => {
   Object.assign(form, emptyForm())
-  channels.value = []
   form.id = plan.id
   form.name = plan.name || ''
   form.deviceId = plan.deviceId
@@ -343,7 +331,6 @@ watch(
   ([creating]) => {
     if (creating) {
       Object.assign(form, emptyForm())
-      channels.value = []
     } else if (props.plan) {
       hydrateFromPlan(props.plan)
     }
@@ -351,25 +338,11 @@ watch(
   { immediate: true },
 )
 
-/* 设备选定后拉叶子通道 */
+/* 设备变更时清空通道（GbChannelSelect 内部按 deviceId 联动重新加载列表） */
 watch(
   () => form.deviceId,
-  async (deviceId) => {
+  () => {
     form.channelId = undefined
-    channels.value = []
-    if (!deviceId) return
-    channelsLoading.value = true
-    try {
-      const { data } = await getGbDeviceChannelPageApi({
-        page: 1,
-        pageSize: 1000,
-        deviceId,
-        parental: 0,
-      })
-      channels.value = data.rows
-    } finally {
-      channelsLoading.value = false
-    }
   },
 )
 
@@ -461,8 +434,9 @@ const onDelete = async () => {
 </script>
 
 <style scoped>
-/* GbDeviceSelect 内部 trigger 是定宽按钮，这里拉通成表单项宽度 */
-.device-select :deep(button) {
+/* GbDeviceSelect / GbChannelSelect 内部 trigger 是定宽按钮，这里拉通成表单项宽度 */
+.device-select :deep(button),
+.channel-select :deep(button) {
   width: 100%;
   height: 2rem;
   border: 1px solid var(--border);

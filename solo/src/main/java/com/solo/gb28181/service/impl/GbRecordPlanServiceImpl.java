@@ -33,10 +33,16 @@ public class GbRecordPlanServiceImpl extends ServiceImpl<GbRecordPlanMapper, GbR
     private final GbCloudRecordService cloudRecordService;
 
     @Override
-    public List<GbRecordPlan> listPlans(String deviceId) {
+    public List<GbRecordPlan> listPlans(String deviceId, String channelId, Integer enabled) {
         LambdaQueryWrapper<GbRecordPlan> w = new LambdaQueryWrapper<>();
         if (deviceId != null && !deviceId.isBlank()) {
             w.eq(GbRecordPlan::getDeviceId, deviceId);
+        }
+        if (channelId != null && !channelId.isBlank()) {
+            w.eq(GbRecordPlan::getChannelId, channelId);
+        }
+        if (enabled != null) {
+            w.eq(GbRecordPlan::getEnabled, enabled);
         }
         w.orderByDesc(GbRecordPlan::getCreateTime);
         return this.list(w);

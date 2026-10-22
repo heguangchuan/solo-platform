@@ -7,8 +7,8 @@ import java.util.List;
 
 public interface GbRecordPlanService extends IService<GbRecordPlan> {
 
-    /** 分页/列表：按设备过滤（deviceId 可空） */
-    List<GbRecordPlan> listPlans(String deviceId);
+    /** 分页/列表：按设备、通道、启用状态过滤（均可空） */
+    List<GbRecordPlan> listPlans(String deviceId, String channelId, Integer enabled);
 
     /** 详情，带周时段列表 */
     GbRecordPlan getDetail(Long id);
