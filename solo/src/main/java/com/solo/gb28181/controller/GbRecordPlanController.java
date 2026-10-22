@@ -1,10 +1,13 @@
 package com.solo.gb28181.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
+import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.entity.GbRecordPlan;
+import com.solo.gb28181.request.GbRecordPlanPageRequest;
 import com.solo.gb28181.service.GbRecordPlanService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,8 +22,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @Tag(name = "云端录像计划", description = "周录像计划的增删改查与启停")
 @Slf4j
 @RestController
@@ -30,14 +31,12 @@ public class GbRecordPlanController {
 
     private final GbRecordPlanService recordPlanService;
 
-    @Operation(summary = "录像计划列表")
-    @GetMapping("/list")
+    @Operation(summary = "录像计划分页")
+    @PostMapping("/page")
     @RequirePermission("gb28181:record:plan")
-    public Result<List<GbRecordPlan>> list(
-            @RequestParam(required = false) String deviceId,
-            @RequestParam(required = false) String channelId,
-            @RequestParam(required = false) Integer enabled) {
-        return Result.success(recordPlanService.listPlans(deviceId, channelId, enabled));
+    public Result<PageResult<GbRecordPlan>> list(@RequestBody GbRecordPlanPageRequest request) {
+        Page<GbRecordPlan> result = recordPlanService.listPlans(request);
+        return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
     }
 
     @Operation(summary = "录像计划详情（含周时段）")

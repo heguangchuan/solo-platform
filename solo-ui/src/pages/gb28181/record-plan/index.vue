@@ -5,7 +5,7 @@
       <div class="flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
         <span class="text-[13px] font-medium">录像计划</span>
         <div class="flex-1" />
-        <RefreshButton :loading="loading" :on-refresh="loadList" />
+        <RefreshButton :loading="resource.loading.value" :on-refresh="() => resource.search()" />
         <Button
           v-access="PERM.GB_RECORD_PLAN_ADD"
           variant="ghost"
@@ -37,19 +37,20 @@
       </div>
 
       <!-- 列表 -->
-      <div class="min-h-0 flex-1 overflow-auto">
+      <div ref="scrollerRef" class="min-h-0 flex-1 overflow-auto">
         <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-44 px-3 py-2 font-normal">计划名称</th>
-              <th class="w-72 px-3 py-2 font-normal">设备 / 通道</th>
+              <th class="w-36 px-3 py-2 font-normal">设备</th>
+              <th class="w-36 px-3 py-2 font-normal">通道</th>
               <th class="w-28 px-3 py-2 font-normal">收流模式</th>
               <th class="w-20 px-3 py-2 font-normal">码流</th>
               <th class="w-24 px-3 py-2 font-normal">保留天数</th>
               <th class="w-40 px-3 py-2 font-normal">创建时间</th>
               <th class="w-24 px-3 py-2 font-normal">
                 <span class="inline-flex items-center gap-1">
-                  录像状态
+                  是否启用
                   <Select v-model="enabledQ">
                     <RawSelectTrigger
                       title="按启用状态筛选"
@@ -66,8 +67,8 @@
                     </RawSelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all__">全部</SelectItem>
-                      <SelectItem value="1">已启用</SelectItem>
-                      <SelectItem value="0">已停用</SelectItem>
+                      <SelectItem value="1">启用</SelectItem>
+                      <SelectItem value="0">停用</SelectItem>
                     </SelectContent>
                   </Select>
                 </span>
@@ -76,7 +77,7 @@
           </thead>
           <tbody>
             <tr
-              v-for="p in plans"
+              v-for="p in resource.items.value"
               :key="p.id"
               class="group cursor-pointer"
               :class="
@@ -93,11 +94,11 @@
                 />
                 <div class="truncate" :title="p.name">{{ p.name || '—' }}</div>
               </td>
-              <td class="px-3 py-2">
-                <div class="truncate font-mono text-xs">{{ p.deviceId }}</div>
-                <div class="truncate font-mono text-[11px] text-muted-foreground">
-                  {{ p.channelId }}
-                </div>
+              <td class="truncate px-3 py-2 text-xs" :title="p.deviceId">
+                {{ p.deviceName || p.deviceId }}
+              </td>
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="p.channelId">
+                {{ p.channelName || p.channelId }}
               </td>
               <td class="px-3 py-2 text-xs text-muted-foreground">
                 {{ transportLabel(p.transport) }}
@@ -112,23 +113,39 @@
                 {{ p.createTime || '—' }}
               </td>
               <td class="px-3 py-2 text-xs">
-                <span :class="p.enabled === 1 ? 'text-green-600' : 'text-muted-foreground'">
-                  {{ p.enabled === 1 ? '已启用' : '已停用' }}
+                <span :class="p.enabled === 1 ? 'text-green-600' : 'text-red-500'">
+                  {{ p.enabled === 1 ? '启用' : '停用' }}
                 </span>
               </td>
             </tr>
           </tbody>
         </table>
 
-        <div v-if="loading" class="grid place-items-center py-16">
+        <div v-if="firstLoading" class="grid place-items-center py-16">
           <IconLoader2 class="size-5 animate-spin text-muted-foreground" />
         </div>
         <div
-          v-else-if="plans.length === 0"
+          v-else-if="!resource.loading.value && resource.items.value.length === 0"
           class="flex flex-col items-center gap-2 py-16 text-muted-foreground"
         >
           <IconCalendarTime class="size-8" />
-          <div class="text-[13px]">暂无录像计划</div>
+          <div class="text-[13px]">{{ hasCondition ? '没有匹配的计划' : '还没有录像计划' }}</div>
+          <Button v-if="hasCondition" variant="ghost" size="sm" @click="onClear">
+            清除搜索条件
+          </Button>
+        </div>
+
+        <div ref="sentinelRef" class="grid place-items-center py-4">
+          <IconLoader2
+            v-if="resource.loading.value && resource.items.value.length"
+            class="size-4 animate-spin text-muted-foreground"
+          />
+          <span
+            v-else-if="resource.finished.value && resource.items.value.length"
+            class="text-xs text-muted-foreground"
+          >
+            已全部加载
+          </span>
         </div>
       </div>
 
@@ -139,7 +156,7 @@
         <span><kbd>N</kbd> 新建</span>
         <span><kbd>R</kbd> 刷新</span>
         <div class="flex-1" />
-        <span>共 {{ plans.length }} 个计划</span>
+        <span>共 {{ resource.total.value }} 个计划</span>
       </div>
     </div>
 
@@ -167,9 +184,9 @@
 <script setup lang="ts">
 /**
  * 云端录像计划
- * - 列表不分页（计划数量有限），可按设备过滤
+ * - 列表走 useResource 滚动分页（后端 /page 返回 PageResult），可按设备/通道/启用状态过滤
  * - 详情 / 新增 / 编辑 / 删除统一走右侧 Inspector（与设备页一致）
- * - 启用状态在检视器内编辑保存，列表仅展示状态徽标
+ * - 启用状态在检视器内编辑保存，列表仅展示状态（绿=启用 红=停用）
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { IconLoader2, IconPlus, IconCalendarTime, IconX, IconFilter } from '@tabler/icons-vue'
@@ -181,16 +198,27 @@ import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
 import GbChannelSelect from '@/features/gb/GbChannelSelect.vue'
 import GbRecordPlanInspector from '@/features/gb/GbRecordPlanInspector.vue'
 import { PERM } from '@/features/access/permissions'
-import { getRecordPlanListApi } from '@/api/gb28181'
+import { useResource } from '@/shared/composables/useResource'
+import { getRecordPlanPageApi } from '@/api/gb28181'
 import type { GbRecordPlan } from '@/types/api'
 
-/* ---------------- 列表 ---------------- */
-const plans = ref<GbRecordPlan[]>([])
-const loading = ref(false)
+/* ---------------- 列表（useResource 滚动分页） ---------------- */
 const deviceIdQ = ref<string | undefined>(undefined)
 const channelIdQ = ref<string | undefined>(undefined)
 // __all__ 占位，避免空串在 Select 里的歧义
 const enabledQ = ref<'__all__' | '1' | '0'>('__all__')
+
+const resource = useResource<{ page?: number; pageSize?: number }, GbRecordPlan>({
+  fetcher: (q) =>
+    getRecordPlanPageApi({
+      page: q.page,
+      pageSize: q.pageSize,
+      deviceId: deviceIdQ.value || undefined,
+      channelId: channelIdQ.value || undefined,
+      enabled: enabledQ.value === '__all__' ? undefined : Number(enabledQ.value),
+    }),
+  initial: { page: 1, pageSize: 50 },
+})
 
 const hasCondition = computed(
   () => !!deviceIdQ.value || !!channelIdQ.value || enabledQ.value !== '__all__',
@@ -202,21 +230,26 @@ const onClear = () => {
   enabledQ.value = '__all__'
 }
 
-const loadList = async () => {
-  loading.value = true
-  try {
-    const { data } = await getRecordPlanListApi(
-      deviceIdQ.value || undefined,
-      channelIdQ.value || undefined,
-      enabledQ.value === '__all__' ? undefined : Number(enabledQ.value),
-    )
-    plans.value = data || []
-  } finally {
-    loading.value = false
-  }
-}
+watch([deviceIdQ, channelIdQ, enabledQ], () => resource.search())
 
-watch([deviceIdQ, channelIdQ, enabledQ], () => loadList())
+const firstLoading = computed(
+  () => resource.loading.value && resource.items.value.length === 0,
+)
+
+// 列表刷新后同步检视器选中的计划（名称/状态可能变化）
+watch(
+  () => resource.items.value,
+  (list) => {
+    if (selected.value) {
+      const fresh = list.find((p) => p.id === selected.value!.id)
+      if (fresh) selected.value = fresh
+    }
+  },
+)
+
+const scrollerRef = ref<HTMLElement>()
+const sentinelRef = ref<HTMLElement>()
+let observer: IntersectionObserver | null = null
 
 const isTypingTarget = (el: EventTarget | null) =>
   el instanceof HTMLElement &&
@@ -246,15 +279,15 @@ const onCloseInspector = () => {
 
 const onCreated = () => {
   creating.value = false
-  loadList()
+  resource.search()
 }
 
 const onSaved = () => {
-  loadList()
+  resource.search()
 }
 
 const onDeleted = (p: GbRecordPlan) => {
-  plans.value = plans.value.filter((item) => item.id !== p.id)
+  resource.removeWhere((item) => item.id === p.id)
   selected.value = null
   creating.value = false
 }
@@ -267,11 +300,21 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
   }
 }
 
-onMounted(() => {
-  loadList()
+onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown)
+  await resource.load(true)
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting) resource.load(false)
+    },
+    { root: scrollerRef.value, rootMargin: '80px' },
+  )
+  if (sentinelRef.value) observer.observe(sentinelRef.value)
 })
-onBeforeUnmount(() => window.removeEventListener('keydown', onGlobalKeydown))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGlobalKeydown)
+  observer?.disconnect()
+})
 
 const transportLabel = (t?: string) => {
   if (t === 'UDP') return 'UDP'

@@ -1,6 +1,7 @@
 package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
@@ -11,6 +12,7 @@ import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbRecordPlanMapper;
 import com.solo.gb28181.mapper.GbRecordPlanPeriodMapper;
+import com.solo.gb28181.request.GbRecordPlanPageRequest;
 import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbRecordPlanService;
 import com.solo.gb28181.support.RecordPlanTime;
@@ -20,6 +22,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -33,19 +39,55 @@ public class GbRecordPlanServiceImpl extends ServiceImpl<GbRecordPlanMapper, GbR
     private final GbCloudRecordService cloudRecordService;
 
     @Override
-    public List<GbRecordPlan> listPlans(String deviceId, String channelId, Integer enabled) {
+    public Page<GbRecordPlan> listPlans(GbRecordPlanPageRequest request) {
         LambdaQueryWrapper<GbRecordPlan> w = new LambdaQueryWrapper<>();
-        if (deviceId != null && !deviceId.isBlank()) {
-            w.eq(GbRecordPlan::getDeviceId, deviceId);
+        if (request.getDeviceId() != null && !request.getDeviceId().isBlank()) {
+            w.eq(GbRecordPlan::getDeviceId, request.getDeviceId());
         }
-        if (channelId != null && !channelId.isBlank()) {
-            w.eq(GbRecordPlan::getChannelId, channelId);
+        if (request.getChannelId() != null && !request.getChannelId().isBlank()) {
+            w.eq(GbRecordPlan::getChannelId, request.getChannelId());
         }
-        if (enabled != null) {
-            w.eq(GbRecordPlan::getEnabled, enabled);
+        if (request.getEnabled() != null) {
+            w.eq(GbRecordPlan::getEnabled, request.getEnabled());
         }
         w.orderByDesc(GbRecordPlan::getCreateTime);
-        return this.list(w);
+        long page = request.getPage() == null ? 1L : request.getPage();
+        long pageSize = request.getPageSize() == null ? 50L : request.getPageSize();
+        Page<GbRecordPlan> pg = new Page<>(page, pageSize);
+        Page<GbRecordPlan> result = this.page(pg, w);
+        enrichNames(result.getRecords());
+        return result;
+    }
+
+    private void enrichNames(List<GbRecordPlan> plans) {
+        if (plans.isEmpty()) {
+            return;
+        }
+        Set<String> deviceIds = plans.stream()
+                .map(GbRecordPlan::getDeviceId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Set<String> channelIds = plans.stream()
+                .map(GbRecordPlan::getChannelId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<String, String> deviceNameMap = deviceMapper
+                .selectList(new LambdaQueryWrapper<GbDevice>().in(GbDevice::getDeviceId, deviceIds))
+                .stream()
+                .collect(Collectors.toMap(GbDevice::getDeviceId, GbDevice::getName, (a, b) -> a));
+        Map<String, String> channelNameMap = channelMapper
+                .selectList(new LambdaQueryWrapper<GbDeviceChannel>()
+                        .in(GbDeviceChannel::getDeviceId, deviceIds)
+                        .in(GbDeviceChannel::getChannelId, channelIds))
+                .stream()
+                .collect(Collectors.toMap(
+                        c -> c.getDeviceId() + "|" + c.getChannelId(),
+                        GbDeviceChannel::getName,
+                        (a, b) -> a));
+        for (GbRecordPlan plan : plans) {
+            plan.setDeviceName(deviceNameMap.get(plan.getDeviceId()));
+            plan.setChannelName(channelNameMap.get(plan.getDeviceId() + "|" + plan.getChannelId()));
+        }
     }
 
     @Override
