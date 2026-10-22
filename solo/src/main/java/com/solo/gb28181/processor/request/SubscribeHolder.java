@@ -1,10 +1,11 @@
 package com.solo.gb28181.processor.request;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -19,6 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 public class SubscribeHolder {
+
+    private static final Logger log = LoggerFactory.getLogger(SubscribeHolder.class);
 
     private final ConcurrentHashMap<String, SubscribeInfo> map = new ConcurrentHashMap<>();
 
@@ -61,20 +64,32 @@ public class SubscribeHolder {
     }
 
     /**
-     * 列出某事件类型下<b>未过期</b>的订阅。catalog 变更时遍历此集合给所有订阅方推 NOTIFY。
-     * <p>顺手清理已过期的记录，避免内存无限增长。</p>
+     * 列出某事件类型下<b>未过期</b>的订阅。catalog / GPS / 报警 变更时遍历此集合给所有订阅方推 NOTIFY。
+     * <p>过期清理由 {@code sweepExpired()} 定时执行，不在此方法里做——GPS 上报频率高（5-30s/次），
+     * 每次 list 都扫全表+删是浪费。</p>
      */
     public Collection<SubscribeInfo> listByCmdType(String cmdType) {
         if (cmdType == null) {
             return java.util.Collections.emptyList();
         }
         LocalDateTime now = LocalDateTime.now();
-        List<SubscribeInfo> result = map.values().stream()
+        return map.values().stream()
                 .filter(s -> cmdType.equals(s.getCmdType()))
                 .filter(s -> !expired(s, now))
                 .toList();
+    }
+
+    /**
+     * 清理所有已过期的订阅记录，避免内存无限增长。由定时任务调用。
+     */
+    public void sweepExpired() {
+        LocalDateTime now = LocalDateTime.now();
+        int before = map.size();
         map.values().removeIf(s -> expired(s, now));
-        return result;
+        int removed = before - map.size();
+        if (removed > 0) {
+            log.info("[订阅管理] 过期订阅清理 清理条数={} 剩余条数={}", removed, map.size());
+        }
     }
 
     /**
