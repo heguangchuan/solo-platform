@@ -653,12 +653,30 @@ export interface GbRecordPlanPeriod {
   endTime: string
 }
 
+/** 录像计划分页查询请求 */
+export interface GbRecordPlanPageRequest {
+  /** 当前页码（从 1 开始） */
+  page?: number
+  /** 每页条数 */
+  pageSize?: number
+  /** 所属设备国标 ID */
+  deviceId?: string
+  /** 通道国标 ID */
+  channelId?: string
+  /** 启用状态：1 启用、0 停用、不传全部 */
+  enabled?: number
+}
+
 /** 云端录像计划（周计划） */
 export interface GbRecordPlan {
   id?: string
   name?: string
   deviceId: string
   channelId: string
+  /** 设备名称（列表冗余返回，便于展示） */
+  deviceName?: string
+  /** 通道名称（列表冗余返回，便于展示） */
+  channelName?: string
   /** 0停 1启 */
   enabled?: number
   /** UDP / TCP-active / TCP-passive，空随设备 */

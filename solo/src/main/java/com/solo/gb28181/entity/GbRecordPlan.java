@@ -33,6 +33,14 @@ public class GbRecordPlan {
     @Schema(description = "通道国标 ID")
     private String channelId;
 
+    @Schema(description = "设备名称（列表冗余，便于展示）")
+    @TableField(exist = false)
+    private String deviceName;
+
+    @Schema(description = "通道名称（列表冗余，便于展示）")
+    @TableField(exist = false)
+    private String channelName;
+
     @Schema(description = "是否启用 0停 1启")
     private Integer enabled;
 
