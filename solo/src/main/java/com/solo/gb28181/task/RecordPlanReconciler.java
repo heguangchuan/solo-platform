@@ -80,6 +80,7 @@ public class RecordPlanReconciler {
         int started = 0;
         int stopped = 0;
         int swept = 0;
+        int recovered = 0;
         LocalTime time = now.toLocalTime();
         int dayOfWeek = now.getDayOfWeek().getValue();
 
@@ -104,8 +105,14 @@ public class RecordPlanReconciler {
                                 plan.getTransport(), plan.getStreamNumber());
                         swept++;
                         started++;
+                    } else if (GbInviteSession.STATUS_READY.equals(session.getStatus())) {
+                        // READY 只代表平台侧开通过录制；外部手动 stopRecord / ZLM 丢录制态都无事件，
+                        // 这里按 5 分钟节流查 ZLM 真实录制态，流在但没录就补发 startRecord
+                        if (cloudRecordService.ensureRecording(session)) {
+                            recovered++;
+                        }
                     }
-                    // READY / INVITING：不动
+                    // INVITING：等流就绪 hook 起录，不动
                 } else if (session != null) {
                     // 过了时段就停。STOPPED 的残留也顺手删掉，不必等延迟任务
                     cloudRecordService.stop(streamId);
@@ -117,9 +124,9 @@ public class RecordPlanReconciler {
             }
         }
 
-        if (started + stopped + swept > 0) {
-            log.info("[{}] 本轮完成 拉起={} 停止={} 断流重拉={} 启用计划数={}",
-                    LOG_TAG, started, stopped, swept, plans.size());
+        if (started + stopped + swept + recovered > 0) {
+            log.info("[{}] 本轮完成 拉起={} 停止={} 断流重拉={} 录制补发={} 启用计划数={}",
+                    LOG_TAG, started, stopped, swept, recovered, plans.size());
         }
     }
 

@@ -315,6 +315,36 @@ public class ZlmRestClient {
     }
 
     /**
+     * 查询某路流当前的真实录制态，用于录像对账补偿（外部 stopRecord / ZLM 异常丢录制态时平台无事件感知）。
+     * <p>对应 ZLM {@code /index/api/isRecording}。</p>
+     * <ul>
+     *   <li>{@link RecordState#RECORDING}：ZLM 明确返回 status=true</li>
+     *   <li>{@link RecordState#IDLE}：流在但没在录（status=false），可安全重发 startRecord</li>
+     *   <li>{@link RecordState#UNAVAILABLE}：调用失败或流不存在（ZLM code!=0），调用方需自行用
+     *       {@link #isMediaOnline} 区分"流没了"和"接口抖动"，不能盲目重发</li>
+     * </ul>
+     */
+    public RecordState isRecording(MediaServer server, String app, String stream) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("type", "1");
+        params.put("vhost", "__defaultVhost__");
+        params.put("app", app);
+        params.put("stream", stream);
+        try {
+            JsonNode resp = post(server, "isRecording", params);
+            return resp.path("status").asBoolean(false)
+                    ? RecordState.RECORDING : RecordState.IDLE;
+        } catch (ServiceException e) {
+            return RecordState.UNAVAILABLE;
+        }
+    }
+
+    /** ZLM 录制态查询结果，见 {@link #isRecording} */
+    public enum RecordState {
+        RECORDING, IDLE, UNAVAILABLE
+    }
+
+    /**
      * 列出某段时间对应的 MP4 录制文件。
      * <p>对应 ZLM {@code /index/api/getMp4Record} 接口。{@code on_record_mp4} hook 回调里读
      * {@code path} 字段取到的是<b>单段</b>文件，本方法用于按 (应用, 流, 周期) 维度
