@@ -31,6 +31,8 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * <h3>云端录制会话编排</h3>
@@ -57,6 +59,10 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
     private static final String APP = "rtp";
     /** startRecord 的保底单段时长：6h。跨天切片 ZLM 自己会切，这里只是防异常情况下文件无限长 */
     private static final int MAX_SEGMENT_SECONDS = 6 * 3600;
+    /** 同一路流两次 isRecording 探测的最小间隔，对账 60s 一跳但没必要每分钟查 */
+    private static final long RECORD_CHECK_INTERVAL_SECONDS = 5 * 60L;
+    /** streamId -> 上次 isRecording 探测时间（epoch 秒），仅做节流，重启清空无影响 */
+    private final Map<String, Long> lastRecordingCheckAt = new ConcurrentHashMap<>();
 
     private final Gb28181Properties sipProperties;
     private final MediaProperties mediaProperties;
@@ -209,6 +215,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         byeIfPossible(session);
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(streamId);
+        lastRecordingCheckAt.remove(streamId);
         log.info("[{}] 停止录制 流ID:{}", LOG_TAG, streamId);
     }
 
@@ -248,7 +255,70 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         session.setStatus(GbInviteSession.STATUS_READY);
         session.setReadyTime(LocalDateTime.now());
         inviteSessionService.update(session);
+        lastRecordingCheckAt.put(stream, System.currentTimeMillis() / 1000);
         log.info("[{}] 流就绪，已开始切片 流ID:{}", LOG_TAG, stream);
+    }
+
+    @Override
+    public boolean ensureRecording(GbInviteSession session) {
+        if (session == null || !GbInviteSession.TYPE_RECORD.equals(session.getSessionType())
+                || !GbInviteSession.STATUS_READY.equals(session.getStatus())) {
+            return false;
+        }
+        String streamId = session.getStreamId();
+        long nowSec = System.currentTimeMillis() / 1000;
+        Long last = lastRecordingCheckAt.get(streamId);
+        if (last != null && nowSec - last < RECORD_CHECK_INTERVAL_SECONDS) {
+            return false;
+        }
+
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
+        if (server == null) {
+            log.error("[{}] 录制补偿跳过，节点丢失 节点ID:{} 流ID:{}", LOG_TAG, session.getServerId(), streamId);
+            return false;
+        }
+
+        ZlmRestClient.RecordState state;
+        boolean online;
+        try {
+            state = zlmRestClient.isRecording(server, APP, streamId);
+            // isRecording 在"流不存在"时也返回 UNAVAILABLE，必须再验一次流是否在线，区分流没了和接口抖动
+            online = state != ZlmRestClient.RecordState.UNAVAILABLE
+                    || zlmRestClient.isMediaOnline(server, APP, streamId);
+        } catch (Exception e) {
+            log.warn("[{}] 录制态探测异常，本轮跳过 流ID:{} 错误:{}", LOG_TAG, streamId, e.getMessage());
+            return false;
+        }
+        lastRecordingCheckAt.put(streamId, nowSec);
+
+        if (state == ZlmRestClient.RecordState.RECORDING) {
+            return false;
+        }
+        if (!online) {
+            // ZLM 里流已经没了（ZLM 重启 / 设备停推但 BYE 没送达）：转 STOPPED，下一轮对账走断流重拉
+            session.setStatus(GbInviteSession.STATUS_STOPPED);
+            session.setStopTime(LocalDateTime.now());
+            inviteSessionService.update(session);
+            log.warn("[{}] 录制态探测发现流已不存在，转断流重拉 流ID:{}", LOG_TAG, streamId);
+            return false;
+        }
+        if (state == ZlmRestClient.RecordState.UNAVAILABLE) {
+            // 流在但 isRecording 调用失败（节点临时抖动），不补发，等下一个探测周期
+            log.warn("[{}] 流在线但录制态查询失败，下轮再探 流ID:{}", LOG_TAG, streamId);
+            return false;
+        }
+
+        // 流在、IDLE：外部手动 stopRecord 或 ZLM 丢了录制态，补发 startRecord
+        String period = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+        boolean ok = zlmRestClient.startRecord(server, APP, streamId, period, MAX_SEGMENT_SECONDS);
+        if (!ok) {
+            log.warn("[{}] 录制补偿补发失败，下轮再试 流ID:{}", LOG_TAG, streamId);
+            return false;
+        }
+        lastRecordingCheckAt.put(streamId, nowSec);
+        log.warn("[{}] 检测到录制中断，已补发 startRecord 流ID:{}", LOG_TAG, streamId);
+        return true;
     }
 
     @Override
@@ -296,6 +366,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         }
         inviteCleanup.cleanupZlm(current);
         inviteSessionService.removeByStreamId(current.getStreamId());
+        lastRecordingCheckAt.remove(current.getStreamId());
         log.info("[{}] 流断后延迟清理完成 流ID:{}", LOG_TAG, current.getStreamId());
     }
 

@@ -5,16 +5,6 @@
       <div class="flex h-12 shrink-0 items-center gap-1 border-b border-border px-3">
         <span class="text-[13px] font-medium">云端录像中心</span>
         <div class="flex-1" />
-        <Button
-          v-access="PERM.GB_RECORD_CONTROL"
-          :variant="recording ? 'destructive' : 'outline'"
-          size="sm"
-          class="h-7 text-xs"
-          @click="recording ? openRecording() : openStart()"
-        >
-          <IconCircle :class="['size-3.5', recording ? 'animate-pulse' : '']" />
-          {{ recording ? '录制中 · 停止' : '手动录制' }}
-        </Button>
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
       </div>
 
@@ -193,107 +183,6 @@
         </div>
       </aside>
     </Transition>
-
-    <!-- 手动录制弹窗（开始） -->
-    <Dialog v-model:open="startOpen">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle class="text-base">手动录制</DialogTitle>
-          <DialogDescription>选择设备与通道后立即开始录制，停止后录像自动上传云端。</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-3">
-          <div class="space-y-1.5">
-            <Label>设备</Label>
-            <div class="device-select h-9 w-full rounded-md border border-border px-1">
-              <GbDeviceSelect v-model="manual.deviceId" />
-            </div>
-          </div>
-          <div class="space-y-1.5">
-            <Label>通道</Label>
-            <Select v-model="manual.channelId">
-              <RawSelectTrigger class="h-9 w-full px-2 text-[13px]">
-                <SelectValue :placeholder="channelsLoading ? '通道加载中...' : '请选择通道'" />
-              </RawSelectTrigger>
-              <SelectContent>
-                <SelectItem
-                  v-for="c in channels"
-                  :key="c.channelId"
-                  :value="c.channelId"
-                >
-                  {{ c.name || c.reportName || c.channelId }}
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="space-y-1.5">
-              <Label>收流模式</Label>
-              <Select
-                :model-value="manual.transport || '__default__'"
-                @update:model-value="(v: string) => (manual.transport = v === '__default__' ? '' : v)"
-              >
-                <RawSelectTrigger class="h-9 w-full px-2 text-[13px]">
-                  <SelectValue placeholder="随设备" />
-                </RawSelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">随设备</SelectItem>
-                  <SelectItem value="UDP">UDP</SelectItem>
-                  <SelectItem value="TCP-passive">TCP 被动</SelectItem>
-                  <SelectItem value="TCP-active">TCP 主动</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div class="space-y-1.5">
-              <Label>码流</Label>
-              <Select
-                :model-value="manual.streamNumber || '__default__'"
-                @update:model-value="(v: string) => (manual.streamNumber = v === '__default__' ? '' : v)"
-              >
-                <RawSelectTrigger class="h-9 w-full px-2 text-[13px]">
-                  <SelectValue placeholder="主码流" />
-                </RawSelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__default__">主码流</SelectItem>
-                  <SelectItem value="stream:1">子码流</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" @click="startOpen = false">取消</Button>
-          <Button size="sm" :loading="starting" @click="onStart">开始录制</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-
-    <!-- 录制中弹窗（停止） -->
-    <Dialog v-model:open="recordingOpen">
-      <DialogContent class="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle class="text-base">录制中</DialogTitle>
-          <DialogDescription />
-        </DialogHeader>
-        <div class="space-y-3 text-[13px]">
-          <div class="flex items-center gap-2">
-            <span class="relative flex size-2.5">
-              <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
-              <span class="relative inline-flex size-2.5 rounded-full bg-red-500" />
-            </span>
-            <span class="text-sm">正在录制，停止后录像将上传云端。</span>
-          </div>
-          <div class="rounded-md bg-muted px-3 py-2 font-mono text-xs break-all">
-            streamId: {{ streamId }}
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" size="sm" @click="recordingOpen = false">继续录制</Button>
-          <Button variant="destructive" size="sm" :loading="stopping" @click="onStop">
-            停止录制
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   </div>
 </template>
 
@@ -302,36 +191,18 @@
  * 云端录像中心
  * - 分页查询 S3 上的录像文件（无限滚动）
  * - 行点击打开右侧 Inspector：在线回放 / 下载预签名地址 / 元数据 / 删除
- * - 手动录制是即时操作流，保留开始 / 录制中两个弹窗；本地留存 streamId，同页可停止
  */
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { IconLoader2, IconMovie, IconX, IconCircle, IconFilter } from '@tabler/icons-vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { IconLoader2, IconMovie, IconX, IconFilter } from '@tabler/icons-vue'
 import RefreshButton from '@/components/RefreshButton.vue'
-import Button from '@/components/ui/button/Button.vue'
-import { Label } from '@/components/ui/label'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
 import GbChannelSelect from '@/features/gb/GbChannelSelect.vue'
 import GbCloudRecordInspector from '@/features/gb/GbCloudRecordInspector.vue'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
-import { toast } from '@/lib/toast'
-import {
-  getCloudRecordPageApi,
-  startCloudRecordApi,
-  stopCloudRecordApi,
-  getGbDeviceChannelPageApi,
-} from '@/api/gb28181'
-import type { GbRecordFile, GbDeviceChannel } from '@/types/api'
+import { getCloudRecordPageApi } from '@/api/gb28181'
+import type { GbRecordFile } from '@/types/api'
 
 /* ---------------- 筛选 ---------------- */
 const deviceIdQ = ref<string | undefined>(undefined)
@@ -432,103 +303,6 @@ function fmtSize(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${bytes} B`
-}
-
-/* ---------------- 手动录制 ---------------- */
-const startOpen = ref(false)
-const recordingOpen = ref(false)
-const starting = ref(false)
-const stopping = ref(false)
-const streamId = ref('')
-const recording = computed(() => !!streamId.value)
-
-const manual = reactive({
-  deviceId: '' as string | undefined,
-  channelId: '' as string | undefined,
-  transport: 'TCP-passive',
-  streamNumber: '',
-})
-
-const channels = ref<GbDeviceChannel[]>([])
-const channelsLoading = ref(false)
-
-// 设备选定后拉通道（只取叶子通道）
-watch(
-  () => manual.deviceId,
-  async (deviceId) => {
-    manual.channelId = undefined
-    channels.value = []
-    if (!deviceId) return
-    channelsLoading.value = true
-    try {
-      const { data } = await getGbDeviceChannelPageApi({
-        page: 1,
-        pageSize: 1000,
-        deviceId,
-        parental: 0,
-      })
-      channels.value = data.rows
-    } finally {
-      channelsLoading.value = false
-    }
-  },
-)
-
-function resetManual() {
-  manual.deviceId = undefined
-  manual.channelId = undefined
-  manual.transport = 'TCP-passive'
-  manual.streamNumber = ''
-  channels.value = []
-}
-
-const openStart = () => {
-  resetManual()
-  startOpen.value = true
-}
-
-const openRecording = () => {
-  recordingOpen.value = true
-}
-
-const onStart = async () => {
-  if (!manual.deviceId || !manual.channelId) {
-    toast.warning('请选择设备与通道')
-    return
-  }
-  starting.value = true
-  try {
-    const { data } = await startCloudRecordApi({
-      deviceId: manual.deviceId,
-      channelId: manual.channelId,
-      transport: manual.transport || undefined,
-      streamNumber: manual.streamNumber || undefined,
-    })
-    streamId.value = data
-    startOpen.value = false
-    toast.success('已开始录制')
-  } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
-  } finally {
-    starting.value = false
-  }
-}
-
-const onStop = async () => {
-  if (!streamId.value) return
-  stopping.value = true
-  try {
-    await stopCloudRecordApi(streamId.value)
-    toast.success('已停止录制，录像上传中')
-    streamId.value = ''
-    recordingOpen.value = false
-    // 稍等后端落库，给列表刷一下
-    setTimeout(() => resource.load(true), 1500)
-  } catch (e) {
-    toast.error(e instanceof Error ? e.message : String(e))
-  } finally {
-    stopping.value = false
-  }
 }
 
 /* ---------------- 键盘流 ---------------- */

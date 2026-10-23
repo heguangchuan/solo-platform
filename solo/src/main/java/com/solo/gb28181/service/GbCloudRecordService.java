@@ -50,6 +50,14 @@ public interface GbCloudRecordService {
     /** on_stream_changed(regist=true)：流进 ZLM 了，开 startRecord */
     void onStreamReady(String app, String stream, String mediaServerId);
 
+    /**
+     * 对账补偿：READY 会话不代表 ZLM 真的在录（外部手动 stopRecord / ZLM 异常丢录制态都无事件）。
+     * 查 ZLM 真实录制态，流在但没录就补发 startRecord。
+     *
+     * @return true=本轮执行了补发；false=在录 / 状态不明 / 流已不存在（流不存在的会话转 STOPPED 交给对账重拉）
+     */
+    boolean ensureRecording(GbInviteSession session);
+
     /** on_stream_changed(regist=false)：流没了，清理会话（BYE 不一定发得出去） */
     void onStreamStopped(String app, String stream, String mediaServerId);
 
