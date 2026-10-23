@@ -124,6 +124,8 @@ const scrollCursorIntoView = () => {
 const onRowClick = (row: SysPermission, i: number) => {
   cursor.value = i
   selected.value = row
+  // 选行必须退出新建态，否则 inspector 会停留在"新建"表单
+  creating.value = false
 }
 
 const openCreate = (parent?: SysPermission) => {
@@ -249,7 +251,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
     case 'Enter':
       e.preventDefault()
       if (rows[cursor.value]) {
-        selected.value = rows[cursor.value].node
+        onRowClick(rows[cursor.value].node, cursor.value)
       }
       break
     case 'n':
