@@ -548,6 +548,8 @@ const scrollCursorIntoView = () => {
 const onRowClick = (c: GbDeviceChannel, i: number) => {
   cursor.value = i
   selected.value = c
+  // 选行必须退出新建态，否则 inspector 会停留在"新建通道"表单
+  creating.value = false
 }
 
 const onCloseInspector = () => {
@@ -666,7 +668,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       break
     case 'Enter':
       e.preventDefault()
-      if (list[cursor.value]) selected.value = list[cursor.value]
+      if (list[cursor.value]) onRowClick(list[cursor.value], cursor.value)
       break
     case 'n':
     case 'N':
