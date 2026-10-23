@@ -86,15 +86,11 @@ public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, Med
         out.setOnvifStreamCount(safeCount(() -> onvifPlayService.listAllActive().stream()
                 .filter(s -> serverId.equals(s.getServerId())).count(), "onvif", serverId));
 
-        // total 走 Redis ZSet（ZLM on_stream_changed 维护的活跃流数，权威值）。
-        // 与四类累加不一定相等——见 StreamStatsSummaryResponse#total。
-        Double liveLoad = null;
-        try {
-            liveLoad = loadIndex.getLoad(serverId);
-        } catch (Exception e) {
-            log.warn("[流媒体] 节点流统计 读 ZSet 失败 serverId={} 错误:{}", serverId, e.getMessage());
-        }
-        out.setTotal(liveLoad == null ? 0L : liveLoad.longValue());
+        // total 直接为四类之和，与明细 Tab 上的计数一致，用户可对账；
+        // 负载均衡仍走 Redis ZSet（实时权威值，单独维护下限保护）。
+        long total = out.getGbStreamCount() + out.getPushStreamCount()
+                + out.getProxyStreamCount() + out.getOnvifStreamCount();
+        out.setTotal(total);
         return out;
     }
 
@@ -239,7 +235,7 @@ public class MediaServerServiceImpl extends ServiceImpl<GbMediaServerMapper, Med
         boolean ok = super.removeById(id);
         if (ok && s != null) {
             try {
-                loadIndex.onNodeOffline(s.getServerId());
+                loadIndex.removeNode(s.getServerId());
             } catch (Exception e) {
                 // 负载索引不是配置权威源；清理失败不影响功能——下次选点会被
                 // MediaServerSelector 走 status=1 兜底分支挡住。这里只记日志，不让 500。
