@@ -2,12 +2,9 @@ project:
   ip: 192.168.1.205
 
 server:
-  port: 20003
+  port: 8080
 
 spring:
-  application:
-    name: solo
-
   datasource:
     url: jdbc:mysql://localhost:3306/solo_b?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
@@ -19,23 +16,6 @@ spring:
       host: localhost
       port: 6379
       database: 1
-
-  servlet:
-    multipart:
-      max-file-size: 20MB
-      max-request-size: 25MB
-
-mybatis-plus:
-  mapper-locations: classpath:mapper/**/*.xml
-  type-aliases-package: com.solo.entity
-  global-config:
-    db-config:
-      logic-delete-field: deleted
-      logic-not-delete-value: 0
-      logic-delete-value: 1
-  configuration:
-    map-underscore-to-camel-case: true
-#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
 jwt:
   secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=
@@ -61,14 +41,6 @@ s3:
   public-url:
   path-style-access: true
 
-logging:
-  level:
-    com.solo: info
-    # JAIN-SIP 协议栈内部日志压到 warn，避免刷屏影响排查。
-    # Spring Boot 默认会把它继承到 INFO，会让协议栈自带的 logInfo（事务生命周期、
-    # Dialog 状态、消息派发摘要）全部打出来。调试设备方言 / SIP 交互时临时调成 info 或 debug。
-    gov.nist: warn
-
 # ============================================================
 #  GB/T 28181 国标平台配置
 #  原则：可能需要部署改的字段都保留，值由代码默认/部署覆盖；
@@ -79,8 +51,8 @@ gb28181:
   ip: ${project.ip}
   # SIP 公网 IP；NAT/公网部署时必填，用于构造 Via/Contact 头，让下级/设备能正常回包
   public-ip:
-  # SIP 监听端口；代码默认 5060，本项目用 15060 避开公共端口
-  port: 25060
+  # SIP 监听端口（与代码默认 5060 一致，标准国标端口）
+  port: 5060
 
   # 本平台 SIP ID（20 位：行政区划 10 位 + 平台编号 10 位），无代码默认
   id: 60000000042000000029
@@ -119,7 +91,7 @@ gb28181:
 media:
   # ZLM hook 回调的鉴权 secret（须与 ZLM config.ini 中 [api].secret 一致）；
   # solo 收到 hook 后会校验请求中的 secret 字段。未配置时所有 hook 都会被拒，启动期日志会告警
-  hook-secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+  hook-secret: solo
 
   # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）。
   # 开启后用户通过播放 URL 访问不存在流时自动补一次 INVITE；关闭则需先点"播放"按钮
@@ -140,9 +112,9 @@ media:
     # ZLM 管理面 IP（用于 REST API 调用）
     host-ip: 192.168.1.201
     # ZLM HTTP API 端口
-    http-port: 10005
+    http-port: 8088
     # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）
-    secret: DHrrFblswkEIPR7t30xjsJELKjMsKEQf
+    secret: solo
     # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）。留空则同 host-ip。
     # 勿与 host-ip 混用：SDP c= 也从此取，需对端可达
     stream-ip:

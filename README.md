@@ -24,7 +24,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 
 ```
 设备/平台(GB28181)
-      │  SIP(UDP/TCP) :15060
+      │  SIP(UDP/TCP) :5060
       ▼
 ┌─────────────────────────────┐
 │   Solo Platform（后端）      │
@@ -134,7 +134,7 @@ mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 编辑 `solo/src/main/resources/application.yaml`：
 
 - `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接
-- `gb28181.*`：SIP 端口（默认 15060）、平台国标编码、域、注册密码
+- `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码
 - `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段
 - `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）
 
@@ -142,25 +142,25 @@ mysql -uroot -p < sql/onvif.sql       # ONVIF 模块（可选）
 cd solo && ./mvnw spring-boot:run
 ```
 
-服务端口 `10003`，SIP 同时监听 UDP/TCP `15060`，等待 ZLM hook 回调。
+服务端口 `8080`，SIP 同时监听 UDP/TCP `5060`，等待 ZLM hook 回调。
 
 ### 3. 配置并启动 ZLMediaKit
 
 仓库提供一份开箱参考配置 [zlm/config.ini](zlm/config.ini)，复制到 ZLM 的配置目录（与 `MediaServer` 可执行文件同级的 `conf/`）后按需修改三处：
 
-- **Hook 回调地址**：示例中为 `http://solo.com:10003/api/hook/...`，请将 `solo.com` 改为后端实际可达地址（本地联调可在 hosts 中把 `solo.com` 指向后端 IP）；地址上的 `secret` 须与后端 `media.hook-secret` 一致。
-- **API 密钥**：`[api].secret` 须与后端媒体节点的 `secret` 一致（示例值 `DHrrFblswk...`，生产环境请更换）。
+- **Hook 回调地址**：以 `on_stream_changed` 为例，完整写法为 `http://solo.com:8080/api/hook/on_stream_changed?secret=solo`；请将 `solo.com` 改为后端实际可达地址（本地联调可在 hosts 中把 `solo.com` 指向后端 IP），其余 `on_*` 事件同理。**secret 必须作为 URL 查询参数（`?secret=`）带上**，且与本文件 `[api].secret`、后端 `media.hook-secret`（统一 `solo`）三者一致，否则后端 `checkSecret` 会拒绝回调。
+- **API 密钥**：`[api].secret` 须与后端媒体节点的 `secret` 一致（示例值 `solo`，生产环境请更换）。
 - **节点标识**：`[general].mediaServerId`（示例 `zlmediakit-local`）须与后端媒体节点的 `server-id` 完全一致。
 
 关键端口（需与后端媒体节点配置、防火墙放行对应）：
 
 | 端口 | 用途 |
 |---|---|
-| `10005` | HTTP API / HTTP-FLV / WS-FLV / HLS |
+| `8088` | HTTP API / HTTP-FLV / WS-FLV / HLS |
 | `554` | RTSP |
 | `1935` | RTMP |
 | `8000` | WebRTC（TCP/UDP） |
-| `10000` + `30000-35000` | RTP 收流端口与范围（国标 PS 流） |
+| `10000` | RTP 代理端口（国标 PS 流转发） |
 | `9000` | SRT |
 
 > 另需保证 ZLM 所在机器安装了 ffmpeg（示例中 `[ffmpeg].bin=/usr/bin/ffmpeg`，Linux 路径；Windows 请改为实际路径）。
@@ -171,17 +171,17 @@ cd solo && ./mvnw spring-boot:run
 cd solo-ui && npm install && npm run dev
 ```
 
-访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:10003`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
+访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:8080`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
 
 ### 5. 接入摄像头
 
-将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:15060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
+将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
 
 ## 项目结构
 
 ```
 solo-platform/
-├── solo/                  # Spring Boot 后端（端口 10003）
+├── solo/                  # Spring Boot 后端（端口 8080）
 │   └── src/main/java/com/solo/
 │       ├── system/        # RBAC / 字典 / 文件 / 消息 / 日志 / 服务器
 │       ├── gb28181/       # 国标 SIP 协议栈与设备/级联/回放/云台业务
