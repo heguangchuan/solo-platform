@@ -1,3 +1,25 @@
 spring:
   profiles:
     active: local
+  application:
+    name: solo
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.solo.entity
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-not-delete-value: 0
+      logic-delete-value: 1
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.solo: info
+    gov.nist: warn

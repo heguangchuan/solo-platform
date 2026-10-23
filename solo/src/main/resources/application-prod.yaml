@@ -1,30 +1,10 @@
-# ============================================================
-#  solo 生产配置（application-prod.yaml）
-#  激活方式：SPRING_PROFILES_ACTIVE=prod 或 --spring.profiles.active=prod
-#
-#  设计：所有部署相关值均通过 ${ENV:默认值} 从环境变量注入（12-factor），
-#        镜像本身不携带任何密钥 / 连接串。
-#  运维需在运行时至少覆盖下列敏感/环境相关变量：
-#    SOLO_DB_URL / SOLO_DB_USERNAME / SOLO_DB_PASSWORD
-#    SOLO_REDIS_HOST / SOLO_REDIS_PASSWORD
-#    SOLO_SIP_IP / SOLO_SIP_PUBLIC_IP / SOLO_SIP_PASSWORD
-#    SOLO_JWT_SECRET
-#    SOLO_MEDIA_HOOK_SECRET / SOLO_MEDIA_SECRET / SOLO_MEDIA_HOST / SOLO_MEDIA_HTTP_PORT
-#    SOLO_S3_ENDPOINT / SOLO_S3_ACCESS_KEY / SOLO_S3_SECRET_KEY
-# ============================================================
-
 spring:
-  application:
-    name: solo
-
-  # 数据源（MySQL）
   datasource:
     url: ${SOLO_DB_URL:jdbc:mysql://mysql:3306/solo_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
-    username: ${SOLO_DB_USERNAME:root}
+    username: ${SOLO_DB_USERNAME:changeit}
     password: ${SOLO_DB_PASSWORD:changeit}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
-  # Redis（会话 / 缓存 / SSRC 池 / 分布式锁）
   data:
     redis:
       host: ${SOLO_REDIS_HOST:redis}
@@ -32,39 +12,19 @@ spring:
       password: ${SOLO_REDIS_PASSWORD:}
       database: ${SOLO_REDIS_DB:0}
 
-  servlet:
-    multipart:
-      max-file-size: 20MB
-      max-request-size: 25MB
-
-  # 优雅停机，配合编排的 SIGTERM 平滑下线
   lifecycle:
     timeout-per-shutdown-phase: 30s
 
 server:
-  port: ${SOLO_HTTP_PORT:10003}
+  port: ${SOLO_HTTP_PORT:8080}
   shutdown: graceful
-  # 前置反向代理（nginx）终止 TLS 时开启，以正确获取客户端真实 IP
   forward-headers-strategy: native
 
-mybatis-plus:
-  mapper-locations: classpath:mapper/**/*.xml
-  type-aliases-package: com.solo.entity
-  global-config:
-    db-config:
-      logic-delete-field: deleted
-      logic-not-delete-value: 0
-      logic-delete-value: 1
-  configuration:
-    map-underscore-to-camel-case: true
-
-# JWT（生产务必通过 SOLO_JWT_SECRET 覆盖为强随机值）
 jwt:
   secret: ${SOLO_JWT_SECRET:please-change-this-to-a-long-random-secret}
   access-expiration: ${SOLO_JWT_ACCESS_EXP:1800000}
   refresh-expiration: ${SOLO_JWT_REFRESH_EXP:604800000}
 
-# 文件存储（S3 兼容：RustFS / MinIO / OSS / COS / OBS / Ceph / AWS S3）
 s3:
   endpoint-override: ${SOLO_S3_ENDPOINT:http://rustfs:9000}
   region: ${SOLO_S3_REGION:us-east-1}
@@ -79,14 +39,11 @@ logging:
     com.solo: ${SOLO_LOG_LEVEL:info}
     gov.nist: warn
 
-# ============================================================
-#  GB/T 28181 国标信令
-# ============================================================
 gb28181:
   # SIP 监听 IP（容器内一般 0.0.0.0）；public-ip 为公网/NAT 可达地址，用于构造 Via/Contact 头
   ip: ${SOLO_SIP_IP:0.0.0.0}
   public-ip: ${SOLO_SIP_PUBLIC_IP:}
-  port: ${SOLO_SIP_PORT:15060}
+  port: ${SOLO_SIP_PORT:5060}
   id: ${SOLO_SIP_ID:60000000042000000028}
   domain: ${SOLO_SIP_DOMAIN:6000000004}
   # 设备注册鉴权密码；留空 = 开放模式（生产建议设置）
@@ -99,12 +56,10 @@ gb28181:
     send-rtp-port-start: ${SOLO_CASCADE_RTP_START:50000}
     send-rtp-port-end: ${SOLO_CASCADE_RTP_END:60000}
 
-# ============================================================
-#  流媒体（ZLMediaKit）
-# ============================================================
+
 media:
   # hook 鉴权 secret，须与 ZLM config.ini 的 [api].secret 一致；生产务必覆盖
-  hook-secret: ${SOLO_MEDIA_HOOK_SECRET:please-change-hook-secret}
+  hook-secret: ${SOLO_MEDIA_HOOK_SECRET:solo}
   auto-apply-play: ${SOLO_MEDIA_AUTO_PLAY:true}
   # 推流鉴权：生产务必开启
   push-auth-enabled: ${SOLO_MEDIA_PUSH_AUTH:true}
@@ -113,13 +68,13 @@ media:
     server-id: ${SOLO_MEDIA_SERVER_ID:zlmediakit}
     name: ${SOLO_MEDIA_NAME:默认节点}
     host-ip: ${SOLO_MEDIA_HOST:zlm}
-    http-port: ${SOLO_MEDIA_HTTP_PORT:10005}
-    secret: ${SOLO_MEDIA_SECRET:please-change-hook-secret}
+    http-port: ${SOLO_MEDIA_HTTP_PORT:8088}
+    secret: ${SOLO_MEDIA_SECRET:solo}
     stream-ip: ${SOLO_MEDIA_STREAM_IP:}
     stream-http-port: ${SOLO_MEDIA_STREAM_HTTP_PORT:0}
     rtc-port: ${SOLO_MEDIA_RTC_PORT:0}
 
-# 生产关闭接口文档，避免暴露
+
 knife4j:
   enable: false
 springdoc:

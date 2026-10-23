@@ -73,7 +73,7 @@ public class MediaProperties {
         private String serverId = "zlmediakit-local";
         private String name = "默认节点";
         private String hostIp = "127.0.0.1";
-        private int httpPort = 10005;
+        private int httpPort = 8088;
         private String secret;
         /**
          * 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）；留空则同 hostIp
