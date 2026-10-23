@@ -11,9 +11,7 @@
         <div class="truncate text-base font-semibold">
           {{ creating ? '新增设备' : deviceName }}
         </div>
-        <div v-if="creating" class="text-xs text-muted-foreground">
-          录入国标设备，可同时添加通道
-        </div>
+        <div class="text-xs text-muted-foreground">录入国标设备</div>
       </div>
       <Button variant="ghost" size="icon-sm" @click="emit('close')">
         <IconX class="h-4 w-4" />
@@ -165,58 +163,6 @@
       </div>
     </section>
 
-    <!-- 添加通道（仅新增） -->
-    <template v-if="creating">
-      <div class="my-4 h-px bg-border" />
-
-      <section>
-        <div class="mb-3 flex items-center justify-between">
-          <h4 class="text-[13px] font-medium">添加通道</h4>
-          <Button variant="ghost" size="sm" class="h-7 text-xs" @click="addChannel">
-            <IconPlus class="size-3.5" />
-            添加通道
-          </Button>
-        </div>
-
-        <div v-if="!channels.length" class="rounded-md border border-dashed py-5 text-center text-xs text-muted-foreground">
-          暂不添加，设备注册后可通过「同步」拉取通道
-        </div>
-
-        <div v-else class="space-y-2">
-          <div
-            v-for="(ch, i) in channels"
-            :key="i"
-            class="rounded-md border bg-muted/30 p-2.5"
-          >
-            <div class="flex items-center gap-2">
-              <Input
-                v-model="ch.channelId"
-                class="h-7 flex-1 font-mono text-[11px]"
-                placeholder="通道国标编码（20位）"
-              />
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                class="size-7 shrink-0 text-muted-foreground hover:text-destructive"
-                title="移除"
-                @click="removeChannel(i)"
-              >
-                <IconTrash class="size-3.5" />
-              </Button>
-            </div>
-            <Input
-              v-model="ch.name"
-              class="mt-2 h-7 text-[11px]"
-              placeholder="通道名称"
-            />
-            <p v-if="channelErrors[i]" class="mt-1 text-[11px] text-destructive">
-              {{ channelErrors[i] }}
-            </p>
-          </div>
-        </div>
-      </section>
-    </template>
-
     <!-- 注册 / 上报信息（已有设备） -->
     <template v-if="!creating && device">
       <div class="my-4 h-px bg-border" />
@@ -269,6 +215,28 @@
         </div>
       </section>
 
+      <!-- 同步通道目录 -->
+      <section v-if="!creating && device" class="mt-4">
+        <div class="mb-2 flex items-center justify-between">
+          <h4 class="text-[13px] font-medium">通道目录</h4>
+          <Button
+            v-access="PERM.GB_DEVICE_SYNC"
+            variant="outline"
+            size="sm"
+            class="h-7 gap-1.5 text-xs"
+            :disabled="syncing || device.status !== 1"
+            :loading="syncing"
+            @click="onSync"
+          >
+            <IconRefresh v-if="!syncing" class="size-3.5" />
+            同步通道目录
+          </Button>
+        </div>
+        <p class="text-[11px] text-muted-foreground">
+          手动拉取该设备最新通道目录；设备在线时可执行。
+        </p>
+      </section>
+
       <!-- 危险操作 -->
       <section class="mt-6">
         <h4 class="mb-2 text-[13px] font-medium text-destructive">危险操作</h4>
@@ -287,25 +255,35 @@
         </Button>
       </section>
     </template>
+
+    <GbSyncProgressDialog ref="syncDialogRef" @completed="onSyncCompleted" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { IconDeviceCctv, IconX, IconPlus, IconTrash, IconInfoCircle } from '@tabler/icons-vue'
+import {
+  IconDeviceCctv,
+  IconX,
+  IconTrash,
+  IconInfoCircle,
+  IconRefresh,
+} from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import GbSyncProgressDialog from '@/features/gb/GbSyncProgressDialog.vue'
 import {
   saveGbDeviceApi,
   updateGbDeviceApi,
   deleteGbDeviceApi,
+  syncGbDeviceApi,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
-import type { GbDevice, GbDeviceChannelDraft } from '@/types/api'
+import type { GbDevice } from '@/types/api'
 
 const props = defineProps<{
   device?: GbDevice
@@ -316,6 +294,7 @@ const emit = defineEmits<{
   saved: []
   created: []
   deleted: [device: GbDevice]
+  synced: [deviceId: string]
 }>()
 
 type FormState = {
@@ -347,13 +326,11 @@ const buildForm = (): FormState => ({
 })
 
 const form = reactive<FormState>(buildForm())
-const channels = ref<GbDeviceChannelDraft[]>([])
 
 watch(
   () => props.device?.id,
   () => {
     Object.assign(form, buildForm())
-    channels.value = []
     errors.deviceId = ''
     errors.name = ''
   },
@@ -378,12 +355,8 @@ const SOURCE_TEXT: Record<number, string> = {
 }
 const sourceText = (source?: number) => (source == null ? '—' : SOURCE_TEXT[source] ?? '—')
 
-/* 通道增删 */
-const addChannel = () => channels.value.push({ channelId: '', name: '' })
-const removeChannel = (i: number) => channels.value.splice(i, 1)
-
+/* 设备校验 */
 const errors = reactive({ deviceId: '', name: '' })
-const channelErrors = ref<Record<number, string>>({})
 
 const validateDevice = () => {
   errors.deviceId = ''
@@ -404,41 +377,17 @@ const validateDevice = () => {
   return ok
 }
 
-const validateChannels = () => {
-  channelErrors.value = {}
-  let ok = true
-  channels.value.forEach((ch, i) => {
-    const cid = ch.channelId.trim()
-    const nm = ch.name.trim()
-    if (!cid && !nm) {
-      channelErrors.value[i] = '请补全通道编码和名称，或移除该通道'
-      ok = false
-    } else if (!/^\d{20}$/.test(cid)) {
-      channelErrors.value[i] = '通道国标编码为 20 位数字'
-      ok = false
-    } else if (!nm) {
-      channelErrors.value[i] = '请输入通道名称'
-      ok = false
-    }
-  })
-  return ok
-}
-
 const saving = ref(false)
 
 const onSave = async () => {
   if (!validateDevice()) return
-  if (props.creating && !validateChannels()) return
 
   saving.value = true
   try {
     if (props.creating) {
       await saveGbDeviceApi({
         device: { ...form, deviceId: form.deviceId.trim(), name: form.name.trim() },
-        channels: channels.value.map((ch) => ({
-          channelId: ch.channelId.trim(),
-          name: ch.name.trim(),
-        })),
+        channels: [],
       })
       toast.success('设备创建成功')
       emit('created')
@@ -476,5 +425,28 @@ const onDelete = async () => {
   await deleteGbDeviceApi(props.device.deviceId)
   toast.success('已删除')
   emit('deleted', props.device)
+}
+
+/* 同步通道目录 */
+const syncDialogRef = ref<InstanceType<typeof GbSyncProgressDialog>>()
+const syncing = ref(false)
+
+const onSync = async () => {
+  const d = props.device
+  if (!d || d.status !== 1 || syncing.value) return
+  syncing.value = true
+  try {
+    const res = await syncGbDeviceApi(d.deviceId)
+    syncDialogRef.value?.open(d.deviceId, d.name || d.deviceId)
+    if (res.data?.result === 'ALREADY_RUNNING') {
+      toast.info('设备已有同步在进行中，已为你打开进度窗口')
+    }
+  } finally {
+    syncing.value = false
+  }
+}
+
+const onSyncCompleted = (deviceId: string) => {
+  emit('synced', deviceId)
 }
 </script>

@@ -203,15 +203,6 @@
                 />
                 <span class="flex min-w-0 items-center gap-1">
                   <span class="min-w-0 truncate font-mono" :title="d.deviceId">{{ d.deviceId }}</span>
-                  <button
-                    type="button"
-                    class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex disabled:hidden"
-                    :disabled="d.status !== 1"
-                    :title="d.status === 1 ? '同步通道目录' : '设备离线，无法同步'"
-                    @click.stop="onSync(d)"
-                  >
-                    <IconRefresh class="size-3.5" />
-                  </button>
                 </span>
               </td>
               <td class="truncate px-3 py-2 text-muted-foreground" :title="displayName(d)">
@@ -299,13 +290,11 @@
             @saved="onSaved"
             @created="onCreated"
             @deleted="onDeleted"
+            @synced="onSynced"
           />
         </div>
       </aside>
     </Transition>
-
-    <!-- 同步进度弹窗 -->
-    <GbSyncProgressDialog ref="syncDialogRef" />
   </div>
 </template>
 
@@ -315,18 +304,15 @@ import {
   IconSearch,
   IconX,
   IconFilter,
-  IconRefresh,
   IconLoader2,
   IconDeviceCctvOff,
 } from '@tabler/icons-vue'
 import { Plus, Trash2, Loader2, Radar } from 'lucide-vue-next'
 import GbDeviceInspector from '@/features/gb/GbDeviceInspector.vue'
-import GbSyncProgressDialog from '@/features/gb/GbSyncProgressDialog.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import {
   getGbDevicePageApi,
   getGbDeviceStatusCountApi,
-  syncGbDeviceApi,
   batchDeleteGbDeviceApi,
   detectGbDeviceApi,
 } from '@/api/gb28181'
@@ -488,10 +474,13 @@ const scrollCursorIntoView = () => {
     ?.scrollIntoView({ block: 'nearest' })
 }
 
-const onRowClick = (d: GbDevice, i: number) => {
+const selectRow = (d: GbDevice, i: number) => {
   cursor.value = i
   selected.value = d
+  creating.value = false
 }
+
+const onRowClick = (d: GbDevice, i: number) => selectRow(d, i)
 
 const onCloseInspector = () => {
   creating.value = false
@@ -522,16 +511,9 @@ const onDeleted = (d: GbDevice) => {
   fetchStatusCount()
 }
 
-/* ---------------- 同步 ---------------- */
-const syncDialogRef = ref<InstanceType<typeof GbSyncProgressDialog>>()
-
-const onSync = async (d: GbDevice) => {
-  if (d.status !== 1) return
-  const res = await syncGbDeviceApi(d.deviceId)
-  syncDialogRef.value?.open(d.deviceId, d.name || d.deviceId)
-  if (res.data?.result === 'ALREADY_RUNNING') {
-    toast.info('设备已有同步在进行中，已为你打开进度窗口')
-  }
+const onSynced = () => {
+  resource.search()
+  fetchStatusCount()
 }
 
 /* ---------------- 批删 / 检测 ---------------- */
@@ -624,7 +606,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       break
     case 'Enter':
       e.preventDefault()
-      if (list[cursor.value]) selected.value = list[cursor.value]
+      if (list[cursor.value]) selectRow(list[cursor.value], cursor.value)
       break
     case 'n':
     case 'N':
