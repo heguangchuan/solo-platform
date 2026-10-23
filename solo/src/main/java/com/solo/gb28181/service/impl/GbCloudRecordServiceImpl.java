@@ -85,9 +85,6 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         }
     }
 
-    // ============================================================
-    //  开始 / 停止
-    // ============================================================
 
     @Override
     public String startManual(String deviceId, String channelId, String transport, String streamNumber) {
@@ -221,9 +218,6 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         stop(GbCloudRecordService.planStreamId(deviceId, channelId, streamNumber));
     }
 
-    // ============================================================
-    //  ZLM Hook 回调
-    // ============================================================
 
     @Override
     public void onStreamReady(String app, String stream, String mediaServerId) {

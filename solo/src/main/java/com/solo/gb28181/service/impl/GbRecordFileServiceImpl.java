@@ -7,8 +7,15 @@ import com.solo.common.PageResult;
 import com.solo.common.ServiceException;
 import com.solo.common.storage.FileStorage;
 import com.solo.gb28181.config.Gb28181Properties;
+import com.solo.media.client.ZlmRestClient;
+import com.solo.media.entity.MediaServer;
+import com.solo.media.mapper.GbMediaServerMapper;
+import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.entity.GbRecordFile;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbRecordFileMapper;
 import com.solo.gb28181.response.GbRecordFileVO;
 import com.solo.gb28181.service.GbInviteSessionService;
@@ -30,6 +37,9 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
@@ -59,6 +69,9 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
     private static final int CLEAN_BATCH = 200;
 
     private final GbRecordFileMapper gbRecordFileMapper;
+    private final GbMediaServerMapper mediaServerMapper;
+    private final GbDeviceMapper deviceMapper;
+    private final GbDeviceChannelMapper channelMapper;
     private final GbInviteSessionService inviteSessionService;
     private final FileStorage fileStorage;
     private final ThreadPoolExecutor gb28181BizExecutor;
@@ -122,7 +135,8 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
             return;
         }
         // 异步下载+上传，不阻塞 ZLM 回调线程（慢了会被 ZLM 当失败重推）
-        gb28181BizExecutor.execute(() -> downloadAndUpload(record.getId(), stream, url, 0));
+        String serverId = session.getServerId();
+        gb28181BizExecutor.execute(() -> downloadAndUpload(record.getId(), stream, serverId, url, 0));
     }
 
     private LocalDateTime resolveStart(Long startUnixSeconds, double duration, LocalDateTime fallbackEnd) {
@@ -133,10 +147,17 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         return fallbackEnd.minusSeconds((long) duration);
     }
 
-    private void downloadAndUpload(Long id, String streamId, String zlmUrl, int attemptRetryCount) {
+    private void downloadAndUpload(Long id, String streamId, String serverId, String zlmUrl, int attemptRetryCount) {
         Path tmp = null;
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(zlmUrl))
+            // hook 给的 url 是相对路径，按产生该切片的节点补成绝对地址；库里存相对路径，重试时重新解析
+            MediaServer server = mediaServerMapper.selectOne(new LambdaQueryWrapper<MediaServer>()
+                    .eq(MediaServer::getServerId, serverId));
+            if (server == null) {
+                throw new IllegalStateException("ZLM 节点未登记: " + serverId);
+            }
+            String absoluteUrl = ZlmRestClient.resolveDownloadUrl(server, zlmUrl);
+            HttpRequest req = HttpRequest.newBuilder(URI.create(absoluteUrl))
                     .timeout(Duration.ofMinutes(5))
                     .GET()
                     .build();
@@ -211,7 +232,7 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
             gbRecordFileMapper.updateById(claim);
             try {
                 gb28181BizExecutor.execute(
-                        () -> downloadAndUpload(r.getId(), r.getStreamId(), r.getSourceUrl(), nextRetry));
+                        () -> downloadAndUpload(r.getId(), r.getStreamId(), r.getServerId(), r.getSourceUrl(), nextRetry));
             } catch (Exception e) {
                 // 线程池满（CallerRunsPolicy 下其实抛不出来）：回滚状态下轮再领
                 markFailed(r.getId(), nextRetry - 1, "重试任务提交失败: " + e.getMessage());
@@ -254,7 +275,16 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         if (r == null) {
             return;
         }
-        deleteStorageQuietly(r);
+        if (r.getObjectName() != null) {
+            try {
+                fileStorage.delete(r.getObjectName());
+            } catch (Exception e) {
+                // S3 没删掉就保留元数据，否则记录没了对象成了无法清理的孤儿；用户可重新点删除
+                log.warn("[{}] 存储对象删除失败，保留录像记录 id={} 对象={} err={}",
+                        LOG_TAG, id, r.getObjectName(), e.getMessage());
+                throw new ServiceException("存储对象删除失败，录像记录已保留，请重试");
+            }
+        }
         gbRecordFileMapper.deleteById(id);
         log.info("[{}] 删除录像 id={} 对象={}", LOG_TAG, id, r.getObjectName());
     }
@@ -274,7 +304,8 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
 
     @Override
     public PageResult<GbRecordFileVO> page(String deviceId, String channelId,
-                                           LocalDateTime start, LocalDateTime end, int page, int size) {
+                                           LocalDateTime start, LocalDateTime end, Integer status,
+                                           int page, int size) {
         Page<GbRecordFile> p = new Page<>(page, size);
         LambdaQueryWrapper<GbRecordFile> w = new LambdaQueryWrapper<>();
         if (deviceId != null && !deviceId.isBlank()) {
@@ -282,6 +313,9 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         }
         if (channelId != null && !channelId.isBlank()) {
             w.eq(GbRecordFile::getChannelId, channelId);
+        }
+        if (status != null) {
+            w.eq(GbRecordFile::getStatus, status);
         }
         if (start != null) {
             w.ge(GbRecordFile::getStartTime, start);
@@ -291,8 +325,39 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         }
         w.orderByDesc(GbRecordFile::getStartTime);
         IPage<GbRecordFile> result = gbRecordFileMapper.selectPage(p, w);
-        List<GbRecordFileVO> rows = result.getRecords().stream()
-                .map(this::toVo)
+        Map<String, String> deviceNameMap = Map.of();
+        Map<String, String> channelNameMap = Map.of();
+        List<GbRecordFile> records = result.getRecords();
+        if (!records.isEmpty()) {
+            Set<String> deviceIds = records.stream()
+                    .map(GbRecordFile::getDeviceId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            Set<String> channelIds = records.stream()
+                    .map(GbRecordFile::getChannelId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toSet());
+            if (!deviceIds.isEmpty()) {
+                deviceNameMap = deviceMapper
+                        .selectList(new LambdaQueryWrapper<GbDevice>().in(GbDevice::getDeviceId, deviceIds))
+                        .stream()
+                        .collect(Collectors.toMap(GbDevice::getDeviceId, GbDevice::getName, (a, b) -> a));
+            }
+            if (!deviceIds.isEmpty() && !channelIds.isEmpty()) {
+                channelNameMap = channelMapper
+                        .selectList(new LambdaQueryWrapper<GbDeviceChannel>()
+                                .in(GbDeviceChannel::getDeviceId, deviceIds)
+                                .in(GbDeviceChannel::getChannelId, channelIds))
+                        .stream()
+                        .collect(Collectors.toMap(
+                                c -> c.getDeviceId() + "|" + c.getChannelId(),
+                                GbDeviceChannel::getName, (a, b) -> a));
+            }
+        }
+        Map<String, String> finalDeviceNameMap = deviceNameMap;
+        Map<String, String> finalChannelNameMap = channelNameMap;
+        List<GbRecordFileVO> rows = records.stream()
+                .map(r -> toVo(r, finalDeviceNameMap, finalChannelNameMap))
                 .collect(Collectors.toList());
         return new PageResult<>(result.getTotal(), rows);
     }
@@ -309,11 +374,14 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         return fileStorage.presignedUrl(r.getObjectName(), PRESIGNED_EXPIRY_SEC);
     }
 
-    private GbRecordFileVO toVo(GbRecordFile r) {
+    private GbRecordFileVO toVo(GbRecordFile r, Map<String, String> deviceNameMap,
+                                Map<String, String> channelNameMap) {
         GbRecordFileVO vo = new GbRecordFileVO();
         vo.setId(r.getId());
         vo.setDeviceId(r.getDeviceId());
+        vo.setDeviceName(deviceNameMap.get(r.getDeviceId()));
         vo.setChannelId(r.getChannelId());
+        vo.setChannelName(channelNameMap.get(r.getDeviceId() + "|" + r.getChannelId()));
         vo.setStartTime(r.getStartTime());
         vo.setEndTime(r.getEndTime());
         vo.setDuration(r.getDuration());

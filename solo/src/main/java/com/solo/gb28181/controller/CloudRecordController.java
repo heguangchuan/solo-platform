@@ -37,11 +37,12 @@ public class CloudRecordController {
     public Result<PageResult<GbRecordFileVO>> page(
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String channelId,
+            @RequestParam(required = false) Integer status,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime start,
             @RequestParam(required = false) @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss") LocalDateTime end,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return Result.success(recordFileService.page(deviceId, channelId, start, end, page, size));
+        return Result.success(recordFileService.page(deviceId, channelId, start, end, status, page, size));
     }
 
     @Operation(summary = "取录像播放/下载地址（预签名，限时有效）")

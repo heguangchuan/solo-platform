@@ -17,7 +17,11 @@ public class GbRecordFileVO {
 
     private String deviceId;
 
+    private String deviceName;
+
     private String channelId;
+
+    private String channelName;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private LocalDateTime startTime;

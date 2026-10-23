@@ -25,7 +25,8 @@ public interface GbRecordFileService {
      * 分页查询云端录像文件（按设备/通道/时间范围），列表不签 URL，需要播放时再调 {@link #presignedUrl}。
      */
     PageResult<GbRecordFileVO> page(String deviceId, String channelId,
-                                    LocalDateTime start, LocalDateTime end, int page, int size);
+                                    LocalDateTime start, LocalDateTime end, Integer status,
+                                    int page, int size);
 
     /**
      * 取某条录像的播放/下载预签名 URL（有效期 1h）。

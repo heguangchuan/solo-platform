@@ -471,6 +471,7 @@ export const batchDeleteGbPlatformApi = (ids: string[]) =>
 export const getCloudRecordPageApi = (params: {
   deviceId?: string
   channelId?: string
+  status?: number
   start?: string
   end?: string
   page?: number
