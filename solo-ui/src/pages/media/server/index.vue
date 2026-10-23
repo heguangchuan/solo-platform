@@ -283,6 +283,8 @@ const scrollCursorIntoView = () => {
 const onRowClick = (s: MediaServer, i: number) => {
   cursor.value = i
   selected.value = s
+  // 选行必须退出新建态，否则 inspector 会停留在"新建"表单
+  creating.value = false
 }
 
 const onCloseInspector = () => {
@@ -338,7 +340,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       break
     case 'Enter':
       e.preventDefault()
-      if (list[cursor.value]) selected.value = list[cursor.value]
+      if (list[cursor.value]) onRowClick(list[cursor.value], cursor.value)
       break
     case 'n':
     case 'N':
