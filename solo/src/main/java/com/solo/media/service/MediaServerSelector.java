@@ -25,11 +25,15 @@ public class MediaServerSelector {
         if (leastId != null) {
             MediaServer least = mediaServerMapper.selectOne(
                     new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, leastId));
-            if (least != null) {
+            if (least != null && least.getStatus() != null && least.getStatus() == 1) {
                 return least;
             }
-            // 索引里有但 MySQL 已删（管理面删除时序竞争）→ 落到 tier 2/3 兜底
-            log.warn("[流媒体] 负载索引指向已不存在的节点 serverId={}", leastId);
+            // 索引指向的节点已不存在或已离线（可能刚被健康检测标记离线）→ 落到 tier 2/3 兜底
+            if (least != null) {
+                log.warn("[流媒体] 负载索引指向离线节点 serverId={}", leastId);
+            } else {
+                log.warn("[流媒体] 负载索引指向已不存在的节点 serverId={}", leastId);
+            }
         }
 
         // 2. 索引为空（或指向孤儿）时兜底：按 status=1 选第一个

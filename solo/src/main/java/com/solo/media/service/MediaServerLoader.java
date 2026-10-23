@@ -20,21 +20,41 @@ public class MediaServerLoader {
 
     private final StringRedisTemplate redis;
 
+    /**
+     * 离线节点在 ZSet 中的占位分：足够大，保证排在所有在线节点后面，
+     * 不会被 {@link #pickLeastLoadedServerId()} 选中。
+     */
+    private static final double OFFLINE_SCORE = 1_000_000_000d;
+
     public void onNodeOnline(String serverId) {
         if (serverId == null || serverId.isBlank()) {
             return;
         }
-        Boolean isNew = redis.opsForZSet().addIfAbsent(ONLINE_KEY, serverId, 0);
-        if (Boolean.TRUE.equals(isNew)) {
-            log.info("[流媒体] 节点入负载索引 serverId={} score=0", serverId);
-        }
+        // 节点上线时重置为 0：
+        // - 首次上线：新成员，score=0
+        // - 离线后恢复：从 OFFLINE_SCORE 重置为 0，等待流事件重新累计
+        // - 一直在线但分数漂移：修正回 0（热修复，后续流事件会补正）
+        redis.opsForZSet().add(ONLINE_KEY, serverId, 0);
+        log.info("[流媒体] 节点入负载索引 serverId={} score=0", serverId);
     }
 
     /**
-     * 通常在管理面删除节点时调用；ZLM 异常掉线时分数可能暂时残留，靠下次
-     * {@code onNodeOnline} 重新入索引时覆盖
+     * 节点离线时将分数设为极大值（不 remove），避免被负载均衡选中；
+     * 同时防止迟到的流离开事件（ZINCRBY）在成员不存在时从 0 减成负数，导致"负分优先"的异常选点。
+     * 管理面删除节点时再调用 {@link #removeNode(String)} 彻底移除。
      */
     public void onNodeOffline(String serverId) {
+        if (serverId == null || serverId.isBlank()) {
+            return;
+        }
+        redis.opsForZSet().add(ONLINE_KEY, serverId, OFFLINE_SCORE);
+        log.info("[流媒体] 节点离线下线，负载分置为占位值 serverId={}", serverId);
+    }
+
+    /**
+     * 管理面删除节点时调用，彻底从 ZSet 中移除。
+     */
+    public void removeNode(String serverId) {
         if (serverId == null || serverId.isBlank()) {
             return;
         }
@@ -54,6 +74,13 @@ public class MediaServerLoader {
             return;
         }
         Double newScore = redis.opsForZSet().incrementScore(ONLINE_KEY, serverId, -1);
+        // 下限保护：流事件时序异常（如节点已离线但仍收到流离开、重复 hook 等）可能导致负数，
+        // 负数会让负载均衡误判为"最闲节点"，这里强制钳位到 0。
+        if (newScore != null && newScore < 0) {
+            redis.opsForZSet().add(ONLINE_KEY, serverId, 0);
+            log.warn("[流媒体] 负载分钳位到 0 serverId={} 原值={}", serverId, newScore);
+            newScore = 0d;
+        }
         log.debug("[流媒体] 流断开 -1 serverId={} score={}", serverId, newScore);
     }
 

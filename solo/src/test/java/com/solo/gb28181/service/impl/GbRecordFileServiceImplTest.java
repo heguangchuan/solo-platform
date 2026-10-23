@@ -5,8 +5,11 @@ import com.solo.common.storage.FileStorage;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.entity.GbRecordFile;
+import com.solo.gb28181.mapper.GbDeviceChannelMapper;
+import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.mapper.GbRecordFileMapper;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.media.mapper.GbMediaServerMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -42,6 +45,12 @@ class GbRecordFileServiceImplTest {
     @Mock
     private GbRecordFileMapper recordFileMapper;
     @Mock
+    private GbMediaServerMapper mediaServerMapper;
+    @Mock
+    private GbDeviceMapper deviceMapper;
+    @Mock
+    private GbDeviceChannelMapper channelMapper;
+    @Mock
     private GbInviteSessionService inviteSessionService;
     @Mock
     private FileStorage fileStorage;
@@ -59,8 +68,8 @@ class GbRecordFileServiceImplTest {
     void setUp() {
         // properties 用真实默认值，所以不走 @InjectMocks，手动 new
         recordFileService = new GbRecordFileServiceImpl(
-                recordFileMapper, inviteSessionService, fileStorage,
-                bizExecutor, new Gb28181Properties());
+                recordFileMapper, mediaServerMapper, deviceMapper, channelMapper,
+                inviteSessionService, fileStorage, bizExecutor, new Gb28181Properties());
     }
 
     private GbInviteSession recordSession() {
