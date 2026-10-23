@@ -139,6 +139,16 @@ public class GbDeviceController {
         return Result.success(raw);
     }
 
+    @Operation(summary = "取消设备通道目录同步")
+    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "取消设备目录同步")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
+    @DeleteMapping("/{deviceId}/sync")
+    @RequirePermission({"gb28181:device:sync"})
+    public Result<Void> cancelSync(@PathVariable String deviceId) {
+        catalogSyncStatusService.cancel(deviceId);
+        return Result.success();
+    }
+
     @Operation(summary = "批量探测设备存活")
     @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "批量探测设备存活")
     @PostMapping("/detect")
