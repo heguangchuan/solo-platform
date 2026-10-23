@@ -195,6 +195,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { IconLoader2, IconMovie, IconX, IconFilter } from '@tabler/icons-vue'
 import RefreshButton from '@/components/RefreshButton.vue'
+import Button from '@/components/ui/button/Button.vue'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
