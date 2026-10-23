@@ -160,7 +160,7 @@
           :loading="saving"
           @click="onSave"
         >
-          {{ creating ? '创建设备' : '保存' }}
+          保存
         </Button>
       </div>
     </section>
