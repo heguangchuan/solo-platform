@@ -109,6 +109,10 @@ import { getDeviceSyncStatusApi, parseSyncStatus } from '@/api/gb28181'
 import { toast } from '@/lib/toast'
 import type { GbSyncStatus } from '@/types/api'
 
+const emit = defineEmits<{
+  completed: [deviceId: string]
+}>()
+
 const visible = ref(false)
 const deviceId = ref('')
 const deviceName = ref('')
@@ -203,6 +207,7 @@ const fetchStatus = async () => {
             (next.total > 0 ? `（设备通告 ${next.total} 项）` : ''),
         )
       }
+      emit('completed', deviceId.value)
     }
   } catch {
     // 单次拉取失败忽略，下个轮询周期再试
