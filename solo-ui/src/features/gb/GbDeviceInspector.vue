@@ -216,23 +216,90 @@
       </section>
 
       <!-- 同步通道目录 -->
-      <section v-if="!creating && device" class="mt-4">
+      <section v-if="!creating && device" class="mt-4 rounded-md border bg-muted/20 p-3">
         <div class="mb-2 flex items-center justify-between">
           <h4 class="text-[13px] font-medium">通道目录</h4>
-          <Button
-            v-access="PERM.GB_DEVICE_SYNC"
-            variant="outline"
-            size="sm"
-            class="h-7 gap-1.5 text-xs"
-            :disabled="syncing || device.status !== 1"
-            :loading="syncing"
-            @click="onSync"
-          >
-            <IconRefresh v-if="!syncing" class="size-3.5" />
-            同步通道目录
-          </Button>
+          <div class="flex items-center gap-1">
+            <!-- 同步按钮（纯图标） -->
+            <Button
+              v-access="PERM.GB_DEVICE_SYNC"
+              variant="outline"
+              size="icon-sm"
+              class="h-7 w-7"
+              title="同步通道目录"
+              :disabled="syncing || syncStatus?.status === 'RUNNING' || device.status !== 1"
+              :loading="syncing"
+              @click="onSync"
+            >
+              <IconRefresh class="size-3.5" />
+            </Button>
+            <!-- 同步中：旁边显示取消按钮 -->
+            <Button
+              v-if="syncStatus?.status === 'RUNNING'"
+              v-access="PERM.GB_DEVICE_SYNC"
+              variant="ghost"
+              size="icon-sm"
+              class="h-7 w-7"
+              title="取消同步"
+              :disabled="cancelling"
+              @click="onCancelSync"
+            >
+              <IconPlayerStopFilled class="size-4" />
+            </Button>
+          </div>
         </div>
-        <p class="text-[11px] text-muted-foreground">
+
+        <div v-if="syncStatus && syncStatus.status !== 'IDLE'" class="space-y-3">
+          <div class="flex items-center gap-2 text-xs">
+            <component :is="syncStateIcon" class="size-4 shrink-0" :class="syncStateIconClass" />
+            <span class="shrink-0 text-muted-foreground">{{ syncStateText }}</span>
+            <span class="ml-auto font-mono text-[11px] text-muted-foreground">
+              已同步 {{ syncStatus.received }} 项
+            </span>
+          </div>
+
+          <div class="relative h-4 w-full overflow-hidden rounded bg-muted">
+            <div
+              class="absolute inset-y-0 left-0 rounded bg-primary/70 transition-all duration-500"
+              :style="{ width: syncPercent + '%' }"
+            />
+            <span class="absolute inset-0 flex items-center justify-center text-[10px] font-medium">
+              {{ syncProgressText }}
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[11px] text-muted-foreground">
+            <div class="flex items-center justify-between">
+              <span>设备通告总数</span>
+              <span class="font-mono">{{ syncStatus.total > 0 ? syncStatus.total + ' 项' : '未通告' }}</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>重传丢弃</span>
+              <span class="font-mono">{{ syncStatus.duplicateCount }} 项</span>
+            </div>
+            <div class="flex items-center justify-between">
+              <span>最后更新</span>
+              <span class="font-mono">
+                {{ syncStatus.lastUpdateAtMs ? new Date(syncStatus.lastUpdateAtMs).toLocaleTimeString() : '—' }}
+              </span>
+            </div>
+          </div>
+
+          <p
+            v-if="syncStatus.status === 'FAILED'"
+            class="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-[11px] text-amber-700 dark:text-amber-400"
+          >
+            {{ syncStatus.errorMsg || '未收齐设备通告的全部通道，已入库部分可再次同步补齐。' }}
+          </p>
+          <p
+            v-else-if="syncStatus.status === 'SUCCESS'"
+            class="rounded-md border border-emerald-500/40 bg-emerald-500/10 p-2 text-[11px] text-emerald-700 dark:text-emerald-400"
+          >
+            同步完成，共写入 {{ syncStatus.received }} 项。
+          </p>
+        </div>
+
+        <p v-else class="text-[11px] text-muted-foreground">
           手动拉取该设备最新通道目录；设备在线时可执行。
         </p>
       </section>
@@ -255,35 +322,39 @@
         </Button>
       </section>
     </template>
-
-    <GbSyncProgressDialog ref="syncDialogRef" @completed="onSyncCompleted" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   IconDeviceCctv,
   IconX,
   IconTrash,
   IconInfoCircle,
   IconRefresh,
+  IconCircleCheck,
+  IconAlertTriangle,
+  IconPlayerStopFilled,
 } from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import GbSyncProgressDialog from '@/features/gb/GbSyncProgressDialog.vue'
 import {
   saveGbDeviceApi,
   updateGbDeviceApi,
   deleteGbDeviceApi,
   syncGbDeviceApi,
+  cancelGbDeviceSyncApi,
+  getDeviceSyncStatusApi,
+  parseSyncStatus,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import type { GbDevice } from '@/types/api'
+import type { GbSyncStatus } from '@/types/api'
 
 const props = defineProps<{
   device?: GbDevice
@@ -427,26 +498,162 @@ const onDelete = async () => {
   emit('deleted', props.device)
 }
 
-/* 同步通道目录 */
-const syncDialogRef = ref<InstanceType<typeof GbSyncProgressDialog>>()
+/* 同步通道目录（内嵌进度，不使用弹窗） */
 const syncing = ref(false)
+const cancelling = ref(false)
+const syncStatus = ref<GbSyncStatus | null>(null)
+
+const syncStateText = computed(() => {
+  switch (syncStatus.value?.status) {
+    case 'RUNNING':
+      return '同步中'
+    case 'SUCCESS':
+      return '已完成'
+    case 'FAILED':
+      return '部分完成'
+    default:
+      return '未同步'
+  }
+})
+
+const syncStateIcon = computed(() => {
+  switch (syncStatus.value?.status) {
+    case 'RUNNING':
+      return IconRefresh
+    case 'SUCCESS':
+      return IconCircleCheck
+    case 'FAILED':
+      return IconAlertTriangle
+    default:
+      return IconRefresh
+  }
+})
+
+const syncStateIconClass = computed(() => {
+  switch (syncStatus.value?.status) {
+    case 'RUNNING':
+      return 'animate-spin text-primary'
+    case 'SUCCESS':
+      return 'text-emerald-500'
+    case 'FAILED':
+      return 'text-amber-500'
+    default:
+      return 'text-muted-foreground'
+  }
+})
+
+const syncPercent = computed(() => {
+  const s = syncStatus.value
+  if (!s || s.total <= 0) return 0
+  return Math.min(100, Math.round((s.received / s.total) * 100))
+})
+
+const syncProgressText = computed(() => {
+  const s = syncStatus.value
+  if (!s) return '-'
+  return s.total > 0 ? `${s.received} / ${s.total}` : `${s.received}`
+})
+
+let syncPollTimer: number | null = null
+
+const stopSyncPoll = () => {
+  if (syncPollTimer !== null) {
+    clearInterval(syncPollTimer)
+    syncPollTimer = null
+  }
+}
+
+const startSyncPoll = () => {
+  stopSyncPoll()
+  // 服务端约 5s 更新一次进度，前端 2s 拉取即可
+  syncPollTimer = window.setInterval(() => {
+    if (!props.device || syncStatus.value?.status !== 'RUNNING') {
+      stopSyncPoll()
+      return
+    }
+    void loadSyncStatus(true)
+  }, 2000)
+}
+
+/**
+ * 读取同步进度。
+ * 只调用 GET /sync-status，不会触发 SIP 同步；真正触发同步只能走 onSync 的 POST /sync。
+ */
+const loadSyncStatus = async (notifyOnFinished = false) => {
+  const d = props.device
+  if (!d) {
+    syncStatus.value = null
+    return
+  }
+  const prev = syncStatus.value?.status
+  try {
+    const res = await getDeviceSyncStatusApi(d.deviceId)
+    const next = parseSyncStatus(res.data, d.deviceId)
+    syncStatus.value = next
+
+    const finished = next.status === 'SUCCESS' || next.status === 'FAILED'
+    if (notifyOnFinished && finished && prev === 'RUNNING') {
+      emit('synced', d.deviceId)
+    }
+    if (next.status === 'RUNNING' && syncPollTimer === null) {
+      startSyncPoll()
+    } else if (finished) {
+      stopSyncPoll()
+    }
+  } catch {
+    syncStatus.value = null
+  }
+}
 
 const onSync = async () => {
   const d = props.device
-  if (!d || d.status !== 1 || syncing.value) return
+  if (!d || d.status !== 1 || syncing.value || syncStatus.value?.status === 'RUNNING') return
   syncing.value = true
+  stopSyncPoll()
   try {
+    // POST /sync 是唯一触发 SIP 同步的请求
     const res = await syncGbDeviceApi(d.deviceId)
-    syncDialogRef.value?.open(d.deviceId, d.name || d.deviceId)
     if (res.data?.result === 'ALREADY_RUNNING') {
-      toast.info('设备已有同步在进行中，已为你打开进度窗口')
+      toast.info('设备已有同步在进行中')
+    }
+    // 直接使用 POST 响应里携带的初始 status，不再多发一次 GET
+    if (res.data?.status) {
+      syncStatus.value = parseSyncStatus(res.data.status, d.deviceId)
+      if (syncStatus.value.status === 'RUNNING') startSyncPoll()
     }
   } finally {
     syncing.value = false
   }
 }
 
-const onSyncCompleted = (deviceId: string) => {
-  emit('synced', deviceId)
+const onCancelSync = async () => {
+  const d = props.device
+  if (!d || cancelling.value) return
+  cancelling.value = true
+  stopSyncPoll()
+  try {
+    await cancelGbDeviceSyncApi(d.deviceId)
+    syncStatus.value = null
+    toast.success('已取消同步')
+  } finally {
+    cancelling.value = false
+  }
 }
+
+watch(
+  () => props.device?.deviceId,
+  (deviceId) => {
+    stopSyncPoll()
+    syncing.value = false
+    cancelling.value = false
+    syncStatus.value = null
+    if (deviceId) {
+      // 只读已有状态，不触发同步
+      void loadSyncStatus(false)
+    }
+  },
+  { immediate: true },
+)
+
+onUnmounted(stopSyncPoll)
 </script>

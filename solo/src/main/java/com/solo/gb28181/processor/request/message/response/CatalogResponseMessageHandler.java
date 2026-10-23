@@ -3,63 +3,30 @@ package com.solo.gb28181.processor.request.message.response;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.event.catalog.CatalogSyncProgressEvent;
 import com.solo.gb28181.processor.request.message.MessageHandler;
 import com.solo.gb28181.service.GbDeviceChannelService;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.support.CatalogSyncContext;
+import com.solo.gb28181.support.CatalogSyncProgress;
 import com.solo.gb28181.support.CatalogSyncStatusService;
 import com.solo.gb28181.utils.SipUtils;
 import com.solo.gb28181.utils.XmlUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.dom4j.Element;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 import javax.sip.RequestEvent;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * <p>10w+ 通道重写：handler 不再持有"目录节点 ID 解析 + 父 group 映射 + 平台根目录创建"等业务逻辑，
- * 只负责 XML 解析 + Item 分流 + 调 {@link CatalogDataCache#accumulate}。
- * 落库在 {@code catalogSyncExecutor} 上异步跑，handler 立即返回，不阻塞 SIP 分发线程。</p>
- *
- * <p>ADR-023：分组与通道合并到同一张 {@code gb_device_channel}，靠 {@code parental} 区分。
- * 解析层只设 {@code parental} 标志，不再分两张表写。</p>
- *
- * <h3>Item 分流（ID 长度 + 类型码 双信号）</h3>
- * <ul>
- *   <li><b>20 位标准 GB ID</b>：严格按类型码分流
- *     <ul>
- *       <li>类型码 200 / 215 / 216 → 目录节点（{@code parental=1}）</li>
- *       <li>类型码 200-214 且 {@code Parental=1} → 目录节点（兼容对端把中心设备当分组上报的写法）</li>
- *       <li>其他 → 通道（{@code parental=0}）</li>
- *     </ul>
- *     <p><b>注意：故意不收 130-198 + Parental=1</b>。海康相机普遍把 {@code <Parental>} 错填成 65535，
- *     兜底为 1 后会被该规则误吞进 {@code parental=1}，导致海康相机的通道完全没入库。</p>
- *   </li>
- *   <li><b>≤8 位纯数字 ID</b>：按 GB/T 2260 行政区域码处理，强制当目录节点</li>
- *   <li><b>9-19 位</b>：长度非标（既不是合法行政码也不是标准 GB ID），丢弃并打 WARN</li>
- * </ul>
- *
- * <h3>Parental 字段兜底</h3>
- * <p>部分 NVR 厂商会把 {@code Parental} 错填成 65535（应填 0/1），按"非 '0' 一律算 1"处理。
- * 路由判定和字段存储共用 {@link #parseParental}，保证两者一致。</p>
- *
- * <h3>ParentID 字段</h3>
- * <p>分组 Item：{@code <ParentID>} 空串时先兜底成设备自身的 DeviceID（而不是 "0"）。
- * 真正的"父是否可达"判定在 {@code CatalogSyncSupport} 的 final flush 阶段做——任何指向
- * 不存在分组的 parent（设备漏报父节点、报了非法 parent）都会被改挂到 device_id 下，
- * 保证分组树有唯一收口、不出现游离顶层节点。
- * 通道 Item：父 ID（GB 码）直接写入 item.parentId，final flush 阶段做可达性检查；可达则保留，
- * 不可达回落设备 deviceId。详见 ADR-023。</p>
- *
- * <h3>complete 路径</h3>
- * <p>累计收到 &gt;= sumNum 时由 {@code accumulate} 内部触发收尾，
- * 本类只处理"sumNum=0 空目录"和"sweep 强收"两个特殊路径。</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -68,16 +35,21 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     private final CatalogDataCache cache;
     private final GbDeviceChannelService channelService;
     private final GbDeviceService deviceService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Lazy
-    @org.springframework.beans.factory.annotation.Autowired
+    @Autowired
     private CatalogSyncStatusService catalogSyncStatusService;
 
     @Override
-    public String getRootType() { return "Response"; }
+    public String getRootType() {
+        return "Response";
+    }
 
     @Override
-    public String getCmdType() { return "Catalog"; }
+    public String getCmdType() {
+        return "Catalog";
+    }
 
     @Override
     public void handleForDevice(RequestEvent event, GbDevice device, Element root) {
@@ -97,9 +69,14 @@ public class CatalogResponseMessageHandler implements MessageHandler {
                     .set(GbDevice::getLastCatalogSyncTime, java.time.LocalDateTime.now()));
             // 释放同步锁（空目录不走 finalize，手动释放避免 5 分钟死锁）
             catalogSyncStatusService.release(device.getDeviceId());
-            // 通知进度服务收尾（防前端等不到完成态）
-            cache.finalize(buildIdleContextForEmpty(device.getDeviceId(), sn, sumNum),
-                    true, "sumNum=0-空目录");
+            // 直接发布 SUCCESS 收尾事件。不能构造 done=true 的 stub 调 cache.finalize：
+            // finalize 对 ctx.done 会直接短路，收尾事件发不出去，前端会一直停在 RUNNING。
+            long now = System.currentTimeMillis();
+            CatalogSyncProgress emptyDone = new CatalogSyncProgress(
+                    device.getDeviceId(), CatalogSyncProgress.STATUS_SUCCESS,
+                    0, 0, 100.0, now, now,
+                    LocalDateTime.now().format(FINISH_TIME_FORMATTER), null, 0);
+            eventPublisher.publishEvent(new CatalogSyncProgressEvent(emptyDone));
             return;
         }
 
@@ -178,16 +155,8 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         }
     }
 
-    /**
-     * sumNum=0 路径下也要触发一次 finalize 通知前端"已完成"，但 CatalogSyncContext 已 done。
-     * 这里直接走一个轻量 ctx（不进 contexts Map），publish 一次事件即可。
-     */
-    private CatalogSyncContext buildIdleContextForEmpty(String deviceId, int sn, int sumNum) {
-        CatalogSyncContext stub = new CatalogSyncContext(deviceId, sn, sumNum, 1, 0L);
-        stub.done = true;
-        stub.completenessRatio = 1.0;
-        return stub;
-    }
+    private static final DateTimeFormatter FINISH_TIME_FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     // ---------------- Item 解析（ADR-023 合并版） ----------------
 
@@ -261,17 +230,29 @@ public class CatalogResponseMessageHandler implements MessageHandler {
 
     private static int parseInt(String s, int def) {
         if (s == null || s.isBlank()) return def;
-        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return def; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return def;
+        }
     }
 
     private static Integer parseIntOrNull(String s) {
         if (s == null || s.isBlank()) return null;
-        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static Double parseDouble(String s) {
         if (s == null || s.isBlank()) return null;
-        try { return Double.parseDouble(s.trim()); } catch (NumberFormatException e) { return null; }
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private static String emptyToNull(String s) {

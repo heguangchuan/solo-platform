@@ -6,6 +6,7 @@ import com.solo.gb28181.processor.request.message.notify.KeepaliveNotifyMessageH
 import com.solo.gb28181.service.GbMobilePositionService;
 import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.sip.SipSubscribe;
+import com.solo.gb28181.support.CatalogSyncStatusService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -26,12 +27,22 @@ public class GbHealthScheduledTasks {
     private final SubscribeHolder subscribeHolder;
     private final CascadeSendService cascadeSendService;
     private final GbMobilePositionService mobilePositionService;
+    private final CatalogSyncStatusService catalogSyncStatusService;
     private final Gb28181Properties gb28181Properties;
 
     /** 设备离线检测：每 30s 扫库比对 Redis 在线 key，并清理目录分片缓存 */
     @Scheduled(fixedDelay = 30_000)
     public void detectDeviceOffline() {
         deviceOfflineDetector.detect();
+    }
+
+    /** 通道目录同步无响应超时兜底：每 30s 把僵尸 RUNNING 状态强制收尾为 FAILED */
+    @Scheduled(initialDelay = 30_000, fixedDelay = 30_000)
+    public void sweepCatalogSyncTimeouts() {
+        int timedOut = catalogSyncStatusService.sweepRunningTimeouts();
+        if (timedOut > 0) {
+            log.info("[通道目录] 超时同步收尾 count={}", timedOut);
+        }
     }
 
     /** 心跳队列批处理：每 100ms 从队列取一批落库，削峰避免打爆 DB */

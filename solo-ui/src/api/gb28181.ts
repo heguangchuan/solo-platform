@@ -92,6 +92,10 @@ export const detectGbDeviceApi = (ids: string[]) =>
 export const syncGbDeviceApi = (deviceId: string) =>
   post<GbSyncTriggerResponse>(`/api/gb28181/device/${deviceId}/sync`)
 
+/** 取消设备通道目录同步（清进度状态与同步锁） */
+export const cancelGbDeviceSyncApi = (deviceId: string) =>
+  del<void>(`/api/gb28181/device/${deviceId}/sync`)
+
 /**
  * 拉取设备同步进度。
  * 后端返回的是 status JSON 字符串（无状态时可能为空），由调用方用 parseSyncStatus 容错解析。
