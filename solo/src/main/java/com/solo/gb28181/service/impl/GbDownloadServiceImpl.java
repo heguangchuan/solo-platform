@@ -438,7 +438,9 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         String streamId = t.getStreamId();
         Path tmpFile = null;
         try {
-            HttpRequest req = HttpRequest.newBuilder(URI.create(zlmUrl))
+            // hook 给的是相对路径（record/rtp/...），按产生切片的节点补成绝对下载地址
+            String absoluteUrl = ZlmRestClient.resolveDownloadUrl(t.getMediaServer(), zlmUrl);
+            HttpRequest req = HttpRequest.newBuilder(URI.create(absoluteUrl))
                     .timeout(Duration.ofMinutes(5))
                     .GET()
                     .build();

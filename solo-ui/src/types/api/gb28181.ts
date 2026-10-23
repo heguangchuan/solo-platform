@@ -621,7 +621,9 @@ export interface GbPlatformPageRequest extends PageRequest {
 export interface GbRecordFile {
   id: string
   deviceId?: string
+  deviceName?: string
   channelId?: string
+  channelName?: string
   startTime?: string
   endTime?: string
   /** 时长（秒），上传中的文件可能为空 */

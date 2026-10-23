@@ -21,6 +21,7 @@
       <!-- 搜索行 -->
       <div class="flex h-12 shrink-0 items-center gap-2 px-3">
         <GbDeviceSelect v-model="deviceIdQ" />
+        <GbChannelSelect v-model="channelIdQ" :device-id="deviceIdQ" />
         <input
           v-model="startTimeQ"
           type="datetime-local"
@@ -34,20 +35,6 @@
           class="h-7 w-[180px] rounded-md bg-transparent px-2 text-[13px] outline-none focus:bg-muted/70"
           title="录制开始时间止"
         />
-        <Select v-model="statusQ">
-          <RawSelectTrigger
-            class="inline-flex h-7 w-28 items-center gap-1 rounded-md px-2 text-[13px] outline-none hover:bg-muted/70"
-          >
-            <SelectValue placeholder="状态" />
-          </RawSelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">全部状态</SelectItem>
-            <SelectItem value="1">上传成功</SelectItem>
-            <SelectItem value="0">上传中</SelectItem>
-            <SelectItem value="2">上传失败</SelectItem>
-          </SelectContent>
-        </Select>
-
         <span v-if="hasCondition" class="text-xs text-muted-foreground">
           匹配 {{ resource.total.value }} 条
         </span>
@@ -71,17 +58,43 @@
         <table class="w-full table-fixed border-collapse text-left text-[13px]">
           <thead class="sticky top-0 z-10">
             <tr class="bg-card text-xs text-muted-foreground">
-              <th class="w-56 px-3 py-2 font-normal">设备 / 通道</th>
+              <th class="w-44 px-3 py-2 font-normal">设备</th>
+              <th class="w-44 px-3 py-2 font-normal">通道</th>
               <th class="w-44 px-3 py-2 font-normal">开始时间</th>
               <th class="w-44 px-3 py-2 font-normal">结束时间</th>
               <th class="w-24 px-3 py-2 font-normal">时长</th>
               <th class="w-24 px-3 py-2 font-normal">大小</th>
-              <th class="w-24 px-3 py-2 font-normal">状态</th>
+              <th class="w-24 px-3 py-2 font-normal">
+                <span class="inline-flex items-center gap-1">
+                  状态
+                  <Select v-model="statusQ">
+                    <RawSelectTrigger
+                      title="按状态筛选"
+                      class="inline-flex size-4 items-center justify-center rounded outline-none hover:text-foreground"
+                    >
+                      <IconFilter
+                        class="size-3.5"
+                        :class="
+                          statusQ !== '__all__'
+                            ? 'text-primary'
+                            : 'text-muted-foreground/60'
+                        "
+                      />
+                    </RawSelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__all__">全部状态</SelectItem>
+                      <SelectItem value="1">上传成功</SelectItem>
+                      <SelectItem value="0">上传中</SelectItem>
+                      <SelectItem value="2">上传失败</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="(f, i) in filteredItems"
+              v-for="(f, i) in resource.items.value"
               :key="f.id"
               :data-row="i"
               class="group cursor-pointer"
@@ -94,15 +107,15 @@
               "
               @click="onRowClick(f, i)"
             >
-              <td class="relative px-3 py-2">
+              <td class="relative px-3 py-2 text-xs" :title="f.deviceId">
                 <span
                   v-if="selected?.id === f.id"
                   class="absolute inset-y-0 left-0 w-0.5 bg-primary"
                 />
-                <div class="truncate font-mono text-xs">{{ f.deviceId || '—' }}</div>
-                <div class="truncate font-mono text-[11px] text-muted-foreground">
-                  {{ f.channelId || '—' }}
-                </div>
+                <span class="block truncate">{{ f.deviceName || f.deviceId || '—' }}</span>
+              </td>
+              <td class="truncate px-3 py-2 text-xs text-muted-foreground" :title="f.channelId">
+                {{ f.channelName || f.channelId || '—' }}
               </td>
               <td class="px-3 py-2 font-mono text-xs text-muted-foreground">
                 {{ f.startTime || '—' }}
@@ -133,7 +146,7 @@
         </div>
 
         <div
-          v-else-if="!resource.loading.value && filteredItems.length === 0"
+          v-else-if="!resource.loading.value && resource.items.value.length === 0"
           class="flex flex-col items-center gap-2 py-16 text-muted-foreground"
         >
           <IconMovie class="size-8" />
@@ -292,7 +305,7 @@
  * - 手动录制是即时操作流，保留开始 / 录制中两个弹窗；本地留存 streamId，同页可停止
  */
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
-import { IconLoader2, IconMovie, IconX, IconCircle } from '@tabler/icons-vue'
+import { IconLoader2, IconMovie, IconX, IconCircle, IconFilter } from '@tabler/icons-vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Label } from '@/components/ui/label'
@@ -307,6 +320,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
+import GbChannelSelect from '@/features/gb/GbChannelSelect.vue'
 import GbCloudRecordInspector from '@/features/gb/GbCloudRecordInspector.vue'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
@@ -321,6 +335,7 @@ import type { GbRecordFile, GbDeviceChannel } from '@/types/api'
 
 /* ---------------- 筛选 ---------------- */
 const deviceIdQ = ref<string | undefined>(undefined)
+const channelIdQ = ref<string | undefined>(undefined)
 const startTimeQ = ref('')
 const endTimeQ = ref('')
 // __all__ 占位，避免空串在 Select 里的歧义
@@ -331,6 +346,7 @@ const fmtTime = (v: string) => v.replace('T', ' ')
 const hasCondition = computed(
   () =>
     !!deviceIdQ.value ||
+    !!channelIdQ.value ||
     !!startTimeQ.value ||
     !!endTimeQ.value ||
     statusQ.value !== '__all__',
@@ -343,23 +359,19 @@ const resource = useResource<{ page?: number; pageSize?: number }, GbRecordFile>
       // 后端分页字段是 size
       size: q.pageSize,
       deviceId: deviceIdQ.value || undefined,
+      channelId: channelIdQ.value || undefined,
       start: startTimeQ.value ? fmtTime(startTimeQ.value) : undefined,
       end: endTimeQ.value ? fmtTime(endTimeQ.value) : undefined,
+      status: statusQ.value === '__all__' ? undefined : Number(statusQ.value),
     }),
   initial: { page: 1, pageSize: 50 },
 })
-
-// 状态筛选在前端内存里做（上传中的文件一般很少，走后端要多传一个非契约参数，不值当）
-const filteredItems = computed(() =>
-  statusQ.value === '__all__'
-    ? resource.items.value
-    : resource.items.value.filter((f) => f.status === Number(statusQ.value)),
-)
 
 const onRefresh = () => resource.load(true)
 
 const onClear = () => {
   deviceIdQ.value = undefined
+  channelIdQ.value = undefined
   startTimeQ.value = ''
   endTimeQ.value = ''
   statusQ.value = '__all__'
@@ -375,11 +387,12 @@ const triggerSearch = () => {
     resource.search()
   }, 300)
 }
-watch(deviceIdQ, () => {
+// 设备切换会经 GbChannelSelect 联动清空通道（额外再触发一次 watch，开销可忽略）
+watch([deviceIdQ, channelIdQ], () => {
   cursor.value = 0
   resource.search()
 })
-watch([startTimeQ, endTimeQ], triggerSearch)
+watch([startTimeQ, endTimeQ, statusQ], triggerSearch)
 
 /* ---------------- 检视器 ---------------- */
 const selected = ref<GbRecordFile | null>(null)
@@ -542,7 +555,7 @@ const isTypingTarget = (el: EventTarget | null) =>
 
 const onGlobalKeydown = (e: KeyboardEvent) => {
   if (isTypingTarget(e.target)) return
-  const list = filteredItems.value
+  const list = resource.items.value
   switch (e.key) {
     case 'j':
     case 'J':
