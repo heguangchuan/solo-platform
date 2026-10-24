@@ -1,5 +1,7 @@
 package com.solo.gb28181.transmit.cmd;
 
+import org.dom4j.Element;
+
 public final class DeviceCommandXml {
 
     private DeviceCommandXml() {}
@@ -101,6 +103,30 @@ public final class DeviceCommandXml {
         sb.append("</Info>\r\n");
         sb.append("</Control>\r\n");
         return sb.toString();
+    }
+
+    /**
+     * 级联透传用：拷贝上级的 Control 报文，只把 SN 换成本平台序号、
+     * DeviceID 改成设备侧真实通道码（上级传的可能是撞码暴露码），命令体原样保留。
+     */
+    public static String buildPassthroughControl(Element upstreamRoot, int sn, String channelId, String charset) {
+        Element root = upstreamRoot.createCopy();
+        setChildText(root, "SN", String.valueOf(sn));
+        setChildText(root, "DeviceID", channelId);
+        StringBuilder sb = new StringBuilder(512);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append(root.asXML());
+        return sb.toString();
+    }
+
+    /** 直接子元素存在就改文本，不存在就补一个 */
+    private static void setChildText(Element root, String name, String value) {
+        Element child = root.element(name);
+        if (child == null) {
+            root.addElement(name).setText(value);
+        } else {
+            child.setText(value);
+        }
     }
 
     /**

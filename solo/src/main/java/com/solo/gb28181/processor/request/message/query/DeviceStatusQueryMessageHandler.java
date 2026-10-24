@@ -22,24 +22,7 @@ import org.springframework.stereotype.Component;
 import javax.sip.RequestEvent;
 import javax.sip.message.Response;
 
-/**
- * <p>本平台作为下级挂上级时，上级发来
- * {@code <Query><CmdType>DeviceStatus</CmdType>...</Query>} 索要下级某设备/通道的在线/健康状态。
- * 本 handler：</p>
- * <ol>
- *   <li>立刻回 200 OK（SIP 事务层）</li>
- *   <li>设备维度：查 {@link GbDevice} 表，按 {@code status}（0/1/2）映射 Online/Status 回包</li>
- *   <li>本级平台自身（deviceId == 本平台 ID）按在线、健康回包</li>
- *   <li>通道维度：国标 DeviceStatus 本就是按通道的，上级常传通道国标码来查——先按
- *       {@code channel_id} 查 {@link GbDeviceChannel}；查不到再按本平台 {@code gb_platform_share}
- *       的 exposedCode 反查（撞码场景上级拿的是暴露码而非原始 channel_id），取回通道后按
- *       通道 {@code status}（{@code ON}/{@code OFF}/{@code UNREGISTERED}）映射回包</li>
- *   <li>设备/通道都查不到才回 {@code Result=ERROR} 兜底（避免上级无限重试）</li>
- * </ol>
- *
- * <p>与 {@link DeviceInfoQueryMessageHandler} 方向相反一致——本 handler 走的是
- * <b>上级 → 本平台（作为下级）</b>。</p>
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -118,14 +101,6 @@ public class DeviceStatusQueryMessageHandler extends SipRequestProcessorBase imp
         platformCommander.sendDeviceStatusError(platform, deviceId, sn, "设备/通道未在本平台登记");
     }
 
-    /**
-     * 按上级传来的 DeviceID 反查已共享给该上级的通道。
-     * 先按 {@code channel_id} 直查 + 共享校验；命中不到再按
-     * {@code gb_platform_share.exposed_code} 反查（撞码场景）。
-     * 两条路径都走 share 表校验，避免未共享通道被上级探测到。
-     *
-     * @return 命中且已共享返回通道，否则 null
-     */
     private GbDeviceChannel resolveChannel(GbParentPlatform platform, String deviceId) {
         if (platform.getId() == null) {
             return null;

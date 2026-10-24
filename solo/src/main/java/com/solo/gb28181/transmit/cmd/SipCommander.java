@@ -8,6 +8,7 @@ import com.solo.gb28181.support.PresetQueryHolder;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.dom4j.Element;
 import org.springframework.stereotype.Component;
 
 import javax.sip.ResponseEvent;
@@ -16,10 +17,7 @@ import javax.sip.message.Request;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Consumer;
 
-/**
- * <p>所有"本平台向下级设备发起的业务命令"在这里组装并发送。</p>
- * <p>每个命令的 XML 报文体单独抽到 {@link DeviceCommandXml} 中，便于复用与测试。</p>
- */
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -257,6 +255,29 @@ public class SipCommander {
             log.info("[云台控制] PTZ → 设备:{} 通道:{} 命令:{}", device.getDeviceId(), channelId, ptzCmd);
         } catch (Exception e) {
             log.error("[云台控制] PTZ 发送失败 设备:{} 通道:{} 错误:{}", device.getDeviceId(), channelId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 级联透传上级的 DeviceControl 报文，只重写 SN 与 DeviceID，命令体不动。
+     *
+     * @param device       通道所属设备
+     * @param channelId    设备侧真实通道国标 ID
+     * @param upstreamRoot 上级 Control 根元素
+     * @param cmdLabel     命令标签，日志用
+     */
+    public void sendDeviceControlPassthrough(GbDevice device, String channelId,
+                                             Element upstreamRoot, String cmdLabel) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildPassthroughControl(upstreamRoot, sn, channelId, charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[级联控制透传] {} → 设备:{} 通道:{} SN:{}", cmdLabel, device.getDeviceId(), channelId, sn);
+        } catch (Exception e) {
+            log.error("[级联控制透传] {} 发送失败 设备:{} 通道:{} 错误:{}",
+                    cmdLabel, device.getDeviceId(), channelId, e.getMessage(), e);
         }
     }
 
