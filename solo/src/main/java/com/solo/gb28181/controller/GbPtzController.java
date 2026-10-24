@@ -144,6 +144,57 @@ public class GbPtzController {
         return Result.success();
     }
 
+    @Operation(summary = "PTZ 拉框放大/缩小")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ拉框控制")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "action", description = "in=放大 / out=缩小")
+    @Parameter(name = "length", description = "播放窗口长度像素")
+    @Parameter(name = "width", description = "播放窗口宽度像素")
+    @Parameter(name = "midPointX", description = "拉框中心横轴像素")
+    @Parameter(name = "midPointY", description = "拉框中心纵轴像素")
+    @Parameter(name = "lengthX", description = "拉框长度像素")
+    @Parameter(name = "lengthY", description = "拉框宽度像素")
+    @RequirePermission("gb28181:ptz:control")
+    @PostMapping("/drag-zoom/{deviceId}/{channelId}")
+    public Result<Void> dragZoom(@PathVariable String deviceId,
+                                 @PathVariable String channelId,
+                                 @RequestParam String action,
+                                 @RequestParam int length,
+                                 @RequestParam int width,
+                                 @RequestParam int midPointX,
+                                 @RequestParam int midPointY,
+                                 @RequestParam int lengthX,
+                                 @RequestParam int lengthY) {
+        boolean zoomIn = switch (action.toLowerCase()) {
+            case "in" -> true;
+            case "out" -> false;
+            default -> throw new ServiceException("不支持的拉框指令: " + action);
+        };
+        GbDevice device = getOnlineDevice(deviceId);
+        sipCommander.sendDragZoomCmd(device, channelId, zoomIn, length, width, midPointX, midPointY, lengthX, lengthY);
+        return Result.success();
+    }
+
+    @Operation(summary = "PTZ 看守位设置")
+    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ看守位")
+    @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
+    @Parameter(name = "enabled", description = "true=开启 / false=关闭")
+    @Parameter(name = "resetTime", description = "自动归位时间（秒），开启时用")
+    @Parameter(name = "presetIndex", description = "预置位编号（0-255），开启时用")
+    @RequirePermission("gb28181:ptz:control")
+    @PostMapping("/home-position/{deviceId}/{channelId}")
+    public Result<Void> homePosition(@PathVariable String deviceId,
+                                     @PathVariable String channelId,
+                                     @RequestParam boolean enabled,
+                                     @RequestParam(required = false) Integer resetTime,
+                                     @RequestParam(required = false) Integer presetIndex) {
+        GbDevice device = getOnlineDevice(deviceId);
+        sipCommander.sendHomePositionCmd(device, channelId, enabled, resetTime, presetIndex);
+        return Result.success();
+    }
+
     private GbDevice getOnlineDevice(String deviceId) {
         GbDevice device = deviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
