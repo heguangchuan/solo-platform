@@ -384,6 +384,30 @@ export type GbPtzFocusDirection = 'near' | 'far' | 'stop'
 /** 镜头光圈方向 */
 export type GbPtzIrisDirection = 'open' | 'close' | 'stop'
 
+/** 拉框缩放：坐标均为视频画面像素值（不是窗口像素） */
+export interface GbDragZoomRequest {
+  action: 'in' | 'out'
+  /** 播放窗口长度像素 */
+  length: number
+  /** 播放窗口宽度像素 */
+  width: number
+  midPointX: number
+  midPointY: number
+  /** 拉框长度像素 */
+  lengthX: number
+  /** 拉框宽度像素 */
+  lengthY: number
+}
+
+/** 看守位设置：关闭时只传 enabled=false */
+export interface GbHomePositionRequest {
+  enabled: boolean
+  /** 自动归位时间（秒），开启时用 */
+  resetTime?: number
+  /** 预置位编号，开启时用 */
+  presetIndex?: number
+}
+
 /* ----------------------- 播放器运行信息（Jessibuca 事件上抛） ----------------------- */
 
 /** 视频流信息（Jessibuca videoInfo 事件） */

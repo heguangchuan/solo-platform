@@ -20,6 +20,8 @@ import {
   ptzFocusApi,
   ptzIrisApi,
   ptzWiperApi,
+  ptzDragZoomApi,
+  ptzHomePositionApi,
   listPtzPresetApi,
   savePtzPresetApi,
   deletePtzPresetApi,
@@ -37,6 +39,8 @@ import {
 } from '@/api/gb28181'
 import type {
   GbDeviceChannel,
+  GbDragZoomRequest,
+  GbHomePositionRequest,
   GbPtzCommand,
   GbPtzCruise,
   GbPtzCruisePoint,
@@ -280,6 +284,24 @@ const onSpeedChange = (speeds: { move: number; zoom: number; focus: number; iris
   ptzSpeeds.value = speeds
 }
 
+const onDragZoom = async (data: GbDragZoomRequest) => {
+  if (!deviceId.value || !channelId.value) return
+  try {
+    await ptzDragZoomApi(deviceId.value, channelId.value, data)
+  } catch {
+    /* 忽略 */
+  }
+}
+
+const onHomePositionSet = async (data: GbHomePositionRequest) => {
+  if (!deviceId.value || !channelId.value) return
+  try {
+    await ptzHomePositionApi(deviceId.value, channelId.value, data)
+  } catch {
+    /* 忽略 */
+  }
+}
+
 /* ---------------- 预置位 ---------------- */
 
 const onPresetSave = async (presetId: number) => {
@@ -487,6 +509,8 @@ const onCruiseStop = async (id: string) => {
             @iris="onIris"
             @wiper="onWiper"
             @speed-change="onSpeedChange"
+            @drag-zoom="onDragZoom"
+            @home-position-set="onHomePositionSet"
             @preset-save="onPresetSave"
             @preset-delete="onPresetDelete"
             @preset-call="onPresetCall"
