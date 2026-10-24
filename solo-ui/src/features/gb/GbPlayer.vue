@@ -2,8 +2,13 @@
   <div ref="rootRef" class="gb-player relative h-full w-full overflow-hidden bg-black">
     <!-- 画面舞台（电子放大用） -->
     <div
+      ref="stageRef"
       class="stage group relative h-full w-full overflow-hidden"
-      :class="{ 'cursor-grab': isZoomed, 'cursor-grabbing': isDragging }"
+      :class="{
+        'cursor-crosshair': dragZoomMode,
+        'cursor-grab': isZoomed && !dragZoomMode,
+        'cursor-grabbing': isDragging,
+      }"
       @wheel="onWheel"
       @mousedown="onMouseDown"
       @dblclick="onDoubleClick"
@@ -13,6 +18,26 @@
         class="jessibuca-container absolute inset-0 origin-top-left"
         :style="{ transform: zoomTransform, transition: isDragging ? 'none' : 'transform 80ms ease-out' }"
       />
+
+      <!-- 拉框缩放的橡皮筋 -->
+      <div
+        v-if="dragBox.active"
+        class="pointer-events-none absolute z-10 border border-sky-400/90 bg-sky-400/20"
+        :style="{
+          left: `${dragBox.x}px`,
+          top: `${dragBox.y}px`,
+          width: `${dragBox.w}px`,
+          height: `${dragBox.h}px`,
+        }"
+      />
+
+      <!-- 拉框模式提示 -->
+      <div
+        v-if="dragZoomMode"
+        class="pointer-events-none absolute left-1/2 top-3 z-10 -translate-x-1/2 rounded-full bg-black/65 px-3 py-1 text-xs text-sky-200 backdrop-blur-sm"
+      >
+        向右拖放大，向左拖缩小，Esc 退出
+      </div>
 
       <!-- 信息面板 -->
       <div v-if="showInfo" class="absolute right-3 top-3 z-10 rounded-md bg-black/65 px-3 py-2 text-xs text-white/90 backdrop-blur-sm">
@@ -229,6 +254,20 @@
       <!-- 云台 / 预置位：两面板并排展开、相邻不重叠，可同时打开 -->
       <template v-if="showPtz">
         <div class="relative flex items-center">
+        <!-- 拉框缩放（设备端云台变倍） -->
+        <button
+          title="拉框缩放：向右拖放大，向左拖缩小"
+          class="grid h-7 w-7 shrink-0 place-items-center rounded transition-colors"
+          :class="
+            dragZoomMode
+              ? 'bg-sky-500/30 text-sky-200 hover:bg-sky-500/40'
+              : 'text-white/70 hover:bg-white/10 hover:text-white'
+          "
+          data-menu-trigger
+          @click="toggleDragZoomMode"
+        >
+          <BoxSelect class="h-4 w-4" />
+        </button>
         <!-- 云台控制 -->
         <button
           title="云台控制"
@@ -491,6 +530,49 @@
                 </div>
               </li>
             </ul>
+
+            <!-- 看守位 -->
+            <div class="mt-2 border-t border-white/10 pt-2">
+              <div class="flex items-center justify-between">
+                <span class="text-xs text-white/70">看守位</span>
+                <button
+                  class="relative h-4 w-8 rounded-full transition-colors"
+                  :class="homeEnabled ? 'bg-sky-500/70' : 'bg-white/20'"
+                  @click="toggleHome"
+                >
+                  <span
+                    class="absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform"
+                    :class="homeEnabled ? 'translate-x-4' : 'translate-x-0.5'"
+                  />
+                </button>
+              </div>
+              <div v-if="homeEnabled" class="mt-2 space-y-2">
+                <div class="flex items-center gap-2">
+                  <span class="w-14 shrink-0 text-xs text-white/50">归位(秒)</span>
+                  <input
+                    v-model.number="homeResetTime"
+                    type="number"
+                    min="1"
+                    class="h-7 w-full rounded border border-white/10 bg-black/40 px-2 text-xs text-white/90 outline-none focus:border-white/30"
+                  />
+                </div>
+                <div class="flex items-center gap-2">
+                  <span class="w-14 shrink-0 text-xs text-white/50">预置位</span>
+                  <select
+                    v-model.number="homePresetIndex"
+                    class="h-7 w-full rounded border border-white/10 bg-black/40 px-1 text-xs text-white/90 outline-none focus:border-white/30"
+                  >
+                    <option v-for="n in 10" :key="n" :value="n">{{ n }}</option>
+                  </select>
+                </div>
+                <button
+                  class="h-7 w-full rounded bg-sky-500/70 text-xs text-white transition-colors hover:bg-sky-500"
+                  @click="saveHome"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
           </div>
 
           <!-- 巡航面板 -->
@@ -854,9 +936,12 @@ import {
   Route,
   Plus,
   Square,
+  BoxSelect,
 } from 'lucide-vue-next'
 import type {
   GbAudioInfo,
+  GbDragZoomRequest,
+  GbHomePositionRequest,
   GbPlayerStats,
   GbPtzCruise,
   GbPtzCruisePoint,
@@ -986,6 +1071,10 @@ const emit = defineEmits<{
   iris: [direction: 'open' | 'close' | 'stop', speed: number]
   wiper: [action: 'on' | 'off']
   'speed-change': [speeds: { move: number; zoom: number; focus: number; iris: number }]
+  /** 拉框缩放（设备端变倍），坐标已换算成视频画面像素 */
+  'drag-zoom': [data: GbDragZoomRequest]
+  /** 看守位设置/关闭 */
+  'home-position-set': [data: GbHomePositionRequest]
   /** 将当前视角设置到指定编号槽位（名称由后端生成） */
   'preset-save': [presetId: number]
   /** 删除指定编号槽位的预置位 */
@@ -1050,6 +1139,7 @@ const speedRows = [
 /* ==================== 播放器核心 ==================== */
 
 const rootRef = ref<HTMLDivElement | null>(null)
+const stageRef = ref<HTMLDivElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
 let player: JessibucaInstance | null = null
 let pendingUrl: string | null = null
@@ -1321,7 +1411,7 @@ const clampPan = () => {
   if (zoomY.value < minY) zoomY.value = minY
 }
 const onWheel = (e: WheelEvent) => {
-  if (!props.showZoom) return
+  if (!props.showZoom || dragZoomMode.value) return
   if (!containerRef.value) return
   e.preventDefault()
   const rect = containerRef.value.getBoundingClientRect()
@@ -1336,6 +1426,12 @@ let dragStartY = 0
 let panStartX = 0
 let panStartY = 0
 const onMouseDown = (e: MouseEvent) => {
+  // 拉框模式优先，只认左键
+  if (dragZoomMode.value) {
+    if (e.button !== 0) return
+    onRubberStart(e)
+    return
+  }
   if (!props.showZoom || !isZoomed.value) return
   isDragging.value = true
   dragStartX = e.clientX
@@ -1357,7 +1453,117 @@ const onMouseUp = () => {
   window.removeEventListener('mouseup', onMouseUp)
 }
 const onDoubleClick = () => {
-  if (props.showZoom && isZoomed.value) resetZoom()
+  if (!dragZoomMode.value && props.showZoom && isZoomed.value) resetZoom()
+}
+
+/* ---------------- 拉框缩放（设备端变倍） ---------------- */
+
+const dragZoomMode = ref(false)
+// 橡皮筋矩形，坐标相对 stage
+const dragBox = ref({ active: false, x: 0, y: 0, w: 0, h: 0 })
+let rubberStartX = 0
+let rubberStartY = 0
+let rubberStage: DOMRect | null = null
+
+const toggleDragZoomMode = () => {
+  if (dragZoomMode.value) {
+    dragZoomMode.value = false
+    return
+  }
+  // 跟电子放大互斥，进模式先把画面复位
+  if (isZoomed.value) resetZoom()
+  dragZoomMode.value = true
+}
+
+// 电子放大一旦触发（滚轮/按钮），自动退出拉框模式
+watch(isZoomed, (v) => {
+  if (v) dragZoomMode.value = false
+})
+
+const onRubberStart = (e: MouseEvent) => {
+  const stage = stageRef.value
+  if (!stage) return
+  rubberStage = stage.getBoundingClientRect()
+  rubberStartX = e.clientX
+  rubberStartY = e.clientY
+  dragBox.value = {
+    active: true,
+    x: e.clientX - rubberStage.left,
+    y: e.clientY - rubberStage.top,
+    w: 0,
+    h: 0,
+  }
+  window.addEventListener('mousemove', onRubberMove)
+  window.addEventListener('mouseup', onRubberUp)
+}
+
+const onRubberMove = (e: MouseEvent) => {
+  if (!rubberStage || !dragBox.value.active) return
+  const x = Math.min(e.clientX, rubberStartX) - rubberStage.left
+  const y = Math.min(e.clientY, rubberStartY) - rubberStage.top
+  dragBox.value = {
+    active: true,
+    x,
+    y,
+    w: Math.abs(e.clientX - rubberStartX),
+    h: Math.abs(e.clientY - rubberStartY),
+  }
+}
+
+const onRubberUp = (e: MouseEvent) => {
+  window.removeEventListener('mousemove', onRubberMove)
+  window.removeEventListener('mouseup', onRubberUp)
+  const box = { ...dragBox.value }
+  dragBox.value = { active: false, x: 0, y: 0, w: 0, h: 0 }
+  const stage = rubberStage
+  rubberStage = null
+  // 太小算误触；起手往右拖是放大，往左是缩小
+  if (!stage || box.w < 6 || box.h < 6) return
+  const action: GbDragZoomRequest['action'] =
+    e.clientX >= rubberStartX ? 'in' : 'out'
+  emitDragZoom(box, action, stage)
+}
+
+// 橡皮筋是相对播放窗口画的，设备要的是视频原始像素，得把黑边扣掉再换算
+const emitDragZoom = (
+  box: { x: number; y: number; w: number; h: number },
+  action: 'in' | 'out',
+  stage: DOMRect,
+) => {
+  const v = videoInfo.value
+  const cw = stage.width
+  const ch = stage.height
+  if (!v || !v.width || !v.height || !cw || !ch) {
+    emit('error', '视频分辨率未知，无法拉框')
+    return
+  }
+  const scale = Math.min(cw / v.width, ch / v.height)
+  const dw = v.width * scale
+  const dh = v.height * scale
+  const ox = (cw - dw) / 2
+  const oy = (ch - dh) / 2
+
+  // 相对画面显示区
+  const rx = (x: number) => x - ox
+  const ry = (y: number) => y - oy
+  const cx = rx(box.x) + box.w / 2
+  const cy = ry(box.y) + box.h / 2
+
+  const clamp = (n: number, max: number) => Math.max(0, Math.min(max, n))
+  emit('drag-zoom', {
+    action,
+    // Length 纵向、Width 横向，都是播放窗口的视频像素尺寸
+    length: Math.round(v.height),
+    width: Math.round(v.width),
+    midPointX: Math.round(clamp(cx * (v.width / dw), v.width)),
+    midPointY: Math.round(clamp(cy * (v.height / dh), v.height)),
+    lengthX: Math.round(clamp(box.h * (v.height / dh), v.height)),
+    lengthY: Math.round(clamp(box.w * (v.width / dw), v.width)),
+  })
+}
+
+const onKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Escape' && dragZoomMode.value) dragZoomMode.value = false
 }
 
 /* ==================== 工具栏操作 ==================== */
@@ -1583,6 +1789,31 @@ const onDeletePreset = (id: string, presetId: number) => {
   }, 600)
 }
 
+/* ---------------- 看守位 ---------------- */
+// 没有查询接口，前端不知道设备当前开没开，这里只做本地开关状态
+const homeEnabled = ref(false)
+const homeResetTime = ref(30)
+const homePresetIndex = ref(1)
+
+const toggleHome = () => {
+  if (homeEnabled.value) {
+    homeEnabled.value = false
+    emit('home-position-set', { enabled: false })
+  } else {
+    homeEnabled.value = true
+  }
+}
+
+const saveHome = () => {
+  const resetTime = Math.max(1, Number(homeResetTime.value) || 0)
+  homeResetTime.value = resetTime
+  emit('home-position-set', {
+    enabled: true,
+    resetTime,
+    presetIndex: homePresetIndex.value,
+  })
+}
+
 /* ---------------- 巡航 ---------------- */
 
 const selectedCruiseId = ref('')
@@ -1733,6 +1964,7 @@ const onStopCruise = (id: string) => {
 watch(
   () => props.src,
   (url) => {
+    dragZoomMode.value = false
     if (url) startPlay(url)
     else destroyPlayer()
   },
@@ -1744,14 +1976,18 @@ onMounted(() => {
   // 点击外部关闭弹出菜单
   document.addEventListener('mousedown', onDocMouseDown)
   document.addEventListener('fullscreenchange', onFullscreenChange)
+  window.addEventListener('keydown', onKeyDown)
 })
 
 onBeforeUnmount(() => {
   destroyPlayer()
   document.removeEventListener('mousedown', onDocMouseDown)
   document.removeEventListener('fullscreenchange', onFullscreenChange)
+  window.removeEventListener('keydown', onKeyDown)
   window.removeEventListener('mousemove', onMouseMove)
   window.removeEventListener('mouseup', onMouseUp)
+  window.removeEventListener('mousemove', onRubberMove)
+  window.removeEventListener('mouseup', onRubberUp)
 })
 
 // 点击外部关闭所有弹出菜单

@@ -26,6 +26,8 @@ import type {
   GbPtzCommand,
   GbPtzFocusDirection,
   GbPtzIrisDirection,
+  GbDragZoomRequest,
+  GbHomePositionRequest,
   GbRecordItem,
   GbRecordQueryRequest,
   GbPlaybackControlRequest,
@@ -234,6 +236,37 @@ export const ptzIrisApi = (
 /** 雨刷控制 */
 export const ptzWiperApi = (deviceId: string, channelId: string, action: 'on' | 'off') =>
   post<void>(`/api/gb28181/ptz/wiper/${deviceId}/${channelId}?action=${action}`)
+
+/** 拉框放大/缩小，坐标都是视频画面像素 */
+export const ptzDragZoomApi = (
+  deviceId: string,
+  channelId: string,
+  data: GbDragZoomRequest,
+) => {
+  const qs = new URLSearchParams({
+    action: data.action,
+    length: String(data.length),
+    width: String(data.width),
+    midPointX: String(data.midPointX),
+    midPointY: String(data.midPointY),
+    lengthX: String(data.lengthX),
+    lengthY: String(data.lengthY),
+  })
+  return post<void>(`/api/gb28181/ptz/drag-zoom/${deviceId}/${channelId}?${qs}`)
+}
+
+/** 看守位设置/关闭 */
+export const ptzHomePositionApi = (
+  deviceId: string,
+  channelId: string,
+  data: GbHomePositionRequest,
+) => {
+  let qs = `enabled=${data.enabled}`
+  if (data.enabled) {
+    qs += `&resetTime=${data.resetTime ?? 0}&presetIndex=${data.presetIndex ?? 0}`
+  }
+  return post<void>(`/api/gb28181/ptz/home-position/${deviceId}/${channelId}?${qs}`)
+}
 
 /* ----------------------- 云台预置位 ----------------------- */
 
