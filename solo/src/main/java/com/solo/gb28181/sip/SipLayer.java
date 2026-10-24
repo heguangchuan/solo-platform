@@ -7,6 +7,7 @@ import gov.nist.javax.sip.SipStackImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jspecify.annotations.NonNull;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -47,7 +48,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class SipLayer implements CommandLineRunner {
 
     private final Gb28181Properties properties;
-    private final SipProcessorObserver sipProcessorObserver;
+
+    /**
+     * 用 ObjectProvider 延迟解析：SipProcessorObserver 持有所有请求处理器，
+     * 而 DeviceControlMessageHandler 又依赖 SipCommander → SipLayer，
+     * 直接构造注入会形成环。监听器只在 run() 启栈时才需要，此时所有 bean 已就绪。
+     */
+    private final ObjectProvider<SipProcessorObserver> processorObserverProvider;
 
     // key = ip，存对应 provider
     private final Map<String, SipProviderImpl> udpProviderMap = new ConcurrentHashMap<>();
@@ -63,8 +70,9 @@ public class SipLayer implements CommandLineRunner {
         }
 
         SipFactory.getInstance().setPathName("gov.nist");
+        SipProcessorObserver sipProcessorObserver = processorObserverProvider.getObject();
         for (String ip : monitorIps) {
-            addListeningPoint(ip, properties.getPort());
+            addListeningPoint(ip, properties.getPort(), sipProcessorObserver);
         }
         if (udpProviderMap.isEmpty() && tcpProviderMap.isEmpty()) {
             log.error("[协议栈] 所有监听点启动失败");
@@ -100,7 +108,7 @@ public class SipLayer implements CommandLineRunner {
         }
     }
 
-    private void addListeningPoint(String ip, int port) {
+    private void addListeningPoint(String ip, int port, SipProcessorObserver sipProcessorObserver) {
         SipStackImpl sipStack;
         try {
             sipStack = (SipStackImpl) SipFactory.getInstance()
