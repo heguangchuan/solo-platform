@@ -258,6 +258,38 @@ public class SipCommander {
         }
     }
 
+    public void sendDragZoomCmd(GbDevice device, String channelId, boolean zoomIn,
+                                int length, int width, int midX, int midY, int lengthX, int lengthY) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildDragZoomControl(
+                sn, channelId, zoomIn, length, width, midX, midY, lengthX, lengthY, charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[云台控制] 拉框{} → 设备:{} 通道:{} 中心:({},{}) 框:{}x{}",
+                    zoomIn ? "放大" : "缩小", device.getDeviceId(), channelId, midX, midY, lengthX, lengthY);
+        } catch (Exception e) {
+            log.error("[云台控制] 拉框发送失败 设备:{} 通道:{} 错误:{}", device.getDeviceId(), channelId, e.getMessage(), e);
+        }
+    }
+
+    public void sendHomePositionCmd(GbDevice device, String channelId, boolean enabled,
+                                    Integer resetTime, Integer presetIndex) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildHomePositionControl(
+                sn, channelId, enabled, resetTime, presetIndex, charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[云台控制] 看守位{} → 设备:{} 通道:{} 归位:{}s 预置位:{}",
+                    enabled ? "开启" : "关闭", device.getDeviceId(), channelId, resetTime, presetIndex);
+        } catch (Exception e) {
+            log.error("[云台控制] 看守位发送失败 设备:{} 通道:{} 错误:{}", device.getDeviceId(), channelId, e.getMessage(), e);
+        }
+    }
+
     /**
      * 级联透传上级的 DeviceControl 报文，只重写 SN 与 DeviceID，命令体不动。
      *

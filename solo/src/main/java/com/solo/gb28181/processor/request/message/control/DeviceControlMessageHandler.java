@@ -27,7 +27,7 @@ import javax.sip.message.Response;
  * 报文体不解析、不改写业务字段，只换 SN 和 DeviceID（上级传的可能是撞码暴露码）。
  *
  * <p>PTZCmd/GuardCmd/AlarmCmd/RecordCmd/IFameCmd/TeleBoot/DragZoomIn/DragZoomOut/HomePosition
- * 都走透传。拉框和看守位平台自身不做入口，只是级联过一道。</p>
+ * 都走透传。拉框和看守位前端还没入口，后端接口已经有了。</p>
  *
  * <p>平台侧 MESSAGE 分发器不代回应答，由本 handler 自己回；通道没共享回 404，其余回 200。</p>
  */
