@@ -169,6 +169,14 @@ export const PERM = {
   ONVIF_DEVICE_EDIT: 'onvif:device:edit',
   ONVIF_DEVICE_DELETE: 'onvif:device:delete',
   ONVIF_DEVICE_PROBE: 'onvif:device:probe',
+
+  // ===== 开放平台 openapi =====
+  OPENAPI: 'openapi',
+  OPENAPI_APP: 'openapi:app',
+  OPENAPI_APP_LIST: 'openapi:app:list',
+  OPENAPI_APP_ADD: 'openapi:app:add',
+  OPENAPI_APP_EDIT: 'openapi:app:edit',
+  OPENAPI_APP_ROTATE: 'openapi:app:rotate',
 } as const
 
 export type PermCode = (typeof PERM)[keyof typeof PERM]

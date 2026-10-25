@@ -240,10 +240,6 @@
                 <configuration>
                     <release>21</release>
                     <encoding>UTF-8</encoding>
-                    <compilerArgs>
-                        <arg>-encoding</arg>
-                        <arg>UTF-8</arg>
-                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>
