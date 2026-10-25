@@ -111,6 +111,63 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
+    // 布防/撤防，guard=true 是布防
+    public static String buildGuardControl(int sn, String deviceId, boolean guard, String charset) {
+        return buildSimpleControl(sn, deviceId, "GuardCmd", guard ? "SetGuard" : "ResetGuard", charset);
+    }
+
+    // 报警复位，method/type 一般不用填，设备有的话按方式和类型复位
+    public static String buildAlarmControl(int sn, String deviceId, String method, String type, String charset) {
+        StringBuilder sb = new StringBuilder(280);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Control>\r\n");
+        sb.append("<CmdType>DeviceControl</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(deviceId).append("</DeviceID>\r\n");
+        sb.append("<AlarmCmd>ResetAlarm</AlarmCmd>\r\n");
+        boolean hasInfo = (method != null && !method.isBlank()) || (type != null && !type.isBlank());
+        if (hasInfo) {
+            sb.append("<Info>\r\n");
+            if (method != null && !method.isBlank()) {
+                sb.append("<AlarmMethod>").append(method).append("</AlarmMethod>\r\n");
+            }
+            if (type != null && !type.isBlank()) {
+                sb.append("<AlarmType>").append(type).append("</AlarmType>\r\n");
+            }
+            sb.append("</Info>\r\n");
+        }
+        sb.append("</Control>\r\n");
+        return sb.toString();
+    }
+
+    // 设备本地录像开关，record=true 开始录
+    public static String buildRecordControl(int sn, String channelId, boolean record, String charset) {
+        return buildSimpleControl(sn, channelId, "RecordCmd", record ? "Record" : "StopRecord", charset);
+    }
+
+    // 让设备立刻吐一个 IDR 帧，直播卡花屏的时候点一下
+    public static String buildIFrameControl(int sn, String channelId, String charset) {
+        return buildSimpleControl(sn, channelId, "IFameCmd", "Send", charset);
+    }
+
+    // 远程重启设备，内容固定就是 Boot
+    public static String buildTeleBootControl(int sn, String deviceId, String charset) {
+        return buildSimpleControl(sn, deviceId, "TeleBoot", "Boot", charset);
+    }
+
+    // 上面几个报文长得都一个样，提一个公共的
+    private static String buildSimpleControl(int sn, String deviceId, String tag, String value, String charset) {
+        StringBuilder sb = new StringBuilder(240);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Control>\r\n");
+        sb.append("<CmdType>DeviceControl</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(deviceId).append("</DeviceID>\r\n");
+        sb.append('<').append(tag).append('>').append(value).append("</").append(tag).append(">\r\n");
+        sb.append("</Control>\r\n");
+        return sb.toString();
+    }
+
     /**
      * 级联透传用：拷贝上级的 Control 报文，只把 SN 换成本平台序号、
      * DeviceID 改成设备侧真实通道码（上级传的可能是撞码暴露码），命令体原样保留。

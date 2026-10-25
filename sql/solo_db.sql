@@ -386,6 +386,9 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (138, '计划新增', 'gb28181:record:plan:add', NULL, 2, 136, 2, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (139, '计划编辑', 'gb28181:record:plan:edit', NULL, 2, 136, 3, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (140, '计划删除', 'gb28181:record:plan:delete', NULL, 2, 136, 4, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
+-- 设备控制（布防撤防/报警复位/本地录像/强制关键帧）和远程重启，挂通道管理 92 下
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (141, '设备控制', 'gb28181:device:control', NULL, 2, 92, 14, NULL, 1, 0, '2026-10-24 00:00:00', '2026-10-24 00:00:00');
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (142, '远程重启', 'gb28181:device:reboot', NULL, 2, 92, 15, NULL, 1, 0, '2026-10-24 00:00:00', '2026-10-24 00:00:00');
 -- 系统角色表
 DROP TABLE IF EXISTS sys_role;
 CREATE TABLE sys_role

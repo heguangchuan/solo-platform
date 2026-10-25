@@ -290,6 +290,53 @@ public class SipCommander {
         }
     }
 
+    // 布防/撤防
+    public void sendGuardCmd(GbDevice device, boolean guard) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildGuardControl(sn, device.getDeviceId(), guard, charsetOf(device));
+        sendControl(device, xml, "布防撤防", guard ? "布防" : "撤防");
+    }
+
+    // 报警复位，method/type 可空，空就是全复位
+    public void sendAlarmCmd(GbDevice device, String method, String type) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildAlarmControl(sn, device.getDeviceId(), method, type, charsetOf(device));
+        sendControl(device, xml, "报警复位", "ResetAlarm");
+    }
+
+    // 设备本地录像开/关，目标是通道
+    public void sendRecordCmd(GbDevice device, String channelId, boolean record) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildRecordControl(sn, channelId, record, charsetOf(device));
+        sendControl(device, xml, "本地录像" + (record ? "开始" : "停止"), channelId);
+    }
+
+    // 强制 I 帧
+    public void sendIFrameCmd(GbDevice device, String channelId) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildIFrameControl(sn, channelId, charsetOf(device));
+        sendControl(device, xml, "强制关键帧", channelId);
+    }
+
+    // 远程重启
+    public void sendTeleBootCmd(GbDevice device) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildTeleBootControl(sn, device.getDeviceId(), charsetOf(device));
+        sendControl(device, xml, "远程重启", "Boot");
+    }
+
+    // DeviceControl 几个命令发送流程都一样，丢一起
+    private void sendControl(GbDevice device, String xml, String logName, String logArg) {
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request);
+            log.info("[设备控制] {} → 设备:{} {}", logName, device.getDeviceId(), logArg);
+        } catch (Exception e) {
+            log.error("[设备控制] {} 发送失败 设备:{} 错误:{}", logName, device.getDeviceId(), e.getMessage(), e);
+        }
+    }
+
     /**
      * 级联透传上级的 DeviceControl 报文，只重写 SN 与 DeviceID，命令体不动。
      *
