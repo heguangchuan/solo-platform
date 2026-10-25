@@ -76,4 +76,23 @@ public interface GbRedisKeys {
 
     // 本地发送端口分配的自增计数器
     String CASCADE_SEND_PORT_SEQ = CASCADE_SEND_PREFIX + "portseq";
+
+    // ===== 语音广播会话（平台喊话设备，浏览器麦克风 → ZLM → startSendRtp 推设备）=====
+
+    String BROADCAST_PREFIX = "gb28181:broadcast:";
+
+    // 会话主体：s:{broadcastStreamId}
+    String BROADCAST_SESSION = BROADCAST_PREFIX + "s:";
+
+    // 设备反向 INVITE 的 Call-ID 索引：c:{callId} → broadcastStreamId
+    String BROADCAST_BY_CALL = BROADCAST_PREFIX + "c:";
+
+    // 源流索引：st:{srcStream} → Set<broadcastStreamId>
+    String BROADCAST_BY_SRC_STREAM = BROADCAST_PREFIX + "st:";
+
+    // 所有活跃广播会话全集
+    String BROADCAST_ALL_ACTIVE = BROADCAST_PREFIX + "all";
+
+    // 本地发送端口分配的自增计数器（复用级联端口段配置，计数器独立）
+    String BROADCAST_PORT_SEQ = BROADCAST_PREFIX + "portseq";
 }

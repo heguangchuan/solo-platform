@@ -215,6 +215,26 @@ public final class DeviceCommandXml {
     }
 
     /**
+     * 构造语音广播通知报文（Notify/Broadcast）
+     * <p>设备收到后回 200 OK，随后主动向平台发 INVITE（m=audio，a=recvonly），
+     * 平台在该 INVITE 协商的通道上把麦克风音频推给设备放音。</p>
+     *
+     * @param sn        命令序号
+     * @param channelId 要放音的通道国标 ID
+     * @param charset   设备字符集
+     */
+    public static String buildBroadcastNotify(int sn, String channelId, String charset) {
+        StringBuilder sb = new StringBuilder(220);
+        sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
+        sb.append("<Notify>\r\n");
+        sb.append("<CmdType>Broadcast</CmdType>\r\n");
+        sb.append("<SN>").append(sn).append("</SN>\r\n");
+        sb.append("<DeviceID>").append(channelId).append("</DeviceID>\r\n");
+        sb.append("</Notify>\r\n");
+        return sb.toString();
+    }
+
+    /**
      * 构造 SUBSCRIBE XML 报文（Catalog / MobilePosition / Alarm 共用）
      */
     public static String buildSubscribe(String cmdType, int sn, String deviceId, int expires, String charset) {

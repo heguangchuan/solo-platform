@@ -23,6 +23,10 @@ import type {
   GbPlayStartRequest,
   GbPlayStopRequest,
   GbPlayResult,
+  GbBroadcastStartRequest,
+  GbBroadcastStopRequest,
+  GbBroadcastWebRtcRequest,
+  GbBroadcastResult,
   GbPtzCommand,
   GbPtzFocusDirection,
   GbPtzIrisDirection,
@@ -164,6 +168,20 @@ export const startGbPlayApi = (data: GbPlayStartRequest, signal?: AbortSignal) =
 /** 停止点播（SIP BYE + 关闭收流端口） */
 export const stopGbPlayApi = (data: GbPlayStopRequest) =>
   post<void>('/api/gb28181/play/stop', data)
+
+/* ===== 语音广播 ===== */
+
+/** 开始广播（后端发 Broadcast 通知并等设备 200，返回流ID） */
+export const startBroadcastApi = (data: GbBroadcastStartRequest, signal?: AbortSignal) =>
+  post<GbBroadcastResult>('/api/gb28181/broadcast/start', data, { signal })
+
+/** 停止广播（停 startSendRtp + 关源流 + BYE 设备） */
+export const stopBroadcastApi = (data: GbBroadcastStopRequest) =>
+  post<void>('/api/gb28181/broadcast/stop', data)
+
+/** WebRTC SDP 交换：浏览器 offer 经平台代理转发给 ZLM，拿回 answer */
+export const exchangeBroadcastSdpApi = (data: GbBroadcastWebRtcRequest) =>
+  post<string>('/api/gb28181/broadcast/webrtc', data)
 
 /* ===== 报警中心 ===== */
 

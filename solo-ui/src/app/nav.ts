@@ -24,6 +24,7 @@ import {
   IconList,
   IconBell,
   IconRoute,
+  IconSpeakerphone,
   IconUser,
   type Icon,
 } from '@tabler/icons-vue'
@@ -74,6 +75,7 @@ const ICON_REGISTRY: Record<string, Icon> = {
   IconList,
   IconBell,
   IconRoute,
+  IconSpeakerphone,
 }
 
 /**

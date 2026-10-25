@@ -236,6 +236,42 @@ public class SipCommander {
         }
     }
 
+    // ---------------- 语音广播 ----------------
+
+    /**
+     * 发起语音广播通知（MESSAGE → Notify/Broadcast）
+     * <p>设备回 200 OK 后会主动向平台发 INVITE 建音频通道，由 InviteRequestProcessor 路由到广播服务。
+     * DeviceID 写的是要放音的通道码，不是设备本体 ID。</p>
+     *
+     * @param device    目标设备
+     * @param channelId 放音通道国标 ID
+     * @param onOk      2xx 回调（设备愿意接收广播）
+     * @param onError   非 2xx 回调
+     * @param onTimeout 事务超时回调
+     * @param timeoutMs 订阅超时（毫秒）
+     */
+    public void sendBroadcastNotify(GbDevice device, String channelId,
+                                    Consumer<ResponseEvent> onOk,
+                                    Consumer<ResponseEvent> onError,
+                                    Runnable onTimeout,
+                                    long timeoutMs) {
+        int sn = nextSn();
+        String xml = DeviceCommandXml.buildBroadcastNotify(sn, channelId, charsetOf(device));
+        try {
+            CallIdHeader callId = headerProvider.newCallId(device);
+            // MESSAGE 的 Request-URI 是设备本身，放音通道码写在 XML DeviceID 节点里
+            Request request = headerProvider.buildMessageRequest(device, xml, callId);
+            sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, onTimeout, timeoutMs);
+            log.info("[语音广播] Broadcast 通知 → 设备:{} 通道:{} SN:{}", device.getDeviceId(), channelId, sn);
+        } catch (Exception e) {
+            log.error("[语音广播] Broadcast 通知发送失败 设备:{} 通道:{} 错误:{}",
+                    device.getDeviceId(), channelId, e.getMessage(), e);
+            if (onError != null) {
+                try { onError.accept(null); } catch (Exception ignore) {}
+            }
+        }
+    }
+
     // ---------------- 内部 ----------------
 
     /**

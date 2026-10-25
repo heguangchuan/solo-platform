@@ -121,6 +121,9 @@ export const PERM = {
   GB_DEVICE_CHANNEL_DELETE: 'gb28181:device-channel:delete',
   // 视频点播
   GB_PLAY: 'gb28181:play',
+  // 语音广播
+  GB_BROADCAST: 'gb28181:broadcast',
+  GB_BROADCAST_TALK: 'gb28181:broadcast:talk',
   // 报警中心
   GB_ALARM: 'gb28181:alarm',
   GB_ALARM_LIST: 'gb28181:alarm:list',

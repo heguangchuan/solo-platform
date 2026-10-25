@@ -5,6 +5,7 @@ import com.solo.gb28181.processor.request.SubscribeHolder;
 import com.solo.gb28181.processor.request.message.notify.KeepaliveNotifyMessageHandler;
 import com.solo.gb28181.service.GbMobilePositionService;
 import com.solo.gb28181.service.impl.CascadeSendService;
+import com.solo.gb28181.service.impl.GbBroadcastService;
 import com.solo.gb28181.sip.SipSubscribe;
 import com.solo.gb28181.support.CatalogSyncStatusService;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class GbHealthScheduledTasks {
     private final SipSubscribe sipSubscribe;
     private final SubscribeHolder subscribeHolder;
     private final CascadeSendService cascadeSendService;
+    private final GbBroadcastService gbBroadcastService;
     private final GbMobilePositionService mobilePositionService;
     private final CatalogSyncStatusService catalogSyncStatusService;
     private final Gb28181Properties gb28181Properties;
@@ -67,6 +69,12 @@ public class GbHealthScheduledTasks {
     @Scheduled(initialDelay = 10_000, fixedDelay = 10_000)
     public void sweepCascadeSendAckTimeout() {
         cascadeSendService.sweepAckTimeout();
+    }
+
+    /** 语音广播：等设备反向 INVITE / ACK 超时的会话回收（每 10s 扫一次） */
+    @Scheduled(initialDelay = 10_000, fixedDelay = 10_000)
+    public void sweepBroadcastAckTimeout() {
+        gbBroadcastService.sweepAckTimeout();
     }
 
     /** GPS 轨迹过期清理：每天凌晨 03:30 按保留天数删除旧轨迹点（retentionDays<=0 不清理） */

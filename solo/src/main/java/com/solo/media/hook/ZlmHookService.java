@@ -10,6 +10,7 @@ import com.solo.gb28181.service.GbRecordFileService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
+import com.solo.gb28181.service.impl.GbBroadcastService;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.entity.StreamPush;
 import com.solo.media.entity.StreamPushClient;
@@ -51,6 +52,7 @@ import java.util.Map;
  *   <li>{@link GbPlayService} / {@link GbPlaybackService} — 实时 / 回放会话生命周期回调</li>
  *   <li>{@link StreamPushService} — 推流入表 + 推流兜底</li>
  *   <li>{@link CascadeSendService#onSendRtpStopped} — 级联推流异常断开清理</li>
+ *   <li>{@link GbBroadcastService} — 语音广播推流异常断开清理（广播流在其他钩子中直接忽略/保活）</li>
  * </ul>
  */
 @Slf4j
@@ -71,6 +73,7 @@ public class ZlmHookService {
     private final StreamPushService streamPushService;
     private final StreamProxyService streamProxyService;
     private final CascadeSendService cascadeSendService;
+    private final GbBroadcastService gbBroadcastService;
     private final OnvifPlayService onvifPlayService;
 
     // ============ 服务级 ============
@@ -188,6 +191,11 @@ public class ZlmHookService {
 
     public HookResult onStreamChanged(Map<String, Object> body) {
         String schema = stringOf(body, "schema");
+        String earlyApp = stringOf(body, "app");
+        // 语音广播 / 语音对讲的浏览器推流生命周期由广播 service 自己管，不走点播会话路由，直接忽略
+        if ("broadcast".equals(earlyApp) || "talk".equals(earlyApp)) {
+            return HookResult.ok();
+        }
         // ZLM 对每个派生 schema 都会触发一次（ts/rtsp/rtmp/fmp4），业务侧只需处理一次：固定取 rtsp
         if (!"rtsp".equalsIgnoreCase(schema)) return HookResult.ok();
 
@@ -261,6 +269,12 @@ public class ZlmHookService {
         String stream = stringOf(body, "stream");
         String originTypeStr = stringOf(body, "originTypeStr");
         boolean isOnvif = onvifPlayService.isOnvifStream(app, stream);
+
+        // 语音广播：浏览器 WebRTC 推上来的音频流本来就没有播放者（平台只做 startSendRtp 转出），
+        // 绝不能被无人观看回收，否则喊话中途就断了。对讲同理。
+        if ("broadcast".equals(app) || "talk".equals(app)) {
+            return HookResult.ok().put("close", false);
+        }
 
         // 外部推流（rtsp/rtmp/rtc push）不入"无人观看即关"：关掉之后外部源必须重推，
         // 平台无能为力。判定依据：stream_push 表里有这行 = 外部推流
@@ -378,6 +392,12 @@ public class ZlmHookService {
             String ssrc = stringOf(body, "ssrc");
             if (stream != null) {
                 cascadeSendService.onSendRtpStopped(stream, ssrc);
+                // 语音广播的 startSendRtp 被 ZLM 中止也走这里，按 srcStream + ssrc 清扫广播会话
+                try {
+                    gbBroadcastService.onSendRtpStopped(stream, ssrc);
+                } catch (Exception ex) {
+                    log.error("[ZLM 回调] on_send_rtp_stopped 广播清扫异常 stream={} ssrc={}", stream, ssrc, ex);
+                }
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_send_rtp_stopped 业务异常 {}", body, e);

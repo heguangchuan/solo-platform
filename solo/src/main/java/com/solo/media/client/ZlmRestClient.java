@@ -278,6 +278,31 @@ public class ZlmRestClient {
         }
     }
 
+    /**
+     * WebRTC SDP 交换（浏览器 WHIP 式推流/拉流）。对应 ZLM {@code /index/api/webrtc}。
+     * <p>浏览器把 offer SDP 交给平台，平台带着 secret 转发给 ZLM（浏览器不该持有 secret，
+     * 且浏览器直连 rtcPort 还有跨域问题），再把 answer SDP 原样还回去。</p>
+     *
+     * @param app       应用名（广播配 broadcast）
+     * @param stream    流名（广播流ID）
+     * @param type      push=推流 / play=拉流
+     * @param offerSdp  浏览器生成的 offer SDP
+     * @return ZLM 应答的 answer SDP
+     */
+    public String exchangeWebRtcSdp(MediaServer server, String app, String stream, String type, String offerSdp) {
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("app", app);
+        params.put("stream", stream);
+        params.put("type", type);
+        params.put("sdp", offerSdp);
+        JsonNode resp = post(server, "webrtc", params);
+        String answer = resp.path("sdp").asText("");
+        if (answer.isBlank()) {
+            throw new ServiceException("ZLM webrtc 未返回 answer SDP: " + resp);
+        }
+        return answer;
+    }
+
 
     /**
      * 触发 ZLM 把当前活跃流录成 MP4。

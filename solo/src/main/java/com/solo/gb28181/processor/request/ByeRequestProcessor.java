@@ -1,15 +1,18 @@
 package com.solo.gb28181.processor.request;
 
 import com.solo.gb28181.entity.CascadeSendSession;
+import com.solo.gb28181.entity.GbBroadcastSession;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.CascadeSendSessionService;
+import com.solo.gb28181.service.GbBroadcastSessionService;
 import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
+import com.solo.gb28181.service.impl.GbBroadcastService;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +31,8 @@ import javax.sip.message.Response;
  * <p>另外还处理<strong>上级平台停播</strong>（S6.b-3）：上级点播本平台通道后发 BYE，
  * callId 命中不到设备点播/回放会话时，转查级联推流会话 {@link CascadeSendSession} → stopSendRtp + 清理。</p>
  *
+ * <p>以及<strong>语音广播停播</strong>：设备广播会话中主动发 BYE，转查广播会话 → stopSendRtp + 清理。</p>
+ *
  * <h3>注意</h3>
  * <p>对于本平台 <strong>主动</strong> 发出的 BYE，对端会回 200 OK，
  * 走 {@link com.solo.gb28181.sip.SipSubscribe} 订阅回调，不会走到本 processor。</p>
@@ -42,6 +47,9 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
     @Autowired
     private CascadeSendSessionService cascadeSendSessionService;
 
+    @Autowired
+    private GbBroadcastSessionService gbBroadcastSessionService;
+
     /** 用 @Lazy 打破循环依赖（PlayService → SipCommander → SipProcessorObserver → BYE processor → PlayService） */
     @Autowired
     @Lazy
@@ -54,6 +62,11 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
     @Autowired
     @Lazy
     private CascadeSendService cascadeSendService;
+
+    /** 语音广播：设备停播 BYE，按广播会话清扫 */
+    @Autowired
+    @Lazy
+    private GbBroadcastService gbBroadcastService;
 
     /** 同样用 @Lazy 避开 SIP 组件初始化期的循环依赖 */
     @Autowired
@@ -86,6 +99,14 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
                 log.info("[级联点播] 上级停播 BYE 上级平台={} 本平台通道编码={} callId={}",
                         sendSession.getPlatformServerGbId(), sendSession.getLocalChannelId(), callId);
                 cascadeSendService.onUpstreamBye(sendSession);
+                return;
+            }
+            // 级联会话也没命中：可能是设备结束语音广播的 BYE
+            GbBroadcastSession broadcastSession = gbBroadcastSessionService.getByCallId(callId);
+            if (broadcastSession != null) {
+                log.info("[语音广播] 设备停播 BYE 设备={} 通道={} callId={}",
+                        broadcastSession.getDeviceId(), broadcastSession.getChannelId(), callId);
+                gbBroadcastService.onDeviceBye(broadcastSession);
                 return;
             }
             log.info("[设备 BYE] callId={} 无对应会话（可能已被清扫）", callId);

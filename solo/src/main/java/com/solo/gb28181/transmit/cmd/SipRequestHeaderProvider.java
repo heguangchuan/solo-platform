@@ -6,6 +6,7 @@ import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.utils.SipUtils;
 import gov.nist.javax.sip.SipProviderImpl;
+import gov.nist.javax.sip.message.SIPRequest;
 import gov.nist.javax.sip.message.SIPResponse;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
@@ -405,6 +406,85 @@ public class SipRequestHeaderProvider {
             byte[] bodyBytes = xmlBody.getBytes(charset);
             request.setContent(bodyBytes, ct);
         }
+        return request;
+    }
+
+    // ============================================================
+    // 语音广播：应答设备反向 INVITE / Dialog 内 BYE
+    // ============================================================
+
+    /**
+     * 应答设备收到 Broadcast 通知后主动发来的 INVITE，构造 200 OK。
+     * <p>媒体方向与正常点播相反：设备 a=recvonly，平台 a=sendonly。
+     * Contact / SDP 出口 IP 都按设备所在网卡解析，不走全局 IP。</p>
+     *
+     * @param device      发来 INVITE 的设备
+     * @param request     设备的 INVITE（Call-ID / From / To / CSeq 沿用它）
+     * @param sdpBody     平台侧 m=audio 应答 SDP（{@link SdpBuilder#buildBroadcastAnswer}）
+     * @param localToTag  本平台生成的 To-tag
+     */
+    public Response buildBroadcastInviteOk(GbDevice device, SIPRequest request, String sdpBody, String localToTag)
+            throws ParseException {
+        String localIp = sipLayer.getLocalIp(device.getLocalIp());
+        String sipIp = properties.resolveSipIp(localIp);
+
+        SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.OK, request);
+        response.getToHeader().setTag(localToTag);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
+        Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
+        response.addHeader(contact);
+
+        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "SDP");
+        response.setContent(sdpBody, ct);
+        return response;
+    }
+
+    /**
+     * 平台主动结束广播，向设备发 BYE。
+     * <p>Dialog 标识沿用设备 INVITE：Call-ID 不变；
+     * From 用本平台 ID 带本地 To-tag，To 用通道码带设备的 From-tag。</p>
+     *
+     * @param device    目标设备
+     * @param channelId 放音通道码（Request-URI / To user）
+     * @param callId    设备 INVITE 的 Call-ID
+     * @param fromTag   设备 INVITE 的 From-tag（在本 BYE 里放到 To）
+     * @param toTag     本平台回 200 时生成的 To-tag（在本 BYE 里放到 From）
+     */
+    public Request buildBroadcastByeRequest(GbDevice device, String channelId, String callId,
+                                            String fromTag, String toTag)
+            throws ParseException, InvalidArgumentException {
+        String localIp = sipLayer.getLocalIp(device.getLocalIp());
+        String transport = device.getTransport() == null ? "UDP" : device.getTransport();
+        String sipIp = properties.resolveSipIp(localIp);
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(channelId, device.getHostAddress());
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
+        Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, toTag);
+
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(channelId, device.getHostAddress());
+        Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, fromTag);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CallIdHeader callIdHeader = HEADER_FACTORY.createCallIdHeader(callId);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.BYE);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.BYE, callIdHeader, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
+        Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
+        ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
+        request.addHeader(contact);
         return request;
     }
 
