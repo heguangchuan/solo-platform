@@ -28,6 +28,8 @@ public class WebMvcConfig implements WebMvcConfigurer {
                         "/api/auth/refresh",
                         // ZLMediaKit hook 由 ZLM 主动调用，无 JWT，使用 secret 自鉴权
                         "/api/hook/**",
+                        // 第三方开放 API：独立 appKey/appSecret 签名鉴权，不走平台用户体系
+                        "/open-api/**",
                         // knife4j UI + OpenAPI JSON + Swagger 资源——公开访问，不要求登录
                         "/doc.html",
                         "/webjars/**",

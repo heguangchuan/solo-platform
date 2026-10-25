@@ -92,4 +92,13 @@ public class Knife4jConfig {
                 .packagesToScan("com.solo.tests.controller")
                 .build();
     }
+
+    /** 开放平台：第三方调用的 /open-api/** 和后台应用管理 /api/openapi/** */
+    @Bean
+    public GroupedOpenApi openApiGroup() {
+        return GroupedOpenApi.builder()
+                .group("开放平台")
+                .packagesToScan("com.solo.openapi.controller", "com.solo.openapi.admin")
+                .build();
+    }
 }
