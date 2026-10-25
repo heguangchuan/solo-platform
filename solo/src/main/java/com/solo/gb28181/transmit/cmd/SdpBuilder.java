@@ -293,4 +293,90 @@ public final class SdpBuilder {
         sb.append("y=").append(ssrc).append("\r\n");
         return sb.toString();
     }
+
+    /**
+     * 构造语音广播回给设备的 200 OK SDP（m=audio，a=sendonly）。
+     *
+     * <p>设备主动 INVITE，SDP 里是 {@code m=audio ...} + {@code a=recvonly}；
+     * 本平台应答告诉它：音频往这个地址端口发（其实是平台往设备推，设备只收）。</p>
+     *
+     * <p>负载类型首选 96 PS：ZLM 的 startSendRtp 固定 use_ps=1，音频打进 PS 里发，
+     * 这是 GB28181 语音广播主流形态；同时带上 8 PCMA / 0 PCMU 给只认裸 G.711 的设备备选
+     * （实际推什么由 ZLM 决定，真要裸 G.711 得在 ZLM 侧另配，真机验证）。</p>
+     *
+     * @param platformId       本平台国标 ID（o= 行 username）
+     * @param sdpIp            本平台发流媒体 IP（c=/o= 行）
+     * @param sendPort         本平台发流端口（m= 行；TCP 被动监听时为 ZLM 监听端口）
+     * @param ssrc             10 位 SSRC（y= 行）
+     * @param upstreamTransport 设备 SDP 解析出的传输语义（{@link #extractAudioTransport}）
+     */
+    public static String buildBroadcastAnswer(String platformId, String sdpIp, int sendPort,
+                                              String ssrc, String upstreamTransport) {
+        boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(upstreamTransport)
+                || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
+        // setup 与设备取反，和级联视频一个道理
+        boolean upstreamActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
+        StringBuilder sb = new StringBuilder(320);
+        sb.append("v=0\r\n");
+        sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("s=Play\r\n");
+        sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("t=0 0\r\n");
+        // 96=PS（ZLM 实际发这个），8=PCMA、0=PCMU 给裸 G.711 设备留个位置
+        sb.append("m=audio ").append(sendPort).append(' ')
+                .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
+                .append(" 96 8 0\r\n");
+        sb.append("a=sendonly\r\n");
+        sb.append("a=rtpmap:96 PS/90000\r\n");
+        sb.append("a=rtpmap:8 PCMA/8000\r\n");
+        sb.append("a=rtpmap:0 PCMU/8000\r\n");
+        if (tcp) {
+            sb.append("a=setup:").append(upstreamActive ? "passive" : "active").append("\r\n");
+            sb.append("a=connection:new\r\n");
+        }
+        sb.append("y=").append(ssrc).append("\r\n");
+        return sb.toString();
+    }
+
+    /**
+     * 从 SDP body 抓 {@code m=audio <port> ...} 的端口；不存在/非法返回 -1。
+     * 语音广播设备 INVITE 里的 m= 行端口，就是设备期望接收音频的端口。
+     */
+    public static int extractAudioPort(String sdpBody) {
+        if (sdpBody == null) return -1;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            if (line.startsWith("m=audio")) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length >= 2) {
+                    try {
+                        return Integer.parseInt(parts[1]);
+                    } catch (NumberFormatException ignore) {
+                        return -1;
+                    }
+                }
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 判断设备广播 INVITE 的音频传输语义，规则同 {@link #extractTransport}，只是匹配 m=audio。
+     *
+     * @return 语义站在<strong>设备</strong>视角：TCP_ACTIVE=设备主动来连本平台；TCP_PASSIVE=设备等本平台去连
+     */
+    public static String extractAudioTransport(String sdpBody) {
+        if (sdpBody == null) return TRANSPORT_UDP;
+        boolean tcp = false;
+        String setup = null;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            String l = line.trim();
+            if (l.startsWith("m=audio") && l.toUpperCase().contains("TCP/RTP/AVP")) {
+                tcp = true;
+            } else if (l.toLowerCase().startsWith("a=setup:")) {
+                setup = l.substring("a=setup:".length()).trim().toLowerCase();
+            }
+        }
+        if (!tcp) return TRANSPORT_UDP;
+        return "active".equals(setup) ? TRANSPORT_TCP_ACTIVE : TRANSPORT_TCP_PASSIVE;
+    }
 }

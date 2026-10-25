@@ -360,6 +360,33 @@ export interface GbPlayResult {
   rtcUrl?: string
 }
 
+/* ----------------------- 语音广播 ----------------------- */
+
+/** 开始语音广播请求 */
+export interface GbBroadcastStartRequest {
+  deviceId: string
+  channelId: string
+}
+
+/** 停止语音广播请求 */
+export interface GbBroadcastStopRequest {
+  streamId: string
+}
+
+/** WebRTC SDP 交换请求（浏览器 offer → ZLM answer，平台代理转发） */
+export interface GbBroadcastWebRtcRequest {
+  streamId: string
+  sdp: string
+}
+
+/** 开始广播结果：rtcPushUrl 仅用于展示/排查，推流 SDP 走后端代理接口交换 */
+export interface GbBroadcastResult {
+  streamId: string
+  app: string
+  mediaServerId: string
+  rtcPushUrl: string
+}
+
 /**
  * 云台方向/变倍指令。
  * 方向：up/down/left/right/upleft/upright/downleft/downright；

@@ -3,6 +3,7 @@ package com.solo.gb28181.processor.request;
 import com.solo.gb28181.processor.SipRequestProcessor;
 import com.solo.gb28181.processor.SipRequestProcessorBase;
 import com.solo.gb28181.service.impl.CascadeSendService;
+import com.solo.gb28181.service.impl.GbBroadcastService;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,11 +15,13 @@ import javax.sip.header.CallIdHeader;
 import javax.sip.message.Request;
 
 /**
- * <p>ACK 不需要应答。当前唯一用途：上级点播场景（S6.b-3）本平台回 200 OK 后，上级回 ACK，
- * 此时对 UDP / TCP 被动会话真正触发 {@code startSendRtp} 把流推给上级
- * （TCP 主动会话已在回 200 时 {@code startSendRtpPassive} 开监听，幂等跳过）。</p>
- *
- * <p>本平台作为主叫（点播设备）时，ACK 由本平台主动发出，不会走到本 processor。</p>
+ * <p>ACK 不需要应答。两类入站 INVITE 的 200 OK 被对端 ACK 后，都在这里真正触发推流：</p>
+ * <ol>
+ *   <li>上级点播（S6.b-3）：上级回 ACK，对 UDP / TCP 被动会话 startSendRtp 把流推给上级；</li>
+ *   <li>语音广播：设备回 ACK，对 UDP / TCP 被动会话 startSendRtp 把浏览器音频推给设备。</li>
+ * </ol>
+ * <p>TCP 主动会话已在回 200 时 startSendRtpPassive 开监听，service 内幂等跳过。
+ * 本平台作为主叫（点播设备）时，ACK 由本平台主动发出，不会走到本 processor。</p>
  */
 @Slf4j
 @Component
@@ -28,6 +31,11 @@ public class AckRequestProcessor extends SipRequestProcessorBase implements SipR
     @Autowired
     @Lazy
     private CascadeSendService cascadeSendService;
+
+    /** 语音广播：设备对广播 INVITE 200 的 ACK，此时 startSendRtp 推音频 */
+    @Autowired
+    @Lazy
+    private GbBroadcastService gbBroadcastService;
 
     @Override
     public String getMethod() {
@@ -42,7 +50,8 @@ public class AckRequestProcessor extends SipRequestProcessorBase implements SipR
         if (callId == null) {
             return;
         }
-        // 仅级联推流会话关心 ACK；非级联的 ACK 查不到会话直接忽略
+        // 级联推流 / 语音广播各自按 callId 查会话，查不到直接忽略
         cascadeSendService.onUpstreamAck(callId);
+        gbBroadcastService.onDeviceAck(callId);
     }
 }
