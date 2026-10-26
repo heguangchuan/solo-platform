@@ -298,8 +298,16 @@ public class ZlmRestClient {
             log.info("[流媒体级联推流] 停止成功 节点:{} 应用:{} 流:{} SSRC:{}",
                     server.getServerId(), app, stream, ssrc);
         } catch (ServiceException e) {
-            log.warn("[流媒体级联推流] 停止失败(忽略) 节点:{} 应用:{} 流:{} 错误:{}",
-                    server.getServerId(), app, stream, e.getMessage(), e);
+            // 浏览器先断开导致源流已注销、发送器随之销毁，或本就没建成功时，ZLM 回 -500 can not find the stream。
+            // 停止是幂等操作，目标状态已达成，按正常情况记一行即可，不打堆栈
+            String msg = e.getMessage() == null ? "" : e.getMessage();
+            if (msg.contains("code=-500") && msg.contains("can not find the stream")) {
+                log.info("[流媒体级联推流] 发送器已不存在，无需停止 节点:{} 应用:{} 流:{}",
+                        server.getServerId(), app, stream);
+            } else {
+                log.warn("[流媒体级联推流] 停止失败(忽略) 节点:{} 应用:{} 流:{} 错误:{}",
+                        server.getServerId(), app, stream, msg, e);
+            }
         }
     }
 
