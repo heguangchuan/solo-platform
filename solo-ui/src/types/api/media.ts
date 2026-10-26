@@ -44,6 +44,12 @@ export interface MediaServerRequest {
   httpPort: number
   secret?: string
   streamIp?: string
+  /** 对外播放 HTTP 端口，0 = 同 httpPort */
+  streamHttpPort?: number
+  /** RTSP 端口，0 = 不生成 RTSP URL */
+  rtspPort?: number
+  /** WebRTC 端口，0 = 不生成 RTC URL（网页喊话需配置） */
+  rtcPort?: number
 }
 
 /* ========== 拉流代理 ========== */

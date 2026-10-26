@@ -65,6 +65,7 @@
               <th class="w-40 px-3 py-2 font-normal">节点名称</th>
               <th class="w-36 px-3 py-2 font-normal">服务地址</th>
               <th class="w-20 px-3 py-2 font-normal">服务端口</th>
+              <th class="w-24 px-3 py-2 font-normal">WebRTC</th>
               <th class="group w-24 px-3 py-2 font-normal">
                 <Select v-model="statusFilter">
                   <RawSelectTrigger
@@ -118,6 +119,14 @@
               <td class="truncate px-3 py-2 text-muted-foreground" :title="s.name || ''">{{ s.name || '—' }}</td>
               <td class="truncate px-3 py-2 font-mono text-xs" :title="s.hostIp">{{ s.hostIp }}</td>
               <td class="px-3 py-2 font-mono text-xs">{{ s.httpPort }}</td>
+              <td class="px-3 py-2">
+                <span
+                  v-if="s.rtcPort"
+                  class="font-mono text-xs text-emerald-600 dark:text-emerald-500"
+                  :title="`WebRTC UDP ${s.rtcPort}`"
+                >{{ s.rtcPort }}</span>
+                <span v-else class="text-xs text-muted-foreground/60">—</span>
+              </td>
               <td class="px-3 py-2">
                 <span
                   class="text-xs"

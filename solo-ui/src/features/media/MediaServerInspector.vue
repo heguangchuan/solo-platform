@@ -108,6 +108,47 @@
             placeholder="留空则同服务地址"
           />
         </div>
+
+        <div class="flex items-center gap-3">
+          <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">播放端口</Label>
+          <Input
+            v-model.number="form.streamHttpPort"
+            type="number"
+            min="0"
+            max="65535"
+            class="h-8 font-mono text-xs"
+            placeholder="0 = 同服务端口"
+          />
+        </div>
+
+        <div class="flex items-center gap-3">
+          <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">RTSP 端口</Label>
+          <Input
+            v-model.number="form.rtspPort"
+            type="number"
+            min="0"
+            max="65535"
+            class="h-8 font-mono text-xs"
+            placeholder="0 = 不生成 RTSP 地址"
+          />
+        </div>
+
+        <div class="flex items-center gap-3">
+          <Label class="w-20 shrink-0 whitespace-nowrap text-xs text-muted-foreground">WebRTC</Label>
+          <div class="flex-1">
+            <Input
+              v-model.number="form.rtcPort"
+              type="number"
+              min="0"
+              max="65535"
+              class="h-8 font-mono text-xs"
+              placeholder="0 = 不生成 RTC 地址"
+            />
+            <p class="mt-1 text-[11px] text-muted-foreground">
+              取 ZLM [rtc].port（默认 8000），网页喊话必配，防火墙放行 UDP
+            </p>
+          </div>
+        </div>
       </div>
 
       <div class="mt-4 flex justify-end gap-2">
@@ -190,6 +231,9 @@ const buildForm = (): MediaServerRequest => ({
   httpPort: props.server?.httpPort ?? 80,
   secret: props.server?.secret ?? '',
   streamIp: props.server?.streamIp ?? '',
+  streamHttpPort: props.server?.streamHttpPort ?? 0,
+  rtspPort: props.server?.rtspPort ?? 0,
+  rtcPort: props.server?.rtcPort ?? 0,
 })
 
 const form = reactive<MediaServerRequest>(buildForm())
