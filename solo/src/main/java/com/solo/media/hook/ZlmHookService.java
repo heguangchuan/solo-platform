@@ -192,8 +192,12 @@ public class ZlmHookService {
     public HookResult onStreamChanged(Map<String, Object> body) {
         String schema = stringOf(body, "schema");
         String earlyApp = stringOf(body, "app");
-        // 语音广播 / 语音对讲的浏览器推流生命周期由广播 service 自己管，不走点播会话路由，直接忽略
+        // 语音广播 / 语音对讲的浏览器推流生命周期由广播 service 自己管：流就绪事件转交它唤醒等待中的
+        // startSendRtp（替代忙等轮询），流断开的清扫仍由下面的 onStreamStopped 分支处理。
         if ("broadcast".equals(earlyApp) || "talk".equals(earlyApp)) {
+            if (Boolean.TRUE.equals(booleanOf(body, "regist"))) {
+                gbBroadcastService.onStreamReady(earlyApp, stringOf(body, "stream"), stringOf(body, "mediaServerId"));
+            }
             return HookResult.ok();
         }
         // ZLM 对每个派生 schema 都会触发一次（ts/rtsp/rtmp/fmp4），业务侧只需处理一次：固定取 rtsp
@@ -234,7 +238,12 @@ public class ZlmHookService {
             String sessionType = sessionTypeOf(stream);
             if (Boolean.TRUE.equals(regist)) {
                 if (sessionType == null) {
-                    playService.onStreamReady(app, stream, mediaServerId);
+                    // 级联喊话的源流是 rtp/recv_*（不在点播会话里），归广播 service 管；其余外部推流按实时点播兜底
+                    if (gbBroadcastService.ownsStream(app, stream)) {
+                        gbBroadcastService.onStreamReady(app, stream, mediaServerId);
+                    } else {
+                        playService.onStreamReady(app, stream, mediaServerId);
+                    }
                 } else {
                     switch (sessionType) {
                         case GbInviteSession.TYPE_DOWNLOAD -> downloadService.onStreamReady(app, stream, mediaServerId);

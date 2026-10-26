@@ -18,4 +18,7 @@ public class BroadcastResultResponse {
 
     @Schema(description = "浏览器 WebRTC 推流地址（type=push，POST SDP 用）")
     private String rtcPushUrl;
+
+    @Schema(description = "双向对讲时才有：浏览器 WebRTC 拉流地址（type=play，听设备端音频用，app=rtp）")
+    private String rtcPlayUrl;
 }

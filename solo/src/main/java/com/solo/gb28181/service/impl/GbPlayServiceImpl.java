@@ -198,8 +198,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         pending.put(streamId, future);
 
         try {
-            // SDP c= 行必须是设备能直推 RTP 到的 ZLM 地址（streamIp 优先，回退 hostIp），
-            // 跟 solo 自己的 SIP 监听 IP 无关。否则设备照 SDP 推到 solo 上，ZLM 永远收不到包。
             String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                     ? server.getStreamIp() : server.getHostIp();
             String sdpBody = SdpBuilder.buildPlay(sipProperties.getId(), sdpIp, rtpPort, ssrc, transport, rawToken);
@@ -279,9 +277,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         log.info("[实时点播] stop 结果:成功 流ID:{}", session.getStreamId());
     }
 
-    // ============================================================
-    //  Hook 钩子
-    // ============================================================
 
     @Override
     public void onInviteOk(String callId, String remoteSsrc) {
@@ -295,7 +290,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         // 设备与下级平台不再区分（gb_platform 已翻转为黑名单，source 统一 REGISTER），
         // 日志前缀不再按级联切换
-        String tag = LOG_TAG;
         if (remoteSsrc == null || remoteSsrc.isBlank() || remoteSsrc.equals(session.getSsrc())) {
             // 设备没回 y= 或 SSRC 一致：不需要任何动作
             return;
@@ -306,7 +300,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         ssrcFactory.release(session.getServerId(), oldSsrc);
         session.setSsrc(remoteSsrc);
         inviteSessionService.update(session);
-        log.info("[{}] 下级自定义 SSRC {} -> {} 流ID:{}", tag, oldSsrc, remoteSsrc, session.getStreamId());
+        log.info("[{}] 下级自定义 SSRC {} -> {} 流ID:{}", LOG_TAG, oldSsrc, remoteSsrc, session.getStreamId());
     }
 
 
@@ -417,18 +411,6 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
     }
 
-    // ============================================================
-    //  helpers
-    // ============================================================
-
-    // ============================================================
-    //  helpers
-    // ============================================================
-
-    /**
-     * forceCleanup 包了一层 pending future 唤醒（业务侧"残留启动 INVITING 会话"路径）。
-     * 其他通用清扫都走 {@link GbInviteSessionCleanupService}。
-     */
     private void forceCleanup(GbInviteSession session) {
         inviteCleanup.forceCleanup(session);
         failPending(session.getStreamId(), "会话被强清");
@@ -460,20 +442,12 @@ public class GbPlayServiceImpl implements GbPlayService {
         return vo;
     }
 
-    /**
-     * 原始码流 token：空白 → null（主码流）；否则仅 trim，**保留冒号原样**。
-     * <p>用于写进 SDP 的 {@code a=<token>} 行（如 {@code a=streamnumber:1}）——设备据此选主/子码流。
-     * SDP a= 行允许冒号，故这里不做替换。</p>
-     */
+
     private static String rawStreamNumber(String streamNumber) {
         return streamNumber == null || streamNumber.isBlank() ? null : streamNumber.trim();
     }
 
-    /**
-     * 归一码流 token：空白 → null（主码流）；否则 trim 并**把所有冒号替换为下划线**。
-     * <p>用于 streamId 后缀 / 会话持久化 / 日志——冒号在 ZLM 流名、播放 URL 里非法，故换成下划线
-     * （{@code streamnumber:1} → {@code streamnumber_1}）。SDP a= 行则用 {@link #rawStreamNumber} 的带冒号原值。</p>
-     */
+
     private static String normalizeStreamNumber(String streamNumber) {
         if (streamNumber == null || streamNumber.isBlank()) {
             return null;
@@ -481,11 +455,7 @@ public class GbPlayServiceImpl implements GbPlayService {
         return streamNumber.trim().replace(":", "_");
     }
 
-    /**
-     * 组装 streamId（= ZLM 流名）。主码流用裸 {@code dev_chan}（向后兼容按需拉流等既有 streamId 约定）；
-     * 子码流附加 token 后缀，使主/子在 ZLM 里成为两路独立的流，支持不同人同时看不同码流。
-     * <p>token 已由 {@link #normalizeStreamNumber} 归一（冒号换下划线），直接拼接即为合法 ZLM 流名。</p>
-     */
+
     private static String buildStreamId(String deviceId, String channelId, String streamNumber) {
         String base = deviceId + "_" + channelId;
         return streamNumber == null || streamNumber.isBlank() ? base : base + "_" + streamNumber;

@@ -107,6 +107,35 @@ public class PlatformCommander {
     }
 
     /**
+     * 回复上级喊话通知是否接收（OK/ERROR），SN 透传。
+     */
+    public void broadcastResultCmd(GbParentPlatform p, int sn, String channelId, boolean ok) {
+        String localIp = headerProvider.localIp();
+        try {
+            Request request = headerProvider.buildBroadcastResponse(p, sn, channelId, ok);
+            sipSender.send(localIp, request);
+            log.info("[级联喊话] 已回复广播应答 上级:{} Result:{} 通道:{}", p.getServerGbId(), ok ? "OK" : "ERROR", channelId);
+        } catch (Exception e) {
+            log.error("[级联喊话] 回复广播应答失败 上级:{} 错误:{}", p.getServerGbId(), e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 级联喊话结束时 BYE 上级，本平台为主叫。
+     */
+    public void broadcastByeCmd(GbParentPlatform p, String callId, String localFromTag, String upstreamToTag) {
+        String localIp = headerProvider.localIp();
+        try {
+            Request request = headerProvider.createByeAsCaller(p, callId, localFromTag, upstreamToTag);
+            sipSender.send(localIp, request);
+            log.info("[级联喊话] 已给上级发 BYE 上级:{} callId:{}", p.getServerGbId(), callId);
+        } catch (Exception e) {
+            log.warn("[级联喊话] 给上级发 BYE 异常(忽略) 上级:{} callId:{} 错误:{}",
+                    p.getServerGbId(), callId, e.getMessage());
+        }
+    }
+
+    /**
      * 响应上级 Catalog 查询：按 {@code catalogPageSize} 分片，每片一条独立事务的 MESSAGE。
      * <p><b>ACK 驱动节奏（ADR-027）</b>：每发一片等上级回 200 OK 之后才发下一片——上级快则快、慢则让。
      * 若 {@code catalogAckTimeoutMs} 内没收到 ACK，按 {@code catalogPageIntervalMs} 兜底继续

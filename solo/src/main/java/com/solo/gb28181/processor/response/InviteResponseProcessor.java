@@ -5,9 +5,12 @@ import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.processor.SipResponseProcessor;
+import com.solo.gb28181.service.GbBroadcastSessionService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.gb28181.service.impl.GbPlatformBroadcastService;
+import com.solo.gb28181.entity.GbBroadcastSession;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.sip.SipSender;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
@@ -69,6 +72,14 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     @Lazy
     private GbPlaybackService playbackService;
 
+    /** 级联喊话：本平台主动 INVITE 上级收音频，响应按 parentCallId 反查 */
+    @Autowired
+    @Lazy
+    private GbPlatformBroadcastService platformBroadcastService;
+
+    @Autowired
+    private GbBroadcastSessionService broadcastSessionService;
+
     @Override
     public String getMethod() {
         return Request.INVITE;
@@ -78,9 +89,6 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     public void process(ResponseEvent event) throws Exception {
         SIPResponse response = (SIPResponse) event.getResponse();
         int status = response.getStatusCode();
-        if (status < Response.OK || status >= Response.MULTIPLE_CHOICES) {
-            return;
-        }
 
         CallIdHeader callIdHeader = (CallIdHeader) response.getHeader(CallIdHeader.NAME);
         if (callIdHeader == null) {
@@ -89,8 +97,24 @@ public class InviteResponseProcessor implements SipResponseProcessor {
         }
         String callId = callIdHeader.getCallId();
 
+        boolean ok = status >= Response.OK && status < Response.MULTIPLE_CHOICES;
+        if (!ok) {
+            // 非 2xx：级联喊话反向 INVITE 被上级拒绝，清场
+            GbBroadcastSession broadcast = broadcastSessionService.getByParentCallId(callId);
+            if (broadcast != null && callId.equals(broadcast.getParentCallId())) {
+                platformBroadcastService.onUpstreamInviteFail(callId, status);
+            }
+            return;
+        }
+
         GbInviteSession session = inviteSessionService.getByCallId(callId);
         if (session == null) {
+            // 点播会话未命中：可能是级联喊话反向 INVITE 上级的 200 OK
+            GbBroadcastSession broadcast = broadcastSessionService.getByParentCallId(callId);
+            if (broadcast != null && callId.equals(broadcast.getParentCallId())) {
+                platformBroadcastService.onUpstreamInviteOk(response);
+                return;
+            }
             log.warn("[实时点播] 收到 INVITE {} 响应，但 callId 无对应会话: {}", status, callId);
             return;
         }

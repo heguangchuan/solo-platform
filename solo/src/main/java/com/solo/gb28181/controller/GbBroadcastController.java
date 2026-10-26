@@ -44,4 +44,10 @@ public class GbBroadcastController {
     public Result<String> webrtc(@RequestBody BroadcastWebRtcRequest req) {
         return Result.success(broadcastService.exchangeWebRtcSdp(req));
     }
+
+    @Operation(summary = "对讲拉流 SDP 交换（听设备端音频）")
+    @PostMapping("/talk-play")
+    public Result<String> talkPlay(@RequestBody BroadcastWebRtcRequest req) {
+        return Result.success(broadcastService.exchangeRecvWebRtcSdp(req));
+    }
 }

@@ -213,6 +213,16 @@ public class ZlmRestClient {
      */
     public int startSendRtp(MediaServer server, String app, String stream, String ssrc,
                             String dstIp, int dstPort, boolean udp, Integer srcPort) {
+        // 级联视频默认 PS/96
+        return startSendRtp(server, app, stream, ssrc, dstIp, dstPort, udp, srcPort, 96, true, false);
+    }
+
+    /**
+     * 同上，可指定载荷：广播用 pt=8/usePs=false/onlyAudio=true 发裸 PCMA，pt=96/usePs=true 发 PS。
+     */
+    public int startSendRtp(MediaServer server, String app, String stream, String ssrc,
+                            String dstIp, int dstPort, boolean udp, Integer srcPort,
+                            int pt, boolean usePs, boolean onlyAudio) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vhost", "__defaultVhost__");
         params.put("app", app);
@@ -221,15 +231,18 @@ public class ZlmRestClient {
         params.put("dst_url", dstIp);
         params.put("dst_port", String.valueOf(dstPort));
         params.put("is_udp", udp ? "1" : "0");   // 注意语义：UDP=1，TCP=0
-        params.put("pt", "96");
-        params.put("use_ps", "1");
+        params.put("pt", String.valueOf(pt));
+        params.put("use_ps", usePs ? "1" : "0");
+        if (onlyAudio) {
+            params.put("only_audio", "1");
+        }
         if (srcPort != null && srcPort > 0) {
             params.put("src_port", String.valueOf(srcPort));
         }
         JsonNode resp = post(server, "startSendRtp", params);
         int localPort = resp.path("local_port").asInt(0);
-        log.info("[流媒体级联推流] 开始成功 节点:{} 应用:{} 流:{} SSRC:{} 目的:{}:{} UDP:{} 本地端口:{}",
-                server.getServerId(), app, stream, ssrc, dstIp, dstPort, udp, localPort);
+        log.info("[流媒体级联推流] 开始成功 节点:{} 应用:{} 流:{} SSRC:{} 目的:{}:{} UDP:{} PT:{} PS:{} 本地端口:{}",
+                server.getServerId(), app, stream, ssrc, dstIp, dstPort, udp, pt, usePs, localPort);
         return localPort;
     }
 
@@ -240,20 +253,32 @@ public class ZlmRestClient {
      * @return ZLM 实际监听的本地端口（供本平台写进回复 SDP 的 {@code m=} 行）
      */
     public int startSendRtpPassive(MediaServer server, String app, String stream, String ssrc) {
+        // 级联视频默认 PS/96
+        return startSendRtpPassive(server, app, stream, ssrc, 96, true, false);
+    }
+
+    /**
+     * 同上，可指定载荷（广播裸 PCMA 用 pt=8/usePs=false/onlyAudio=true）。
+     */
+    public int startSendRtpPassive(MediaServer server, String app, String stream, String ssrc,
+                                   int pt, boolean usePs, boolean onlyAudio) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vhost", "__defaultVhost__");
         params.put("app", app);
         params.put("stream", stream);
         params.put("ssrc", ssrc);
-        params.put("pt", "96");
-        params.put("use_ps", "1");
+        params.put("pt", String.valueOf(pt));
+        params.put("use_ps", usePs ? "1" : "0");
+        if (onlyAudio) {
+            params.put("only_audio", "1");
+        }
         JsonNode resp = post(server, "startSendRtpPassive", params);
         int localPort = resp.path("local_port").asInt(0);
         if (localPort <= 0) {
             throw new ServiceException("ZLM startSendRtpPassive 未返回有效端口: " + resp);
         }
-        log.info("[流媒体级联推流] 被动开始成功 节点:{} 应用:{} 流:{} SSRC:{} 本地端口:{}",
-                server.getServerId(), app, stream, ssrc, localPort);
+        log.info("[流媒体级联推流] 被动开始成功 节点:{} 应用:{} 流:{} SSRC:{} PT:{} PS:{} 本地端口:{}",
+                server.getServerId(), app, stream, ssrc, pt, usePs, localPort);
         return localPort;
     }
 

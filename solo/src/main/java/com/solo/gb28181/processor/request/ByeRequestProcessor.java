@@ -13,6 +13,7 @@ import com.solo.gb28181.service.GbPlayService;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.service.impl.GbBroadcastService;
+import com.solo.gb28181.service.impl.GbPlatformBroadcastService;
 import gov.nist.javax.sip.message.SIPRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,17 +26,8 @@ import javax.sip.message.Request;
 import javax.sip.message.Response;
 
 /**
- * <p>设备掉电、被远端踢、自身判定无观看人后会主动 BYE。本平台必须立即回 200 OK，
- * 然后按会话类型走清扫路径（点播 → GbPlayService、回放 → GbPlaybackService）。</p>
- *
- * <p>另外还处理<strong>上级平台停播</strong>（S6.b-3）：上级点播本平台通道后发 BYE，
- * callId 命中不到设备点播/回放会话时，转查级联推流会话 {@link CascadeSendSession} → stopSendRtp + 清理。</p>
- *
- * <p>以及<strong>语音广播停播</strong>：设备广播会话中主动发 BYE，转查广播会话 → stopSendRtp + 清理。</p>
- *
- * <h3>注意</h3>
- * <p>对于本平台 <strong>主动</strong> 发出的 BYE，对端会回 200 OK，
- * 走 {@link com.solo.gb28181.sip.SipSubscribe} 订阅回调，不会走到本 processor。</p>
+ * 对端主动 BYE：立即回 200，再按 callId 依次查点播/回放会话、级联推流会话、广播会话并清扫。
+ * 本平台主动发出的 BYE，对端回 200 走订阅回调，不经过这里。
  */
 @Slf4j
 @Component
@@ -67,6 +59,11 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
     @Autowired
     @Lazy
     private GbBroadcastService gbBroadcastService;
+
+    /** 级联喊话：上级停喊 BYE，停设备腿并清场 */
+    @Autowired
+    @Lazy
+    private GbPlatformBroadcastService platformBroadcastService;
 
     /** 同样用 @Lazy 避开 SIP 组件初始化期的循环依赖 */
     @Autowired
@@ -101,12 +98,19 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
                 cascadeSendService.onUpstreamBye(sendSession);
                 return;
             }
-            // 级联会话也没命中：可能是设备结束语音广播的 BYE
+            // 广播会话的 BYE：设备腿或级联喊话的上级腿，靠 parentCallId 区分
             GbBroadcastSession broadcastSession = gbBroadcastSessionService.getByCallId(callId);
             if (broadcastSession != null) {
-                log.info("[语音广播] 设备停播 BYE 设备={} 通道={} callId={}",
-                        broadcastSession.getDeviceId(), broadcastSession.getChannelId(), callId);
-                gbBroadcastService.onDeviceBye(broadcastSession);
+                if (callId.equals(broadcastSession.getParentCallId())
+                        && !callId.equals(broadcastSession.getCallId())) {
+                    log.info("[级联喊话] 上级停喊 BYE 流={} callId={}",
+                            broadcastSession.getBroadcastStreamId(), callId);
+                    platformBroadcastService.onUpstreamBye(broadcastSession);
+                } else {
+                    log.info("[语音广播] 设备停播 BYE 设备={} 通道={} callId={}",
+                            broadcastSession.getDeviceId(), broadcastSession.getChannelId(), callId);
+                    gbBroadcastService.onDeviceBye(broadcastSession);
+                }
                 return;
             }
             log.info("[设备 BYE] callId={} 无对应会话（可能已被清扫）", callId);
