@@ -315,17 +315,122 @@ public class ZlmRestClient {
      * @return ZLM 应答的 answer SDP
      */
     public String exchangeWebRtcSdp(MediaServer server, String app, String stream, String type, String offerSdp) {
-        Map<String, String> params = new LinkedHashMap<>();
-        params.put("app", app);
-        params.put("stream", stream);
-        params.put("type", type);
-        params.put("sdp", offerSdp);
-        JsonNode resp = post(server, "webrtc", params);
+        // 推流侧把 offer 音频裁成 G.711，原因见 forceG711Audio
+        String sdp = "push".equalsIgnoreCase(type) ? forceG711Audio(offerSdp) : offerSdp;
+        // 该版本 ZLM 的 webrtc 接口只认 URL query 上的 secret/type/app/stream，SDP 必须作为原始 body；
+        // 用 form 表单提交会报 -300 "Required parameter missed: type"
+        String url = "http://" + server.getHostIp() + ":" + server.getHttpPort() + "/index/api/webrtc"
+                + "?secret=" + URLEncoder.encode(server.getSecret() == null ? "" : server.getSecret(), StandardCharsets.UTF_8)
+                + "&type=" + URLEncoder.encode(type, StandardCharsets.UTF_8)
+                + "&app=" + URLEncoder.encode(app, StandardCharsets.UTF_8)
+                + "&stream=" + URLEncoder.encode(stream, StandardCharsets.UTF_8);
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
+                .timeout(Duration.ofSeconds(10))
+                .header("Content-Type", "text/plain;charset=utf-8")
+                .POST(HttpRequest.BodyPublishers.ofString(sdp, StandardCharsets.UTF_8))
+                .build();
+        JsonNode resp;
+        try {
+            HttpResponse<String> httpResp = httpClient.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (httpResp.statusCode() != 200) {
+                throw new ServiceException("ZLM HTTP " + httpResp.statusCode() + " webrtc");
+            }
+            resp = objectMapper.readTree(httpResp.body());
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ServiceException("ZLM webrtc 调用异常: " + e.getClass().getSimpleName());
+        }
+        int code = resp.path("code").asInt(-1);
+        if (code != 0) {
+            throw new ServiceException("ZLM webrtc 失败 code=" + code + " msg=" + resp.path("msg").asText());
+        }
         String answer = resp.path("sdp").asText("");
         if (answer.isBlank()) {
             throw new ServiceException("ZLM webrtc 未返回 answer SDP: " + resp);
         }
         return answer;
+    }
+
+    /**
+     * 把 WebRTC 推流 offer 的音频段裁成只剩 G.711（优先 PCMA/PT8，无 PCMA 才退 PCMU）。
+     * <p>排坑记录：浏览器默认 offer Opus，ZLM 不做 Opus→G.711 转码，设备腿又按裸 PCMA 收，
+     * 不裁掉其它载荷会协商成 Opus，设备收得到包却放不出声音。同时给 PCMA 和 PCMU 也不行，
+     * ZLM 可能选 PCMU，因此有 PCMA 时只留 8。连 G.711 都没有则原样返回。</p>
+     */
+    private String forceG711Audio(String sdp) {
+        if (sdp == null || sdp.isBlank()) {
+            return sdp;
+        }
+        String[] lines = sdp.split("\r\n|\n", -1);
+        // 载荷号 -> 编码名
+        Map<String, String> encByPt = new LinkedHashMap<>();
+        for (String line : lines) {
+            if (line.startsWith("a=rtpmap:")) {
+                int sp = line.indexOf(' ');
+                if (sp <= 0) {
+                    continue;
+                }
+                String pt = line.substring("a=rtpmap:".length(), sp).trim();
+                String enc = line.substring(sp + 1).trim().split("/")[0].toUpperCase();
+                encByPt.put(pt, enc);
+            }
+        }
+        // 有 PCMA 只留 PCMA，没有才退 PCMU
+        List<String> keepPts = new ArrayList<>();
+        for (Map.Entry<String, String> e : encByPt.entrySet()) {
+            if ("PCMA".equals(e.getValue()) && !keepPts.contains(e.getKey())) {
+                keepPts.add(e.getKey());
+            }
+        }
+        boolean pcma = !keepPts.isEmpty();
+        if (!pcma) {
+            for (Map.Entry<String, String> e : encByPt.entrySet()) {
+                if ("PCMU".equals(e.getValue()) && !keepPts.contains(e.getKey())) {
+                    keepPts.add(e.getKey());
+                }
+            }
+        }
+        if (keepPts.isEmpty()) {
+            log.warn("[WebRTC推流] offer 无 PCMA/PCMU 载荷，无法强制 G.711，原样转发");
+            return sdp;
+        }
+        if (!pcma) {
+            log.warn("[WebRTC推流] offer 无 PCMA，退而保留 PCMU，设备腿按 a-law 收可能仍无声");
+        }
+
+        StringBuilder out = new StringBuilder(sdp.length());
+        boolean inAudio = false;
+        for (String line : lines) {
+            if (line.startsWith("m=")) {
+                inAudio = line.startsWith("m=audio");
+                if (inAudio) {
+                    String[] head = line.split("\\s+", 3);
+                    if (head.length >= 3) {
+                        String proto = head[2].split("\\s+")[0];
+                        out.append(head[0]).append(' ').append(head[1]).append(' ').append(proto);
+                        for (String pt : keepPts) {
+                            out.append(' ').append(pt);
+                        }
+                        out.append("\r\n");
+                        continue;
+                    }
+                }
+                out.append(line).append("\r\n");
+                continue;
+            }
+            // 音频段内丢弃被删载荷的 rtpmap/fmtp/rtcp-fb（rtcp-fb 通配 * 保留）
+            if (inAudio && (line.startsWith("a=rtpmap:") || line.startsWith("a=fmtp:")
+                    || line.startsWith("a=rtcp-fb:"))) {
+                int sp = line.indexOf(' ');
+                String pt = line.substring(line.indexOf(':') + 1, sp > 0 ? sp : line.length()).trim();
+                if (!"*".equals(pt) && !keepPts.contains(pt)) {
+                    continue;
+                }
+            }
+            out.append(line).append("\r\n");
+        }
+        return out.toString();
     }
 
 

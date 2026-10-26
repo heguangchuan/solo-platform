@@ -1,6 +1,7 @@
 package com.solo.gb28181.processor.request;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.solo.gb28181.entity.GbBroadcastSession;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.mapper.GbDeviceMapper;
@@ -119,24 +120,34 @@ public class InviteRequestProcessor extends SipRequestProcessorBase implements S
         });
     }
 
-    /** 设备语音广播：通道码取 Request-URI user（设备 INVITE 通常不带 Subject），100 后丢业务线程池 */
+    /**
+     * 设备语音广播：通道码优先取 Subject/Request-URI。部分厂商（如海康部分机型）反向 INVITE 既不带
+     * Subject、R-URI user 也为空，解析不到时按该设备唯一等待中的广播会话兜底；同时有多个会话在等
+     * 则无法判定，回 400。100 后丢业务线程池。
+     */
     private void handleBroadcastInvite(SIPRequest request, GbDevice device, String deviceSdp)
             throws SipException, ParseException {
         String channelId = resolveChannelId(request);
-        if (channelId == null || channelId.isBlank()) {
-            log.warn("[语音广播] 设备 {} INVITE 无法解析通道码，回 400", device.getDeviceId());
-            responseAck(request, Response.BAD_REQUEST, "no channel id");
-            return;
+        if (channelId == null || channelId.isBlank()
+                || gbBroadcastService.findWaitingSession(device.getDeviceId(), channelId) == null) {
+            GbBroadcastSession waiting = gbBroadcastService.findSingleWaitingSession(device.getDeviceId());
+            if (waiting == null) {
+                log.warn("[语音广播] 设备 {} INVITE 通道码无法匹配等待会话，回 400", device.getDeviceId());
+                responseAck(request, Response.BAD_REQUEST, "no pending broadcast");
+                return;
+            }
+            channelId = waiting.getChannelId();
         }
 
         responseAck(request, Response.TRYING);
 
+        String finalChannelId = channelId;
         gb28181BizExecutor.execute(() -> {
             try {
-                gbBroadcastService.onDeviceInvite(request, device, channelId, deviceSdp);
+                gbBroadcastService.onDeviceInvite(request, device, finalChannelId, deviceSdp);
             } catch (Exception e) {
                 log.error("[语音广播] 处理设备反向 INVITE 异常 device={} channel={}",
-                        device.getDeviceId(), channelId, e);
+                        device.getDeviceId(), finalChannelId, e);
             }
         });
     }

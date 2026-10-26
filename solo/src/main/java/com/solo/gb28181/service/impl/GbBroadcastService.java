@@ -313,10 +313,12 @@ public class GbBroadcastService {
                 request.getHeader(javax.sip.header.CallIdHeader.NAME)).getCallId();
         String deviceFromTag = request.getFromHeader().getTag();
 
-        // SDP c= 为设备收流 IP，m=audio 端口为设备收流端口
+        // c= 为设备收流 IP，m=audio 端口为设备收流端口
         String dstIp = SdpBuilder.extractConnectionIp(deviceSdp);
         int dstPort = SdpBuilder.extractAudioPort(deviceSdp);
         String transport = SdpBuilder.extractAudioTransport(deviceSdp);
+        log.info("[{}] 收到设备反向 INVITE 设备:{} 传输:{} 收流地址:{}:{}",
+                LOG_TAG, device.getDeviceId(), transport, dstIp, dstPort);
         if (dstIp == null || dstPort <= 0) {
             log.warn("[{}] 设备 INVITE SDP 缺 c=/m=audio 关键字段 设备:{} 目的IP:{} 目的端口:{} 原因:回 400",
                     LOG_TAG, device.getDeviceId(), dstIp, dstPort);
@@ -363,9 +365,13 @@ public class GbBroadcastService {
                     LOG_TAG, deviceSsrc, allocated);
         }
 
-        // TCP-active 设备主动来连：先开被动监听，监听端口写进 SDP
+        // 回 200 前必须先拿到本平台发流端口写进 m=audio。踩过的坑：UDP 腿原先等 ACK 后才 startSendRtp，
+        // 200 OK 里 m=audio 端口只能填 0，而端口 0 在 SDP 里表示媒体被禁用，海康直接不播放，
+        // 结果 RTP 包一直发到设备也没有声音。TCP-passive 除外，端口 0 表示由主动方连接，符合 RFC4145。
         int sendPort = 0;
+        boolean usePs = audioPt == SdpBuilder.PT_PS;
         if (session.isDeviceActive()) {
+            // TCP-active 设备主动来连：先开被动监听，监听端口写进 SDP
             try {
                 if (!waitStreamReady(server, session.getSrcApp(), session.getSrcStream())) {
                     log.warn("[{}] 浏览器音频流未就绪，被动监听可能无流可推 流ID:{}",
@@ -373,12 +379,34 @@ public class GbBroadcastService {
                 }
                 sendPort = zlmRestClient.startSendRtpPassive(server, session.getSrcApp(),
                         session.getSrcStream(), session.getSsrc(),
-                        audioPt, audioPt == SdpBuilder.PT_PS, audioPt != SdpBuilder.PT_PS);
+                        audioPt, usePs, !usePs);
                 session.setLocalSendPort(sendPort);
                 session.setStatus(GbBroadcastSession.STATUS_SENDING);
                 session.setSendTime(LocalDateTime.now());
             } catch (Exception e) {
                 log.error("[{}] startSendRtpPassive 失败 流ID:{} 错误:{}",
+                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
+                sendError(request, Response.SERVER_INTERNAL_ERROR);
+                cleanup(session, false, true);
+                return;
+            }
+        } else if (!session.isTcp()) {
+            // UDP：先等浏览器音频流上线再建发送器，拿到 ZLM 实际本地端口写进 SDP
+            try {
+                if (!waitStreamReady(server, session.getSrcApp(), session.getSrcStream())) {
+                    log.warn("[{}] 浏览器音频流未就绪即建立 RTP 发送器，流上线后 ZLM 自动补发 流ID:{}",
+                            LOG_TAG, session.getSrcStream());
+                }
+                Integer srcPort = sendPortInRange();
+                sendPort = zlmRestClient.startSendRtp(server, session.getSrcApp(), session.getSrcStream(),
+                        session.getSsrc(), dstIp, dstPort, true, srcPort,
+                        audioPt, usePs, !usePs);
+                sendPort = sendPort > 0 ? sendPort : (srcPort != null ? srcPort : 0);
+                session.setLocalSendPort(sendPort);
+                session.setStatus(GbBroadcastSession.STATUS_SENDING);
+                session.setSendTime(LocalDateTime.now());
+            } catch (Exception e) {
+                log.error("[{}] UDP 提前建立 RTP 发送器失败 流ID:{} 错误:{}",
                         LOG_TAG, session.getSrcStream(), e.getMessage(), e);
                 sendError(request, Response.SERVER_INTERNAL_ERROR);
                 cleanup(session, false, true);
@@ -428,7 +456,7 @@ public class GbBroadcastService {
     }
 
     /**
-     * 设备 ACK：此时才 startSendRtp 推流。TCP-active 已在回 200 时开监听，幂等跳过。
+     * 设备 ACK。UDP/TCP-active 已在回 200 前建好发送器，幂等跳过；TCP-passive 在此主动连接并推流。
      */
     public void onDeviceAck(String callId) {
         GbBroadcastSession session = sessionService.getByCallId(callId);
@@ -440,7 +468,7 @@ public class GbBroadcastService {
             return;
         }
         if (GbBroadcastSession.STATUS_SENDING.equals(session.getStatus())) {
-            // TCP-active 已推流或重复 ACK
+            // UDP/TCP-active 已在回 200 前建好发送器，或收到重复 ACK
             return;
         }
         MediaServer server = mediaServer(session.getServerId());
@@ -649,7 +677,7 @@ public class GbBroadcastService {
     /**
      * 按 设备+通道 找等待 INVITE 的会话，本地和级联两种流名都查。
      */
-    private GbBroadcastSession findWaitingSession(String deviceId, String channelId) {
+    public GbBroadcastSession findWaitingSession(String deviceId, String channelId) {
         GbBroadcastSession session = sessionService.get(buildStreamId(deviceId, channelId));
         if (session == null) {
             session = sessionService.get("cascade_" + deviceId + "_" + channelId);
@@ -658,6 +686,26 @@ public class GbBroadcastService {
             return null;
         }
         return GbBroadcastSession.STATUS_WAIT_INVITE.equals(session.getStatus()) ? session : null;
+    }
+
+    /**
+     * 设备反向 INVITE 既不带 Subject、Request-URI 也没放通道码（部分厂商只写平台编码）时，
+     * 按设备找唯一一个等待 INVITE 的会话兜底；多个在等则无法判定，返回 null。
+     */
+    public GbBroadcastSession findSingleWaitingSession(String deviceId) {
+        GbBroadcastSession hit = null;
+        for (GbBroadcastSession s : sessionService.listAllActive()) {
+            if (!deviceId.equals(s.getDeviceId())
+                    || !GbBroadcastSession.STATUS_WAIT_INVITE.equals(s.getStatus())) {
+                continue;
+            }
+            if (hit != null) {
+                log.warn("[{}] 设备 {} 有多个等待 INVITE 的广播会话，通道码缺失无法判定", LOG_TAG, deviceId);
+                return null;
+            }
+            hit = s;
+        }
+        return hit;
     }
 
     /** 查上级平台配置（级联清场用） */
