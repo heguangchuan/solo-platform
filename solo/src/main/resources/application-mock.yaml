@@ -121,4 +121,5 @@ media:
     # 对外 HTTP/WS-FLV/HLS 端口；0 表示与 http-port 一致
     stream-http-port: 0
     # 对外 WebRTC 端口；0 表示不生成 WebRTC URL
-    rtc-port: 0
+    rtc-port: 8000
+
