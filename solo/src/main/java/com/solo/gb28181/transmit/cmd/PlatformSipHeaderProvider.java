@@ -4,6 +4,7 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbParentPlatform;
 import com.solo.gb28181.sip.SipLayer;
 import com.solo.gb28181.utils.SipUtils;
+import gov.nist.javax.sip.SipProviderImpl;
 import gov.nist.javax.sip.message.SIPRequest;
 import gov.nist.javax.sip.message.SIPResponse;
 import org.springframework.context.annotation.Lazy;
@@ -27,6 +28,7 @@ import javax.sip.header.ExpiresHeader;
 import javax.sip.header.FromHeader;
 import javax.sip.header.HeaderFactory;
 import javax.sip.header.MaxForwardsHeader;
+import javax.sip.header.SubjectHeader;
 import javax.sip.header.ToHeader;
 import javax.sip.header.ViaHeader;
 import javax.sip.header.WWWAuthenticateHeader;
@@ -406,5 +408,153 @@ public class PlatformSipHeaderProvider {
         java.nio.charset.Charset charset = resolveCharset(p.getCharacterSet());
         request.setContent(xmlBody.getBytes(charset), ct);
         return request;
+    }
+
+    /**
+     * 用上级平台配置的传输协议取一个新 Call-Id。
+     */
+    public CallIdHeader newCallId(GbParentPlatform p) {
+        String localIp = localIp();
+        String transport = transport(p);
+        SipProviderImpl provider = "TCP".equalsIgnoreCase(transport)
+                ? sipLayer.getTcpSipProvider(localIp)
+                : sipLayer.getUdpSipProvider(localIp);
+        if (provider == null) provider = sipLayer.getUdpSipProvider();
+        return provider == null ? null : provider.getNewCallId();
+    }
+
+    /**
+     * 级联喊话反向 INVITE 上级（recvonly offer），本平台为主叫，To 不带 tag。
+     */
+    public Request createInviteToUpstream(GbParentPlatform p, String channelId, String ssrc,
+                                          String sdpBody, CallIdHeader callId, String fromTag)
+            throws ParseException, InvalidArgumentException {
+        String localIp = localIp();
+        String transport = transport(p);
+        String serverHost = p.getServerIp() + ":" + p.getServerPort();
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), fromTag);
+
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(ADDRESS_FACTORY.createAddress(toUri), null);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.INVITE);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.INVITE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
+        request.addHeader(HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri)));
+
+        SubjectHeader subject = HEADER_FACTORY.createSubjectHeader(
+                channelId + ":" + ssrc + "," + deviceGbId() + ":0");
+        request.addHeader(subject);
+
+        ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "SDP");
+        request.setContent(sdpBody, ct);
+        return request;
+    }
+
+    /**
+     * 反向 INVITE 收到 200 OK 后的 ACK，Dialog 头沿用响应，Request-URI 取 o= user 回退 To user。
+     */
+    public Request buildAckToUpstream(GbParentPlatform p, SIPResponse response, String remoteHost, int remotePort)
+            throws ParseException, InvalidArgumentException {
+        String localIp = localIp();
+        String transport = transport(p);
+
+        FromHeader from = (FromHeader) response.getHeader(FromHeader.NAME);
+        ToHeader to = (ToHeader) response.getHeader(ToHeader.NAME);
+        CallIdHeader callId = (CallIdHeader) response.getHeader(CallIdHeader.NAME);
+        CSeqHeader respCseq = (CSeqHeader) response.getHeader(CSeqHeader.NAME);
+        long cseqNumber = respCseq == null ? cseqSeed.incrementAndGet() : respCseq.getSeqNumber();
+
+        byte[] raw = response.getRawContent();
+        String username = SdpBuilder.extractOriginUser(raw == null ? null : new String(raw));
+        if (username == null) {
+            javax.sip.address.URI toUri = to.getAddress().getURI();
+            if (toUri instanceof SipURI sip) {
+                username = sip.getUser();
+            }
+        }
+        if (username == null || username.isBlank()) {
+            username = p.getServerGbId();
+        }
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(username, remoteHost + ":" + remotePort);
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqNumber, Request.ACK);
+
+        Request ack = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.ACK, callId, cseq, from, to, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
+        ack.addHeader(HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri)));
+        return ack;
+    }
+
+    /**
+     * 本平台作为主叫结束级联喊话 Dialog 的 BYE，标签方向与 createByeToUpstream 相反。
+     */
+    public Request createByeAsCaller(GbParentPlatform p, String callId,
+                                     String localFromTag, String upstreamToTag)
+            throws ParseException, InvalidArgumentException {
+        String localIp = localIp();
+        String transport = transport(p);
+        String serverHost = p.getServerIp() + ":" + p.getServerPort();
+
+        SipURI requestUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+
+        List<ViaHeader> viaHeaders = new ArrayList<>();
+        ViaHeader via = HEADER_FACTORY.createViaHeader(localIp, localPort(), transport, SipUtils.newViaTag());
+        via.setRPort();
+        viaHeaders.add(via);
+
+        SipURI fromUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), deviceDomain());
+        FromHeader fromHeader = HEADER_FACTORY.createFromHeader(ADDRESS_FACTORY.createAddress(fromUri), localFromTag);
+
+        SipURI toUri = ADDRESS_FACTORY.createSipURI(p.getServerGbId(), serverHost);
+        ToHeader toHeader = HEADER_FACTORY.createToHeader(ADDRESS_FACTORY.createAddress(toUri), upstreamToTag);
+
+        MaxForwardsHeader maxForwards = HEADER_FACTORY.createMaxForwardsHeader(70);
+        CallIdHeader callIdHeader = HEADER_FACTORY.createCallIdHeader(callId);
+        CSeqHeader cseq = HEADER_FACTORY.createCSeqHeader(cseqSeed.incrementAndGet(), Request.BYE);
+
+        Request request = MESSAGE_FACTORY.createRequest(
+                requestUri, Request.BYE, callIdHeader, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
+
+        SipURI contactUri = ADDRESS_FACTORY.createSipURI(deviceGbId(), localIp + ":" + localPort());
+        request.addHeader(HEADER_FACTORY.createContactHeader(ADDRESS_FACTORY.createAddress(contactUri)));
+        return request;
+    }
+
+    /**
+     * 收到上级 Broadcast NOTIFY 后回的 MESSAGE，Result=OK/ERROR，SN 透传。
+     */
+    public Request buildBroadcastResponse(GbParentPlatform p, int sn, String channelId, boolean ok)
+            throws ParseException, InvalidArgumentException {
+        String xml = "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n"
+                + "<Response>\r\n"
+                + "<CmdType>Broadcast</CmdType>\r\n"
+                + "<SN>" + sn + "</SN>\r\n"
+                + "<DeviceID>" + channelId + "</DeviceID>\r\n"
+                + "<Result>" + (ok ? "OK" : "ERROR") + "</Result>\r\n"
+                + "</Response>";
+        CallIdHeader callId = HEADER_FACTORY.createCallIdHeader(UUID.randomUUID().toString() + "@" + localIp());
+        return createMessageRequest(p, xml, callId);
     }
 }

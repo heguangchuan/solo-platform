@@ -1,40 +1,5 @@
 package com.solo.gb28181.transmit.cmd;
 
-/**
- * <p>实时点播（{@code s=Play}）/ 历史回放（{@code s=Playback}）/ 录像下载（{@code s=Download}）共用
- * {@link #buildInternal} 内部构造，仅会话名 / t= / downloadspeed 不同。</p>
- *
- * <h3>SDP 结构（参考 GB/T 28181-2016 附录 G）</h3>
- * <pre>
- * v=0
- * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;
- * s=Play / Playback / Download
- * c=IN IP4 &lt;sdpIp&gt;
- * t=&lt;startEpoch&gt; &lt;endEpoch&gt;            (Unix 秒数；Play 时 0 0)
- * m=video &lt;rtpPort&gt; {RTP/AVP|TCP/RTP/AVP} 96 97 98 99
- * a=recvonly
- * a=rtpmap:96 PS/90000
- * a=rtpmap:97 MPEG4/90000
- * a=rtpmap:98 H264/90000
- * a=rtpmap:99 H265/90000
- * [a=setup:passive\na=connection:new]    -- TCP-passive 时
- * [a=setup:active\na=connection:new]     -- TCP-active 时
- * [a=&lt;streamNumber&gt;]                     -- 子码流时（如 a=streamnumber:1 / a=stream:1 / a=streamMode:sub）
- * [a=downloadspeed:N]                    -- Download 时（如 a=downloadspeed:4）
- * y=&lt;ssrc&gt;
- * </pre>
- *
- * <h3>为什么 m=video 多了 97 MPEG4</h3>
- * <p>多厂商 / 老固件 SDP 兼容性补丁：</p>
- * <ul>
- *   <li>部分老固件不识别 m=video 只列 96/98/99 三档 → 加 97 MPEG4 给一个备选（不支持的设备按 SDP 规范忽略）。
- *       这条是主流 SIP 平台的默认形态，跨厂商安全。
- * </ul>
- *
- * <p><b>不带</b> {@code u=} 会话 URI 行、<b>不带</b> {@code a=fmtp:98 profile-level-id}：
- * 1927622 commit 加上后被实测某级联设备回 400 Bad Request（详见 ADR-040）。
- * 主流 SIP 平台默认也不带这两行，跨厂商最稳。</p>
- */
 public final class SdpBuilder {
 
     /** 收流模式 — UDP */
@@ -43,6 +8,11 @@ public final class SdpBuilder {
     public static final String TRANSPORT_TCP_PASSIVE = "TCP-passive";
     /** 收流模式 — TCP 主动（ZLM 主动连设备） */
     public static final String TRANSPORT_TCP_ACTIVE = "TCP-active";
+
+    /** RTP 载荷：MPEG-PS */
+    public static final int PT_PS = 96;
+    /** RTP 载荷：G.711 PCMA */
+    public static final int PT_PCMA = 8;
 
     private SdpBuilder() {
     }
@@ -295,41 +265,41 @@ public final class SdpBuilder {
     }
 
     /**
-     * 构造语音广播回给设备的 200 OK SDP（m=audio，a=sendonly）。
-     *
-     * <p>设备主动 INVITE，SDP 里是 {@code m=audio ...} + {@code a=recvonly}；
-     * 本平台应答告诉它：音频往这个地址端口发（其实是平台往设备推，设备只收）。</p>
-     *
-     * <p>负载类型首选 96 PS：ZLM 的 startSendRtp 固定 use_ps=1，音频打进 PS 里发，
-     * 这是 GB28181 语音广播主流形态；同时带上 8 PCMA / 0 PCMU 给只认裸 G.711 的设备备选
-     * （实际推什么由 ZLM 决定，真要裸 G.711 得在 ZLM 侧另配，真机验证）。</p>
-     *
-     * @param platformId       本平台国标 ID（o= 行 username）
-     * @param sdpIp            本平台发流媒体 IP（c=/o= 行）
-     * @param sendPort         本平台发流端口（m= 行；TCP 被动监听时为 ZLM 监听端口）
-     * @param ssrc             10 位 SSRC（y= 行）
-     * @param upstreamTransport 设备 SDP 解析出的传输语义（{@link #extractAudioTransport}）
+     * 广播回给设备的 200 OK SDP（m=audio，a=sendonly），载荷按 {@link #selectAudioPayload} 的结果只列一个。
      */
     public static String buildBroadcastAnswer(String platformId, String sdpIp, int sendPort,
-                                              String ssrc, String upstreamTransport) {
+                                              String ssrc, String upstreamTransport, int pt) {
+        return buildAudioAnswer(platformId, sdpIp, sendPort, ssrc, upstreamTransport, pt, false);
+    }
+
+    /**
+     * 对讲回给设备的 200 OK SDP（m=audio，a=sendrecv），端口填平台收流端口。
+     */
+    public static String buildTalkAnswer(String platformId, String sdpIp, int recvPort,
+                                         String ssrc, String upstreamTransport, int pt) {
+        return buildAudioAnswer(platformId, sdpIp, recvPort, ssrc, upstreamTransport, pt, true);
+    }
+
+    private static String buildAudioAnswer(String platformId, String sdpIp, int port,
+                                           String ssrc, String upstreamTransport, int pt, boolean talk) {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(upstreamTransport)
                 || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
-        // setup 与设备取反，和级联视频一个道理
         boolean upstreamActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
-        StringBuilder sb = new StringBuilder(320);
+        StringBuilder sb = new StringBuilder(300);
         sb.append("v=0\r\n");
         sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
         sb.append("s=Play\r\n");
         sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
         sb.append("t=0 0\r\n");
-        // 96=PS（ZLM 实际发这个），8=PCMA、0=PCMU 给裸 G.711 设备留个位置
-        sb.append("m=audio ").append(sendPort).append(' ')
+        sb.append("m=audio ").append(port).append(' ')
                 .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
-                .append(" 96 8 0\r\n");
-        sb.append("a=sendonly\r\n");
-        sb.append("a=rtpmap:96 PS/90000\r\n");
-        sb.append("a=rtpmap:8 PCMA/8000\r\n");
-        sb.append("a=rtpmap:0 PCMU/8000\r\n");
+                .append(' ').append(pt).append("\r\n");
+        sb.append(talk ? "a=sendrecv\r\n" : "a=sendonly\r\n");
+        if (pt == PT_PS) {
+            sb.append("a=rtpmap:96 PS/90000\r\n");
+        } else {
+            sb.append("a=rtpmap:8 PCMA/8000\r\n");
+        }
         if (tcp) {
             sb.append("a=setup:").append(upstreamActive ? "passive" : "active").append("\r\n");
             sb.append("a=connection:new\r\n");
@@ -339,9 +309,48 @@ public final class SdpBuilder {
     }
 
     /**
-     * 从 SDP body 抓 {@code m=audio <port> ...} 的端口；不存在/非法返回 -1。
-     * 语音广播设备 INVITE 里的 m= 行端口，就是设备期望接收音频的端口。
+     * 级联喊话反向 INVITE 上级的 SDP（m=audio，a=recvonly），端口为本地收流端口。
      */
+    public static String buildAudioRecvonlyOffer(String platformId, String sdpIp, int recvPort,
+                                                 String ssrc) {
+        StringBuilder sb = new StringBuilder(300);
+        sb.append("v=0\r\n");
+        sb.append("o=").append(platformId).append(" 0 0 IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("s=Play\r\n");
+        sb.append("c=IN IP4 ").append(sdpIp).append("\r\n");
+        sb.append("t=0 0\r\n");
+        sb.append("m=audio ").append(recvPort).append(" RTP/AVP 96 8 0\r\n");
+        sb.append("a=recvonly\r\n");
+        sb.append("a=rtpmap:96 PS/90000\r\n");
+        sb.append("a=rtpmap:8 PCMA/8000\r\n");
+        sb.append("a=rtpmap:0 PCMU/8000\r\n");
+        sb.append("y=").append(ssrc).append("\r\n");
+        return sb.toString();
+    }
+
+    /**
+     * 设备广播反向 INVITE 的载荷选择：offer 带 8 就选裸 PCMA，否则带 96 选 PS，都没有默认 PCMA。
+     * 语音广播主流形态是裸 PCMA；部分厂商（如大华）同时列 8/96，优先按标准走 PCMA。
+     */
+    public static int selectAudioPayload(String deviceSdp) {
+        boolean supportsPcma = false;
+        boolean supportsPs = false;
+        for (String line : deviceSdp == null ? new String[0] : deviceSdp.split("\\r?\\n")) {
+            String l = line.trim();
+            if (l.startsWith("m=audio")) {
+                String[] parts = l.split("\\s+");
+                for (int i = 3; i < parts.length; i++) {
+                    if ("8".equals(parts[i])) supportsPcma = true;
+                    if ("96".equals(parts[i])) supportsPs = true;
+                }
+            }
+        }
+        if (supportsPcma) return PT_PCMA;
+        if (supportsPs) return PT_PS;
+        return PT_PCMA;
+    }
+
+    /** 取 m=audio 行端口，不存在返回 -1。 */
     public static int extractAudioPort(String sdpBody) {
         if (sdpBody == null) return -1;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -360,9 +369,7 @@ public final class SdpBuilder {
     }
 
     /**
-     * 判断设备广播 INVITE 的音频传输语义，规则同 {@link #extractTransport}，只是匹配 m=audio。
-     *
-     * @return 语义站在<strong>设备</strong>视角：TCP_ACTIVE=设备主动来连本平台；TCP_PASSIVE=设备等本平台去连
+     * 取设备音频传输语义：UDP / TCP_ACTIVE（设备来连）/ TCP_PASSIVE（设备等连）。
      */
     public static String extractAudioTransport(String sdpBody) {
         if (sdpBody == null) return TRANSPORT_UDP;

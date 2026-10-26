@@ -3,7 +3,7 @@ package com.solo.gb28181.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-@Schema(description = "语音广播开始请求（网页麦克风实时喊话）")
+@Schema(description = "语音广播开始请求（网页麦克风实时喊话 / 双向对讲）")
 @Data
 public class BroadcastStartRequest {
 
@@ -12,4 +12,7 @@ public class BroadcastStartRequest {
 
     @Schema(description = "放音通道国标 20 位 ID")
     private String channelId;
+
+    @Schema(description = "模式：broadcast=单向喊话（默认），talk=双向对讲")
+    private String mode;
 }

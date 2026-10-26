@@ -13,16 +13,12 @@ import tools.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
- * <h3>Key 布局（前缀 {@link GbRedisKeys#BROADCAST_PREFIX}）</h3>
- * <ul>
- *   <li>{@link GbRedisKeys#BROADCAST_SESSION}{broadcastStreamId}  主体 JSON</li>
- *   <li>{@link GbRedisKeys#BROADCAST_BY_CALL}{callId} = broadcastStreamId  设备 INVITE Call-Id 反查（ACK/BYE 用）</li>
- *   <li>{@link GbRedisKeys#BROADCAST_BY_SRC_STREAM}{srcStream} = Set&lt;broadcastStreamId&gt;  源流反查</li>
- *   <li>{@link GbRedisKeys#BROADCAST_ALL_ACTIVE}  全集 Set</li>
- * </ul>
+ * 广播会话 Redis 存储。主体存 BROADCAST_SESSION + id，
+ * 另建 callId、srcStream、全集三张反查索引。
  */
 @Slf4j
 @Service
@@ -40,6 +36,10 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
         if (s.getCallId() != null) {
             redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_BY_CALL + s.getCallId(), id);
         }
+        // 上级腿 callId 同样反查到本会话
+        if (s.getParentCallId() != null) {
+            redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_BY_CALL + s.getParentCallId(), id);
+        }
         if (s.getSrcStream() != null) {
             redisTemplate.opsForSet().add(GbRedisKeys.BROADCAST_BY_SRC_STREAM + s.getSrcStream(), id);
         }
@@ -49,7 +49,33 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
     @Override
     public void update(GbBroadcastSession s) {
         validate(s);
-        redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_SESSION + s.getBroadcastStreamId(), toJson(s));
+        String id = s.getBroadcastStreamId();
+        GbBroadcastSession old = get(id);
+        redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_SESSION + id, toJson(s));
+        // 索引字段变化时先删旧索引
+        if (old != null) {
+            if (!Objects.equals(old.getCallId(), s.getCallId()) && old.getCallId() != null) {
+                redisTemplate.delete(GbRedisKeys.BROADCAST_BY_CALL + old.getCallId());
+            }
+            if (!Objects.equals(old.getParentCallId(), s.getParentCallId())
+                    && old.getParentCallId() != null) {
+                redisTemplate.delete(GbRedisKeys.BROADCAST_BY_CALL + old.getParentCallId());
+            }
+            if (!Objects.equals(old.getSrcStream(), s.getSrcStream()) && old.getSrcStream() != null) {
+                redisTemplate.opsForSet()
+                        .remove(GbRedisKeys.BROADCAST_BY_SRC_STREAM + old.getSrcStream(), id);
+            }
+        }
+        if (s.getCallId() != null) {
+            redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_BY_CALL + s.getCallId(), id);
+        }
+        if (s.getParentCallId() != null) {
+            redisTemplate.opsForValue().set(GbRedisKeys.BROADCAST_BY_CALL + s.getParentCallId(), id);
+        }
+        if (s.getSrcStream() != null) {
+            redisTemplate.opsForSet().add(GbRedisKeys.BROADCAST_BY_SRC_STREAM + s.getSrcStream(), id);
+        }
+        redisTemplate.opsForSet().add(GbRedisKeys.BROADCAST_ALL_ACTIVE, id);
     }
 
     @Override
@@ -61,6 +87,9 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
         if (s != null) {
             if (s.getCallId() != null) {
                 redisTemplate.delete(GbRedisKeys.BROADCAST_BY_CALL + s.getCallId());
+            }
+            if (s.getParentCallId() != null) {
+                redisTemplate.delete(GbRedisKeys.BROADCAST_BY_CALL + s.getParentCallId());
             }
             if (s.getSrcStream() != null) {
                 redisTemplate.opsForSet().remove(GbRedisKeys.BROADCAST_BY_SRC_STREAM + s.getSrcStream(), broadcastStreamId);
@@ -85,6 +114,11 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
             redisTemplate.delete(GbRedisKeys.BROADCAST_BY_CALL + callId);
         }
         return s;
+    }
+
+    @Override
+    public GbBroadcastSession getByParentCallId(String parentCallId) {
+        return getByCallId(parentCallId);
     }
 
     @Override
@@ -128,12 +162,11 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
         }
         int span = end - start + 1;
         long seq = redisTemplate.opsForValue().increment(GbRedisKeys.BROADCAST_PORT_SEQ, 1);
-        // 回绕到端口段内。ZLM 若报端口占用，调用方可重试拿下一个。
+        // 端口段内顺序回绕
         int offset = (int) (Math.floorMod(seq, (long) span));
         return start + offset;
     }
 
-    // ---------------- helpers ----------------
 
     private static void validate(GbBroadcastSession s) {
         if (s == null || s.getBroadcastStreamId() == null || s.getBroadcastStreamId().isBlank()) {

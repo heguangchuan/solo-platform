@@ -25,26 +25,10 @@ import java.text.ParseException;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * <p>处理两类入站 INVITE：</p>
- * <ol>
- *   <li><strong>上级平台点播</strong>本平台共享通道（S6.b-3）：上级发 INVITE → 本平台向真实下级取流
- *       → sendRtp 推给上级；</li>
- *   <li><strong>设备语音广播反向 INVITE</strong>：设备收到 Broadcast 通知后，主动发 m=audio 的 INVITE
- *       来建音频通道（设备 a=recvonly），平台回 200 后由 ZLM 推音频。</li>
- * </ol>
- *
- * <h3>来源识别</h3>
- * <p>复用 {@link MessageRequestProcessor} 的模式：先按 From-user 查
- * {@link GbParentPlatform#getServerGbId()}（enabled=1），命中即上级点播；未命中再查在线设备
- * {@link GbDevice#getDeviceId()}（status=1）且 SDP 为 m=audio，命中即语音广播；都不命中回 403。</p>
- *
- * <h3>线程模型（ADR-007）</h3>
- * <p>先在 SIP 线程内同步回 100 Trying，随后把业务处理（取流/等浏览器音频流 + startSendRtp + 回 200）
- * 整体丢到 {@code gb28181BizExecutor} 异步执行，绝不阻塞 SIP 监听线程。</p>
- *
- * <h3>循环依赖</h3>
- * <p>{@link CascadeSendService} / {@link GbBroadcastService} 用 {@code @Lazy} 注入，打破
- * {@code SipLayer → SipProcessorObserver → InviteRequestProcessor → ... → SipLayer} 环（ADR-015）。</p>
+ * 入站 INVITE 两类：上级点播本平台共享通道（异步级联取流后推给上级），
+ * 以及设备收到广播通知后发来的反向音频 INVITE（回 200 后由 ZLM 推音频）。
+ * 按 From-user 先查上级平台、再查在线设备，都不命中回 403。
+ * 业务处理丢 gb28181BizExecutor 异步执行；级联和广播 service 用 @Lazy 注入破环。
  */
 @Slf4j
 @Component
@@ -122,13 +106,15 @@ public class InviteRequestProcessor extends SipRequestProcessorBase implements S
         // 1) 立即回 100 Trying（SIP 线程内，不阻塞）
         responseAck(request, Response.TRYING);
 
-        // 2) 取流 + 推流 + 回 200 丢到业务线程池
+        // 取流 + 推流 + 回 200 丢业务线程池
+        // 上级喊话走 NOTIFY 后本平台主动反向 INVITE，不会走到这里
+        String finalChannelId = channelId;
         gb28181BizExecutor.execute(() -> {
             try {
-                cascadeSendService.onUpstreamInvite(request, platform, channelId, upstreamSdp);
+                cascadeSendService.onUpstreamInvite(request, platform, finalChannelId, upstreamSdp);
             } catch (Exception e) {
-                log.error("[级联点播] 处理上级点播异常 platform={} channel={}",
-                        platform.getServerGbId(), channelId, e);
+                log.error("[级联] 处理上级 INVITE 异常 platform={} channel={}",
+                        platform.getServerGbId(), finalChannelId, e);
             }
         });
     }

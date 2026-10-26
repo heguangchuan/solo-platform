@@ -21,6 +21,9 @@ public interface GbBroadcastSessionService {
 
     GbBroadcastSession getByCallId(String callId);
 
+    /** 级联喊话时按"上级推音频那路 Dialog 的 callId"反查会话 */
+    GbBroadcastSession getByParentCallId(String parentCallId);
+
     List<GbBroadcastSession> listBySrcStream(String srcStream);
 
     List<GbBroadcastSession> listAllActive();
