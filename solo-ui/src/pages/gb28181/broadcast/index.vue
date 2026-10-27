@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 语音广播：网页麦克风实时喊话，单设备单通道单向广播。
+ * 语音播报 / 语音对讲：网页麦克风实时喊话，单设备单通道，支持单向播报与双向对讲。
  *
  * 链路：getUserMedia 采集 → RTCPeerConnection（强制 PCMA/PCMU 优先）→ offer SDP 经后端
  * 代理给 ZLM /index/api/webrtc(type=push) → ZLM startSendRtp(use_ps) → GB 设备放音。
@@ -9,7 +9,7 @@
  * 前端拿到结果后只需把麦克风推上去，真正的音频腿就通了。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { Mic, MicOff, Square, Loader2 } from 'lucide-vue-next'
+import { Mic, MicOff, Square, Loader2, Megaphone, Phone } from 'lucide-vue-next'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
 import GbChannelSelect from '@/features/gb/GbChannelSelect.vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -17,14 +17,17 @@ import {
   startBroadcastApi,
   stopBroadcastApi,
   exchangeBroadcastSdpApi,
+  exchangeTalkPlaySdpApi,
 } from '@/api/gb28181'
 import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 
 const deviceId = ref<string | undefined>(undefined)
 const channelId = ref<string | undefined>(undefined)
+/** broadcast=单向喊话，talk=双向对讲（多一条设备音频播放腿），由点击的图标按钮决定 */
+const mode = ref<'broadcast' | 'talk'>('broadcast')
 
-/** idle=未开始 starting=通知/协商中 live=喊话中 stopping=停止中 */
+/** idle=未开始 starting=通知/协商中 live=播报/通话中 stopping=停止中 */
 const phase = ref<'idle' | 'starting' | 'live' | 'stopping'>('idle')
 /** WebRTC/ICE 层面的连接状态，仅用于展示 */
 const connState = ref('')
@@ -32,8 +35,12 @@ const connState = ref('')
 const level = ref(0)
 /** 后端返回的流ID，stop / SDP 交换都用它 */
 const streamId = ref('')
+/** 对讲播放腿是否已听到设备音频 */
+const listening = ref(false)
 
 let pc: RTCPeerConnection | null = null
+let playPc: RTCPeerConnection | null = null
+let playAudio: HTMLAudioElement | null = null
 let localStream: MediaStream | null = null
 let audioCtx: AudioContext | null = null
 let levelRaf = 0
@@ -41,6 +48,10 @@ let abortController: AbortController | null = null
 
 const busy = computed(() => phase.value === 'starting' || phase.value === 'stopping')
 const canStart = computed(() => !!deviceId.value && !!channelId.value && !busy.value)
+
+/** 功能名按模式区分：语音播报（单向）/ 语音对讲（双向） */
+const featureName = computed(() => (mode.value === 'talk' ? '语音对讲' : '语音播报'))
+const liveText = computed(() => (mode.value === 'talk' ? '通话中' : '播报中'))
 
 /**
  * 把 G.711（PCMA=8 / PCMU=0）排到协商列表最前。
@@ -98,6 +109,41 @@ const stopLevelMeter = () => {
   audioCtx = null
 }
 
+/**
+ * 对讲播放腿：只收不发，offer 里带 recvonly，经 talk-play 代理换 answer，
+ * 设备回传音频到达 ZLM 后由该腿播放。后端会等回传流上线再应答。
+ */
+const startPlayLeg = async (id: string, controller: AbortController) => {
+  const peer = new RTCPeerConnection()
+  playPc = peer
+  peer.addTransceiver('audio', { direction: 'recvonly' })
+  const offer = await peer.createOffer()
+  await peer.setLocalDescription(offer)
+  const { data: answerSdp } = await exchangeTalkPlaySdpApi({ streamId: id, sdp: offer.sdp ?? '' })
+  if (controller.signal.aborted || playPc !== peer) return
+  await peer.setRemoteDescription({ type: 'answer', sdp: answerSdp })
+
+  const remote = new MediaStream()
+  peer.ontrack = (ev) => {
+    ev.streams[0]?.getTracks().forEach((t) => remote.addTrack(t))
+    if (!ev.streams[0]) remote.addTrack(ev.track)
+    if (!playAudio) {
+      playAudio = new Audio()
+      playAudio.autoplay = true
+      playAudio.srcObject = remote
+    }
+    playAudio.play().catch(() => {
+      // 自动播放被拦时等用户在页面上任意交互后浏览器会放行
+    })
+    listening.value = true
+  }
+  peer.onconnectionstatechange = () => {
+    if (peer.connectionState === 'failed') {
+      listening.value = false
+    }
+  }
+}
+
 /** 关掉本地媒体与 PeerConnection（纯前端，不通知后端） */
 const closePeer = () => {
   stopLevelMeter()
@@ -109,14 +155,27 @@ const closePeer = () => {
     pc.close()
     pc = null
   }
+  if (playPc) {
+    playPc.ontrack = null
+    playPc.onconnectionstatechange = null
+    playPc.close()
+    playPc = null
+  }
+  if (playAudio) {
+    playAudio.pause()
+    playAudio.srcObject = null
+    playAudio = null
+  }
+  listening.value = false
   connState.value = ''
 }
 
-const start = async () => {
+const start = async (m: 'broadcast' | 'talk') => {
   if (!deviceId.value || !channelId.value) {
     toast.warning('请先选择设备和通道')
     return
   }
+  mode.value = m
   phase.value = 'starting'
   const controller = new AbortController()
   abortController = controller
@@ -135,7 +194,7 @@ const start = async () => {
 
     // 后端：发 Broadcast 通知 → 等设备 200，设备反向 INVITE/ACK 由异步信令处理
     const { data } = await startBroadcastApi(
-      { deviceId: deviceId.value, channelId: channelId.value },
+      { deviceId: deviceId.value, channelId: channelId.value, mode: mode.value },
       controller.signal,
     )
     if (controller.signal.aborted) return
@@ -171,7 +230,21 @@ const start = async () => {
 
     startLevelMeter()
     phase.value = 'live'
-    toast.success('已开始喊话')
+    toast.success(mode.value === 'talk' ? '已接通，可双向通话' : '已开始语音播报')
+
+    // 对讲播放腿等设备音频到达可能要几秒，不阻塞喊话状态；失败只提示不影响喊话
+    if (mode.value === 'talk') {
+      startPlayLeg(data.streamId, controller).catch((err) => {
+        if (controller.signal.aborted) return
+        const msg: string = err?.message ?? '未知错误'
+        // 设备反向 INVITE 只声明 recvonly（无麦克风/未开启对讲），已自动退化为单向播报
+        if (msg.includes('不支持上行音频')) {
+          toast.warning('该设备不支持语音回传，已按语音播报工作')
+        } else {
+          toast.error('设备音频接听失败：' + msg)
+        }
+      })
+    }
   } catch (e) {
     // 主动取消不提示；start 接口的业务错误（设备拒绝/超时）由请求拦截器统一提示，这里只做清理
     if (controller.signal.aborted || (e instanceof Error && e.name === 'CanceledError')) {
@@ -180,7 +253,7 @@ const start = async () => {
       return
     }
     if (e instanceof DOMException && e.name === 'NotAllowedError') {
-      toast.error('麦克风权限被拒绝，无法喊话')
+      toast.error('麦克风权限被拒绝，无法开始' + featureName.value)
     }
     await rollback()
     phase.value = 'idle'
@@ -209,7 +282,7 @@ const stop = async () => {
   if (id) {
     try {
       await stopBroadcastApi({ streamId: id })
-      toast.success('已停止喊话')
+      toast.success(mode.value === 'talk' ? '已结束对讲' : '已停止播报')
     } catch {
       // 拦截器已提示
     }
@@ -231,8 +304,10 @@ onBeforeUnmount(() => {
     <div class="rounded-xl border border-border bg-card">
       <div class="flex h-12 items-center gap-2 border-b border-border px-4">
         <Mic class="size-4 text-muted-foreground" />
-        <span class="text-[13px] font-medium">语音广播</span>
-        <span class="text-xs text-muted-foreground">网页麦克风实时喊话，单设备单通道</span>
+        <span class="text-[13px] font-medium">{{ phase === 'idle' ? '语音播报 / 语音对讲' : featureName }}</span>
+        <span class="text-xs text-muted-foreground">
+          {{ mode === 'talk' ? '网页麦克风双向通话，单设备单通道' : '网页麦克风实时播报，单设备单通道' }}
+        </span>
       </div>
 
       <div class="flex flex-col gap-5 p-5">
@@ -285,8 +360,15 @@ onBeforeUnmount(() => {
               <template v-else-if="phase === 'stopping'">
                 <Loader2 class="size-4 animate-spin" /> 正在停止…
               </template>
-              <template v-else>喊话中</template>
-              <span v-if="phase === 'live' && connState" class="text-xs font-normal text-muted-foreground">
+              <template v-else>{{ liveText }}</template>
+              <span v-if="mode === 'talk' && phase === 'live'"
+                class="flex items-center gap-1 text-xs font-normal"
+                :class="listening ? 'text-emerald-600' : 'text-amber-600'"
+              >
+                <span class="size-1.5 rounded-full" :class="listening ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'" />
+                {{ listening ? '正在收听设备音频' : '等待设备音频…' }}
+              </span>
+              <span v-else-if="phase === 'live' && connState" class="text-xs font-normal text-muted-foreground">
                 （{{ connState }}）
               </span>
             </div>
@@ -298,31 +380,50 @@ onBeforeUnmount(() => {
               />
             </div>
             <p class="mt-2 text-xs text-muted-foreground">
-              点击开始后浏览器会请求麦克风权限，设备接通后即可喊话；关闭页面会自动停止。
+              点击开始后浏览器会请求麦克风权限，设备接通后即可{{ mode === 'talk' ? '双向通话' : '播报' }}；关闭页面会自动停止。
             </p>
           </div>
 
-          <!-- 操作按钮 -->
+          <!-- 操作按钮：播报 / 对讲 两个纯图标按钮，进行中变为停止 -->
           <div class="flex shrink-0 gap-2">
+            <template v-if="phase === 'idle'">
+              <Button
+                size="icon"
+                title="开始语音播报"
+                :disabled="!canStart"
+                v-access="PERM.GB_BROADCAST_TALK"
+                @click="start('broadcast')"
+              >
+                <Megaphone class="size-4" />
+              </Button>
+              <Button
+                size="icon"
+                variant="secondary"
+                title="开始对讲"
+                :disabled="!canStart"
+                v-access="PERM.GB_BROADCAST_TALK"
+                @click="start('talk')"
+              >
+                <Phone class="size-4" />
+              </Button>
+            </template>
             <Button
-              v-if="phase === 'idle' || phase === 'starting'"
-              :disabled="!canStart"
-              :loading="phase === 'starting'"
-              v-access="PERM.GB_BROADCAST_TALK"
-              @click="start"
+              v-else-if="phase === 'starting'"
+              size="icon"
+              disabled
             >
-              <Mic v-if="phase !== 'starting'" class="size-4" />
-              开始喊话
+              <Loader2 class="size-4 animate-spin" />
             </Button>
             <Button
               v-else
+              size="icon"
               variant="destructive"
+              title="停止"
               :loading="phase === 'stopping'"
               v-access="PERM.GB_BROADCAST_TALK"
               @click="stop"
             >
               <Square v-if="phase !== 'stopping'" class="size-4" />
-              停止
             </Button>
           </div>
         </div>

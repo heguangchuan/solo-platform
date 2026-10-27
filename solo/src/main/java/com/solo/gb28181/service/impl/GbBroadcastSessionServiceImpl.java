@@ -178,7 +178,7 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
         try {
             return objectMapper.writeValueAsString(s);
         } catch (Exception e) {
-            throw new ServiceException("语音广播会话序列化失败: " + e.getMessage());
+            throw new ServiceException((s.isTalk() ? "语音对讲" : "语音播报") + "会话序列化失败: " + e.getMessage());
         }
     }
 
@@ -186,7 +186,7 @@ public class GbBroadcastSessionServiceImpl implements GbBroadcastSessionService 
         try {
             return objectMapper.readValue(json, GbBroadcastSession.class);
         } catch (Exception e) {
-            log.warn("[语音广播] 会话反序列化失败：{}", e.getMessage());
+            log.warn("[语音会话] 会话反序列化失败：{}", e.getMessage());
             return null;
         }
     }

@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "语音广播", description = "网页麦克风实时喊话，单设备单通道单向广播")
+@Tag(name = "语音播报/语音对讲", description = "网页麦克风实时喊话（单向播报）或双向语音对讲，单设备单通道")
 @RestController
 @RequestMapping("/api/gb28181/broadcast")
 @RequiredArgsConstructor
@@ -24,15 +24,15 @@ public class GbBroadcastController {
 
     private final GbBroadcastService broadcastService;
 
-    @Operation(summary = "开始广播")
-    @OperationLog(module = "语音广播", type = BusinessType.OTHER, description = "开始语音广播")
+    @Operation(summary = "开始播报/对讲")
+    @OperationLog(module = "语音播报/语音对讲", type = BusinessType.OTHER, description = "开始语音播报或对讲")
     @PostMapping("/start")
     public Result<BroadcastResultResponse> start(@RequestBody BroadcastStartRequest req) {
         return Result.success(broadcastService.start(req));
     }
 
-    @Operation(summary = "停止广播")
-    @OperationLog(module = "语音广播", type = BusinessType.OTHER, description = "停止语音广播")
+    @Operation(summary = "停止播报/对讲")
+    @OperationLog(module = "语音播报/语音对讲", type = BusinessType.OTHER, description = "停止语音播报或对讲")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody BroadcastStopRequest req) {
         broadcastService.stop(req);
