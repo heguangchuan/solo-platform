@@ -13,8 +13,6 @@ CREATE TABLE open_app
     id              bigint       NOT NULL COMMENT '主键ID',
     app_key         varchar(64)  NOT NULL COMMENT '应用标识（随请求传输）',
     app_name        varchar(100) NOT NULL COMMENT '应用名称（第三方系统/公司）',
-    contact         varchar(100)          DEFAULT NULL COMMENT '联系人',
-    contact_phone   varchar(30)           DEFAULT NULL COMMENT '联系电话',
     -- 当前生效密钥（AES-GCM 加密存储，创建/换钥时明文只展示一次）
     secret_cipher   varchar(500) NOT NULL COMMENT '当前密钥密文',
     -- 双钥轮换：换钥过渡期内旧密钥仍可用，过渡期结束置空

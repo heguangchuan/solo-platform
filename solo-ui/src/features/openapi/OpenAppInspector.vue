@@ -68,16 +68,6 @@
           </div>
 
           <div class="flex gap-3">
-            <Label class="w-20 shrink-0 pt-1.5 text-xs text-muted-foreground">联系人</Label>
-            <Input v-model="form.contact" class="h-8 flex-1 text-xs" placeholder="对接方联系人（可选）" />
-          </div>
-
-          <div class="flex gap-3">
-            <Label class="w-20 shrink-0 pt-1.5 text-xs text-muted-foreground">联系电话</Label>
-            <Input v-model="form.contactPhone" class="h-8 flex-1 text-xs" placeholder="联系电话（可选）" />
-          </div>
-
-          <div class="flex gap-3">
             <Label class="w-20 shrink-0 pt-1.5 text-xs text-muted-foreground">授权范围</Label>
             <div class="min-w-0 flex-1">
               <textarea
@@ -172,10 +162,7 @@
 
       <div class="mt-4 flex justify-end gap-2">
         <Button size="sm" variant="outline" @click="emit('close')">取消</Button>
-        <Button v-if="creating" v-access="PERM.OPENAPI_APP_ADD" size="sm" :loading="saving" @click="onSave">
-          创建应用
-        </Button>
-        <Button v-else v-access="PERM.OPENAPI_APP_EDIT" size="sm" :loading="saving" @click="onSave">
+        <Button v-access="creating ? PERM.OPENAPI_APP_ADD : PERM.OPENAPI_APP_EDIT" size="sm" :loading="saving" @click="onSave">
           保存
         </Button>
       </div>
@@ -285,8 +272,6 @@ const emit = defineEmits<{
 
 const blank = (): OpenAppSaveRequest => ({
   appName: '',
-  contact: '',
-  contactPhone: '',
   scopes: '',
   ipWhitelist: '',
   callbackUrl: '',
@@ -302,8 +287,6 @@ const buildForm = (): OpenAppSaveRequest => {
   return {
     id: props.app.id,
     appName: props.app.appName ?? '',
-    contact: props.app.contact ?? '',
-    contactPhone: props.app.contactPhone ?? '',
     scopes: props.app.scopes ?? '',
     ipWhitelist: props.app.ipWhitelist ?? '',
     callbackUrl: props.app.callbackUrl ?? '',

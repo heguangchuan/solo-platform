@@ -5,9 +5,10 @@ import com.solo.common.ServiceException;
 import com.solo.system.constant.SystemConstants;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @Slf4j
 @RestControllerAdvice
@@ -39,6 +40,16 @@ public class GlobalExceptionHandler {
     public Result<Void> handleIllegalArgument(IllegalArgumentException e) {
         log.error("参数错误: {}", e.getMessage());
         return Result.error(SystemConstants.HTTP_BAD_REQUEST, e.getMessage());
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public Result<Void> handleValidation(MethodArgumentNotValidException e) {
+        String msg = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(err -> err.getField() + " " + err.getDefaultMessage())
+                .orElse("参数校验失败");
+        log.warn("参数校验失败: {}", msg);
+        return Result.error(SystemConstants.HTTP_BAD_REQUEST, msg);
     }
 
     @ExceptionHandler(Exception.class)

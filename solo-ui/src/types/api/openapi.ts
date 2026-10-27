@@ -5,8 +5,6 @@ export interface OpenApp {
   /** 应用标识，对接方签名时用的 appKey */
   appKey: string
   appName: string
-  contact?: string
-  contactPhone?: string
   /** 授权范围，逗号分隔，如 gb:device:read,gb:play:ctrl */
   scopes?: string
   /** IP 白名单，逗号分隔，支持 CIDR；空代表不限 */
@@ -32,7 +30,7 @@ export interface OpenApp {
 export interface OpenAppPageRequest {
   page?: number
   pageSize?: number
-  keyword?: string
+  appName?: string
   status?: number
 }
 
@@ -40,8 +38,6 @@ export interface OpenAppPageRequest {
 export interface OpenAppSaveRequest {
   id?: string
   appName: string
-  contact?: string
-  contactPhone?: string
   scopes?: string
   ipWhitelist?: string
   callbackUrl?: string

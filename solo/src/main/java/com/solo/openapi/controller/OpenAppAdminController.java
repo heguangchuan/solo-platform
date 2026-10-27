@@ -1,21 +1,20 @@
-package com.solo.openapi.admin;
+package com.solo.openapi.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.aop.OperationLog;
 import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
-import com.solo.common.ServiceException;
 import com.solo.common.enums.BusinessType;
-import com.solo.openapi.admin.vo.OpenAppCreatedVO;
-import com.solo.openapi.admin.vo.OpenAppPageRequest;
 import com.solo.openapi.entity.OpenApp;
+import com.solo.openapi.request.OpenAppPageRequest;
+import com.solo.openapi.request.OpenAppSaveRequest;
+import com.solo.openapi.response.OpenAppCreatedResponse;
 import com.solo.openapi.service.OpenApiAppService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * 开放 API 应用管理端。走平台内部 JWT 和权限体系，跟第三方调的 /open-api/** 是两回事。
- * 入参出参直接用 {@link OpenApp} 实体，跟其他模块保持一致，密钥密文绝不下发。
+ * 入参出参用独立的 request/response 模型，跟其他模块保持一致，密钥密文绝不下发。
  */
 @Tag(name = "开放API应用管理", description = "第三方应用的创建、授权、启停、换钥")
 @RestController
@@ -39,9 +38,7 @@ public class OpenAppAdminController {
     @PostMapping("/page")
     @RequirePermission("openapi:app:list")
     public Result<PageResult<OpenApp>> page(@Valid @RequestBody OpenAppPageRequest req) {
-        Page<OpenApp> result = appService.pageQuery(req.getPage(), req.getPageSize(),
-                req.getKeyword(), req.getStatus());
-        // 列表查询不 select 密钥密文，直接返回即可
+        Page<OpenApp> result = appService.pageQuery(req);
         return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
     }
 
@@ -56,21 +53,18 @@ public class OpenAppAdminController {
     @OperationLog(module = "开放API应用", type = BusinessType.ADD, description = "创建开放API应用")
     @PostMapping("/create")
     @RequirePermission("openapi:app:add")
-    public Result<OpenAppCreatedVO> create(@RequestBody OpenApp app) {
-        if (!StringUtils.hasText(app.getAppName())) {
-            throw new ServiceException("应用名称不能为空");
-        }
-        OpenApiAppService.CreatedSecret created = appService.createApp(app);
-        return Result.success(new OpenAppCreatedVO(app.getId(),
-                created.appKey(), created.appSecret(), created.callbackSecret()));
+    public Result<OpenAppCreatedResponse> create(@Valid @RequestBody OpenAppSaveRequest req) {
+        OpenApiAppService.CreatedSecret created = appService.createApp(req);
+        return Result.success(new OpenAppCreatedResponse(created.id(), created.appKey(),
+                created.appSecret(), created.callbackSecret()));
     }
 
     @Operation(summary = "编辑应用资料/授权/配额")
     @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "编辑开放API应用")
     @PostMapping("/update")
     @RequirePermission("openapi:app:edit")
-    public Result<Void> update(@RequestBody OpenApp app) {
-        appService.updateApp(app);
+    public Result<Void> update(@Valid @RequestBody OpenAppSaveRequest req) {
+        appService.updateApp(req);
         return Result.success();
     }
 
@@ -96,9 +90,9 @@ public class OpenAppAdminController {
     @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "开放API应用换钥")
     @PostMapping("/{id}/rotate-secret")
     @RequirePermission("openapi:app:rotate")
-    public Result<OpenAppCreatedVO> rotateSecret(@PathVariable Long id) {
+    public Result<OpenAppCreatedResponse> rotateSecret(@PathVariable Long id) {
         OpenApiAppService.CreatedSecret created = appService.rotateSecret(id);
-        return Result.success(new OpenAppCreatedVO(id, created.appKey(), created.appSecret(), null));
+        return Result.success(new OpenAppCreatedResponse(id, created.appKey(), created.appSecret(), null));
     }
 
     /** 详情查了全字段（含密文），下发前清掉密钥，只回一个"是否已配置回调密钥"的标记 */

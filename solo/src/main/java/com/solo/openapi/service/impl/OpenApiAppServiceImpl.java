@@ -4,6 +4,8 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.openapi.request.OpenAppPageRequest;
+import com.solo.openapi.request.OpenAppSaveRequest;
 import com.solo.openapi.config.OpenApiProperties;
 import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.constant.OpenApiRedisKeys;
@@ -37,39 +39,33 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
     private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
-    public CreatedSecret createApp(OpenApp app) {
-        if (!StringUtils.hasText(app.getAppName())) {
-            throw new ServiceException("应用名称不能为空");
-        }
+    public CreatedSecret createApp(OpenAppSaveRequest req) {
         String appKey = "ak_" + randomToken(18);
         String appSecret = randomToken(32);
         // 回调签名密钥单独生成，跟接口密钥互不影响
         String callbackSecret = randomToken(24);
 
-        app.setId(null);
+        OpenApp app = new OpenApp();
+        app.setAppName(req.getAppName());
+        app.setScopes(req.getScopes() != null ? req.getScopes() : "");
+        app.setIpWhitelist(req.getIpWhitelist());
+        app.setCallbackUrl(req.getCallbackUrl());
+        app.setEventSubscriptions(req.getEventSubscriptions() != null ? req.getEventSubscriptions() : "");
+        app.setQpsLimit(req.getQpsLimit() != null ? req.getQpsLimit() : 10);
+        app.setDailyLimit(req.getDailyLimit() != null ? req.getDailyLimit() : 0L);
+        app.setStatus(req.getStatus() != null ? req.getStatus() : 1);
+        app.setExpireTime(req.getExpireTime());
+        app.setRemark(req.getRemark());
+
         app.setAppKey(appKey);
         app.setSecretCipher(cipher.encrypt(appSecret));
         app.setCallbackSecretCipher(cipher.encrypt(callbackSecret));
         app.setOldSecretCipher(null);
         app.setOldSecretExpireTime(null);
-        if (app.getStatus() == null) {
-            app.setStatus(1);
-        }
-        if (app.getQpsLimit() == null) {
-            app.setQpsLimit(10);
-        }
-        if (app.getDailyLimit() == null) {
-            app.setDailyLimit(0L);
-        }
-        if (app.getScopes() == null) {
-            app.setScopes("");
-        }
-        if (app.getEventSubscriptions() == null) {
-            app.setEventSubscriptions("");
-        }
+
         save(app);
         log.info("[开放API] 创建应用 appKey={} name={}", appKey, app.getAppName());
-        return new CreatedSecret(appKey, appSecret, callbackSecret);
+        return new CreatedSecret(appKey, appSecret, callbackSecret, app.getId());
     }
 
     @Override
@@ -88,7 +84,7 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
         evictCache(app.getAppKey());
         log.info("[开放API] 应用换钥 appKey={} 旧密钥过渡期{}小时", app.getAppKey(), properties.getOldSecretGraceHours());
         // 换的只是接口签名密钥，回调密钥不动，也不再明文返回
-        return new CreatedSecret(app.getAppKey(), newSecret, null);
+        return new CreatedSecret(app.getAppKey(), newSecret, null, id);
     }
 
     @Override
@@ -101,21 +97,28 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
     }
 
     @Override
-    public void updateApp(OpenApp app) {
-        if (app.getId() == null) {
+    public void updateApp(OpenAppSaveRequest req) {
+        if (req.getId() == null) {
             throw new ServiceException("应用ID不能为空");
         }
-        OpenApp exists = getById(app.getId());
+        OpenApp exists = getById(req.getId());
         if (exists == null) {
             throw new ServiceException("应用不存在");
         }
         // 密钥不通过此接口修改，避免被覆盖
-        app.setAppKey(null);
-        app.setSecretCipher(null);
-        app.setOldSecretCipher(null);
-        app.setOldSecretExpireTime(null);
-        app.setCallbackSecretCipher(null);
-        updateById(app);
+        OpenApp update = new OpenApp();
+        update.setId(req.getId());
+        update.setAppName(req.getAppName());
+        update.setScopes(req.getScopes());
+        update.setIpWhitelist(req.getIpWhitelist());
+        update.setCallbackUrl(req.getCallbackUrl());
+        update.setEventSubscriptions(req.getEventSubscriptions());
+        update.setQpsLimit(req.getQpsLimit());
+        update.setDailyLimit(req.getDailyLimit());
+        update.setStatus(req.getStatus());
+        update.setExpireTime(req.getExpireTime());
+        update.setRemark(req.getRemark());
+        updateById(update);
         evictCache(exists.getAppKey());
     }
 
@@ -142,18 +145,16 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
     }
 
     @Override
-    public Page<OpenApp> pageQuery(long page, long pageSize, String keyword, Integer status) {
+    public Page<OpenApp> pageQuery(OpenAppPageRequest req) {
         LambdaQueryWrapper<OpenApp> wrapper = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(keyword)) {
-            wrapper.and(w -> w.like(OpenApp::getAppName, keyword)
-                    .or().like(OpenApp::getAppKey, keyword)
-                    .or().like(OpenApp::getContact, keyword));
+        if (StringUtils.hasText(req.getAppName())) {
+            wrapper.like(OpenApp::getAppName, req.getAppName());
         }
-        if (status != null) {
-            wrapper.eq(OpenApp::getStatus, status);
+        if (req.getStatus() != null) {
+            wrapper.eq(OpenApp::getStatus, req.getStatus());
         }
         wrapper.orderByDesc(OpenApp::getCreateTime);
-        return page(new Page<>(page, pageSize), wrapper);
+        return page(new Page<>(req.getPage(), req.getPageSize()), wrapper);
     }
 
     @Override
