@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/openapi/app")
 @RequiredArgsConstructor
-public class OpenAppAdminController {
+public class OpenAppController {
 
     private final OpenApiAppService appService;
 
