@@ -7,6 +7,7 @@ import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
 import tools.jackson.databind.ser.std.ToStringSerializer;
 
+import java.io.Serial;
 import java.io.Serializable;
 import java.time.LocalDateTime;
 
@@ -15,6 +16,7 @@ import java.time.LocalDateTime;
 @TableName("open_app")
 public class OpenApp implements Serializable {
 
+    @Serial
     private static final long serialVersionUID = 1L;
 
     @Schema(description = "主键 ID")
@@ -27,12 +29,6 @@ public class OpenApp implements Serializable {
 
     @Schema(description = "应用名称")
     private String appName;
-
-    @Schema(description = "联系人")
-    private String contact;
-
-    @Schema(description = "联系电话")
-    private String contactPhone;
 
     @Schema(description = "当前密钥密文")
     @TableField(select = false)

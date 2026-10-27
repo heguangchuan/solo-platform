@@ -26,10 +26,10 @@
       <div class="flex h-12 shrink-0 items-center gap-2 px-3">
         <IconSearch class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         <input
-          ref="keywordRef"
-          v-model="keyword"
+          ref="appNameRef"
+          v-model="appName"
           class="h-7 w-56 rounded-md bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground focus:bg-muted/70"
-          placeholder="搜索应用名称 / appKey / 联系人"
+          placeholder="搜索应用名称"
         />
 
         <span v-if="hasCondition" class="text-xs text-muted-foreground">
@@ -57,7 +57,6 @@
             <tr class="bg-card text-xs text-muted-foreground">
               <th class="w-48 px-3 py-2 font-normal">appKey</th>
               <th class="w-40 px-3 py-2 font-normal">应用名称</th>
-              <th class="w-28 px-3 py-2 font-normal">联系人</th>
               <th class="w-44 px-3 py-2 font-normal">授权范围</th>
               <th class="group w-20 px-3 py-2 font-normal">
                 <Select v-model="statusFilter">
@@ -109,9 +108,6 @@
                 <span class="truncate font-mono text-xs" :title="a.appKey">{{ a.appKey }}</span>
               </td>
               <td class="truncate px-3 py-2" :title="a.appName">{{ a.appName }}</td>
-              <td class="truncate px-3 py-2 text-muted-foreground" :title="a.contact || ''">
-                {{ a.contact || '—' }}
-              </td>
               <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="a.scopes || ''">
                 {{ a.scopes || '—' }}
               </td>
@@ -208,18 +204,18 @@ import { Select, SelectContent, SelectItem } from '@/components/ui/select'
 import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import type { OpenApp, OpenAppPageRequest } from '@/types/api'
 
-const keyword = ref('')
+const appName = ref('')
 const statusFilter = ref<'__all__' | '1' | '0'>('__all__')
 
 const hasCondition = computed(
-  () => !!keyword.value.trim() || statusFilter.value !== '__all__',
+  () => !!appName.value.trim() || statusFilter.value !== '__all__',
 )
 
 const resource = useResource<OpenAppPageRequest, OpenApp>({
   fetcher: (q) =>
     getOpenAppPageApi({
       ...q,
-      keyword: keyword.value.trim() || undefined,
+      appName: appName.value.trim() || undefined,
       status: statusFilter.value === '__all__' ? undefined : Number(statusFilter.value),
     }),
   initial: { page: 1, pageSize: 50 },
@@ -228,7 +224,7 @@ const resource = useResource<OpenAppPageRequest, OpenApp>({
 const onRefresh = () => resource.load(true)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
-watch(keyword, () => {
+watch(appName, () => {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(() => {
     cursor.value = 0
@@ -241,7 +237,7 @@ watch(statusFilter, () => {
 })
 
 const onClear = () => {
-  keyword.value = ''
+  appName.value = ''
   statusFilter.value = '__all__'
   cursor.value = 0
   resource.search()
@@ -253,7 +249,7 @@ const creating = ref(false)
 
 const scrollerRef = ref<HTMLElement>()
 const sentinelRef = ref<HTMLElement>()
-const keywordRef = ref<HTMLInputElement>()
+const appNameRef = ref<HTMLInputElement>()
 
 const firstLoading = computed(
   () => resource.loading.value && resource.items.value.length === 0,
@@ -295,7 +291,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
   switch (e.key) {
     case '/':
       e.preventDefault()
-      keywordRef.value?.focus()
+      appNameRef.value?.focus()
       break
     case 'j':
     case 'J':
