@@ -2,6 +2,7 @@ package com.solo.openapi.web;
 
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
+import com.solo.common.Result;
 import com.solo.openapi.constant.OpenApiConstants;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,10 @@ public class OpenApiResponseAdvice implements ResponseBodyAdvice<Object> {
 
         if (body instanceof OpenApiResult<?> openApiResult) {
             return openApiResult;
+        }
+        // 管理端 Controller 已返回统一 Result，直接透传，不再二次包装
+        if (body instanceof Result<?>) {
+            return body;
         }
         // String 返回值走 StringHttpMessageConverter，不能直接塞对象，手动序列化
         if (body instanceof String) {
