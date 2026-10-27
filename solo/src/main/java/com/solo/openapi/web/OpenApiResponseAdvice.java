@@ -37,14 +37,12 @@ public class OpenApiResponseAdvice implements ResponseBodyAdvice<Object> {
         Object requestId = servletRequest.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
         String rid = requestId != null ? requestId.toString() : null;
 
-        if (body instanceof OpenApiResult<?> openApiResult) {
-            return openApiResult;
+        if (body instanceof OpenApiResult<?>) {
+            return body;
         }
-        // 管理端 Controller 已返回统一 Result，直接透传，不再二次包装
         if (body instanceof Result<?>) {
             return body;
         }
-        // String 返回值走 StringHttpMessageConverter，不能直接塞对象，手动序列化
         if (body instanceof String) {
             try {
                 response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
