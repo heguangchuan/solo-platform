@@ -245,16 +245,18 @@ public class SipCommander {
      *
      * @param device    目标设备
      * @param channelId 放音通道国标 ID
+     * @param talk      true=双向对讲（日志标题[语音对讲]），false=单向播报（[语音播报]）
      * @param onOk      2xx 回调（设备愿意接收广播）
      * @param onError   非 2xx 回调
      * @param onTimeout 事务超时回调
      * @param timeoutMs 订阅超时（毫秒）
      */
-    public void sendBroadcastNotify(GbDevice device, String channelId,
+    public void sendBroadcastNotify(GbDevice device, String channelId, boolean talk,
                                     Consumer<ResponseEvent> onOk,
                                     Consumer<ResponseEvent> onError,
                                     Runnable onTimeout,
                                     long timeoutMs) {
+        String logTag = talk ? "语音对讲" : "语音播报";
         int sn = nextSn();
         String xml = DeviceCommandXml.buildBroadcastNotify(sn, channelId, charsetOf(device));
         try {
@@ -262,10 +264,10 @@ public class SipCommander {
             // MESSAGE 的 Request-URI 是设备本身，放音通道码写在 XML DeviceID 节点里
             Request request = headerProvider.buildMessageRequest(device, xml, callId);
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), request, onOk, onError, onTimeout, timeoutMs);
-            log.info("[语音广播] Broadcast 通知 → 设备:{} 通道:{} SN:{}", device.getDeviceId(), channelId, sn);
+            log.info("[{}] Broadcast 通知 → 设备:{} 通道:{} SN:{}", logTag, device.getDeviceId(), channelId, sn);
         } catch (Exception e) {
-            log.error("[语音广播] Broadcast 通知发送失败 设备:{} 通道:{} 错误:{}",
-                    device.getDeviceId(), channelId, e.getMessage(), e);
+            log.error("[{}] Broadcast 通知发送失败 设备:{} 通道:{} 错误:{}",
+                    logTag, device.getDeviceId(), channelId, e.getMessage(), e);
             if (onError != null) {
                 try { onError.accept(null); } catch (Exception ignore) {}
             }

@@ -183,6 +183,10 @@ export const stopBroadcastApi = (data: GbBroadcastStopRequest) =>
 export const exchangeBroadcastSdpApi = (data: GbBroadcastWebRtcRequest) =>
   post<string>('/api/gb28181/broadcast/webrtc', data)
 
+/** 对讲收听 SDP 交换：浏览器以 play 方式拉设备回传音频 */
+export const exchangeTalkPlaySdpApi = (data: GbBroadcastWebRtcRequest) =>
+  post<string>('/api/gb28181/broadcast/talk-play', data)
+
 /* ===== 报警中心 ===== */
 
 /** 报警分页查询 */

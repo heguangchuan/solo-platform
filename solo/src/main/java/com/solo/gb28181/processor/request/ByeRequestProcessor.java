@@ -107,7 +107,8 @@ public class ByeRequestProcessor extends SipRequestProcessorBase implements SipR
                             broadcastSession.getBroadcastStreamId(), callId);
                     platformBroadcastService.onUpstreamBye(broadcastSession);
                 } else {
-                    log.info("[语音广播] 设备停播 BYE 设备={} 通道={} callId={}",
+                    log.info("[{}] 设备停播 BYE 设备={} 通道={} callId={}",
+                            broadcastSession.isTalk() ? "语音对讲" : "语音播报",
                             broadcastSession.getDeviceId(), broadcastSession.getChannelId(), callId);
                     gbBroadcastService.onDeviceBye(broadcastSession);
                 }

@@ -366,6 +366,8 @@ export interface GbPlayResult {
 export interface GbBroadcastStartRequest {
   deviceId: string
   channelId: string
+  /** broadcast=单向喊话（默认），talk=双向对讲 */
+  mode?: 'broadcast' | 'talk'
 }
 
 /** 停止语音广播请求 */

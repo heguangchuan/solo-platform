@@ -238,8 +238,9 @@ public class ZlmHookService {
             String sessionType = sessionTypeOf(stream);
             if (Boolean.TRUE.equals(regist)) {
                 if (sessionType == null) {
-                    // 级联喊话的源流是 rtp/recv_*（不在点播会话里），归广播 service 管；其余外部推流按实时点播兜底
-                    if (gbBroadcastService.ownsStream(app, stream)) {
+                    // 级联喊话源流 / 对讲设备回传流都是 rtp/recv_*（不在点播会话里），归广播 service 管；其余外部推流按实时点播兜底
+                    if (gbBroadcastService.ownsStream(app, stream)
+                            || gbBroadcastService.ownsRecvStream(app, stream)) {
                         gbBroadcastService.onStreamReady(app, stream, mediaServerId);
                     } else {
                         playService.onStreamReady(app, stream, mediaServerId);
@@ -282,6 +283,10 @@ public class ZlmHookService {
         // 语音广播：浏览器 WebRTC 推上来的音频流本来就没有播放者（平台只做 startSendRtp 转出），
         // 绝不能被无人观看回收，否则喊话中途就断了。对讲同理。
         if ("broadcast".equals(app) || "talk".equals(app)) {
+            return HookResult.ok().put("close", false);
+        }
+        // 对讲设备回传流 rtp/recv_*：浏览器播放腿建立前没有读者，也不能被提前回收
+        if (gbBroadcastService.ownsRecvStream(app, stream)) {
             return HookResult.ok().put("close", false);
         }
 

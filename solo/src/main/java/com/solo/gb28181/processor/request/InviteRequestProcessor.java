@@ -132,7 +132,7 @@ public class InviteRequestProcessor extends SipRequestProcessorBase implements S
                 || gbBroadcastService.findWaitingSession(device.getDeviceId(), channelId) == null) {
             GbBroadcastSession waiting = gbBroadcastService.findSingleWaitingSession(device.getDeviceId());
             if (waiting == null) {
-                log.warn("[语音广播] 设备 {} INVITE 通道码无法匹配等待会话，回 400", device.getDeviceId());
+                log.warn("[语音播报] 设备 {} INVITE 通道码无法匹配等待会话，回 400", device.getDeviceId());
                 responseAck(request, Response.BAD_REQUEST, "no pending broadcast");
                 return;
             }
@@ -142,12 +142,15 @@ public class InviteRequestProcessor extends SipRequestProcessorBase implements S
         responseAck(request, Response.TRYING);
 
         String finalChannelId = channelId;
+        // 兜底会话在上面的分支里，正常解析通道码时再按通道查一次拿模式，用于日志标题
+        GbBroadcastSession matched = gbBroadcastService.findWaitingSession(device.getDeviceId(), finalChannelId);
+        String logTag = matched != null && matched.isTalk() ? "语音对讲" : "语音播报";
         gb28181BizExecutor.execute(() -> {
             try {
                 gbBroadcastService.onDeviceInvite(request, device, finalChannelId, deviceSdp);
             } catch (Exception e) {
-                log.error("[语音广播] 处理设备反向 INVITE 异常 device={} channel={}",
-                        device.getDeviceId(), finalChannelId, e);
+                log.error("[{}] 处理设备反向 INVITE 异常 device={} channel={}",
+                        logTag, device.getDeviceId(), finalChannelId, e);
             }
         });
     }

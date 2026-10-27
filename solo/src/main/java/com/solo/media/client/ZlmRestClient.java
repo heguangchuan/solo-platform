@@ -262,6 +262,27 @@ public class ZlmRestClient {
      */
     public int startSendRtpPassive(MediaServer server, String app, String stream, String ssrc,
                                    int pt, boolean usePs, boolean onlyAudio) {
+        // 默认 TCP 被动（级联/TCP-active 设备场景）
+        return startSendRtpPassive(server, app, stream, ssrc, pt, usePs, onlyAudio,
+                false, null, null, 0);
+    }
+
+    /**
+     * 被动推流完整版。
+     * <p>UDP 对讲对称 RTP：传 {@code udp=true} + {@code srcPort} + {@code recvStreamId}，ZLM 只开
+     * <b>一个</b> UDP socket，在同一端口既接收设备上行（解码注册为 app=rtp/stream=recvStreamId 的流），
+     * 又把本端音频下发给设备；对端地址由设备首个上行 RTP 包学到，无需 dst_url/dst_port。
+     * 切勿再用 openRtpServer 占同一端口，否则两个 socket 抢端口报 address already in use。</p>
+     *
+     * @param udp          true=UDP 被动（单口收发，对讲用），false=TCP 被动监听
+     * @param srcPort      本地端口（UDP 对讲从级联端口段取；null=ZLM 随机）
+     * @param recvStreamId 同 socket 收到的上行流注册名；非空时启用同口收流
+     * @param closeDelayMs 无对端连接时端口保留毫秒；0 用 ZLM 默认
+     * @return ZLM 实际监听/绑定的本地端口（写进应答 SDP 的 m= 行）
+     */
+    public int startSendRtpPassive(MediaServer server, String app, String stream, String ssrc,
+                                   int pt, boolean usePs, boolean onlyAudio,
+                                   boolean udp, Integer srcPort, String recvStreamId, long closeDelayMs) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("vhost", "__defaultVhost__");
         params.put("app", app);
@@ -269,16 +290,27 @@ public class ZlmRestClient {
         params.put("ssrc", ssrc);
         params.put("pt", String.valueOf(pt));
         params.put("use_ps", usePs ? "1" : "0");
+        // is_udp=1 走 UDP passive（kUdpPassive 单口收发）；缺省 0 为 TCP passive
+        params.put("is_udp", udp ? "1" : "0");
         if (onlyAudio) {
             params.put("only_audio", "1");
+        }
+        if (srcPort != null && srcPort > 0) {
+            params.put("src_port", String.valueOf(srcPort));
+        }
+        if (recvStreamId != null && !recvStreamId.isBlank()) {
+            params.put("recv_stream_id", recvStreamId);
+        }
+        if (closeDelayMs > 0) {
+            params.put("close_delay_ms", String.valueOf(closeDelayMs));
         }
         JsonNode resp = post(server, "startSendRtpPassive", params);
         int localPort = resp.path("local_port").asInt(0);
         if (localPort <= 0) {
             throw new ServiceException("ZLM startSendRtpPassive 未返回有效端口: " + resp);
         }
-        log.info("[流媒体级联推流] 被动开始成功 节点:{} 应用:{} 流:{} SSRC:{} PT:{} PS:{} 本地端口:{}",
-                server.getServerId(), app, stream, ssrc, pt, usePs, localPort);
+        log.info("[流媒体级联推流] 被动开始成功 节点:{} 应用:{} 流:{} SSRC:{} PT:{} PS:{} UDP:{} 本地端口:{} 收流:{}",
+                server.getServerId(), app, stream, ssrc, pt, usePs, udp, localPort, recvStreamId);
         return localPort;
     }
 

@@ -269,19 +269,44 @@ public final class SdpBuilder {
      */
     public static String buildBroadcastAnswer(String platformId, String sdpIp, int sendPort,
                                               String ssrc, String upstreamTransport, int pt) {
-        return buildAudioAnswer(platformId, sdpIp, sendPort, ssrc, upstreamTransport, pt, false);
+        return buildAudioAnswer(platformId, sdpIp, sendPort, ssrc, upstreamTransport, pt, "sendonly");
     }
 
     /**
-     * 对讲回给设备的 200 OK SDP（m=audio，a=sendrecv），端口填平台收流端口。
+     * 对讲回给设备的 200 OK SDP（m=audio），端口填平台收流端口。
+     *
+     * @param answerDirection 应答方向，取值 sendrecv / sendonly / recvonly / inactive（由调用方按设备类型决定）
      */
     public static String buildTalkAnswer(String platformId, String sdpIp, int recvPort,
-                                         String ssrc, String upstreamTransport, int pt) {
-        return buildAudioAnswer(platformId, sdpIp, recvPort, ssrc, upstreamTransport, pt, true);
+                                         String ssrc, String upstreamTransport, int pt,
+                                         String answerDirection) {
+        return buildAudioAnswer(platformId, sdpIp, recvPort, ssrc, upstreamTransport, pt, answerDirection);
+    }
+
+    /**
+     * 按 RFC 3264 取 m=audio 下的方向属性；无方向行时默认 sendrecv。
+     * 用于判断设备反向 INVITE 到底是要双向对讲（sendrecv）还是只接收喊话（recvonly）。
+     */
+    public static String extractAudioDirection(String sdpBody) {
+        if (sdpBody == null) {
+            return "sendrecv";
+        }
+        boolean inAudio = false;
+        for (String line : sdpBody.split("\\r?\\n")) {
+            String l = line.trim();
+            if (l.startsWith("m=")) {
+                inAudio = l.startsWith("m=audio");
+            } else if (inAudio && (l.equals("a=sendrecv") || l.equals("a=sendonly")
+                    || l.equals("a=recvonly") || l.equals("a=inactive"))) {
+                return l.substring(2);
+            }
+        }
+        return "sendrecv";
     }
 
     private static String buildAudioAnswer(String platformId, String sdpIp, int port,
-                                           String ssrc, String upstreamTransport, int pt, boolean talk) {
+                                           String ssrc, String upstreamTransport, int pt,
+                                           String direction) {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(upstreamTransport)
                 || TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
         boolean upstreamActive = TRANSPORT_TCP_ACTIVE.equalsIgnoreCase(upstreamTransport);
@@ -294,7 +319,7 @@ public final class SdpBuilder {
         sb.append("m=audio ").append(port).append(' ')
                 .append(tcp ? "TCP/RTP/AVP" : "RTP/AVP")
                 .append(' ').append(pt).append("\r\n");
-        sb.append(talk ? "a=sendrecv\r\n" : "a=sendonly\r\n");
+        sb.append("a=").append(direction).append("\r\n");
         if (pt == PT_PS) {
             sb.append("a=rtpmap:96 PS/90000\r\n");
         } else {

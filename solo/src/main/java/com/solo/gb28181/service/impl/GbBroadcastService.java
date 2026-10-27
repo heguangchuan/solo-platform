@@ -43,7 +43,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * 语音广播/对讲：平台发 Broadcast 通知 → 设备反向 INVITE 收音频 → ACK 后 ZLM 推流。
+ * 语音播报/语音对讲：平台发 Broadcast 通知 → 设备反向 INVITE 收音频 → ACK 后 ZLM 推流。
  * 源流：本地喊话为浏览器 WebRTC 推流，级联喊话为上级平台推下来的音频。
  */
 @Slf4j
@@ -51,7 +51,10 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class GbBroadcastService {
 
-    private static final String LOG_TAG = "语音广播";
+    /** 单向播报日志标题 */
+    private static final String TAG_BROADCAST = "语音播报";
+    /** 双向对讲日志标题 */
+    private static final String TAG_TALK = "语音对讲";
     private static final String APP = "broadcast";
     // 对讲收设备音频的收流 app
     private static final String RECV_APP = "rtp";
@@ -60,6 +63,8 @@ public class GbBroadcastService {
     private static final long NOTIFY_TIMEOUT_MS = 12_000L;
     /** 等源流在 ZLM 上线的超时 */
     private static final long WAIT_STREAM_MS = 10_000L;
+    /** 等待设备反向 INVITE 回填对讲收流信息的最长时间 */
+    private static final long WAIT_RECV_MS = 5_000L;
 
     /** 源流上线信号，key=srcStream，由 onStreamReady 唤醒 */
     private final Map<String, CompletableFuture<Void>> readySignals = new ConcurrentHashMap<>();
@@ -107,16 +112,17 @@ public class GbBroadcastService {
         }
         if (!GbBroadcastSession.STATUS_WAIT_INVITE.equals(session.getStatus())) {
             log.info("[{}] 设备腿已在进行，跳过重复通知 流ID:{} 状态:{}",
-                    LOG_TAG, session.getBroadcastStreamId(), session.getStatus());
+                    tag(session), session.getBroadcastStreamId(), session.getStatus());
             return;
         }
+        String action = session.isTalk() ? "对讲" : "播报";
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device == null) {
             throw new ServiceException("设备不存在: " + session.getDeviceId());
         }
         if (device.getStatus() == null || device.getStatus() != 1) {
-            throw new ServiceException("设备离线，无法广播");
+            throw new ServiceException("设备离线，无法" + action);
         }
         GbDeviceChannel channel = channelMapper.selectOne(
                 new LambdaQueryWrapper<GbDeviceChannel>()
@@ -126,27 +132,28 @@ public class GbBroadcastService {
             throw new ServiceException("通道不存在: " + session.getChannelId());
         }
         if (!"ON".equalsIgnoreCase(channel.getStatus())) {
-            throw new ServiceException("通道离线，无法广播");
+            throw new ServiceException("通道离线，无法" + action);
         }
 
-        notifyDeviceAndWait(device, session.getChannelId());
+        notifyDeviceAndWait(device, session);
         log.info("[{}] 设备已接受级联喊话 设备:{} 通道:{} 流ID:{} 等待设备反向 INVITE",
-                LOG_TAG, session.getDeviceId(), session.getChannelId(), session.getBroadcastStreamId());
+                tag(session), session.getDeviceId(), session.getChannelId(), session.getBroadcastStreamId());
     }
 
     /**
-     * 广播/对讲/级联共用的发起逻辑。srcApp/srcStream 决定音频源；requireBrowser=false 时不返回 WebRTC 推流地址。
+     * 播报/对讲/级联共用的发起逻辑。srcApp/srcStream 决定音频源；requireBrowser=false 时不返回 WebRTC 推流地址。
      */
     private BroadcastResultResponse doStart(String deviceId, String channelId, String mode,
                                            String broadcastStreamId, String srcApp, String srcStream,
                                            MediaServer server, boolean requireBrowser) {
+        String action = GbBroadcastSession.MODE_TALK.equalsIgnoreCase(mode) ? "对讲" : "播报";
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
         if (device == null) {
             throw new ServiceException("设备不存在: " + deviceId);
         }
         if (device.getStatus() == null || device.getStatus() != 1) {
-            throw new ServiceException("设备离线，无法广播");
+            throw new ServiceException("设备离线，无法" + action);
         }
         GbDeviceChannel channel = channelMapper.selectOne(
                 new LambdaQueryWrapper<GbDeviceChannel>()
@@ -156,14 +163,14 @@ public class GbBroadcastService {
             throw new ServiceException("通道不存在: " + channelId);
         }
         if (!"ON".equalsIgnoreCase(channel.getStatus())) {
-            throw new ServiceException("通道离线，无法广播");
+            throw new ServiceException("通道离线，无法" + action);
         }
 
-        // 同一路广播只允许一个活动会话
+        // 同一路播报/对讲只允许一个活动会话
         GbBroadcastSession existing = sessionService.get(broadcastStreamId);
         if (existing != null && !GbBroadcastSession.STATUS_STOPPED.equals(existing.getStatus())) {
-            log.info("[{}] 复用已有广播会话 设备:{} 通道:{} 状态:{}",
-                    LOG_TAG, deviceId, channelId, existing.getStatus());
+            log.info("[{}] 复用已有会话 设备:{} 通道:{} 状态:{}",
+                    tag(existing), deviceId, channelId, existing.getStatus());
             return requireBrowser ? toResult(existing, server) : minimalResult(existing);
         }
 
@@ -188,40 +195,41 @@ public class GbBroadcastService {
         sessionService.save(session);
 
         try {
-            notifyDeviceAndWait(device, channelId);
+            notifyDeviceAndWait(device, session);
         } catch (ServiceException e) {
             abortSession(session, e.getMessage());
             throw e;
         }
 
-        log.info("[{}] 设备已接受广播 设备:{} 通道:{} 流ID:{} 等待设备反向 INVITE",
-                LOG_TAG, deviceId, channelId, broadcastStreamId);
+        log.info("[{}] 设备已接受{}通知 设备:{} 通道:{} 流ID:{} 等待设备反向 INVITE",
+                tag(session), action, deviceId, channelId, broadcastStreamId);
         return requireBrowser ? toResult(session, server) : minimalResult(session);
     }
 
     /**
      * 发 Broadcast 通知并同步等 200。失败抛 ServiceException，会话清理由调用方负责。
      */
-    private void notifyDeviceAndWait(GbDevice device, String channelId) {
+    private void notifyDeviceAndWait(GbDevice device, GbBroadcastSession session) {
+        String action = session.isTalk() ? "对讲" : "播报";
         CompletableFuture<Void> notified = new CompletableFuture<>();
         try {
-            sipCommander.sendBroadcastNotify(device, channelId,
+            sipCommander.sendBroadcastNotify(device, session.getChannelId(), session.isTalk(),
                     okEv -> notified.complete(null),
                     errEv -> {
                         int code = errEv == null || errEv.getResponse() == null
                                 ? -1 : errEv.getResponse().getStatusCode();
-                        notified.completeExceptionally(new ServiceException("设备拒绝广播 status=" + code));
+                        notified.completeExceptionally(new ServiceException("设备拒绝" + action + " status=" + code));
                     },
-                    () -> notified.completeExceptionally(new ServiceException("广播通知超时，设备无响应")),
+                    () -> notified.completeExceptionally(new ServiceException(action + "通知超时，设备无响应")),
                     NOTIFY_TIMEOUT_MS);
         } catch (Exception e) {
-            throw new ServiceException("广播通知发送异常: " + e.getMessage());
+            throw new ServiceException(action + "通知发送异常: " + e.getMessage());
         }
 
         try {
             notified.get(NOTIFY_TIMEOUT_MS + 2_000L, TimeUnit.MILLISECONDS);
         } catch (TimeoutException e) {
-            throw new ServiceException("广播超时：设备无响应");
+            throw new ServiceException(action + "超时：设备无响应");
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new ServiceException("等待设备响应被中断");
@@ -230,7 +238,7 @@ public class GbBroadcastService {
             if (cause instanceof ServiceException se) {
                 throw se;
             }
-            throw new ServiceException(cause == null ? "广播失败" : cause.getMessage());
+            throw new ServiceException(cause == null ? action + "失败" : cause.getMessage());
         }
     }
 
@@ -243,7 +251,7 @@ public class GbBroadcastService {
     }
 
     /**
-     * 停止广播：Dialog 已建立则 BYE 设备，再停推流、关流、释放资源。
+     * 停止播报/对讲：Dialog 已建立则 BYE 设备，再停推流、关流、释放资源。
      */
     public void stop(BroadcastStopRequest req) {
         if (req == null || req.getStreamId() == null) {
@@ -251,14 +259,14 @@ public class GbBroadcastService {
         }
         GbBroadcastSession session = sessionService.get(req.getStreamId());
         if (session == null) {
-            log.info("[{}] stop 流ID:{} 无对应会话 原因:已清扫", LOG_TAG, req.getStreamId());
+            log.info("[{}] stop 流ID:{} 无对应会话 原因:已清扫", TAG_BROADCAST, req.getStreamId());
             return;
         }
         // tag 未回填说明 INVITE 200 未完成，Dialog 不存在
         boolean dialogReady = session.getCallId() != null && session.getFromTag() != null && session.getToTag() != null;
         cleanup(session, dialogReady, dialogReady);
-        log.info("[{}] 广播已停止 设备:{} 通道:{} 流ID:{}",
-                LOG_TAG, session.getDeviceId(), session.getChannelId(), session.getBroadcastStreamId());
+        log.info("[{}] 已停止 设备:{} 通道:{} 流ID:{}",
+                tag(session), session.getDeviceId(), session.getChannelId(), session.getBroadcastStreamId());
     }
 
     /**
@@ -270,7 +278,7 @@ public class GbBroadcastService {
         }
         GbBroadcastSession session = sessionService.get(req.getStreamId());
         if (session == null || GbBroadcastSession.STATUS_STOPPED.equals(session.getStatus())) {
-            throw new ServiceException("广播会话不存在或已结束: " + req.getStreamId());
+            throw new ServiceException("会话不存在或已结束: " + req.getStreamId());
         }
         MediaServer server = mediaServer(session.getServerId());
         if (server == null) {
@@ -288,19 +296,61 @@ public class GbBroadcastService {
         }
         GbBroadcastSession session = sessionService.get(req.getStreamId());
         if (session == null || GbBroadcastSession.STATUS_STOPPED.equals(session.getStatus())) {
-            throw new ServiceException("广播会话不存在或已结束: " + req.getStreamId());
+            throw new ServiceException("会话不存在或已结束: " + req.getStreamId());
         }
         if (!session.isTalk()) {
             throw new ServiceException("仅对讲模式支持拉取设备端音频: " + req.getStreamId());
         }
-        if (session.getRecvStreamId() == null) {
+        // 设备反向 INVITE 是异步处理的，recvServerId/recvStreamId 在回 200 OK 前才回填；
+        // 浏览器播放腿可能先于该回填到达，这里轮询等待，避免误报“流媒体节点已丢失: null”
+        long deadline = System.currentTimeMillis() + WAIT_RECV_MS;
+        while (session.getRecvServerId() == null && System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(100L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new ServiceException("等待对讲收流就绪被中断: " + req.getStreamId());
+            }
+            session = sessionService.get(req.getStreamId());
+            if (session == null || GbBroadcastSession.STATUS_STOPPED.equals(session.getStatus())) {
+                throw new ServiceException("会话不存在或已结束: " + req.getStreamId());
+            }
+            // 设备 INVITE 已处理为发送态但不会有收流端口（recvonly 设备，对讲退化为喊话），
+            // 不必等满 5s，立即由下方判断返回明确提示
+            if (GbBroadcastSession.STATUS_SENDING.equals(session.getStatus())) {
+                break;
+            }
+        }
+        if (session.getRecvStreamId() == null || session.getRecvServerId() == null) {
+            // 设备 INVITE 已处理完（发送腿已建立）却没有收流端口：设备 offer 为 recvonly 且不上行，
+            // 对讲已退化为单向喊话，给前端明确提示而不是笼统的“尚未就绪”
+            if (GbBroadcastSession.STATUS_SENDING.equals(session.getStatus())) {
+                throw new ServiceException("该设备不支持上行音频（无麦克风/未开启语音对讲），已按语音播报工作");
+            }
             throw new ServiceException("对讲反向收流尚未就绪: " + req.getStreamId());
         }
         MediaServer server = mediaServer(session.getRecvServerId());
         if (server == null) {
             throw new ServiceException("流媒体节点已丢失: " + session.getRecvServerId());
         }
+        // 播放腿可能早于设备音频到达，等回传流上线再交换，否则 ZLM play 找不到流
+        if (!waitStreamReady(server, RECV_APP, session.getRecvStreamId())) {
+            throw new ServiceException("设备端音频尚未到达，无法建立对讲收听: " + req.getStreamId());
+        }
         return zlmRestClient.exchangeWebRtcSdp(server, RECV_APP, session.getRecvStreamId(), "play", req.getSdp());
+    }
+
+    /** 该流是否为某对讲会话的设备回传流（rtp/recv_*，ZLM hook 路由用） */
+    public boolean ownsRecvStream(String app, String stream) {
+        if (!RECV_APP.equals(app) || stream == null) {
+            return false;
+        }
+        for (GbBroadcastSession s : sessionService.listAllActive()) {
+            if (stream.equals(s.getRecvStreamId())) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
@@ -317,28 +367,38 @@ public class GbBroadcastService {
         String dstIp = SdpBuilder.extractConnectionIp(deviceSdp);
         int dstPort = SdpBuilder.extractAudioPort(deviceSdp);
         String transport = SdpBuilder.extractAudioTransport(deviceSdp);
+        // Call-ID 由设备生成，只能按 设备+通道 找等待中的会话；先找会话以便日志按模式打标题
+        GbBroadcastSession session = findWaitingSession(device.getDeviceId(), channelId);
+        String logTag = session != null ? tag(session) : TAG_BROADCAST;
         log.info("[{}] 收到设备反向 INVITE 设备:{} 传输:{} 收流地址:{}:{}",
-                LOG_TAG, device.getDeviceId(), transport, dstIp, dstPort);
+                logTag, device.getDeviceId(), transport, dstIp, dstPort);
+        // 排查对讲无回传音频：打出设备 SDP 的 m=audio / a= 行，确认载荷与方向语义
+        if (deviceSdp != null) {
+            for (String line : deviceSdp.split("\\r?\\n")) {
+                String l = line.trim();
+                if (l.startsWith("m=audio") || l.startsWith("a=") || l.startsWith("y=") || l.startsWith("c=")) {
+                    log.info("[{}] 设备 INVITE SDP > {}", logTag, l);
+                }
+            }
+        }
         if (dstIp == null || dstPort <= 0) {
             log.warn("[{}] 设备 INVITE SDP 缺 c=/m=audio 关键字段 设备:{} 目的IP:{} 目的端口:{} 原因:回 400",
-                    LOG_TAG, device.getDeviceId(), dstIp, dstPort);
-            sendError(request, Response.BAD_REQUEST);
+                    logTag, device.getDeviceId(), dstIp, dstPort);
+            sendError(request, Response.BAD_REQUEST, logTag);
             return;
         }
 
-        // Call-ID 由设备生成，只能按 设备+通道 找等待中的会话
-        GbBroadcastSession session = findWaitingSession(device.getDeviceId(), channelId);
         if (session == null) {
-            log.warn("[{}] 收到无对应广播的设备 INVITE 设备:{} 通道:{} Call-ID:{} 原因:回 481",
-                    LOG_TAG, device.getDeviceId(), channelId, callId);
-            sendError(request, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
+            log.warn("[{}] 收到无对应会话的设备 INVITE 设备:{} 通道:{} Call-ID:{} 原因:回 481",
+                    logTag, device.getDeviceId(), channelId, callId);
+            sendError(request, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, logTag);
             return;
         }
 
         MediaServer server = mediaServer(session.getServerId());
         if (server == null) {
-            log.error("[{}] 设备 INVITE 时节点丢失 节点ID:{}", LOG_TAG, session.getServerId());
-            sendError(request, Response.SERVER_INTERNAL_ERROR);
+            log.error("[{}] 设备 INVITE 时节点丢失 节点ID:{}", logTag, session.getServerId());
+            sendError(request, Response.SERVER_INTERNAL_ERROR, logTag);
             cleanup(session, false, true);
             return;
         }
@@ -362,8 +422,24 @@ public class GbBroadcastService {
             session.setSsrc(deviceSsrc);
             ssrcFactory.release(session.getServerId(), allocated);
             log.info("[{}] 采用设备 SDP 的 y={} 作为转推 SSRC，已释放本平台分配的 {}",
-                    LOG_TAG, deviceSsrc, allocated);
+                    logTag, deviceSsrc, allocated);
         }
+
+        // 对讲应答方向：海康/大华 IPC 的广播 INVITE 习惯写 a=recvonly，但期望平台回 a=sendrecv，
+        // 随后设备会向应答 m= 端口推上行音频（业界平台通行的非标准约定）。因此对讲模式下
+        // recvonly / sendrecv offer 一律应答 sendrecv；仅 sendonly/inactive 按 RFC 协商。
+        String offeredDir = SdpBuilder.extractAudioDirection(deviceSdp);
+        String answerDir;
+        if (session.isTalk()) {
+            answerDir = switch (offeredDir) {
+                case "sendonly" -> "recvonly";
+                case "inactive" -> "inactive";
+                default -> "sendrecv";
+            };
+        } else {
+            answerDir = "sendonly";
+        }
+        boolean uplink = "sendrecv".equals(answerDir) || "recvonly".equals(answerDir);
 
         // 回 200 前必须先拿到本平台发流端口写进 m=audio。踩过的坑：UDP 腿原先等 ACK 后才 startSendRtp，
         // 200 OK 里 m=audio 端口只能填 0，而端口 0 在 SDP 里表示媒体被禁用，海康直接不播放，
@@ -375,7 +451,7 @@ public class GbBroadcastService {
             try {
                 if (!waitStreamReady(server, session.getSrcApp(), session.getSrcStream())) {
                     log.warn("[{}] 浏览器音频流未就绪，被动监听可能无流可推 流ID:{}",
-                            LOG_TAG, session.getSrcStream());
+                            logTag, session.getSrcStream());
                 }
                 sendPort = zlmRestClient.startSendRtpPassive(server, session.getSrcApp(),
                         session.getSrcStream(), session.getSsrc(),
@@ -385,30 +461,32 @@ public class GbBroadcastService {
                 session.setSendTime(LocalDateTime.now());
             } catch (Exception e) {
                 log.error("[{}] startSendRtpPassive 失败 流ID:{} 错误:{}",
-                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
-                sendError(request, Response.SERVER_INTERNAL_ERROR);
+                        logTag, session.getSrcStream(), e.getMessage(), e);
+                sendError(request, Response.SERVER_INTERNAL_ERROR, logTag);
                 cleanup(session, false, true);
                 return;
             }
         } else if (!session.isTcp()) {
-            // UDP：先等浏览器音频流上线再建发送器，拿到 ZLM 实际本地端口写进 SDP
+            // UDP：下行用 startSendRtp 主动发到设备 c=/m= 地址，不依赖设备先推上行包，
+            // 避免“双方都在等对方第一个包”的死锁（设备 offer 为 recvonly 时必现）。
+            // 先等浏览器音频流上线再建发送器，拿到 ZLM 实际本地端口写进 SDP。
             try {
                 if (!waitStreamReady(server, session.getSrcApp(), session.getSrcStream())) {
                     log.warn("[{}] 浏览器音频流未就绪即建立 RTP 发送器，流上线后 ZLM 自动补发 流ID:{}",
-                            LOG_TAG, session.getSrcStream());
+                            logTag, session.getSrcStream());
                 }
-                Integer srcPort = sendPortInRange();
-                sendPort = zlmRestClient.startSendRtp(server, session.getSrcApp(), session.getSrcStream(),
+                int srcPort = sendPortInRange();
+                int localPort = zlmRestClient.startSendRtp(server, session.getSrcApp(), session.getSrcStream(),
                         session.getSsrc(), dstIp, dstPort, true, srcPort,
                         audioPt, usePs, !usePs);
-                sendPort = sendPort > 0 ? sendPort : (srcPort != null ? srcPort : 0);
+                sendPort = localPort > 0 ? localPort : srcPort;
                 session.setLocalSendPort(sendPort);
                 session.setStatus(GbBroadcastSession.STATUS_SENDING);
                 session.setSendTime(LocalDateTime.now());
             } catch (Exception e) {
                 log.error("[{}] UDP 提前建立 RTP 发送器失败 流ID:{} 错误:{}",
-                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
-                sendError(request, Response.SERVER_INTERNAL_ERROR);
+                        logTag, session.getSrcStream(), e.getMessage(), e);
+                sendError(request, Response.SERVER_INTERNAL_ERROR, logTag);
                 cleanup(session, false, true);
                 return;
             }
@@ -420,25 +498,43 @@ public class GbBroadcastService {
         String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                 ? server.getStreamIp() : server.getHostIp();
         String answer;
-        if (session.isTalk()) {
-            // 对讲：另开一个收流端口，200 OK 用 sendrecv
+        if (session.isTalk() && uplink) {
+            // 对讲双向：应答 m=audio 填平台“收设备上行”的端口（非对称 RTP，与下发源端口不同）。
+            // 独立 openRtpServer 收上行，下行 startSendRtp 主动发，收/发两个 UDP 端口互不依赖，
+            // 设备收到下行音频即可播，设备上行音频到收流口自然建立收听。
+            // 收流端口不过滤 SSRC，但部分海康/大华固件若看到应答 y= 填 0 可能直接拒收/不回传，
+            // 因此优先回填设备 offer 中自带的 y= SSRC，没有再用全 0（兼容 WVP 行为）。
+            String answerSsrc = "0000000000";
+            String deviceOfferedSsrc = SdpBuilder.extractSsrc(deviceSdp);
+            if (deviceOfferedSsrc != null && !deviceOfferedSsrc.isBlank()) {
+                answerSsrc = deviceOfferedSsrc;
+            }
             try {
-                String recvSsrc = ssrcFactory.acquire(server.getServerId(), false);
-                int recvPort = zlmRestClient.openRtpServer(server, session.getRecvStreamId(), 0, 0);
-                session.setRecvServerId(server.getServerId());
-                session.setRecvPort(recvPort);
-                session.setRecvSsrc(recvSsrc);
-                sessionService.update(session);
-                answer = SdpBuilder.buildTalkAnswer(properties.getId(), sdpIp, recvPort, recvSsrc, transport, audioPt);
-                log.info("[{}] 对讲反向收流端口已开 流ID:{} 收流端口:{}", LOG_TAG, session.getSrcStream(), recvPort);
+                int recvPort;
+                if (session.getRecvPort() != null && session.getRecvPort() > 0) {
+                    recvPort = session.getRecvPort();
+                } else {
+                    recvPort = zlmRestClient.openRtpServer(server, session.getRecvStreamId(), 0, 0);
+                    session.setRecvServerId(server.getServerId());
+                    session.setRecvPort(recvPort);
+                    sessionService.update(session);
+                }
+                answer = SdpBuilder.buildTalkAnswer(properties.getId(), sdpIp, recvPort, answerSsrc,
+                        transport, audioPt, answerDir);
+                log.info("[{}] 对讲协商完成 设备offer:{} 应答:{} 收流端口:{} 下行源端口:{} 流ID:{}",
+                        logTag, offeredDir, answerDir, recvPort, sendPort, session.getSrcStream());
             } catch (Exception e) {
                 log.error("[{}] 对讲开接收端口失败 流ID:{} 错误:{}",
-                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
-                sendError(request, Response.SERVER_INTERNAL_ERROR);
+                        logTag, session.getSrcStream(), e.getMessage(), e);
+                sendError(request, Response.SERVER_INTERNAL_ERROR, logTag);
                 cleanup(session, false, true);
                 return;
             }
         } else {
+            if (session.isTalk()) {
+                log.warn("[{}] 设备不支持上行音频（offer 方向:{}），对讲退化为单向播报 设备:{} 通道:{}",
+                        logTag, offeredDir, session.getDeviceId(), session.getChannelId());
+            }
             answer = SdpBuilder.buildBroadcastAnswer(
                     properties.getId(), sdpIp, sendPort, session.getSsrc(), transport, audioPt);
         }
@@ -446,10 +542,10 @@ public class GbBroadcastService {
             Response ok = headerProvider.buildBroadcastInviteOk(device, request, answer, localToTag);
             sipSender.send(request.getLocalAddress().getHostAddress(), ok);
             log.info("[{}] 回 200 OK 设备:{} 通道:{} 流ID:{} 传输方式:{} 待ACK:{}",
-                    LOG_TAG, device.getDeviceId(), channelId, session.getSrcStream(),
+                    logTag, device.getDeviceId(), channelId, session.getSrcStream(),
                     transport, !session.isDeviceActive());
         } catch (Exception e) {
-            log.error("[{}] 回 200 OK 失败 Call-ID:{} 错误:{}", LOG_TAG, callId, e.getMessage(), e);
+            log.error("[{}] 回 200 OK 失败 Call-ID:{} 错误:{}", logTag, callId, e.getMessage(), e);
             // 设备未收到 200，Dialog 未建立，留给超时清扫；上级腿不动
             cleanup(session, false, false);
         }
@@ -467,13 +563,15 @@ public class GbBroadcastService {
         if (!callId.equals(session.getCallId())) {
             return;
         }
+        log.info("[{}] 收到设备 ACK 设备:{} 流ID:{} 状态:{}",
+                tag(session), session.getDeviceId(), session.getBroadcastStreamId(), session.getStatus());
         if (GbBroadcastSession.STATUS_SENDING.equals(session.getStatus())) {
             // UDP/TCP-active 已在回 200 前建好发送器，或收到重复 ACK
             return;
         }
         MediaServer server = mediaServer(session.getServerId());
         if (server == null) {
-            log.error("[{}] ACK 时节点丢失 节点ID:{}", LOG_TAG, session.getServerId());
+            log.error("[{}] ACK 时节点丢失 节点ID:{}", tag(session), session.getServerId());
             cleanup(session, true, true);
             return;
         }
@@ -481,7 +579,7 @@ public class GbBroadcastService {
             // 设备 ACK 可能早于源流上线，先等流再推
             if (!waitStreamReady(server, session.getSrcApp(), session.getSrcStream())) {
                 log.warn("[{}] 设备 ACK 后等不到浏览器音频流 流ID:{} 原因:仍尝试 startSendRtp",
-                        LOG_TAG, session.getSrcStream());
+                        tag(session), session.getSrcStream());
             }
             boolean udp = !session.isTcp();
             Integer srcPort = sendPortInRange();
@@ -495,10 +593,10 @@ public class GbBroadcastService {
             session.setSendTime(LocalDateTime.now());
             sessionService.update(session);
             log.info("[{}] startSendRtp 已推音频 设备:{} 通道:{} 目的:{}:{} UDP:{} PT:{}",
-                    LOG_TAG, session.getDeviceId(), session.getChannelId(),
+                    tag(session), session.getDeviceId(), session.getChannelId(),
                     session.getDstIp(), session.getDstPort(), udp, pt);
         } catch (Exception e) {
-            log.error("[{}] startSendRtp 失败 Call-ID:{} 错误:{}", LOG_TAG, callId, e.getMessage(), e);
+            log.error("[{}] startSendRtp 失败 Call-ID:{} 错误:{}", tag(session), callId, e.getMessage(), e);
             cleanup(session, true, true);
         }
     }
@@ -510,7 +608,7 @@ public class GbBroadcastService {
         if (session == null) return;
         cleanup(session, false, true);
         log.info("[{}] 设备停播清理完成 设备:{} 通道:{} 流ID:{}",
-                LOG_TAG, session.getDeviceId(), session.getChannelId(), session.getSrcStream());
+                tag(session), session.getDeviceId(), session.getChannelId(), session.getSrcStream());
     }
 
     /**
@@ -520,7 +618,7 @@ public class GbBroadcastService {
         for (GbBroadcastSession s : sessionService.listBySrcStream(stream)) {
             if (ssrc == null || ssrc.isBlank() || ssrc.equals(s.getSsrc())) {
                 cleanup(s, true, true);
-                log.info("[{}] on_send_rtp_stopped 清理 流ID:{} SSRC:{}", LOG_TAG, stream, s.getSsrc());
+                log.info("[{}] on_send_rtp_stopped 清理 流ID:{} SSRC:{}", tag(s), stream, s.getSsrc());
             }
         }
     }
@@ -538,11 +636,11 @@ public class GbBroadcastService {
                     && s.getCreateTime() != null && s.getCreateTime().isBefore(deadline);
             if (waitAckTimeout) {
                 log.warn("[{}] 等待设备 ACK 超时，释放并 BYE 设备 设备:{} 通道:{}",
-                        LOG_TAG, s.getDeviceId(), s.getChannelId());
+                        tag(s), s.getDeviceId(), s.getChannelId());
                 cleanup(s, true, true);
             } else if (waitInviteTimeout) {
                 log.warn("[{}] 等待设备反向 INVITE 超时，释放会话 设备:{} 通道:{}",
-                        LOG_TAG, s.getDeviceId(), s.getChannelId());
+                        tag(s), s.getDeviceId(), s.getChannelId());
                 // 上级腿可能已建立，cleanup 内部按 parentToTag 决定是否 BYE 上级
                 cleanup(s, false, true);
             }
@@ -563,6 +661,7 @@ public class GbBroadcastService {
      * @param byeUpstream 是否 BYE 上级（上级主动 BYE 或 Dialog 未建立时 false）
      */
     private void cleanup(GbBroadcastSession session, boolean byeDevice, boolean byeUpstream) {
+        String logTag = tag(session);
         MediaServer server = mediaServer(session.getServerId());
         // 级联时源流和收流腿是同一条流，只关一次
         boolean sameRecvStream = session.getRecvStreamId() != null
@@ -574,7 +673,7 @@ public class GbBroadcastService {
                 zlmRestClient.stopSendRtp(server, session.getSrcApp(), session.getSrcStream(), session.getSsrc());
             } catch (Exception e) {
                 log.warn("[{}] stopSendRtp 异常(忽略) 流ID:{} 错误:{}",
-                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
+                        logTag, session.getSrcStream(), e.getMessage(), e);
             }
         }
 
@@ -597,7 +696,7 @@ public class GbBroadcastService {
                 }
             } catch (Exception e) {
                 log.warn("[{}] 给上级发广播 BYE 异常(忽略) 流ID:{} 错误:{}",
-                        LOG_TAG, session.getBroadcastStreamId(), e.getMessage(), e);
+                        logTag, session.getBroadcastStreamId(), e.getMessage(), e);
             }
         }
 
@@ -607,7 +706,7 @@ public class GbBroadcastService {
                 zlmRestClient.closeStream(server, session.getSrcApp(), session.getSrcStream(), true);
             } catch (Exception e) {
                 log.warn("[{}] closeStream 异常(忽略) 流ID:{} 错误:{}",
-                        LOG_TAG, session.getSrcStream(), e.getMessage(), e);
+                        logTag, session.getSrcStream(), e.getMessage(), e);
             }
         }
 
@@ -620,14 +719,14 @@ public class GbBroadcastService {
                     zlmRestClient.closeRtpServer(recvServer, session.getRecvStreamId());
                 } catch (Exception e) {
                     log.warn("[{}] closeRtpServer 异常(忽略) 流ID:{} 错误:{}",
-                            LOG_TAG, session.getRecvStreamId(), e.getMessage(), e);
+                            logTag, session.getRecvStreamId(), e.getMessage(), e);
                 }
                 if (!sameRecvStream) {
                     try {
                         zlmRestClient.closeStream(recvServer, RECV_APP, session.getRecvStreamId(), true);
                     } catch (Exception e) {
                         log.warn("[{}] 关闭反向收流异常(忽略) 流ID:{} 错误:{}",
-                                LOG_TAG, session.getRecvStreamId(), e.getMessage(), e);
+                                logTag, session.getRecvStreamId(), e.getMessage(), e);
                     }
                 }
             }
@@ -649,7 +748,7 @@ public class GbBroadcastService {
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, session.getDeviceId()));
         if (device == null) {
-            log.warn("[{}] BYE 设备时设备已删除 设备ID:{}", LOG_TAG, session.getDeviceId());
+            log.warn("[{}] BYE 设备时设备已删除 设备ID:{}", tag(session), session.getDeviceId());
             return;
         }
         try {
@@ -657,10 +756,11 @@ public class GbBroadcastService {
                     device, session.getChannelId(), session.getCallId(),
                     session.getFromTag(), session.getToTag());
             sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), bye);
-            log.info("[{}] 已向设备发 BYE 设备:{} 通道:{}", LOG_TAG, device.getDeviceId(), session.getChannelId());
+            log.info("[{}] 已向设备发 BYE 设备:{} 通道:{}",
+                    tag(session), device.getDeviceId(), session.getChannelId());
         } catch (Exception e) {
             log.warn("[{}] 向设备发 BYE 失败 设备:{} 错误:{}",
-                    LOG_TAG, device.getDeviceId(), e.getMessage(), e);
+                    tag(session), device.getDeviceId(), e.getMessage(), e);
         }
     }
 
@@ -670,8 +770,9 @@ public class GbBroadcastService {
         if (session.getServerId() != null && session.getSsrc() != null) {
             ssrcFactory.release(session.getServerId(), session.getSsrc());
         }
-        log.warn("[{}] 广播发起失败，会话已释放 设备:{} 通道:{} 原因:{}",
-                LOG_TAG, session.getDeviceId(), session.getChannelId(), reason);
+        log.warn("[{}] {}发起失败，会话已释放 设备:{} 通道:{} 原因:{}",
+                tag(session), session.isTalk() ? "对讲" : "播报",
+                session.getDeviceId(), session.getChannelId(), reason);
     }
 
     /**
@@ -700,7 +801,7 @@ public class GbBroadcastService {
                 continue;
             }
             if (hit != null) {
-                log.warn("[{}] 设备 {} 有多个等待 INVITE 的广播会话，通道码缺失无法判定", LOG_TAG, deviceId);
+                log.warn("[{}] 设备 {} 有多个等待 INVITE 的会话，通道码缺失无法判定", tag(s), deviceId);
                 return null;
             }
             hit = s;
@@ -722,6 +823,8 @@ public class GbBroadcastService {
      * 等源流在 ZLM 上线。先查在线状态，不在则等 onStreamReady 事件信号，超时返回当前状态。
      */
     private boolean waitStreamReady(MediaServer server, String app, String stream) {
+        // app=rtp 是对讲设备上行收流，其余为播报/对讲共用的浏览器推流腿
+        String logTag = RECV_APP.equals(app) ? TAG_TALK : TAG_BROADCAST;
         if (zlmRestClient.isMediaOnline(server, app, stream)) {
             return true;
         }
@@ -731,7 +834,7 @@ public class GbBroadcastService {
             f.get(WAIT_STREAM_MS, TimeUnit.MILLISECONDS);
             return true;
         } catch (TimeoutException e) {
-            log.warn("[{}] 等源流上线超时 流:{}/{}", LOG_TAG, app, stream);
+            log.warn("[{}] 等源流上线超时 流:{}/{}", logTag, app, stream);
             return zlmRestClient.isMediaOnline(server, app, stream);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -753,7 +856,7 @@ public class GbBroadcastService {
         }
     }
 
-    /** 该流是否为某个广播会话的源流（ZLM hook 路由用） */
+    /** 该流是否为某个会话的源流（ZLM hook 路由用） */
     public boolean ownsStream(String app, String stream) {
         return stream != null && !sessionService.listBySrcStream(stream).isEmpty();
     }
@@ -772,6 +875,11 @@ public class GbBroadcastService {
     /** 流名：broadcast_<deviceId>_<channelId> */
     private static String buildStreamId(String deviceId, String channelId) {
         return "broadcast_" + deviceId + "_" + channelId;
+    }
+
+    /** 按会话模式取日志标题：对讲=[语音对讲]，其余（含 null 兜底）=[语音播报] */
+    private static String tag(GbBroadcastSession s) {
+        return s != null && s.isTalk() ? TAG_TALK : TAG_BROADCAST;
     }
 
     private BroadcastResultResponse toResult(GbBroadcastSession session, MediaServer server) {
@@ -797,12 +905,12 @@ public class GbBroadcastService {
         return resp;
     }
 
-    private void sendError(SIPRequest request, int code) {
+    private void sendError(SIPRequest request, int code, String logTag) {
         try {
             Response resp = headerProvider.buildResponse(code, request);
             sipSender.send(request.getLocalAddress().getHostAddress(), resp);
         } catch (Exception e) {
-            log.warn("[{}] 回 {} 失败 错误:{}", LOG_TAG, code, e.getMessage(), e);
+            log.warn("[{}] 回 {} 失败 错误:{}", logTag, code, e.getMessage(), e);
         }
     }
 }
