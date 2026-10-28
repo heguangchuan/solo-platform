@@ -7,6 +7,7 @@ import type {
   OpenAppSaveRequest,
   OpenApiLog,
   OpenApiLogPageRequest,
+  OpenApiScope,
   PageResult,
 } from '@/types/api'
 
@@ -38,6 +39,11 @@ export const disableOpenAppApi = (id: string) => {
 
 export const rotateOpenAppSecretApi = (id: string) => {
   return post<OpenAppCreatedSecret>(`/api/openapi/app/${id}/rotate-secret`)
+}
+
+/** scope 目录，申请授权时供前端多选 */
+export const getOpenApiScopeListApi = () => {
+  return get<OpenApiScope[]>('/api/openapi/scope/list')
 }
 
 /* ==================== 开放平台调用日志 ==================== */

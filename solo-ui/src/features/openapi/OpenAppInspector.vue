@@ -70,13 +70,10 @@
           <div class="flex gap-3">
             <Label class="w-20 shrink-0 pt-1.5 text-xs text-muted-foreground">授权范围</Label>
             <div class="min-w-0 flex-1">
-              <textarea
-                v-model="form.scopes"
-                rows="2"
-                class="w-full resize-none rounded-md border border-border bg-transparent px-2 py-1.5 font-mono text-xs outline-none focus:bg-muted/70"
-                placeholder="gb:device:read,gb:play:ctrl"
-              />
-              <p class="mt-1 text-[11px] text-muted-foreground">多个用英文逗号分隔，留空则无任何接口权限</p>
+              <OpenAppScopeSelect v-model="form.scopes" />
+              <p class="mt-1 text-[11px] text-muted-foreground">
+                来自开放接口注解，留空则无任何接口权限
+              </p>
             </div>
           </div>
 
@@ -249,6 +246,7 @@ import {
   IconCircleCheck,
 } from '@tabler/icons-vue'
 import SecretRow from './SecretRow.vue'
+import OpenAppScopeSelect from './OpenAppScopeSelect.vue'
 import type { OpenApp, OpenAppCreatedSecret, OpenAppSaveRequest } from '@/types/api'
 import {
   createOpenAppApi,
