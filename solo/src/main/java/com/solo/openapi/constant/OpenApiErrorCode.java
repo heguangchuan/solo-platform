@@ -40,7 +40,8 @@ public enum OpenApiErrorCode {
 
     // 国标业务类 60xxx
     SIP_INVITE_FAILED(200, 60001, "点播失败，设备未响应或拒绝"),
-    STREAM_NOT_ACTIVE(200, 60002, "流不存在或已结束");
+    STREAM_NOT_ACTIVE(200, 60002, "流不存在或已结束"),
+    PLAYBACK_FAILED(200, 60003, "回放失败，设备未响应或拒绝");
 
     /** 对应 HTTP 状态码 */
     private final int httpStatus;

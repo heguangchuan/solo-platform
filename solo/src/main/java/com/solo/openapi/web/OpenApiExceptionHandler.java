@@ -62,14 +62,24 @@ public class OpenApiExceptionHandler {
         if (message == null) {
             return OpenApiErrorCode.INTERNAL_ERROR;
         }
-        if (message.contains("设备不存在") || message.contains("通道不存在")) {
+        if (message.contains("设备不存在")) {
             return OpenApiErrorCode.DEVICE_NOT_FOUND;
+        }
+        if (message.contains("通道不存在")) {
+            return OpenApiErrorCode.RESOURCE_NOT_FOUND;
         }
         if (message.contains("离线")) {
             return OpenApiErrorCode.DEVICE_OFFLINE;
         }
-        if (message.contains("不能为空")) {
+        if (message.contains("会话不存在") || message.contains("流不存在")
+                || message.contains("非回放会话") || message.contains("流尚未就绪")) {
+            return OpenApiErrorCode.STREAM_NOT_ACTIVE;
+        }
+        if (message.contains("不能为空") || message.contains("不合法") || message.contains("必须晚于")) {
             return OpenApiErrorCode.PARAM_INVALID;
+        }
+        if (message.contains("回放")) {
+            return OpenApiErrorCode.PLAYBACK_FAILED;
         }
         if (message.contains("INVITE") || message.contains("点播超时") || message.contains("点播失败")
                 || message.contains("正在请求点播") || message.contains("RTP 收流端口")

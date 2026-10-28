@@ -319,9 +319,9 @@ solo-platform/
 
 | 项目 | 说明 |
 |---|---|
-| 当前开放能力 | 实时点播（开始 / 停止） |
+| 当前开放能力 | 设备/通道详情、实时点播、历史回放、录像查询、云台控制 |
 | 鉴权方式 | HMAC-SHA256 请求签名，无登录态 |
-| 请求方法 | 当前接口均为 `POST` + `application/json; charset=utf-8`，后续可能扩展 `GET` |
+| 请求方法 | 查询类使用 `GET`，控制类使用 `POST` + `application/json; charset=utf-8`；后续可能继续扩展 |
 | 响应格式 | 统一信封 `code` / `message` / `data` / `requestId` |
 | 配套工具 | [`openapi/pre-script.js`](openapi/pre-script.js)（Bruno 自动签名） |
 
@@ -329,8 +329,15 @@ solo-platform/
 
 | 能力 | 方法 | 路径 | 所需 scope |
 |---|---|---|---|
+| 设备详情 | `GET` | `/open-api/v1/device/{deviceId}` | `gb:device:read` |
+| 通道详情 | `GET` | `/open-api/v1/channel/{channelId}` | `gb:device:read` |
 | 开始点播 | `POST` | `/open-api/v1/play/start` | `gb:play:write` |
 | 停止点播 | `POST` | `/open-api/v1/play/stop` | `gb:play:write` |
+| 录像查询 | `POST` | `/open-api/v1/playback/records` | `gb:record:read` |
+| 开始回放 | `POST` | `/open-api/v1/playback/start` | `gb:playback:ctrl` |
+| 停止回放 | `POST` | `/open-api/v1/playback/stop` | `gb:playback:ctrl` |
+| 回放控制 | `POST` | `/open-api/v1/playback/control` | `gb:playback:ctrl` |
+| 云台控制 | `POST` | `/open-api/v1/ptz/control` | `gb:ptz:ctrl` |
 
 **对接流程**
 
@@ -351,7 +358,7 @@ solo-platform/
 
 创建应用时请平台方一并确认：
 
-- 授予 scope `gb:play:write`（点播接口必需）
+- 按需授予 scope：`gb:device:read`（设备目录）、`gb:play:write`（实时点播）、`gb:playback:ctrl`（历史回放）、`gb:record:read`（录像查询）、`gb:ptz:ctrl`（云台控制）
 - 按需配置 IP 白名单（留空表示不限制来源）
 - 按需设置 QPS 与日调用量配额
 
