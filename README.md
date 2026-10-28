@@ -359,8 +359,10 @@ solo-platform/
 创建应用时请平台方一并确认：
 
 - 按需授予 scope：`gb:device:read`（设备目录）、`gb:play:write`（实时点播）、`gb:playback:ctrl`（历史回放）、`gb:record:read`（录像查询）、`gb:ptz:ctrl`（云台控制）
-- 按需配置 IP 白名单（留空表示不限制来源）
+- 按需配置 IP 白名单：只接受字面量 IP / CIDR（如 `203.0.113.10`、`10.0.0.0/8`、`2001:db8::/32`），保存时校验；留空表示不限制来源，应用列表会标为「不限」
 - 按需设置 QPS 与日调用量配额
+
+> 平台部署在反向代理之后时，需在 `application.yaml` 的 `openapi.trusted-proxies` 填入代理地址（同机 nginx 填 `127.0.0.1,::1`）。未配置时客户端 IP 一律取 TCP 源地址，`X-Forwarded-For` / `X-Real-IP` 不会被采信，白名单才能挡住伪造来源头。
 
 ### 2. 请求约定
 

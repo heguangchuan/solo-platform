@@ -19,6 +19,15 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
+# ============================================================
+#  第三方开放 API（/open-api/v1/**）
+#  trusted-proxies：可信反向代理地址。只有直连地址命中这里时才采信
+#  X-Forwarded-For / X-Real-IP，否则客户端 IP 取 TCP 源地址。
+#  直连部署留空；nginx 与应用同机填 127.0.0.1,::1；异机填代理实际网段。
+# ============================================================
+openapi:
+  trusted-proxies: 
+
 logging:
   level:
     com.solo: info

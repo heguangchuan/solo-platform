@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
+import com.solo.openapi.auth.OpenApiIpChecker;
 import com.solo.openapi.request.OpenAppPageRequest;
 import com.solo.openapi.request.OpenAppSaveRequest;
 import com.solo.openapi.config.OpenApiProperties;
@@ -14,6 +15,7 @@ import com.solo.openapi.mapper.OpenAppMapper;
 import com.solo.openapi.service.OpenApiAppService;
 import com.solo.openapi.support.OpenApiCipher;
 import com.solo.openapi.support.OpenApiScopeCatalog;
+import com.solo.system.constant.SystemConstants;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -40,10 +42,12 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
     private final OpenApiProperties properties;
     private final RedisTemplate<String, Object> redisTemplate;
     private final OpenApiScopeCatalog scopeCatalog;
+    private final OpenApiIpChecker ipChecker;
 
     @Override
     public CreatedSecret createApp(OpenAppSaveRequest req) {
         validateScopes(req.getScopes());
+        validateIpWhitelist(req.getIpWhitelist());
         String appKey = "ak_" + randomToken(18);
         String appSecret = randomToken(32);
         // 回调签名密钥单独生成，跟接口密钥互不影响
@@ -106,6 +110,7 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
             throw new ServiceException("应用ID不能为空");
         }
         validateScopes(req.getScopes());
+        validateIpWhitelist(req.getIpWhitelist());
         OpenApp exists = getById(req.getId());
         if (exists == null) {
             throw new ServiceException("应用不存在");
@@ -216,7 +221,20 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
                 .sorted()
                 .toList();
         if (!unknown.isEmpty()) {
-            throw new ServiceException("未知的授权范围: " + String.join(", ", unknown));
+            throw new ServiceException(SystemConstants.HTTP_BAD_REQUEST,
+                    "未知的授权范围: " + String.join(", ", unknown));
+        }
+    }
+
+    /**
+     * 白名单只收字面量 IP / CIDR。放行非法条目等于把这个应用永久锁死或永久放开，
+     * 所以在保存时就拦下，而不是等运行时静默拒绝。
+     */
+    private void validateIpWhitelist(String whitelist) {
+        List<String> invalid = ipChecker.invalidEntries(whitelist);
+        if (!invalid.isEmpty()) {
+            throw new ServiceException(SystemConstants.HTTP_BAD_REQUEST,
+                    "IP白名单格式错误: " + String.join("; ", invalid));
         }
     }
 

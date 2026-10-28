@@ -58,6 +58,7 @@
               <th class="w-48 px-3 py-2 font-normal">appKey</th>
               <th class="w-40 px-3 py-2 font-normal">应用名称</th>
               <th class="w-44 px-3 py-2 font-normal">授权范围</th>
+              <th class="w-36 px-3 py-2 font-normal">来源 IP</th>
               <th class="group w-20 px-3 py-2 font-normal">
                 <Select v-model="statusFilter">
                   <RawSelectTrigger
@@ -110,6 +111,13 @@
               <td class="truncate px-3 py-2" :title="a.appName">{{ a.appName }}</td>
               <td class="truncate px-3 py-2 font-mono text-xs text-muted-foreground" :title="a.scopes || ''">
                 {{ a.scopes || '—' }}
+              </td>
+              <td
+                class="truncate px-3 py-2 font-mono text-xs"
+                :title="a.ipWhitelist || '未限制来源 IP，密钥泄露后任何地址都可以调用'"
+              >
+                <span v-if="a.ipWhitelist" class="text-muted-foreground">{{ a.ipWhitelist }}</span>
+                <span v-else class="text-amber-500">不限</span>
               </td>
               <td class="px-3 py-2">
                 <span
