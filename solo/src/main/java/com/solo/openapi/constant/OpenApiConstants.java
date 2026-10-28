@@ -44,7 +44,7 @@ public interface OpenApiConstants {
     // ===== Scope 授权范围 =====
     String SCOPE_DEVICE_READ = "gb:device:read";
     String SCOPE_DEVICE_WRITE = "gb:device:write";
-    String SCOPE_PLAY_CTRL = "gb:play:ctrl";
+    String SCOPE_PLAY_WRITE = "gb:play:write";
     String SCOPE_PLAYBACK_CTRL = "gb:playback:ctrl";
     String SCOPE_RECORD_READ = "gb:record:read";
     String SCOPE_DOWNLOAD_CTRL = "gb:download:ctrl";
