@@ -6,6 +6,8 @@ import com.solo.openapi.constant.OpenApiErrorCode;
 import com.solo.openapi.exception.OpenApiException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -13,8 +15,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
  * 开放 API 专用异常处理，只作用于 /open-api/**，与内部 GlobalExceptionHandler 互不干扰。
+ *
+ * <p>必须优先于无包范围的 GlobalExceptionHandler：否则 OpenApiException / ServiceException
+ * 会被全局兜底捕获，第三方将收到内部 Result 包装体（甚至 HTTP 200 + 系统异常），
+ * 拿不到约定的 OpenApiResult 与开放错误码。
  */
 @Slf4j
+@Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(basePackages = "com.solo.openapi.controller")
 public class OpenApiExceptionHandler {
 

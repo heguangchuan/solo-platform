@@ -18,6 +18,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -33,6 +34,7 @@ import java.util.UUID;
  * 应用状态 → 时间戳 → 防重放 → HMAC 签名 → IP 白名单 → 限流。
  * 通过后把 {@link OpenAppContext} 写入请求属性，Scope 校验交给拦截器。
  */
+@Slf4j
 @Component
 public class OpenApiAuthFilter extends OncePerRequestFilter {
 
@@ -192,6 +194,22 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
 
     private void audit(HttpServletRequest request, HttpServletResponse response, String appKey,
                        String requestId, long start, OpenApiErrorCode rejectCode, String rejectMessage) {
+        String qs = request.getQueryString();
+        String clientIp = WebUtils.getClientIp(request);
+        long costMs = System.currentTimeMillis() - start;
+        int httpStatus = rejectCode != null ? rejectCode.getHttpStatus() : response.getStatus();
+        int bizCode = rejectCode != null ? rejectCode.getCode() : OpenApiErrorCode.SUCCESS.getCode();
+        // 通过鉴权后上下文才存在，可带出应用名方便对账
+        String appName = null;
+        if (request.getAttribute(OpenApiConstants.ATTR_APP_CONTEXT) instanceof OpenAppContext context) {
+            appName = context.getAppName();
+        }
+
+        log.info("[openapi接口调用] requestId={} appKey={} appName={} {} {}{} ip={} 耗时={}ms httpStatus={} code={}{}",
+                requestId, appKey, appName, request.getMethod(), request.getRequestURI(),
+                qs != null ? "?" + qs : "", clientIp, costMs, httpStatus, bizCode,
+                rejectMessage != null ? " msg=" + rejectMessage : "");
+
         if (!properties.isAuditLogEnabled()) {
             return;
         }
@@ -201,12 +219,11 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
             entry.setRequestId(requestId);
             entry.setMethod(request.getMethod());
             entry.setPath(request.getRequestURI());
-            String qs = request.getQueryString();
             entry.setQueryString(qs != null && qs.length() > 1000 ? qs.substring(0, 1000) : qs);
-            entry.setClientIp(WebUtils.getClientIp(request));
-            entry.setHttpStatus(rejectCode != null ? rejectCode.getHttpStatus() : response.getStatus());
-            entry.setBizCode(rejectCode != null ? rejectCode.getCode() : OpenApiErrorCode.SUCCESS.getCode());
-            entry.setCostMs(System.currentTimeMillis() - start);
+            entry.setClientIp(clientIp);
+            entry.setHttpStatus(httpStatus);
+            entry.setBizCode(bizCode);
+            entry.setCostMs(costMs);
             entry.setErrorMsg(rejectMessage);
             auditService.recordAsync(entry);
         } catch (Exception ignored) {
