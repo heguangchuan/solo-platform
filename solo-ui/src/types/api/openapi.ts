@@ -55,3 +55,35 @@ export interface OpenAppCreatedSecret {
   appSecret: string
   callbackSecret?: string
 }
+
+/* ========== 开放平台调用日志 ========== */
+
+export interface OpenApiLog {
+  id: string
+  /** 鉴权失败（如缺少 appKey）时可能为空 */
+  appKey?: string
+  requestId?: string
+  method: string
+  path: string
+  queryString?: string
+  clientIp?: string
+  httpStatus: number
+  /** 业务码，200 成功，其余见开放 API 错误码分段 */
+  bizCode?: number
+  costMs: number
+  errorMsg?: string
+  createTime?: string
+}
+
+export interface OpenApiLogPageRequest {
+  page?: number
+  pageSize?: number
+  /** appKey 模糊匹配 */
+  appKey?: string
+  /** 请求路径模糊匹配 */
+  path?: string
+  /** true 成功（业务码200）/ false 失败 */
+  success?: boolean
+  startTime?: string
+  endTime?: string
+}
