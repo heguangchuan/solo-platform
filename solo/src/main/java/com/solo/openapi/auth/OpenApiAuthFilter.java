@@ -1,6 +1,5 @@
 package com.solo.openapi.auth;
 
-import com.solo.common.utils.WebUtils;
 import com.solo.openapi.config.OpenApiProperties;
 import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.constant.OpenApiErrorCode;
@@ -41,6 +40,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     private final OpenApiAppService appService;
     private final OpenApiRateLimiter rateLimiter;
     private final OpenApiIpChecker ipChecker;
+    private final OpenApiClientIpResolver clientIpResolver;
     private final OpenApiResponseWriter responseWriter;
     private final OpenApiAuditService auditService;
     private final OpenApiProperties properties;
@@ -49,6 +49,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     public OpenApiAuthFilter(OpenApiAppService appService,
                              OpenApiRateLimiter rateLimiter,
                              OpenApiIpChecker ipChecker,
+                             OpenApiClientIpResolver clientIpResolver,
                              OpenApiResponseWriter responseWriter,
                              OpenApiAuditService auditService,
                              OpenApiProperties properties,
@@ -56,6 +57,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         this.appService = appService;
         this.rateLimiter = rateLimiter;
         this.ipChecker = ipChecker;
+        this.clientIpResolver = clientIpResolver;
         this.responseWriter = responseWriter;
         this.auditService = auditService;
         this.properties = properties;
@@ -76,6 +78,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
         response.setHeader(OpenApiConstants.HEADER_REQUEST_ID, requestId);
 
         String appKey = request.getHeader(OpenApiConstants.HEADER_APP_KEY);
+        String clientIp = clientIpResolver.resolve(request);
         OpenApiErrorCode rejectCode = null;
         String rejectMessage = null;
         CachedBodyHttpServletRequest cachedRequest = null;
@@ -137,7 +140,6 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
                 throw new OpenApiException(OpenApiErrorCode.SIGNATURE_INVALID);
             }
 
-            String clientIp = WebUtils.getClientIp(request);
             if (!ipChecker.allowed(app.getIpWhitelist(), clientIp)) {
                 throw new OpenApiException(OpenApiErrorCode.IP_DENIED);
             }
@@ -164,7 +166,7 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
             rejectMessage = "平台内部错误";
             responseWriter.write(response, OpenApiErrorCode.INTERNAL_ERROR, null, requestId);
         } finally {
-            audit(request, response, appKey, requestId, start, rejectCode, rejectMessage);
+            audit(request, response, appKey, requestId, clientIp, start, rejectCode, rejectMessage);
             MDC.remove("requestId");
         }
     }
@@ -193,9 +195,9 @@ public class OpenApiAuthFilter extends OncePerRequestFilter {
     }
 
     private void audit(HttpServletRequest request, HttpServletResponse response, String appKey,
-                       String requestId, long start, OpenApiErrorCode rejectCode, String rejectMessage) {
+                       String requestId, String clientIp, long start,
+                       OpenApiErrorCode rejectCode, String rejectMessage) {
         String qs = request.getQueryString();
-        String clientIp = WebUtils.getClientIp(request);
         long costMs = System.currentTimeMillis() - start;
         int httpStatus = rejectCode != null ? rejectCode.getHttpStatus() : response.getStatus();
         int bizCode = rejectCode != null ? rejectCode.getCode() : OpenApiErrorCode.SUCCESS.getCode();

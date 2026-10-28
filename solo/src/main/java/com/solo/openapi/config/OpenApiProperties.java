@@ -27,4 +27,11 @@ public class OpenApiProperties {
 
     /** 审计日志开关（高 QPS 场景可关） */
     private boolean auditLogEnabled = true;
+
+    /**
+     * 可信反向代理地址（逗号分隔 IP/CIDR）。
+     * <p>只有直连地址命中这里时才采信 X-Forwarded-For / X-Real-IP；为空表示不采信任何代理头，
+     * 客户端 IP 取 TCP 源地址。直连部署留空，nginx 与应用同机填 127.0.0.1,::1。
+     */
+    private String trustedProxies = "";
 }

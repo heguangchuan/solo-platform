@@ -84,9 +84,14 @@
                 v-model="form.ipWhitelist"
                 rows="2"
                 class="w-full resize-none rounded-md border border-border bg-transparent px-2 py-1.5 font-mono text-xs outline-none focus:bg-muted/70"
-                placeholder="1.2.3.4,10.0.0.0/24"
+                placeholder="203.0.113.10"
               />
-              <p class="mt-1 text-[11px] text-muted-foreground">多个用逗号分隔，支持 CIDR，留空不限制来源 IP</p>
+              <p v-if="form.ipWhitelist?.trim()" class="mt-1 text-[11px] text-muted-foreground">
+                多个用逗号分隔；整段网段可写 CIDR，如 203.0.113.0/24。只接受字面量 IP，不支持域名
+              </p>
+              <p v-else class="mt-1 text-[11px] text-amber-500">
+                未限制来源 IP：密钥一旦泄露，任何地址都能调用
+              </p>
             </div>
           </div>
         </div>
