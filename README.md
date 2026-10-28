@@ -487,6 +487,8 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 
 以下只描述 `data` 结构，统一信封见上节。时间字段未特别说明时均为平台服务器本地时区。
 
+> 所有接收 `channelId` 的接口，既接受真实通道国标码，也接受级联共享时对上级暴露的「推送码」（`gb_platform_share.exposed_code`）。传推送码时接口内部会换成真实通道码再下发设备，响应里的 `channelId` 始终是真实码。
+
 #### 5.1 设备 / 通道详情
 
 **设备详情** `GET /open-api/v1/device/{deviceId}`
@@ -507,6 +509,8 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 **通道详情** `GET /open-api/v1/channel/{channelId}?deviceId={deviceId}`
 
 通道编码的唯一约束是「设备编码 + 通道编码」，同一个 `channelId` 挂在多个设备下时必须带 `deviceId` 消歧，否则返回 `40001`；通道不存在返回 `40002`。
+
+若传入的是推送码，则按推送码（平台内唯一）直接定位通道，此时 `deviceId` 忽略；响应的 `exposedCode` 回显该推送码，`channelId` 为真实通道码。
 
 | 字段 | 说明 |
 |---|---|
