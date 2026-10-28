@@ -345,7 +345,7 @@ solo-platform/
 ① 申请凭证  →  ② 组装并签名请求  →  ③ 调用开始点播  →  ④ 按播放地址拉流  →  ⑤ 结束时停止点播
 ```
 
-**快速导航**：[申请凭证](#1-申请凭证) · [请求约定](#2-请求约定) · [签名算法](#3-签名算法) · [响应与错误码](#4-响应与错误码) · [Bruno 调通](#5-bruno-快速调通) · [curl 验证](#6-curl-手动验证) · [注意事项](#7-对接注意事项)
+**快速导航**：[申请凭证](#1-申请凭证) · [请求约定](#2-请求约定) · [签名算法](#3-签名算法) · [响应与错误码](#4-响应与错误码) · [接口说明](#5-接口说明) · [Bruno 调通](#6-bruno-快速调通) · [curl 验证](#7-curl-手动验证) · [注意事项](#8-对接注意事项)
 
 ### 1. 申请凭证
 
@@ -365,7 +365,7 @@ solo-platform/
 ### 2. 请求约定
 
 - 基地址：`http://{平台IP}:8080`
-- 当前接口均为 `POST` + JSON；后续如增加 `GET` 等接口，方法与路径以接口清单为准，无 body 时摘要按空串计算
+- 查询类接口使用 `GET`（无 body，body 摘要按空串计算，query 参数参与签名）；控制类接口使用 `POST` + `application/json; charset=utf-8`。方法与路径以接口清单为准
 - 每个请求必须携带以下签名请求头：
 
 | 请求头 | 必填 | 示例 | 说明 |
@@ -458,7 +458,7 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 |---|---|---|
 | 40301 | 应用已停用 | 平台侧停用应用 |
 | 40302 | 应用已过期 | 应用有效期已到 |
-| 40303 | 应用未授权该接口 | 未授予 `gb:play:write` scope |
+| 40303 | 应用未授权该接口 | 未授予该接口对应的 scope |
 | 40304 | 来源 IP 不在白名单 | 出口 IP 未登记 |
 
 **参数与限流（HTTP 400 / 429）**
@@ -477,12 +477,166 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 | code | 含义 | 说明 |
 |---|---|---|
 | 60001 | 点播失败 | 设备未响应或拒绝 INVITE |
-| 60002 | 流不存在或已结束 | 停止点播前流已结束 |
+| 60002 | 流不存在或已结束 | 停止点播前流已结束；对非回放会话做回放控制 |
+| 60003 | 回放失败 | 等待回放流就绪超时 |
 | 50001 | 平台内部错误 | 请携带 `requestId` 报障 |
 
-> 国标业务类失败（`60001` / `60002`）HTTP 状态仍为 **200**，请以 `code` 判断业务结果。
+> 国标业务类失败（`60001` / `60002` / `60003`）HTTP 状态仍为 **200**，请以 `code` 判断业务结果。
 
-### 5. Bruno 快速调通
+### 5. 接口说明
+
+以下只描述 `data` 结构，统一信封见上节。时间字段未特别说明时均为平台服务器本地时区。
+
+#### 5.1 设备 / 通道详情
+
+**设备详情** `GET /open-api/v1/device/{deviceId}`
+
+按国标编码查询，未接入返回 `40003`。
+
+| 字段 | 说明 |
+|---|---|
+| `deviceId` | 设备国标 20 位 ID |
+| `name` / `reportName` | 平台自定义名称 / 设备上报名称 |
+| `manufacturer` / `model` / `firmware` | 厂商 / 型号 / 固件版本 |
+| `status` | `0` 离线、`1` 在线、`2` 未注册 |
+| `transport` | 注册传输模式 `UDP` / `TCP` |
+| `ip` / `port` | 设备最近注册来源地址 |
+| `registerTime` / `keepaliveTime` | 最近注册 / 心跳时间 |
+| `owner` / `civilCode` / `address` | 设备归属 / 行政区划 / 安装地址 |
+
+**通道详情** `GET /open-api/v1/channel/{channelId}?deviceId={deviceId}`
+
+通道编码的唯一约束是「设备编码 + 通道编码」，同一个 `channelId` 挂在多个设备下时必须带 `deviceId` 消歧，否则返回 `40001`；通道不存在返回 `40002`。
+
+| 字段 | 说明 |
+|---|---|
+| `channelId` / `deviceId` | 通道 / 所属设备国标 ID |
+| `name` / `reportName` | 自定义名称 / 上报名称 |
+| `status` | `ON` 在线、`OFF` 离线、`UNREGISTERED` 未注册 |
+| `ptzType` | `0` 未知、`1` 球机、`2` 半球、`3` 固定枪机、`4` 遥控枪机 |
+| `parental` | `0` 通道、`1` 分组 |
+| `longitude` / `latitude` | 经纬度（设备上报原值，未做坐标系转换） |
+| `address` | 安装地址 |
+
+> 通道的 SIP 密码属于平台内部凭证，不会返回。
+
+#### 5.2 实时点播
+
+请求与响应字段见 [Bruno 快速调通](#6-bruno-快速调通) 中的「开始点播」示例。
+
+**停止点播** `POST /open-api/v1/play/stop`，Body `{ "streamId": "..." }`。接口幂等，会话已被自动清扫时同样返回成功。
+
+#### 5.3 历史回放
+
+**录像查询** `POST /open-api/v1/playback/records`
+
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "startTime": "2026-10-01 00:00:00",
+  "endTime": "2026-10-01 12:00:00"
+}
+```
+
+四个字段均必填，时间格式 `yyyy-MM-dd HH:mm:ss`。设备未响应或设备不支持 RecordInfo 时返回**空数组**，需与「该时间段确实没有录像」结合设备能力自行判断。`data` 为录像段列表：
+
+```json
+[
+  {
+    "channelId": "34020000001320000001",
+    "name": "34020000001320000001_20261001080000.mp4",
+    "filePath": "",
+    "address": "",
+    "startTime": "2026-10-01T08:00:00",
+    "endTime": "2026-10-01T09:00:00",
+    "fileSize": 104857600,
+    "type": "time",
+    "recorderId": "",
+    "secrecy": 0
+  }
+]
+```
+
+| 字段 | 说明 |
+|---|---|
+| `name` / `filePath` / `address` | 录像文件名 / 设备本地路径 / 录像地址（以设备返回为准） |
+| `startTime` / `endTime` | ISO-8601 格式 |
+| `fileSize` | 字节，设备未提供时为 `0` |
+| `type` | `time` 计划 / `alarm` 报警 / `manual` 手动 |
+| `recorderId` | 录像设备 ID（NVR 等，可为空） |
+| `secrecy` | `0` 不限、`1` 涉密 |
+
+**开始回放** `POST /open-api/v1/playback/start`
+
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "startTime": "2026-10-01 08:00:00",
+  "endTime": "2026-10-01 09:00:00",
+  "transport": "TCP-passive",
+  "streamNumber": null
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID |
+| `startTime` / `endTime` | 是 | 回放时间段，结束时间必须晚于起始时间 |
+| `transport` | 否 | `TCP-passive`（默认）/ `UDP` / `TCP-active` |
+| `streamNumber` | 否 | 空 = 主码流；传 `"streamnumber:1"` = 子码流 |
+
+响应在点播字段基础上增加 `startEpochSec` / `endEpochSec` / `durationSec`。`streamId` 形如 `<deviceId>_<channelId>_<开始时间 yyyyMMddHHmmss>_<结束时间 yyyyMMddHHmmss>`，子码流再追加 `_streamnumber_1`；同一时间段重复调用会复用已就绪的流。设备拒绝 INVITE 返回 `60001`，等待流就绪超时返回 `60003`。
+
+**停止回放** `POST /open-api/v1/playback/stop`，Body `{ "streamId": "..." }`，幂等。
+
+**回放控制** `POST /open-api/v1/playback/control`
+
+```json
+{ "streamId": "34020000001320000001_34020000001320000001_20261001080000_20261001090000", "action": "seek", "param": "600" }
+```
+
+| `action` | `param` | 说明 |
+|---|---|---|
+| `pause` | 可省 | 暂停推流，画面冻结 |
+| `resume` | 可省 | 从暂停点继续 |
+| `seek` | 相对回放起点的偏移秒数，如 `"600"` | 跳到回放起点后第 N 秒 |
+| `speed` | 倍速值，如 `"0.5"` / `"2"`（无法解析时按 1 倍处理） | 从当前位置按新倍速播放 |
+
+> 控制指令经 SIP INFO + MANSRTSP 直接下发设备，接口返回成功表示指令已发出，不代表设备画面已跳转完成。流已被清扫、或对点播会话做回放控制时返回 `60002`。
+
+#### 5.4 云台控制
+
+`POST /open-api/v1/ptz/control`
+
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "command": "left",
+  "speed": 100,
+  "zoomSpeed": 5
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID |
+| `command` | 是 | 见下表 |
+| `speed` | 否 | 方向速度 `0-255`，默认 `100` |
+| `zoomSpeed` | 否 | 变倍速度 `0-15`，默认 `5` |
+
+| `command` | 说明 |
+|---|---|
+| `left` / `right` / `up` / `down` | 四方向 |
+| `upleft` / `upright` / `downleft` / `downright` | 四斜向 |
+| `zoomin` / `zoomout` | 变倍放大 / 缩小 |
+| `stop` | 停止当前动作（速度字段忽略，按 0 下发） |
+
+> 方向与变倍指令是「启动」语义，需在合适时机再调用一次 `stop`。设备离线返回 `40004`，不支持的指令返回 `40001`。
+
+### 6. Bruno 快速调通
 
 仓库已提供 Bruno 集合前置脚本 [`openapi/pre-script.js`](openapi/pre-script.js)：每次点击 Send 时自动生成时间戳与 nonce 并完成签名，**无需手工计算，也不会出现时间戳过期或 nonce 重复**。
 
@@ -570,7 +724,7 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 
 > **排查提示**：Bruno 底部 Console 会打印本次的待签名串与 body；返回 40103 时先逐行对比。平台侧每次调用都会记录 `[openapi接口调用]` 日志，含业务码与耗时。
 
-### 6. curl 手动验证
+### 7. curl 手动验证
 
 不使用 Bruno 时，可用以下脚本（依赖 `curl` + `openssl`）手工验证签名算法：
 
@@ -592,7 +746,7 @@ curl -X POST "http://localhost:8080/open-api/v1/play/start" \
   -d "$BODY"
 ```
 
-### 7. 对接注意事项
+### 8. 对接注意事项
 
 | 事项 | 说明 |
 |---|---|
