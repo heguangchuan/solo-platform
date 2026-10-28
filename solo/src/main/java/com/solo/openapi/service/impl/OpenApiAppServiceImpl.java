@@ -13,6 +13,7 @@ import com.solo.openapi.entity.OpenApp;
 import com.solo.openapi.mapper.OpenAppMapper;
 import com.solo.openapi.service.OpenApiAppService;
 import com.solo.openapi.support.OpenApiCipher;
+import com.solo.openapi.support.OpenApiScopeCatalog;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,6 +25,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -37,9 +39,11 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
     private final OpenApiCipher cipher;
     private final OpenApiProperties properties;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final OpenApiScopeCatalog scopeCatalog;
 
     @Override
     public CreatedSecret createApp(OpenAppSaveRequest req) {
+        validateScopes(req.getScopes());
         String appKey = "ak_" + randomToken(18);
         String appSecret = randomToken(32);
         // 回调签名密钥单独生成，跟接口密钥互不影响
@@ -101,6 +105,7 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
         if (req.getId() == null) {
             throw new ServiceException("应用ID不能为空");
         }
+        validateScopes(req.getScopes());
         OpenApp exists = getById(req.getId());
         if (exists == null) {
             throw new ServiceException("应用不存在");
@@ -198,6 +203,21 @@ public class OpenApiAppServiceImpl extends ServiceImpl<OpenAppMapper, OpenApp> i
                 .map(String::trim)
                 .filter(StringUtils::hasText)
                 .collect(Collectors.toSet());
+    }
+
+    private void validateScopes(String scopes) {
+        Set<String> requested = parseScopes(scopes);
+        if (requested.isEmpty()) {
+            return;
+        }
+        Set<String> known = scopeCatalog.codes();
+        List<String> unknown = requested.stream()
+                .filter(code -> !known.contains(code))
+                .sorted()
+                .toList();
+        if (!unknown.isEmpty()) {
+            throw new ServiceException("未知的授权范围: " + String.join(", ", unknown));
+        }
     }
 
     private String randomToken(int bytes) {

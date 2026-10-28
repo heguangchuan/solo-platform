@@ -31,6 +31,7 @@ class OpenApiScopeCatalogTest {
         catalog.refresh(mapping);
 
         List<OpenApiScopeResponse> scopes = catalog.getScopes();
+        assertThat(catalog.codes()).containsExactly("gb:play:write");
         assertThat(scopes).hasSize(1);
         OpenApiScopeResponse scope = scopes.getFirst();
         assertThat(scope.code()).isEqualTo("gb:play:write");

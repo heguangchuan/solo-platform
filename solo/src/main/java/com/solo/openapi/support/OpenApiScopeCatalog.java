@@ -47,6 +47,12 @@ public class OpenApiScopeCatalog implements SmartInitializingSingleton {
         return scopes;
     }
 
+    public Set<String> codes() {
+        return scopes.stream()
+                .map(OpenApiScopeResponse::code)
+                .collect(Collectors.toUnmodifiableSet());
+    }
+
     void refresh(RequestMappingHandlerMapping handlerMapping) {
         Map<String, ScopeBuilder> builders = new TreeMap<>();
         List<String> missing = new ArrayList<>();
