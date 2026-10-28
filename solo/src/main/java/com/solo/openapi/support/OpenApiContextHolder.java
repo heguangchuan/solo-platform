@@ -21,4 +21,10 @@ public final class OpenApiContextHolder {
         HttpServletRequest request = com.solo.common.utils.WebUtils.currentRequest();
         return request == null ? null : get(request);
     }
+
+    /** 请求 ID：鉴权过滤器写入请求属性，未经过滤器时回退请求头 */
+    public static String requestId(HttpServletRequest request) {
+        Object rid = request.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
+        return rid != null ? rid.toString() : request.getHeader(OpenApiConstants.HEADER_REQUEST_ID);
+    }
 }

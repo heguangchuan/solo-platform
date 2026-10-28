@@ -4,6 +4,7 @@ import com.solo.common.ServiceException;
 import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.constant.OpenApiErrorCode;
 import com.solo.openapi.exception.OpenApiException;
+import com.solo.openapi.support.OpenApiContextHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
@@ -31,7 +32,8 @@ public class OpenApiExceptionHandler {
         log.warn("[开放API] 业务异常 appKey={} code={} msg={}",
                 request.getHeader(OpenApiConstants.HEADER_APP_KEY), errorCode.getCode(), e.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(OpenApiResult.error(errorCode.getCode(), e.getMessage(), requestId(request)));
+                .body(OpenApiResult.error(errorCode.getCode(), e.getMessage(),
+                        OpenApiContextHolder.requestId(request)));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -42,7 +44,8 @@ public class OpenApiExceptionHandler {
                 .map(err -> err.getField() + " " + err.getDefaultMessage())
                 .orElse(OpenApiErrorCode.PARAM_INVALID.getMessage());
         return ResponseEntity.status(OpenApiErrorCode.PARAM_INVALID.getHttpStatus())
-                .body(OpenApiResult.error(OpenApiErrorCode.PARAM_INVALID.getCode(), msg, requestId(request)));
+                .body(OpenApiResult.error(OpenApiErrorCode.PARAM_INVALID.getCode(), msg,
+                        OpenApiContextHolder.requestId(request)));
     }
 
     /**
@@ -55,7 +58,8 @@ public class OpenApiExceptionHandler {
         log.warn("[开放API] 业务异常 appKey={} code={} msg={}",
                 request.getHeader(OpenApiConstants.HEADER_APP_KEY), errorCode.getCode(), e.getMessage());
         return ResponseEntity.status(errorCode.getHttpStatus())
-                .body(OpenApiResult.error(errorCode.getCode(), e.getMessage(), requestId(request)));
+                .body(OpenApiResult.error(errorCode.getCode(), e.getMessage(),
+                        OpenApiContextHolder.requestId(request)));
     }
 
     private OpenApiErrorCode mapServiceError(String message) {
@@ -92,14 +96,10 @@ public class OpenApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<OpenApiResult<Void>> handleOther(Exception e, HttpServletRequest request) {
-        log.error("[开放API] 系统异常 requestId={}", requestId(request), e);
+        log.error("[开放API] 系统异常 requestId={}", OpenApiContextHolder.requestId(request), e);
         return ResponseEntity.status(OpenApiErrorCode.INTERNAL_ERROR.getHttpStatus())
                 .body(OpenApiResult.error(OpenApiErrorCode.INTERNAL_ERROR.getCode(),
-                        OpenApiErrorCode.INTERNAL_ERROR.getMessage(), requestId(request)));
-    }
-
-    private String requestId(HttpServletRequest request) {
-        Object id = request.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
-        return id != null ? id.toString() : request.getHeader(OpenApiConstants.HEADER_REQUEST_ID);
+                        OpenApiErrorCode.INTERNAL_ERROR.getMessage(),
+                        OpenApiContextHolder.requestId(request)));
     }
 }

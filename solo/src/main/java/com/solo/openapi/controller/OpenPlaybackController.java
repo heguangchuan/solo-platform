@@ -1,5 +1,6 @@
 package com.solo.openapi.controller;
 
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.PlaybackControlRequest;
 import com.solo.gb28181.request.PlaybackStartRequest;
 import com.solo.gb28181.request.PlaybackStopRequest;
@@ -9,6 +10,8 @@ import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.openapi.auth.RequireScope;
 import com.solo.openapi.constant.OpenApiConstants;
+import com.solo.openapi.service.OpenCatalogService;
+import com.solo.openapi.support.OpenApiContextHolder;
 import com.solo.openapi.web.OpenApiResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,13 +34,16 @@ import java.util.List;
 public class OpenPlaybackController {
 
     private final GbPlaybackService playbackService;
+    private final OpenCatalogService catalogService;
 
     @Operation(summary = "设备录像查询")
     @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = "设备录像查询")
     @PostMapping("/records")
     public OpenApiResult<List<RecordItemResponse>> records(@RequestBody RecordInfoQueryRequest req,
                                                            HttpServletRequest request) {
-        return OpenApiResult.success(playbackService.queryRecordInfo(req), requestId(request));
+        normalizeChannel(req);
+        return OpenApiResult.success(playbackService.queryRecordInfo(req),
+                OpenApiContextHolder.requestId(request));
     }
 
     @Operation(summary = "开始回放")
@@ -45,7 +51,8 @@ public class OpenPlaybackController {
     @PostMapping("/start")
     public OpenApiResult<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req,
                                                        HttpServletRequest request) {
-        return OpenApiResult.success(playbackService.start(req), requestId(request));
+        normalizeChannel(req);
+        return OpenApiResult.success(playbackService.start(req), OpenApiContextHolder.requestId(request));
     }
 
     @Operation(summary = "停止回放")
@@ -53,7 +60,7 @@ public class OpenPlaybackController {
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@RequestBody PlaybackStopRequest req, HttpServletRequest request) {
         playbackService.stop(req);
-        return OpenApiResult.success(null, requestId(request));
+        return OpenApiResult.success(null, OpenApiContextHolder.requestId(request));
     }
 
     @Operation(summary = "回放控制")
@@ -61,11 +68,19 @@ public class OpenPlaybackController {
     @PostMapping("/control")
     public OpenApiResult<Void> control(@RequestBody PlaybackControlRequest req, HttpServletRequest request) {
         playbackService.control(req);
-        return OpenApiResult.success(null, requestId(request));
+        return OpenApiResult.success(null, OpenApiContextHolder.requestId(request));
     }
 
-    private static String requestId(HttpServletRequest request) {
-        Object rid = request.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
-        return rid != null ? rid.toString() : request.getHeader(OpenApiConstants.HEADER_REQUEST_ID);
+    /** 三方可能传推送码，统一定位到真实通道后再查录像 / 回放 */
+    private void normalizeChannel(RecordInfoQueryRequest req) {
+        GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
+        req.setDeviceId(channel.getDeviceId());
+        req.setChannelId(channel.getChannelId());
+    }
+
+    private void normalizeChannel(PlaybackStartRequest req) {
+        GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
+        req.setDeviceId(channel.getDeviceId());
+        req.setChannelId(channel.getChannelId());
     }
 }

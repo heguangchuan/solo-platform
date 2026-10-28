@@ -1,6 +1,7 @@
 package com.solo.openapi.controller;
 
 import com.solo.gb28181.entity.GbDevice;
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.utils.SipUtils;
@@ -9,6 +10,8 @@ import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.constant.OpenApiErrorCode;
 import com.solo.openapi.exception.OpenApiException;
 import com.solo.openapi.request.OpenPtzControlRequest;
+import com.solo.openapi.service.OpenCatalogService;
+import com.solo.openapi.support.OpenApiContextHolder;
 import com.solo.openapi.web.OpenApiResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,11 +34,17 @@ public class OpenPtzController {
 
     private final GbDeviceService deviceService;
     private final SipCommander sipCommander;
+    private final OpenCatalogService catalogService;
 
     @Operation(summary = "云台控制")
     @RequireScope(value = OpenApiConstants.SCOPE_PTZ_CTRL, name = "云台控制")
     @PostMapping("/control")
     public OpenApiResult<Void> control(@Valid @RequestBody OpenPtzControlRequest req, HttpServletRequest request) {
+        // 三方可能传推送码，统一定位到真实通道后再下发 SIP 指令
+        GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
+        req.setDeviceId(channel.getDeviceId());
+        req.setChannelId(channel.getChannelId());
+
         int speed = req.getSpeed() == null ? 100 : req.getSpeed();
         int zoomSpeed = req.getZoomSpeed() == null ? 5 : req.getZoomSpeed();
         if (speed < 0 || speed > 255) {
@@ -91,11 +100,6 @@ public class OpenPtzController {
 
         String ptzCmd = SipUtils.buildPtzCmd(leftRight, upDown, inOut, speed, zoomSpeed);
         sipCommander.sendPtzCmd(device, req.getChannelId(), ptzCmd);
-        return OpenApiResult.success(null, requestId(request));
-    }
-
-    private static String requestId(HttpServletRequest request) {
-        Object rid = request.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
-        return rid != null ? rid.toString() : request.getHeader(OpenApiConstants.HEADER_REQUEST_ID);
+        return OpenApiResult.success(null, OpenApiContextHolder.requestId(request));
     }
 }
