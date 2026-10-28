@@ -5,7 +5,7 @@ export interface OpenApp {
   /** 应用标识，对接方签名时用的 appKey */
   appKey: string
   appName: string
-  /** 授权范围，逗号分隔，如 gb:device:read,gb:play:ctrl */
+  /** 授权范围，逗号分隔，如 gb:device:read,gb:play:write */
   scopes?: string
   /** IP 白名单，逗号分隔，支持 CIDR；空代表不限 */
   ipWhitelist?: string
@@ -54,6 +54,21 @@ export interface OpenAppCreatedSecret {
   appKey: string
   appSecret: string
   callbackSecret?: string
+}
+
+/** 开放接口授权范围，由后端启动时扫描 @RequireScope 生成 */
+export interface OpenApiScope {
+  code: string
+  name: string
+  /** 所属接口分组 */
+  tag: string
+  endpoints: OpenApiScopeEndpoint[]
+}
+
+export interface OpenApiScopeEndpoint {
+  method: string
+  path: string
+  summary: string
 }
 
 /* ========== 开放平台调用日志 ========== */

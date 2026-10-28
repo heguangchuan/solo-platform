@@ -1,5 +1,5 @@
 <template>
-  <div class="flex h-full gap-3 overflow-hidden p-3">
+  <div ref="rootRef" class="relative flex h-full gap-3 overflow-hidden p-3">
     <!-- 左侧：应用列表 -->
     <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card">
       <!-- 工具栏 -->
@@ -172,21 +172,44 @@
       </div>
     </div>
 
-    <!-- 右侧：检视器 -->
+    <!-- 右侧：检视器。拖宽超过阈值后浮在列表上方，避免挤窄表格 -->
     <Transition name="inspector">
-      <aside
+      <div
         v-if="creating || selected"
-        class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+        class="flex shrink-0"
+        :class="inspectorFloating ? 'absolute inset-y-3 right-3 z-20' : 'relative'"
+        :style="{ width: `${inspectorWidthPx}px` }"
       >
-        <div class="min-h-0 flex-1 overflow-y-auto p-5">
-          <OpenAppInspector
-            :app="selected ?? undefined"
-            :creating="creating"
-            @close="onCloseInspector"
-            @changed="onChanged"
+        <button
+          type="button"
+          aria-label="调整检视器宽度"
+          title="拖动调整宽度，双击恢复默认"
+          class="group absolute inset-y-0 -left-2 z-10 flex w-4 cursor-col-resize items-center justify-center outline-none"
+          @pointerdown="onResizeStart"
+          @dblclick="resetInspectorWidth"
+          @keydown.left.prevent="nudgeInspectorWidth(24)"
+          @keydown.right.prevent="nudgeInspectorWidth(-24)"
+        >
+          <span
+            class="h-10 w-0.5 rounded-full bg-border transition-colors group-hover:bg-primary/70 group-focus-visible:bg-primary"
+            :class="dragging && 'bg-primary'"
           />
-        </div>
-      </aside>
+        </button>
+
+        <aside
+          class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card"
+          :class="inspectorFloating && 'shadow-2xl shadow-black/30'"
+        >
+          <div class="min-h-0 flex-1 overflow-y-auto p-5">
+            <OpenAppInspector
+              :app="selected ?? undefined"
+              :creating="creating"
+              @close="onCloseInspector"
+              @changed="onChanged"
+            />
+          </div>
+        </aside>
+      </div>
     </Transition>
   </div>
 </template>
@@ -250,6 +273,77 @@ const creating = ref(false)
 const scrollerRef = ref<HTMLElement>()
 const sentinelRef = ref<HTMLElement>()
 const appNameRef = ref<HTMLInputElement>()
+
+/* ---------- 检视器宽度：可拖拽，过宽改为浮层 ---------- */
+const INSPECTOR_WIDTH_KEY = 'openapi.app.inspector-width'
+const INSPECTOR_DEFAULT_WIDTH = 440
+const INSPECTOR_MIN_WIDTH = 360
+const INSPECTOR_MAX_WIDTH = 960
+const INSPECTOR_DOCK_MAX_WIDTH = 560
+
+const readStoredWidth = () => {
+  const stored = Number(localStorage.getItem(INSPECTOR_WIDTH_KEY))
+  if (!Number.isFinite(stored) || stored <= 0) return INSPECTOR_DEFAULT_WIDTH
+  return Math.min(INSPECTOR_MAX_WIDTH, Math.max(INSPECTOR_MIN_WIDTH, stored))
+}
+
+const rootRef = ref<HTMLElement>()
+const rootWidth = ref(0)
+const inspectorWidth = ref(readStoredWidth())
+const dragging = ref(false)
+
+const clampInspectorWidth = (width: number) => {
+  const upper = rootWidth.value
+    ? Math.max(INSPECTOR_MIN_WIDTH, Math.min(INSPECTOR_MAX_WIDTH, rootWidth.value - 48))
+    : INSPECTOR_MAX_WIDTH
+  return Math.round(Math.min(upper, Math.max(INSPECTOR_MIN_WIDTH, width)))
+}
+
+const inspectorWidthPx = computed(() => clampInspectorWidth(inspectorWidth.value))
+// 超过停靠上限后不再挤压列表，改为浮在列表上方
+const inspectorFloating = computed(() => inspectorWidthPx.value > INSPECTOR_DOCK_MAX_WIDTH)
+
+const persistInspectorWidth = () =>
+  localStorage.setItem(INSPECTOR_WIDTH_KEY, String(inspectorWidth.value))
+
+let dragStartX = 0
+let dragStartWidth = 0
+
+const onResizeStart = (e: PointerEvent) => {
+  if (e.button !== 0) return
+  dragging.value = true
+  dragStartX = e.clientX
+  dragStartWidth = inspectorWidthPx.value
+  document.body.style.userSelect = 'none'
+  document.body.style.cursor = 'col-resize'
+  window.addEventListener('pointermove', onResizeMove)
+  window.addEventListener('pointerup', onResizeEnd)
+}
+
+const onResizeMove = (e: PointerEvent) => {
+  inspectorWidth.value = clampInspectorWidth(dragStartWidth + (dragStartX - e.clientX))
+}
+
+const onResizeEnd = () => {
+  dragging.value = false
+  document.body.style.userSelect = ''
+  document.body.style.cursor = ''
+  window.removeEventListener('pointermove', onResizeMove)
+  window.removeEventListener('pointerup', onResizeEnd)
+  persistInspectorWidth()
+}
+
+const resetInspectorWidth = () => {
+  inspectorWidth.value = INSPECTOR_DEFAULT_WIDTH
+  persistInspectorWidth()
+}
+
+const nudgeInspectorWidth = (delta: number) => {
+  inspectorWidth.value = clampInspectorWidth(inspectorWidthPx.value + delta)
+  persistInspectorWidth()
+}
+
+let widthObserver: ResizeObserver | null = null
 
 const firstLoading = computed(
   () => resource.loading.value && resource.items.value.length === 0,
@@ -331,6 +425,13 @@ let observer: IntersectionObserver | null = null
 
 onMounted(async () => {
   window.addEventListener('keydown', onGlobalKeydown)
+  if (rootRef.value) {
+    rootWidth.value = rootRef.value.clientWidth
+    widthObserver = new ResizeObserver(() => {
+      rootWidth.value = rootRef.value?.clientWidth ?? 0
+    })
+    widthObserver.observe(rootRef.value)
+  }
   await resource.load(true)
   observer = new IntersectionObserver(
     (entries) => {
@@ -344,6 +445,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGlobalKeydown)
   observer?.disconnect()
+  widthObserver?.disconnect()
+  onResizeEnd()
   if (debounceTimer) clearTimeout(debounceTimer)
 })
 
