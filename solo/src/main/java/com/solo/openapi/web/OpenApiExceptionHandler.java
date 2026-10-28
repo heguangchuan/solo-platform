@@ -75,7 +75,8 @@ public class OpenApiExceptionHandler {
                 || message.contains("非回放会话") || message.contains("流尚未就绪")) {
             return OpenApiErrorCode.STREAM_NOT_ACTIVE;
         }
-        if (message.contains("不能为空") || message.contains("不合法") || message.contains("必须晚于")) {
+        if (message.contains("不能为空") || message.contains("不合法")
+                || message.contains("不支持") || message.contains("必须晚于")) {
             return OpenApiErrorCode.PARAM_INVALID;
         }
         if (message.contains("回放")) {
