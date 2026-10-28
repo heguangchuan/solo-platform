@@ -180,6 +180,9 @@ export const PERM = {
   OPENAPI_APP_ADD: 'openapi:app:add',
   OPENAPI_APP_EDIT: 'openapi:app:edit',
   OPENAPI_APP_ROTATE: 'openapi:app:rotate',
+  OPENAPI_LOG: 'openapi:log',
+  OPENAPI_LOG_LIST: 'openapi:log:list',
+  OPENAPI_LOG_EXPORT: 'openapi:log:export',
 } as const
 
 export type PermCode = (typeof PERM)[keyof typeof PERM]

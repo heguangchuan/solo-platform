@@ -107,3 +107,22 @@ INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id FROM sys_permission WHERE id BETWEEN 143 AND 148
   AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
                   WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+-- ============================================================
+--  调用日志菜单（149~150 已被 broadcast.sql 的语音播报占用，从 151 开始）
+--    151 调用日志  二级菜单 type=1 url=/openapi/log parent=143
+--    152 日志查询 / 153 日志导出 按钮 type=2 parent=151
+--  脚本可重复执行。
+-- ============================================================
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 151 AND 153;
+DELETE FROM sys_permission          WHERE id BETWEEN 151 AND 153;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (151, '调用日志', 'openapi:log',       '/openapi/log', 1, 143, 2, 'IconLock', 1, 0, NOW(), NOW()),
+ (152, '日志查询', 'openapi:log:list',  NULL,           2, 151, 1, NULL,       1, 0, NOW(), NOW()),
+ (153, '日志导出', 'openapi:log:export', NULL,          2, 151, 2, NULL,       1, 0, NOW(), NOW());
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 151 AND 153
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
