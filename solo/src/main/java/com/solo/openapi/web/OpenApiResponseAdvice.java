@@ -3,7 +3,7 @@ package com.solo.openapi.web;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.ObjectMapper;
 import com.solo.common.Result;
-import com.solo.openapi.constant.OpenApiConstants;
+import com.solo.openapi.support.OpenApiContextHolder;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.MethodParameter;
@@ -34,8 +34,7 @@ public class OpenApiResponseAdvice implements ResponseBodyAdvice<Object> {
                                   Class selectedConverterType, ServerHttpRequest request,
                                   ServerHttpResponse response) {
         HttpServletRequest servletRequest = ((ServletServerHttpRequest) request).getServletRequest();
-        Object requestId = servletRequest.getAttribute(OpenApiConstants.HEADER_REQUEST_ID);
-        String rid = requestId != null ? requestId.toString() : null;
+        String rid = OpenApiContextHolder.requestId(servletRequest);
 
         if (body instanceof OpenApiResult<?>) {
             return body;

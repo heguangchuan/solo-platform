@@ -1,11 +1,14 @@
 package com.solo.openapi.controller;
 
+import com.solo.gb28181.entity.GbDeviceChannel;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.openapi.auth.RequireScope;
 import com.solo.openapi.constant.OpenApiConstants;
+import com.solo.openapi.service.OpenCatalogService;
+import com.solo.openapi.support.OpenApiContextHolder;
 import com.solo.openapi.web.OpenApiResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,13 +31,17 @@ import org.springframework.web.bind.annotation.RestController;
 public class OpenPlayController {
 
     private final GbPlayService playService;
+    private final OpenCatalogService catalogService;
 
     @Operation(summary = "开始点播")
     @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
     @PostMapping("/start")
     public OpenApiResult<PlayResultResponse> start(@RequestBody PlayStartRequest req, HttpServletRequest request) {
-        String rid = (String) request.getAttribute(com.solo.openapi.constant.OpenApiConstants.HEADER_REQUEST_ID);
-        return OpenApiResult.success(playService.start(req), rid);
+        // 三方可能传推送码，统一定位到真实通道后再点播
+        GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
+        req.setDeviceId(channel.getDeviceId());
+        req.setChannelId(channel.getChannelId());
+        return OpenApiResult.success(playService.start(req), OpenApiContextHolder.requestId(request));
     }
 
     @Operation(summary = "停止点播")
@@ -42,7 +49,7 @@ public class OpenPlayController {
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@RequestBody PlayStopRequest req, HttpServletRequest request) {
         playService.stop(req);
-        String rid = (String) request.getAttribute(com.solo.openapi.constant.OpenApiConstants.HEADER_REQUEST_ID);
+        String rid = OpenApiContextHolder.requestId(request);
         return OpenApiResult.success(null, rid);
     }
 }
