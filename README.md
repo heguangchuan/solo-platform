@@ -252,188 +252,6 @@ cd solo-ui && npm install && npm run dev
 
 将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
 
-## 开放 API 对接指南（第三方）
-
-平台通过开放 API 向第三方业务系统提供国标能力（当前开放**实时点播**：开始 / 停止）。接口采用 HMAC-SHA256 签名鉴权，无需登录态，适合服务端对接。
-
-### 1. 申请凭证
-
-平台方在管理后台「开放平台 → 应用管理」创建应用后，第三方获得：
-
-| 凭证 | 说明 |
-|---|---|
-| `appKey` | 应用标识，类似用户名，随每个请求传递 |
-| `appSecret` | 签名密钥，**只在创建 / 换钥时展示一次**，平台仅存密文，丢失只能换钥 |
-
-创建时需让平台方：授权 scope `gb:play:write`（点播接口必需）、按需配置 IP 白名单（留空表示不限制）。
-
-### 2. 请求约定
-
-- 基地址：`http://{平台IP}:8080`，全部 `POST` + `application/json; charset=utf-8`
-- 每个请求必须携带以下请求头：
-
-| 请求头 | 必填 | 说明 |
-|---|---|---|
-| `X-App-Key` | 是 | 应用 appKey |
-| `X-Timestamp` | 是 | 调用时刻的 **Unix 秒级时间戳**（毫秒也兼容），与服务端偏差超过 **300 秒**拒绝（40104） |
-| `X-Nonce` | 是 | 每次请求随机生成的唯一串，**同一 nonce 10 分钟内只能用一次**，重复拒绝（40105） |
-| `X-Sign-Alg` | 是 | 固定 `HMAC-SHA256` |
-| `X-Signature` | 是 | 签名值，**小写 HEX**，算法见下 |
-| `X-Request-Id` | 否 | 调用方自己的请求追踪 ID，响应头与响应体中原样回显，方便对账排障 |
-
-### 3. 签名算法（HMAC-SHA256）
-
-**第 1 步：规范化 query**
-
-没有 query 时为空串 `""`。有 query 时按参数名 ASCII 字典序排列，参数值做 URL 编码，用 `&` 拼接：`k1=v1&k2=v2`。
-
-**第 2 步：计算请求体摘要**
-
-对**实际发送的原始 body 字节**（UTF-8）算 SHA-256，输出小写 HEX。body 为空时对空串计算。
-
-> 关键：参与哈希的 body 必须与实际发送的字节**逐字节一致**（含空格、换行）。所以应当先定稿 body，再算哈希，之后不要再改写、重排版 body。
-
-**第 3 步：拼接待签名串**（6 行，行间是 `\n`）
-
-```
-METHOD          // HTTP 方法大写，如 POST
-PATH            // 路径，不含域名、不含 query，如 /open-api/v1/play/start
-CANONICAL_QUERY // 第 1 步结果，无 query 时为空行
-BODY_SHA256     // 第 2 步结果
-TIMESTAMP       // 与 X-Timestamp 完全一致
-NONCE           // 与 X-Nonce 完全一致
-```
-
-**第 4 步：算签名**
-
-```
-X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
-```
-
-### 4. 统一响应与错误码
-
-所有响应都是同一信封（包括业务失败）：
-
-```json
-{ "code": 200, "message": "success", "data": { }, "requestId": "调用方传入或平台生成" }
-```
-
-HTTP 状态码与业务码 `code` 需同时判断。常见错误码：
-
-| HTTP | code | 含义 | | HTTP | code | 含义 |
-|---|---|---|---|---|---|---|
-| 401 | 40101 | 缺少鉴权信息 | | 403 | 40303 | 应用未授权该接口（scope） |
-| 401 | 40102 | 应用不存在 | | 403 | 40304 | 来源 IP 不在白名单 |
-| 401 | 40103 | 签名校验失败 | | 400 | 40001 | 请求参数不合法 |
-| 401 | 40104 | 时间戳过期 | | 400 | 40003 | 设备不存在 |
-| 401 | 40105 | 重复请求（nonce） | | 400 | 40004 | 设备 / 通道不在线 |
-| 403 | 40301 | 应用已停用 | | 429 | 42901 / 42902 | 触发 QPS / 日调用量限制 |
-| 403 | 40302 | 应用已过期 | | 200 | 60001 / 60002 | 点播失败（设备未响应/拒绝）/ 流不存在 |
-
-> 注意：国标业务类失败（60001 等）HTTP 状态仍是 200，靠 `code` 区分。设备不在线时点播返回 40004。
-
-### 5. 最快上手：用 Bruno 调通（以「开始点播」为例）
-
-仓库已提供 Bruno 集合前置脚本：[`openapi/pre-script.js`](openapi/pre-script.js)。它会在每次点击 Send 时自动生成时间戳、nonce 并完成签名，**不用手工算签名，也不用担心时间戳过期和 nonce 重复**。
-
-**① 新建 Collection 与环境变量**
-
-Bruno 中新建 Collection，再新建一个 Environment（如 `local`），配置三个变量：
-
-| 变量 | 示例值 |
-|---|---|
-| `base_url` | `http://localhost:8080` |
-| `app_key` | 平台分配的 ak_xxx |
-| `app_secret` | 平台分配的密钥（明文，只存在你本地 Bruno 环境里） |
-
-并选中该环境（右上角环境切换器）。
-
-**② 粘贴前置脚本**
-
-打开 Collection 设置 → Pre-request Script，把 [`openapi/pre-script.js`](openapi/pre-script.js) 的全部内容粘贴进去。脚本对集合内所有请求自动生效，会自动写入 6 个鉴权头。
-
-**③ 新建「开始点播」请求**
-
-- 方法：`POST`
-- URL：`{{base_url}}/open-api/v1/play/start`
-- Body 选 JSON：
-
-```json
-{
-  "deviceId": "34020000001320000001",
-  "channelId": "34020000001320000001",
-  "transport": "TCP-passive",
-  "streamNumber": null
-}
-```
-
-字段说明：`deviceId` / `channelId` 为 20 位国标 ID（向平台方索取）；`transport` 支持 `TCP-passive`（默认）/ `UDP`；`streamNumber` **显式传 `null` = 主码流**，不传或传 `"streamnumber:1"` = 子码流。
-
-**④ 点击 Send**
-
-成功响应（`code=200`）：
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "streamId": "34020000001320000001_34020000001320000001",
-    "app": "rtp",
-    "mediaServerId": "zlmediakit-local",
-    "ssrc": "0000001430",
-    "rtpPort": 30660,
-    "transport": "TCP-passive",
-    "streamNumber": null,
-    "flvUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
-    "wsFlvUrl": "ws://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
-    "hlsUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001/hls.m3u8",
-    "rtcUrl": ""
-  },
-  "requestId": "a1b2c3d4..."
-}
-```
-
-拿到 `streamId` 和播放地址后即可拉流（HTTP-FLV / WS-FLV / HLS / WebRTC）。
-
-**⑤ 停止点播**（不看时务必调用，释放设备会话与收流端口；接口幂等，重复调用仍返回成功）
-
-- `POST {{base_url}}/open-api/v1/play/stop`
-
-```json
-{ "streamId": "34020000001320000001_34020000001320000001" }
-```
-
-**排查提示**：底部 Console 面板会打印本次的待签名串和 body；返回 40103 时先对比服务端日志（每次调用平台侧都有 `[openapi接口调用]` 记录，含业务码与耗时）。
-
-### 6. 不用 Bruno 时（curl / openssl 验证算法）
-
-```bash
-APP_KEY=ak_xxx
-APP_SECRET=平台分配的密钥
-TS=$(date +%s)
-NONCE=$(openssl rand -hex 16)
-BODY='{"deviceId":"34020000001320000001","channelId":"34020000001320000001","transport":"TCP-passive","streamNumber":null}'
-
-BODY_HASH=$(printf '%s' "$BODY" | openssl dgst -sha256 -hex | sed 's/^.*= //')
-SIGN_STR=$(printf 'POST\n/open-api/v1/play/start\n\n%s\n%s\n%s' "$BODY_HASH" "$TS" "$NONCE")
-SIGNATURE=$(printf '%s' "$SIGN_STR" | openssl dgst -sha256 -hmac "$APP_SECRET" -hex | sed 's/^.*= //')
-
-curl -X POST "http://localhost:8080/open-api/v1/play/start" \
-  -H "Content-Type: application/json" \
-  -H "X-App-Key: $APP_KEY" -H "X-Timestamp: $TS" -H "X-Nonce: $NONCE" \
-  -H "X-Sign-Alg: HMAC-SHA256" -H "X-Signature: $SIGNATURE" \
-  -d "$BODY"
-```
-
-### 7. 对接注意事项
-
-- **禁止重放同一签名请求**：超时重试必须重新生成时间戳和 nonce、重新签名，直接重发旧请求会收到 40105。
-- **先定稿 body 再签名**：签名后不得再修改 JSON 排版；GET 类请求 body 摘要为空串。
-- **密钥轮换**：平台换钥后旧密钥有过渡期（默认 24 小时），过渡期间新旧密钥都可验签，第三方应在过渡期内完成切换。
-- **限流**：QPS 与日调用量在应用上配置，超限分别返回 42901 / 42902（鉴权未通过的请求不占配额）。
-- **故障排查**：每次请求平台都会记录调用日志（appKey、requestId、IP、耗时、HTTP/业务码、错误原因），在管理后台「开放平台 → 调用日志」可查；报障时提供 `X-Request-Id` 可快速定位。
-
 ## 项目结构
 
 ```
@@ -448,7 +266,7 @@ solo-platform/
 │       ├── aop/           # 权限 / 操作日志 / 限流 / 防重复提交
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
-├── openapi/               # 第三方对接资料（Bruno 前置签名脚本，见上方对接指南）
+├── openapi/               # 第三方对接资料（Bruno 前置签名脚本，见下方对接指南）
 ├── solo-ui/               # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # 数据库初始化脚本（solo_db / gb28181 / onvif）
@@ -493,6 +311,290 @@ solo-platform/
 - [ ] **数据库迁移**：引入 Flyway/Liquibase，提供生产平滑升级路径
 - [ ] **集群高可用**：下载任务 / 订阅状态分布式化，支持多副本部署
 
+## 开放 API 对接指南（第三方）
+
+面向第三方业务系统的**服务端对接**文档。平台将 GB/T 28181 能力封装为标准 REST 接口，对接方无需关心 SIP 信令与设备差异，完成签名后即可直接调用。
+
+> 浏览器 / 移动端不建议直接持有 `appSecret`，请统一由业务服务端签名后再发起请求。
+
+| 项目 | 说明 |
+|---|---|
+| 当前开放能力 | 实时点播（开始 / 停止） |
+| 鉴权方式 | HMAC-SHA256 请求签名，无登录态 |
+| 请求方法 | 当前接口均为 `POST` + `application/json; charset=utf-8`，后续可能扩展 `GET` |
+| 响应格式 | 统一信封 `code` / `message` / `data` / `requestId` |
+| 配套工具 | [`openapi/pre-script.js`](openapi/pre-script.js)（Bruno 自动签名） |
+
+**接口清单**
+
+| 能力 | 方法 | 路径 | 所需 scope |
+|---|---|---|---|
+| 开始点播 | `POST` | `/open-api/v1/play/start` | `gb:play:write` |
+| 停止点播 | `POST` | `/open-api/v1/play/stop` | `gb:play:write` |
+
+**对接流程**
+
+```text
+① 申请凭证  →  ② 组装并签名请求  →  ③ 调用开始点播  →  ④ 按播放地址拉流  →  ⑤ 结束时停止点播
+```
+
+**快速导航**：[申请凭证](#1-申请凭证) · [请求约定](#2-请求约定) · [签名算法](#3-签名算法) · [响应与错误码](#4-响应与错误码) · [Bruno 调通](#5-bruno-快速调通) · [curl 验证](#6-curl-手动验证) · [注意事项](#7-对接注意事项)
+
+### 1. 申请凭证
+
+平台方在管理后台「开放平台 → 应用管理」创建应用后，向第三方提供：
+
+| 凭证 | 说明 |
+|---|---|
+| `appKey` | 应用标识，随每个请求传递 |
+| `appSecret` | 签名密钥，**仅在创建 / 换钥时展示一次**；平台只存密文，丢失需换钥 |
+
+创建应用时请平台方一并确认：
+
+- 授予 scope `gb:play:write`（点播接口必需）
+- 按需配置 IP 白名单（留空表示不限制来源）
+- 按需设置 QPS 与日调用量配额
+
+### 2. 请求约定
+
+- 基地址：`http://{平台IP}:8080`
+- 当前接口均为 `POST` + JSON；后续如增加 `GET` 等接口，方法与路径以接口清单为准，无 body 时摘要按空串计算
+- 每个请求必须携带以下签名请求头：
+
+| 请求头 | 必填 | 示例 | 说明 |
+|---|---|---|---|
+| `X-App-Key` | 是 | `ak_xxx` | 应用标识 |
+| `X-Timestamp` | 是 | `1750000000` | Unix **秒级**时间戳（兼容毫秒），与服务端偏差超过 **300 秒**返回 40104 |
+| `X-Nonce` | 是 | `9f2c...` | 随机唯一串，**同一 nonce 10 分钟内仅可使用一次**，重复返回 40105 |
+| `X-Sign-Alg` | 是 | `HMAC-SHA256` | 签名算法，固定值 |
+| `X-Signature` | 是 | `a1b2...` | 签名结果，**小写 HEX**，算法见下节 |
+| `X-Request-Id` | 否 | `trace-001` | 调用方追踪 ID，响应头与响应体原样回显，便于对账排障 |
+
+### 3. 签名算法
+
+共四个步骤，最终得到 `X-Signature`。
+
+**第 1 步 · 规范化 query**
+
+无 query 时为空串 `""`；有 query 时按参数名 ASCII 字典序升序排列，参数值做 URL 编码，以 `&` 拼接：
+
+```text
+k1=v1&k2=v2
+```
+
+**第 2 步 · 计算请求体摘要**
+
+对**实际发送的原始 body 字节**（UTF-8）计算 SHA-256，输出小写 HEX；body 为空时对空串计算。
+
+> **关键**：参与哈希的 body 必须与实际发送的字节**逐字节一致**（含空格、换行）。请先定稿 body，再计算哈希，之后不要再改写或重排版。
+
+**第 3 步 · 拼接待签名串**
+
+按固定顺序拼接 6 行，行间以 `\n` 分隔：
+
+| 行 | 内容 | 说明 |
+|---|---|---|
+| 1 | `METHOD` | HTTP 方法，大写，如 `POST` |
+| 2 | `PATH` | 路径，不含域名与 query，如 `/open-api/v1/play/start` |
+| 3 | `CANONICAL_QUERY` | 第 1 步结果；无 query 时为空行 |
+| 4 | `BODY_SHA256` | 第 2 步结果；空 body 时为空串 |
+| 5 | `TIMESTAMP` | 与 `X-Timestamp` 完全一致 |
+| 6 | `NONCE` | 与 `X-Nonce` 完全一致 |
+
+待签名串示例（`<...>` 为占位符）：
+
+```text
+POST
+/open-api/v1/play/start
+
+<BODY_SHA256>
+<TIMESTAMP>
+<NONCE>
+```
+
+> 第 3 行在无 query 时是**空行**，不能省略。
+
+**第 4 步 · 计算签名**
+
+```text
+X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
+```
+
+### 4. 响应与错误码
+
+所有响应（含失败）使用同一信封：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {},
+  "requestId": "调用方传入或平台生成"
+}
+```
+
+判断是否成功需**同时**看 HTTP 状态码与业务码 `code`。
+
+**鉴权失败（HTTP 401）**
+
+| code | 含义 | 常见原因 |
+|---|---|---|
+| 40101 | 缺少鉴权信息 | 必填请求头缺失 |
+| 40102 | 应用不存在 | `appKey` 错误或应用已删除 |
+| 40103 | 签名校验失败 | 待签名串顺序 / body 字节 / 编码不一致 |
+| 40104 | 时间戳过期 | 本地时钟偏差超过 300 秒 |
+| 40105 | 重复请求 | nonce 在窗口内被复用，或直接重发了旧请求 |
+
+**授权与访问限制（HTTP 403）**
+
+| code | 含义 | 常见原因 |
+|---|---|---|
+| 40301 | 应用已停用 | 平台侧停用应用 |
+| 40302 | 应用已过期 | 应用有效期已到 |
+| 40303 | 应用未授权该接口 | 未授予 `gb:play:write` scope |
+| 40304 | 来源 IP 不在白名单 | 出口 IP 未登记 |
+
+**参数与限流（HTTP 400 / 429）**
+
+| code | 含义 | 常见原因 |
+|---|---|---|
+| 40001 | 请求参数不合法 | 字段缺失或格式错误 |
+| 40002 | 资源不存在 | 资源 ID 错误 |
+| 40003 | 设备不存在 | 设备 ID 未接入平台 |
+| 40004 | 设备 / 通道不在线 | 设备离线或通道未就绪 |
+| 42901 | 触发 QPS 限流 | 瞬时请求过快 |
+| 42902 | 当日调用量超限 | 超过应用日配额 |
+
+**业务与平台异常（HTTP 200 / 500）**
+
+| code | 含义 | 说明 |
+|---|---|---|
+| 60001 | 点播失败 | 设备未响应或拒绝 INVITE |
+| 60002 | 流不存在或已结束 | 停止点播前流已结束 |
+| 50001 | 平台内部错误 | 请携带 `requestId` 报障 |
+
+> 国标业务类失败（`60001` / `60002`）HTTP 状态仍为 **200**，请以 `code` 判断业务结果。
+
+### 5. Bruno 快速调通
+
+仓库已提供 Bruno 集合前置脚本 [`openapi/pre-script.js`](openapi/pre-script.js)：每次点击 Send 时自动生成时间戳与 nonce 并完成签名，**无需手工计算，也不会出现时间戳过期或 nonce 重复**。
+
+**① 新建 Collection 与环境变量**
+
+在 Bruno 中新建 Collection，再新建 Environment（如 `local`），配置以下变量：
+
+| 变量 | 示例值 | 说明 |
+|---|---|---|
+| `base_url` | `http://localhost:8080` | 平台地址 |
+| `app_key` | `ak_xxx` | 平台分配的 appKey |
+| `app_secret` | `xxx` | 平台分配的密钥，仅保存在本地环境 |
+
+配置完成后在右上角切换到该环境。
+
+**② 粘贴前置脚本**
+
+打开 Collection 设置 → **Pre-request Script**，粘贴 [`openapi/pre-script.js`](openapi/pre-script.js) 的全部内容。脚本对集合内所有请求生效，会自动写入 6 个鉴权请求头。
+
+**③ 新建「开始点播」请求**
+
+- 方法：`POST`
+- URL：`{{base_url}}/open-api/v1/play/start`
+- Body → JSON：
+
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "transport": "TCP-passive",
+  "streamNumber": null
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `deviceId` | 是 | 设备国标 20 位 ID（向平台方索取） |
+| `channelId` | 是 | 通道国标 20 位 ID |
+| `transport` | 否 | `TCP-passive`（默认）/ `UDP` |
+| `streamNumber` | 否 | 显式传 `null` = **主码流**；不传或传 `"streamnumber:1"` = 子码流（流 ID 带 `_streamnumber_1` 后缀） |
+
+**④ 点击 Send**
+
+成功响应（HTTP 200，`code=200`）：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "streamId": "34020000001320000001_34020000001320000001",
+    "app": "rtp",
+    "mediaServerId": "zlmediakit-local",
+    "ssrc": "0000001430",
+    "rtpPort": 30660,
+    "transport": "TCP-passive",
+    "streamNumber": null,
+    "flvUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
+    "wsFlvUrl": "ws://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
+    "hlsUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001/hls.m3u8",
+    "rtcUrl": ""
+  },
+  "requestId": "a1b2c3d4..."
+}
+```
+
+| 返回字段 | 说明 |
+|---|---|
+| `streamId` | 流 ID，停止点播时回传 |
+| `flvUrl` / `wsFlvUrl` | HTTP-FLV / WebSocket-FLV 播放地址 |
+| `hlsUrl` | HLS（m3u8）播放地址 |
+| `rtcUrl` | WebRTC 播放地址（节点未配置 rtcPort 时为空串） |
+| `ssrc` / `rtpPort` | RTP 收流参数，接入自有媒体处理时使用 |
+
+**⑤ 停止点播**
+
+不看时务必调用，释放设备会话与收流端口。接口幂等，重复调用仍返回成功。
+
+- `POST {{base_url}}/open-api/v1/play/stop`
+- Body：
+
+```json
+{ "streamId": "34020000001320000001_34020000001320000001" }
+```
+
+> **排查提示**：Bruno 底部 Console 会打印本次的待签名串与 body；返回 40103 时先逐行对比。平台侧每次调用都会记录 `[openapi接口调用]` 日志，含业务码与耗时。
+
+### 6. curl 手动验证
+
+不使用 Bruno 时，可用以下脚本（依赖 `curl` + `openssl`）手工验证签名算法：
+
+```bash
+APP_KEY=ak_xxx
+APP_SECRET=平台分配的密钥
+TS=$(date +%s)
+NONCE=$(openssl rand -hex 16)
+BODY='{"deviceId":"34020000001320000001","channelId":"34020000001320000001","transport":"TCP-passive","streamNumber":null}'
+
+BODY_HASH=$(printf '%s' "$BODY" | openssl dgst -sha256 -hex | sed 's/^.*= //')
+SIGN_STR=$(printf 'POST\n/open-api/v1/play/start\n\n%s\n%s\n%s' "$BODY_HASH" "$TS" "$NONCE")
+SIGNATURE=$(printf '%s' "$SIGN_STR" | openssl dgst -sha256 -hmac "$APP_SECRET" -hex | sed 's/^.*= //')
+
+curl -X POST "http://localhost:8080/open-api/v1/play/start" \
+  -H "Content-Type: application/json" \
+  -H "X-App-Key: $APP_KEY" -H "X-Timestamp: $TS" -H "X-Nonce: $NONCE" \
+  -H "X-Sign-Alg: HMAC-SHA256" -H "X-Signature: $SIGNATURE" \
+  -d "$BODY"
+```
+
+### 7. 对接注意事项
+
+| 事项 | 说明 |
+|---|---|
+| 重试与重放 | 超时重试必须重新生成时间戳与 nonce 并重新签名；直接重发旧请求会返回 40105 |
+| body 定稿 | 签名后不得再修改 JSON 排版；GET 类请求 body 摘要为空串 |
+| 密钥轮换 | 换钥后旧密钥默认有 **24 小时**过渡期，期间新旧密钥均可验签，请在过渡期内完成切换 |
+| 限流 | QPS 与日调用量按应用配置，超限分别返回 42901 / 42902；鉴权未通过的请求不占配额 |
+| 时钟同步 | 服务器请开启 NTP，时间戳偏差超过 300 秒会返回 40104 |
+| 故障排查 | 管理后台「开放平台 → 调用日志」可按 appKey / requestId / IP / 耗时 / 错误码查询；报障时请提供 `X-Request-Id` |
 
 ## 致谢与署名声明
 
