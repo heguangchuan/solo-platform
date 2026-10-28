@@ -5,6 +5,7 @@ import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbPlayService;
 import com.solo.openapi.auth.RequireScope;
+import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.web.OpenApiResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -29,7 +30,7 @@ public class OpenPlayController {
     private final GbPlayService playService;
 
     @Operation(summary = "开始点播")
-    @RequireScope("gb:play:write")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
     @PostMapping("/start")
     public OpenApiResult<PlayResultResponse> start(@RequestBody PlayStartRequest req, HttpServletRequest request) {
         String rid = (String) request.getAttribute(com.solo.openapi.constant.OpenApiConstants.HEADER_REQUEST_ID);
@@ -37,7 +38,7 @@ public class OpenPlayController {
     }
 
     @Operation(summary = "停止点播")
-    @RequireScope("gb:play:write")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@RequestBody PlayStopRequest req, HttpServletRequest request) {
         playService.stop(req);

@@ -12,4 +12,7 @@ public @interface RequireScope {
 
     /** 需要的 scope 编码（满足其一即可） */
     String[] value();
+
+    /** 管理端展示名称，留空时回退为 scope 编码 */
+    String name() default "";
 }
