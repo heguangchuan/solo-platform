@@ -48,28 +48,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * <h3>关键流程</h3>
+ * 历史回放：
  *
- * <p><b>RecordInfo 查询</b>：</p>
- * <ol>
- *   <li>service 生成 SN，注册 {@code CompletableFuture<List<RecordItemResponse>>} 到 {@link #pendingQuery}</li>
- *   <li>调 {@link SipCommander#queryRecordInfo} 发 MESSAGE</li>
- *   <li>设备 Response 分片由 {@code RecordInfoResponseMessageHandler} 收集，
- *       达到 SumNum 时调 {@link #onRecordInfoReceived} 唤醒 future</li>
- *   <li>service 同步 get future（{@code recordInfoTimeoutSeconds} 秒超时）</li>
- * </ol>
+ * RecordInfo 查询：service 生成 SN，注册 future 到 pendingQuery，调 queryRecordInfo 发 MESSAGE；
+ * 设备的分片 Response 由 RecordInfoResponseMessageHandler 收集，凑够 SumNum 时调
+ * onRecordInfoReceived 唤醒 future；service 按 recordInfoTimeoutSeconds 同步等结果。
  *
- * <p><b>Playback INVITE</b>：跟点播流程基本一致，差异点：</p>
- * <ul>
- *   <li>SDP 用 {@link SdpBuilder#buildPlayback}（s=Playback、t=&lt;start&gt; &lt;end&gt;）</li>
- *   <li>SSRC 用 {@link SsrcFactory#acquire}({@code true}) 切到 D=1 段</li>
- *   <li>streamId 加时间段后缀：{@code <dev>_<chan>_<startCompact>_<endCompact>}</li>
- *   <li>sessionType = {@link GbInviteSession#TYPE_PLAYBACK}</li>
- *   <li>session 上记录 {@code startTimeStr / endTimeStr}（Unix 秒字符串）</li>
- * </ul>
+ * Playback INVITE 和点播基本一样，差别在 SDP 用 SdpBuilder.buildPlayback（s=Playback、t=起止时间）、
+ * SSRC 走 D=1 段、streamId 带时间段后缀、sessionType=TYPE_PLAYBACK，会话上还要记 startTimeStr / endTimeStr。
  *
- * <p><b>回放控制</b>：复用既有 INVITE Dialog 发 SIP INFO + MANSRTSP body
- * （{@link RtspControlBuilder}）。本地不维护回放进度，跳转/变速立即下发，画面接收后即生效。</p>
+ * 回放控制复用已有的 Dialog 发 SIP INFO + MANSRTSP（RtspControlBuilder），
+ * 本地不记播放进度，跳转/变速立刻下发，画面收到就生效。
  */
 @Slf4j
 @Service
@@ -330,7 +319,12 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(req.getStreamId());
         if (session == null) {
-            log.info("[{}] stop 流ID:{} 无对应会话 原因:已清扫", LOG_TAG, req.getStreamId());
+            // 没会话也把 ZLM 上的流关一次，可能是重启前的残留
+            if (inviteCleanup.closeOrphanStream(req.getStreamId())) {
+                log.warn("[{}] stop 流ID:{} 无会话但流还在，已兜底关掉", LOG_TAG, req.getStreamId());
+            } else {
+                log.info("[{}] stop 流ID:{} 无对应会话 原因:已结束", LOG_TAG, req.getStreamId());
+            }
             return;
         }
         GbDevice device = deviceMapper.selectOne(

@@ -49,31 +49,20 @@ import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadPoolExecutor;
 
 /**
- * <h3>异步下载流程</h3>
- * <ol>
- *   <li>{@link #start} 同步发 DOWNLOAD INVITE，注册 {@link DownloadTask}，立即返回
- *       {@code streamId + status=INVITING}；前端轮询 {@link #getStatus} 等 READY</li>
- *   <li>ZLM {@code on_stream_changed} 触发 {@link #onStreamReady}：调
- *       {@link ZlmRestClient#startRecord} 开启 MP4 录制，状态 → RECORDING</li>
- *   <li>设备发完时间段流后 BYE → ZLM 切片落盘完成 → {@code on_record_mp4} 钩子触发
- *       {@link #onRecordMp4}：HTTP GET ZLM 回调给的 URL → 落 MinIO → 状态 → READY</li>
- *   <li>30 分钟内未完成 → {@link DownloadTaskRegistry} 的 sweep 标 TIMEOUT 并发
- *       {@link com.solo.gb28181.support.DownloadTimeoutEvent}，本类 {@code onDownloadTimeout}
- *       {@code @EventListener} 收尾（关 RTP 端口、释放 SSRC、删会话）</li>
- * </ol>
+ * 历史录像下载：
  *
- * <h3>流就绪等待的特殊性</h3>
- * <p>下载业务<b>不等流就绪</b>，start() 立即返回；这与历史回放（同步等 on_stream_changed）不同。
- * 原因：录像下载可能持续 5-30 分钟，HTTP 同步等会让前端连接悬挂；改为"立即返 streamId + 轮询"
- * 与 S5 报警的"不入库"原则一致——状态是临时性的，前端按需查询。</p>
+ * start 同步发 DOWNLOAD INVITE，注册 DownloadTask 后立即返回，前端轮询 getStatus 等 READY；
+ * ZLM on_stream_changed 触发 onStreamReady，调 startRecord 开 MP4 录制，状态转 RECORDING；
+ * 设备发完时间段流 BYE → ZLM 切片落盘 → on_record_mp4 触发 onRecordMp4，
+ * 拉回调 URL 存 MinIO，状态转 READY；
+ * 30 分钟没完成就由 DownloadTaskRegistry 的 sweep 标 TIMEOUT 并发事件，本类监听到后收尾。
  *
- * <h3>与回放共享的部分</h3>
- * <ul>
- *   <li>SSRC 池：{@code isPlayback=true}，与回放共享 D=1 段（GB/T 28181 §D.1）</li>
- *   <li>SIP INVITE 流程：复用 {@link SipCommander#sendInvite}，SDP 用
- *       {@link SdpBuilder#buildDownload}（{@code s=Download} + {@code a=downloadspeed:N}）</li>
- *   <li>会话记录：复用 {@link GbInviteSession} 表，{@code sessionType=TYPE_DOWNLOAD}</li>
- * </ul>
+ * 下载不等流就绪，start() 直接返回，跟历史回放的同步等待不一样：一段录像可能下 5-30 分钟，
+ * HTTP 挂着不现实。任务状态只在内存里，不入库，临时性的东西前端按需查就行。
+ *
+ * 和回放共用：SSRC 池走 isPlayback=true 的 D=1 段（GB/T 28181 §D.1）；
+ * INVITE 复用 sendInvite，SDP 用 SdpBuilder.buildDownload；会话同样记在 GbInviteSession，
+ * sessionType=TYPE_DOWNLOAD。
  */
 @Slf4j
 @Service
@@ -285,7 +274,12 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         if (streamId == null) return;
         DownloadTask t = taskRegistry.get(streamId);
         if (t == null) {
-            log.info("[{}] stop 流ID:{} 无对应任务 原因:已结束或过期", LOG_TAG, streamId);
+            // 任务表在进程内，重启就丢；流可能还在，兜底关一下
+            if (inviteCleanup.closeOrphanStream(streamId)) {
+                log.warn("[{}] stop 流ID:{} 无任务但流还在，已兜底关掉", LOG_TAG, streamId);
+            } else {
+                log.info("[{}] stop 流ID:{} 无对应任务 原因:已结束或过期", LOG_TAG, streamId);
+            }
             return;
         }
         // 优先 BYE（如果对端有 Dialog）
@@ -411,8 +405,8 @@ public class GbDownloadServiceImpl implements GbDownloadService {
      * 订阅 {@link com.solo.gb28181.support.DownloadTimeoutEvent}：Registry 命中超时任务时发事件，
      * 本方法收到后做资源清扫（关 ZLM 端口、释放 SSRC、删会话）。
      *
-     * <p>用 Spring Event 替代回调接口是为了断开
-     * {@code GbDownloadService → DownloadTaskRegistry → GbDownloadService} 循环依赖。</p>
+     * 用 Spring Event 代替回调接口，断开
+     * GbDownloadService → DownloadTaskRegistry → GbDownloadService 的循环依赖。
      */
     @org.springframework.context.event.EventListener
     public void onDownloadTimeout(com.solo.gb28181.support.DownloadTimeoutEvent event) {
@@ -431,8 +425,8 @@ public class GbDownloadServiceImpl implements GbDownloadService {
 
     /**
      * 从 ZLM HTTP 服务拉 MP4 → 落 MinIO → 标 READY。
-     * <p>走 {@code gb28181BizExecutor} 异步执行；先 HTTP GET 拉 ZLM URL 到临时文件（避免
-     * HTTP 响应流跨线程的复杂性），再从临时文件上传到 MinIO，最后删临时文件。</p>
+     * 走 gb28181BizExecutor 异步执行：先把 URL GET 到临时文件（省得 HTTP 响应流跨线程），
+     * 再从临时文件上传 MinIO，最后删临时文件。
      */
     private void downloadAndUpload(DownloadTask t, String zlmUrl, long declaredSize) {
         String streamId = t.getStreamId();

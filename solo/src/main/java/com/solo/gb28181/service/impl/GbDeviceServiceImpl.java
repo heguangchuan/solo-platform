@@ -16,6 +16,7 @@ import com.solo.gb28181.request.GbDevicePageRequest;
 import com.solo.gb28181.response.GbDeviceDetectResponse;
 import com.solo.gb28181.response.GbDeviceStatusCountVO;
 import com.solo.gb28181.service.GbDeviceService;
+import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.subscribe.DeviceCatalogSubscribeManager;
 import com.solo.gb28181.transmit.cmd.SipCommander;
@@ -45,6 +46,7 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
     private final StringRedisTemplate redisTemplate;
     private final Gb28181Properties properties;
     private final GbInviteSessionService inviteSessionService;
+    private final GbInviteSessionCleanupService inviteCleanup;
     private final GbDeviceChannelMapper channelMapper;
 
 
@@ -185,18 +187,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         redisTemplate.delete(GbRedisKeys.DEVICE_ONLINE_PREFIX + deviceId);
         evictProfileCache(deviceId);
 
-        // 设备离线，清扫该设备所有活跃点播/回放会话，释放 SSRC / RTP 端口 / Redis 资源
-        List<GbInviteSession> allSessions = inviteSessionService.listAllActive();
-        int cleaned = 0;
-        for (GbInviteSession s : allSessions) {
-            if (deviceId.equals(s.getDeviceId())) {
-                inviteSessionService.removeByStreamId(s.getStreamId());
-                cleaned++;
-            }
-        }
-        if (cleaned > 0) {
-            log.info("[设备离线] 已同步清理该设备 {} 个活跃会话", cleaned);
-        }
+        // 设备离线，清扫该设备所有活跃会话，把 RTP 端口和 SSRC 收回来
+        cleanupSessions(deviceId);
 
         log.info("[设备离线] {} reason={}", deviceId, reason);
     }
@@ -295,7 +287,8 @@ public class GbDeviceServiceImpl extends ServiceImpl<GbDeviceMapper, GbDevice> i
         int cleaned = 0;
         for (GbInviteSession s : allSessions) {
             if (deviceId.equals(s.getDeviceId())) {
-                inviteSessionService.removeByStreamId(s.getStreamId());
+                // 设备都离线了，BYE 发不出去，清理掉会话把资源还回来就行
+                inviteCleanup.failSession(s, "设备离线", "设备离线，会话强制清扫");
                 cleaned++;
             }
         }
