@@ -67,6 +67,14 @@ public class ZlmRestClient {
     }
 
     public boolean isMediaOnline(MediaServer server, String app, String stream) {
+        return Boolean.TRUE.equals(isMediaOnlineOrNull(server, app, stream));
+    }
+
+    /**
+     * true=流在，false=节点连上了但没这路流，null=节点连不上，不知道。
+     * 启动接管靠它区分能不能清，拿到 null 就按流还在处理。
+     */
+    public Boolean isMediaOnlineOrNull(MediaServer server, String app, String stream) {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("app", app);
         params.put("stream", stream);
@@ -75,7 +83,7 @@ public class ZlmRestClient {
             JsonNode data = resp.path("data");
             return data.isArray() && !data.isEmpty();
         } catch (ServiceException e) {
-            return false;
+            return null;
         }
     }
 
@@ -152,7 +160,8 @@ public class ZlmRestClient {
 
     /**
      * 让 ZLM 从一个 RTSP/RTMP 源拉流，产出 app/stream 名下的可分发流。
-     * <p>ONVIF 点播场景：源是 {@code rtsp://user:pwd@host:port/path}，ZLM 拉起后暴露 HTTP-FLV/HLS/WS-FLV/WebRTC。</p>
+     * ONVIF 点播走的就是这个：源是 rtsp://user:pwd@host:port/path，拉起来后 ZLM 暴露
+     * HTTP-FLV / HLS / WS-FLV / WebRTC。
      *
      * @param server  节点
      * @param app     app 名（ONVIF 约定 {@code rtsp}，与国标 GB 用的 {@code rtp} 区分）
@@ -198,8 +207,8 @@ public class ZlmRestClient {
 
     /**
      * 把 ZLM 里的一路流按 PS/RTP 主动推到指定目的地址（UDP 或 TCP 主动去连对端）。
-     * <p>用于本平台作为下级被上级点播：先向真实设备取流拿到 {@code app=rtp/stream}，
-     * 再用本方法把这路流转推给上级给出的 {@code dstIp:dstPort}。</p>
+     * 本平台作为下级被上级点播时用：先向真实设备取流拿到 app=rtp/stream，
+     * 再用这个方法转推给上级的 dstIp:dstPort。
      *
      * @param server  流所在 ZLM 节点
      * @param app     源流 app（国标取流固定 {@code rtp}）
@@ -248,7 +257,7 @@ public class ZlmRestClient {
 
     /**
      * 开一个监听端口等对端来连后再推流（TCP 主动模式：上级主动来连本平台的端口）。
-     * <p>回给上级 200 OK 后立即调用；上级据 SDP 里本平台返回的端口来建立 TCP 连接。</p>
+     * 回给上级 200 OK 之后马上调，上级会按 SDP 里返回的端口来建立 TCP 连接。
      *
      * @return ZLM 实际监听的本地端口（供本平台写进回复 SDP 的 {@code m=} 行）
      */
@@ -269,10 +278,10 @@ public class ZlmRestClient {
 
     /**
      * 被动推流完整版。
-     * <p>UDP 对讲对称 RTP：传 {@code udp=true} + {@code srcPort} + {@code recvStreamId}，ZLM 只开
-     * <b>一个</b> UDP socket，在同一端口既接收设备上行（解码注册为 app=rtp/stream=recvStreamId 的流），
-     * 又把本端音频下发给设备；对端地址由设备首个上行 RTP 包学到，无需 dst_url/dst_port。
-     * 切勿再用 openRtpServer 占同一端口，否则两个 socket 抢端口报 address already in use。</p>
+     * UDP 对讲是对称 RTP：传 udp=true + srcPort + recvStreamId，ZLM 只开一个 UDP socket，
+     * 同一端口既收设备上行（注册成 app=rtp/stream=recvStreamId 的流），又把本端音频下发给设备。
+     * 对端地址靠设备第一个上行 RTP 包学到，不用 dst_url/dst_port。
+     * 别再用 openRtpServer 占同一个端口，两个 socket 会抢端口报 address already in use。
      *
      * @param udp          true=UDP 被动（单口收发，对讲用），false=TCP 被动监听
      * @param srcPort      本地端口（UDP 对讲从级联端口段取；null=ZLM 随机）
@@ -344,9 +353,9 @@ public class ZlmRestClient {
     }
 
     /**
-     * WebRTC SDP 交换（浏览器 WHIP 式推流/拉流）。对应 ZLM {@code /index/api/webrtc}。
-     * <p>浏览器把 offer SDP 交给平台，平台带着 secret 转发给 ZLM（浏览器不该持有 secret，
-     * 且浏览器直连 rtcPort 还有跨域问题），再把 answer SDP 原样还回去。</p>
+     * WebRTC SDP 交换（浏览器 WHIP 式推流/拉流）。对应 ZLM /index/api/webrtc。
+     * 浏览器把 offer SDP 交给平台，平台带着 secret 转发给 ZLM（浏览器不该持有 secret，
+     * 直连 rtcPort 还有跨域问题），再把 answer SDP 原样还回去。
      *
      * @param app       应用名（广播配 broadcast）
      * @param stream    流名（广播流ID）
@@ -393,10 +402,10 @@ public class ZlmRestClient {
     }
 
     /**
-     * 把 WebRTC 推流 offer 的音频段裁成只剩 G.711（优先 PCMA/PT8，无 PCMA 才退 PCMU）。
-     * <p>排坑记录：浏览器默认 offer Opus，ZLM 不做 Opus→G.711 转码，设备腿又按裸 PCMA 收，
-     * 不裁掉其它载荷会协商成 Opus，设备收得到包却放不出声音。同时给 PCMA 和 PCMU 也不行，
-     * ZLM 可能选 PCMU，因此有 PCMA 时只留 8。连 G.711 都没有则原样返回。</p>
+     * 把 WebRTC 推流 offer 的音频段裁成只剩 G.711（优先 PCMA/PT8，没有 PCMA 才退 PCMU）。
+     * 浏览器默认 offer Opus，ZLM 不做 Opus → G.711 转码，设备腿又按裸 PCMA 收，不裁会协商成 Opus，
+     * 设备收得到包但放不出声。PCMA 和 PCMU 都留着也不行，ZLM 可能选 PCMU，所以有 PCMA 时只留 8。
+     * 连 G.711 都没有就原样返回。
      */
     private String forceG711Audio(String sdp) {
         if (sdp == null || sdp.isBlank()) {
@@ -475,15 +484,14 @@ public class ZlmRestClient {
 
 
     /**
-     * 触发 ZLM 把当前活跃流录成 MP4。
-     * <p>对应 ZLM {@code /index/api/startRecord} 接口。<b>语义是"开启录制能力"</b>而非"开始录"：
-     * 触发后 ZLM 在流存在期间按 {@code period=日期} 切片写成 MP4 文件，流消失时本段文件落盘并触发
-     * {@code on_record_mp4} hook。录像下载场景调用时机：DOWNLOAD INVITE 流就绪后立即调一次，
-     * 设备发完时间段流 BYE 后 ZLM 自动完成该段 MP4。</p>
+     * 触发 ZLM 把当前活跃流录成 MP4。对应 ZLM /index/api/startRecord。
+     * 语义是"开启录制能力"，不是"开始录"：触发后 ZLM 在流存在期间按 period=日期 切片写 MP4，
+     * 流消失时当前文件落盘并触发 on_record_mp4。下载场景在 DOWNLOAD INVITE 流就绪后调一次，
+     * 设备发完时间段流 BYE 后 ZLM 自己收尾。
      *
      * @param server    节点
      * @param app       应用名（国标配 rtp）
-     * @param stream    流名（&lt;deviceId&gt;_&lt;channelId&gt;_&lt;起&gt;_&lt;止&gt;）
+     * @param stream    流名（deviceId_channelId_起_止）
      * @param period    按日期切片，格式 yyyy-MM-dd
      * @param maxSecond 单文件最大时长（秒），0=不限
      * @return true=ZLM 接受（code=0）；false=ZLM 拒绝或异常
@@ -510,14 +518,11 @@ public class ZlmRestClient {
     }
 
     /**
-     * 查询某路流当前的真实录制态，用于录像对账补偿（外部 stopRecord / ZLM 异常丢录制态时平台无事件感知）。
-     * <p>对应 ZLM {@code /index/api/isRecording}。</p>
-     * <ul>
-     *   <li>{@link RecordState#RECORDING}：ZLM 明确返回 status=true</li>
-     *   <li>{@link RecordState#IDLE}：流在但没在录（status=false），可安全重发 startRecord</li>
-     *   <li>{@link RecordState#UNAVAILABLE}：调用失败或流不存在（ZLM code!=0），调用方需自行用
-     *       {@link #isMediaOnline} 区分"流没了"和"接口抖动"，不能盲目重发</li>
-     * </ul>
+     * 查某路流当前真实的录制态，给录像对账补偿用（外部 stopRecord 或 ZLM 丢了录制态时平台收不到事件）。
+     * 对应 ZLM /index/api/isRecording：
+     *
+     * RECORDING 是 ZLM 明确返回 status=true；IDLE 是流在但没在录，可以放心重发 startRecord；
+     * UNAVAILABLE 是调用失败或流不存在，调用方得自己用 isMediaOnline 区分流没了还是接口抖动，别盲目重发。
      */
     public RecordState isRecording(MediaServer server, String app, String stream) {
         Map<String, String> params = new LinkedHashMap<>();
@@ -540,12 +545,11 @@ public class ZlmRestClient {
     }
 
     /**
-     * 列出某段时间对应的 MP4 录制文件。
-     * <p>对应 ZLM {@code /index/api/getMp4Record} 接口。{@code on_record_mp4} hook 回调里读
-     * {@code path} 字段取到的是<b>单段</b>文件，本方法用于按 (应用, 流, 周期) 维度
-     * 拉全量列表（兜底：hook 漏报时也能补拉）。</p>
+     * 列出某段时间对应的 MP4 录制文件。对应 ZLM /index/api/getMp4Record。
+     * on_record_mp4 回调里读 path 拿到的是单段文件，这个方法按 (应用, 流, 周期) 拉全量列表，
+     * hook 漏报时也能补拉。
      *
-     * @return 文件路径列表（可能为空）；ZLM 拒绝时返回空列表（不抛异常，调用方按"未找到"处理）
+     * @return 文件路径列表（可能为空）；ZLM 拒绝时返回空列表，不抛异常，调用方按"没找到"处理
      */
     public List<String> getMp4Record(MediaServer server, String app, String stream, String period) {
         Map<String, String> params = new LinkedHashMap<>();
@@ -575,12 +579,11 @@ public class ZlmRestClient {
     }
 
     /**
-     * 推送 ZLM 全局配置（hook URL、api.secret、rtp_proxy.port_range 等）
-     * <p>对应 ZLM {@code /index/api/setServerConfig} 接口。调用时机由调用方决定：
-     * 一般在默认节点 ready 之后调一次，把 solo 的 hook URL 写到 ZLM 全局配置里，
-     * 后续 ZLM 推流 / RTP 收流等所有事件都会按这个 URL 回调 solo。</p>
+     * 推送 ZLM 全局配置（hook URL、api.secret、rtp_proxy.port_range 等）。
+     * 对应 ZLM /index/api/setServerConfig，一般等默认节点 ready 之后调一次，
+     * 把 solo 的 hook URL 写进 ZLM 全局配置，之后推流、RTP 收流这些事件都会回调过来。
      *
-     * @param params 键值对，所有 key 必须带 ZLM 配置前缀（如 {@code api.secret}、{@code hook.on_stream_changed}）。
+     * @param params 键值对，key 都带 ZLM 配置前缀（如 api.secret、hook.on_stream_changed）
      *               内部会把 {@code secret} 合并进 body，不需要调用方再传。
      * @return true=ZLM 接受（code=0），false=ZLM 拒绝或网络异常
      */
@@ -607,9 +610,8 @@ public class ZlmRestClient {
 
     /**
      * 把 on_record_mp4 回调里的相对下载地址补成绝对 URL。
-     * <p>ZLM 回调的 {@code url} 形如 {@code record/rtp/xx/2026-10-23/13-30-50-0.mp4}，
-     * 是相对 HTTP 根的路径且不带前导斜杠，直接交给 HttpClient 会抛
-     * "URI with undefined scheme"。已是 http(s) 绝对地址时原样返回。</p>
+     * ZLM 给的 url 形如 record/rtp/xx/2026-10-23/13-30-50-0.mp4，相对 HTTP 根、不带前导斜杠，
+     * 直接丢给 HttpClient 会报 "URI with undefined scheme"。已经是 http(s) 绝对地址的原样返回。
      */
     public static String resolveDownloadUrl(MediaServer server, String url) {
         if (url == null || url.isBlank()) {

@@ -21,7 +21,6 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerSelector;
 import com.solo.media.ssrc.SsrcFactory;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -30,25 +29,22 @@ import javax.sip.header.CallIdHeader;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * <h3>云端录制会话编排</h3>
- * <ol>
- *   <li>{@link #startPlan} / {@link #startManual}：校验设备通道 → 选节点 → 申请 SSRC/开 RTP 端口
- *       → 存 {@link GbInviteSession}(TYPE_RECORD, INVITING) → 发实时 INVITE（和点播同一码流池）</li>
- *   <li>on_stream_changed(regist=true) → {@link #onStreamReady}：调 ZLM startRecord 开 MP4 切片。
- *       max_second 给一个保底值，正常切片靠 ZLM 跨天/流停时自动收尾</li>
- *   <li>ZLM 每切出一段 MP4 → on_record_mp4 → {@link GbRecordFileServiceImpl} 落 S3</li>
- *   <li>{@link #stop} / 设备 BYE / 流断 / RTP 超时：发 BYE（尽量）→ 关端口 → 释放 SSRC → 删会话</li>
- * </ol>
+ * 云端录制会话编排：
  *
- * <h3>为什么计划录制的 streamId 要加 REC 前缀</h3>
- * <p>点播 streamId 是裸 {@code deviceId_channelId}，计划录制和点播经常同时存在（边录边看）。
- * 共用流名会让 ZLM openRtpServer 撞车，也会让 hook 路由分不清会话类型。REC 前缀让两路流
- * 在 ZLM 里各自独立，代价是设备会被同一通道 INVITE 两次，主流设备都支持。</p>
+ * startPlan / startManual：校验设备通道 → 选节点 → 申请 SSRC、开 RTP 端口 →
+ * 存会话(TYPE_RECORD, INVITING) → 发实时 INVITE（和点播同一码流池）
+ * on_stream_changed(regist=true) → onStreamReady：调 ZLM startRecord 开 MP4 切片，
+ * max_second 给个保底值，正常切片靠 ZLM 跨天或流停时自己收尾
+ * ZLM 每切出一段 MP4 → on_record_mp4 → GbRecordFileServiceImpl 落 S3
+ * stop / 设备 BYE / 流断 / RTP 超时：发 BYE（尽量）→ 关端口 → 释放 SSRC → 删会话
+ *
+ * 计划录制的 streamId 加 REC 前缀，是因为点播用的是裸 deviceId_channelId，边录边看时同流名会让
+ * openRtpServer 撞车、hook 也分不清会话类型。加前缀后两路流在 ZLM 各自独立，
+ * 代价是同一通道会被 INVITE 两次，主流设备都支持。
  */
 @Slf4j
 @Service
@@ -76,21 +72,6 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
     private final GbDeviceChannelMapper channelMapper;
     private final GbInviteSessionService inviteSessionService;
     private final GbInviteSessionCleanupService inviteCleanup;
-
-    @PostConstruct
-    void cleanupOnStart() {
-        // 重启后 Redis 里残留的录制会话全部作废：SIP dialog 已不存在，等对账调度按计划重新拉起
-        List<GbInviteSession> active = inviteSessionService.listAllActive().stream()
-                .filter(s -> GbInviteSession.TYPE_RECORD.equals(s.getSessionType()))
-                .toList();
-        for (GbInviteSession s : active) {
-            inviteSessionService.removeByStreamId(s.getStreamId());
-        }
-        if (!active.isEmpty()) {
-            log.info("[{}] 启动清扫：{} 条残留录制会话已删除", LOG_TAG, active.size());
-        }
-    }
-
 
     @Override
     public String startManual(String deviceId, String channelId, String transport, String streamNumber) {
@@ -209,7 +190,12 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(streamId);
         if (session == null) {
-            log.info("[{}] stop 流ID:{} 无对应会话 原因:已清扫", LOG_TAG, streamId);
+            // 会话没了流可能还在，兜底关一下
+            if (inviteCleanup.closeOrphanStream(streamId)) {
+                log.warn("[{}] stop 流ID:{} 无会话但流还在，已兜底关掉", LOG_TAG, streamId);
+            } else {
+                log.info("[{}] stop 流ID:{} 无对应会话 原因:已结束", LOG_TAG, streamId);
+            }
             return;
         }
         byeIfPossible(session);

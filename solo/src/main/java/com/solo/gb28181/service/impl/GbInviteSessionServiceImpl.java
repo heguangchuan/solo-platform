@@ -16,28 +16,18 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * <h3>Key 布局（前缀 {@link GbRedisKeys#INVITE_PREFIX}）</h3>
- * <ul>
- *   <li>{@link GbRedisKeys#INVITE_SESSION}{streamId}  主体 JSON（业务唯一标识，单点写入）</li>
- *   <li>{@link GbRedisKeys#INVITE_BY_CALL}{callId}    = streamId    INVITE Dialog Call-Id 反查</li>
- *   <li>{@link GbRedisKeys#INVITE_BY_SSRC}{ssrc}    = streamId    SSRC 反查（备用）</li>
- *   <li>{@link GbRedisKeys#INVITE_BY_DEVICE_CHANNEL}{deviceId}:{channelId} = Set&lt;streamId&gt;  通道反查（幂等检测）
- *       —— 同一通道可并存多路流（不同码流号各一路），故用 Set 而非单值</li>
- *   <li>{@link GbRedisKeys#INVITE_ALL_ACTIVE}       Set&lt;streamId&gt;   全集，启动清扫 + SsrcFactory 预占用</li>
- * </ul>
+ * 会话存 Redis，key 布局（前缀 {@link GbRedisKeys#INVITE_PREFIX}）：
  *
- * <h3>一致性策略</h3>
- * <p>主体与索引在多 key 上，绝对原子很难做。我们的折中：</p>
- * <ol>
- *   <li>save：先写主体，再依次写索引 + 加入全集 — 中间失败的极端情况由读路径兜底</li>
- *   <li>update：仅覆盖主体（callId/ssrc 在 save 后不会变，无索引重写需要）</li>
- *   <li>removeByStreamId：先读主体取出 callId/ssrc/dev/chan，再依次删除所有相关 key</li>
- *   <li>读路径（getByCallId / getBySsrc）：先读索引拿 streamId 再读主体；主体为 null 视为索引脏，
- *       顺手删 stale 索引</li>
- * </ol>
+ * 主体 {INVITE_SESSION}{streamId} 是 JSON，业务唯一标识，单点写入；
+ * {INVITE_BY_CALL}{callId}、{INVITE_BY_SSRC}{ssrc} 都是 streamId 反查；
+ * {INVITE_BY_DEVICE_CHANNEL}{deviceId}:{channelId} 是 {@code Set<streamId>}，同一通道可以有多路码流，所以用 Set；
+ * {INVITE_ALL_ACTIVE} 是 {@code Set<streamId>} 全集，启动接管和 SsrcFactory 预占用都读它。
  *
- * <h3>容量</h3>
- * <p>每条会话主体 ~1 KB；预期同时活跃数百级别即可，Redis 单实例够用。</p>
+ * 多个 key 上的一致性没法做到绝对原子，折中：save 先写主体再写索引，失败由读路径兜；
+ * update 只覆盖主体；removeByStreamId 先读主体取出各索引键再逐个删；
+ * 读索引发现主体没了就当脏索引，顺手清掉。
+ *
+ * 单条会话 1KB 左右，活跃量几百条，Redis 单实例够用。
  */
 @Slf4j
 @Service

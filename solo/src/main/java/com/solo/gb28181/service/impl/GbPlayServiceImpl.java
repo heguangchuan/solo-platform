@@ -26,37 +26,28 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerSelector;
 import com.solo.media.ssrc.SsrcFactory;
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.sip.header.CallIdHeader;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
 /**
- * <h3>关键流程（start）</h3>
- * <ol>
- *     <li>校验设备 / 通道 / 节点；幂等性：已 READY 直接返回</li>
- *     <li>{@link SsrcFactory#acquire} 申请 SSRC</li>
- *     <li>{@link ZlmRestClient#openRtpServer} 申请收流端口</li>
- *     <li>入库 {@link GbInviteSession}(INVITING) — Call-Id / from-tag 此时已确定</li>
- *     <li>注册 {@link CompletableFuture} 到 {@link #pending}（key=streamId）</li>
- *     <li>{@link SipCommander#sendInvite} 发 INVITE；ACK 由 InviteResponseProcessor 异步处理</li>
- *     <li>future 同步等 {@code inviteTimeoutSeconds} 秒：on_stream_changed 回调或超时</li>
- * </ol>
+ * 实时点播流程：
  *
- * <h3>失败 / 超时清扫顺序（严格）</h3>
- * <p>1. closeRtpServer（占着 RTP 端口的是 ZLM，先停止它）
- * 2. release SSRC（先 close 后 release，避免新会话拿到同一 ssrc 时 openRtpServer 拒绝）
- * 3. 删 session
- * 4. 摘除 pending future</p>
+ * 校验设备、通道、节点，已 READY 的幂等返回；SsrcFactory 申请 SSRC；ZLM openRtpServer 申请收流端口；
+ * 会话入库(INVITING，这时 Call-Id / from-tag 已经定了)；注册 CompletableFuture 到 pending；
+ * 发 INVITE，ACK 由 InviteResponseProcessor 异步处理；future 同步等 inviteTimeoutSeconds 秒，
+ * 等 on_stream_changed 回调或超时。
  *
- * <p>大量公共清扫代码抽到 {@link GbInviteSessionCleanupService}，与回放共用。</p>
- * <p>autoApplyPlay 异步起点播功能，由专属业务线程池执行不阻塞 ZLM hook 回调。</p>
+ * 失败/超时的清扫顺序不能乱：先 closeRtpServer（端口在 ZLM 手里），再 release SSRC，
+ * 然后删会话、摘 pending。先关后还，免得新会话拿到同一个 ssrc 时 openRtpServer 被拒。
+ * 公共清扫代码在 GbInviteSessionCleanupService，和回放共用。
+ *
+ * autoApplyPlay 走专属线程池异步点播，不阻塞 ZLM hook 回调。
  */
 @Slf4j
 @Service
@@ -86,25 +77,6 @@ public class GbPlayServiceImpl implements GbPlayService {
      * 等待 on_stream_changed 的 future，key=streamId
      */
     private final Map<String, CompletableFuture<PlayResultResponse>> pending = new ConcurrentHashMap<>();
-
-    // ============================================================
-    //  启动清扫：把残留的 INVITING/READY 全部置 FAILED，避免重启后僵尸会话
-    // ============================================================
-
-    @PostConstruct
-    void cleanupOnStart() {
-        List<GbInviteSession> active = inviteSessionService.listAllActive();
-        if (active.isEmpty()) {
-            return;
-        }
-        // 进程重启：所有运行中会话都失效，直接物理清掉。
-        // ZLM 那边 RTP 端口、SSRC 是否也残留得在 PlayService 重新接管时按需 closeRtpServer，
-        // 简化起见这里只清状态；ZLM 端的残留靠下次同 streamId 的 openRtpServer 重试逻辑兜底。
-        for (GbInviteSession s : active) {
-            inviteSessionService.removeByStreamId(s.getStreamId());
-        }
-        log.info("[实时点播] 启动清扫：{} 条残留会话已删除", active.size());
-    }
 
     // ============================================================
     //  start / stop
@@ -146,8 +118,13 @@ public class GbPlayServiceImpl implements GbPlayService {
         GbInviteSession existing = inviteSessionService.getByStreamId(streamId);
         if (existing != null) {
             if (GbInviteSession.STATUS_READY.equals(existing.getStatus())) {
-                log.info("[实时点播] 复用已就绪会话 流ID:{} 码流:{}", streamId, streamLabel(streamNumber));
-                return toResult(existing);
+                if (streamStillOnline(existing)) {
+                    log.info("[实时点播] 复用已就绪会话 流ID:{} 码流:{}", streamId, streamLabel(streamNumber));
+                    return toResult(existing);
+                }
+                // 接管来的会话可能已经死在 ZLM 上（节点重启、流被外部关掉），清掉重拉，
+                // 不然前端拿到地址也是黑屏
+                inviteCleanup.failAndBye(existing, LOG_TAG, "复用会话时流已不在");
             }
             if (GbInviteSession.STATUS_INVITING.equals(existing.getStatus())) {
                 // 同通道同码流正在邀请中，告诉前端稍候，不要重复发起 INVITE 导致重复流
@@ -250,7 +227,12 @@ public class GbPlayServiceImpl implements GbPlayService {
         }
         GbInviteSession session = inviteSessionService.getByStreamId(req.getStreamId());
         if (session == null) {
-            log.info("[实时点播] stop 流ID:{} 无对应会话 原因:已清扫", req.getStreamId());
+            // 会话没了不代表流没了，顺手看一眼 ZLM，别留下没人管的流
+            if (inviteCleanup.closeOrphanStream(req.getStreamId())) {
+                log.warn("[实时点播] stop 流ID:{} 无会话但流还在，已兜底关掉", req.getStreamId());
+            } else {
+                log.info("[实时点播] stop 流ID:{} 无对应会话 原因:已结束", req.getStreamId());
+            }
             return;
         }
         if (GbInviteSession.STATUS_STOPPED.equals(session.getStatus())
@@ -459,6 +441,20 @@ public class GbPlayServiceImpl implements GbPlayService {
     private static String buildStreamId(String deviceId, String channelId, String streamNumber) {
         String base = deviceId + "_" + channelId;
         return streamNumber == null || streamNumber.isBlank() ? base : base + "_" + streamNumber;
+    }
+
+    /**
+     * 复用 READY 会话前看一眼流还在不在。节点标了离线就不再探，直接当不能复用；
+     * 节点在线但探不通就当流还在，别把正常播放误伤成重拉。
+     */
+    private boolean streamStillOnline(GbInviteSession session) {
+        MediaServer server = mediaServerMapper.selectOne(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, session.getServerId()));
+        if (server == null || !Integer.valueOf(1).equals(server.getStatus())) {
+            return false;
+        }
+        Boolean online = zlmRestClient.isMediaOnlineOrNull(server, APP, session.getStreamId());
+        return online == null || online;
     }
 
     /** 码流类型日志标签 */

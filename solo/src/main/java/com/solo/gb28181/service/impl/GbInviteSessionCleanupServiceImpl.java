@@ -16,18 +16,20 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 /**
- * <p>S3 引入 — 原先散在 {@code GbPlayServiceImpl} 里的私有 helper 抽到这里，
- * 让 {@code GbPlaybackServiceImpl} 也能复用，避免大段重复。</p>
+ * 会话清扫的公共 helper，原先散在 GbPlayServiceImpl 里，抽出来让回放也能用，免得大段重复。
  *
- * <p>依赖说明：本类不直接依赖 {@code GbDeviceService} / {@code MediaServerService}，所有
- * 单表查（设备、节点）走 mapper。{@code GbInviteSessionService} 必须留——会话数据在 Redis，
- * 没有 mapper 等价实现。</p>
+ * 设备、节点这些单表查直接走 mapper，不依赖 GbDeviceService / MediaServerService；
+ * GbInviteSessionService 得留着，会话在 Redis，没有 mapper 等价实现。
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanupService {
+
+    private static final String APP = "rtp";
 
     private final GbDeviceMapper deviceMapper;
     private final GbMediaServerMapper mediaServerMapper;
@@ -84,6 +86,26 @@ public class GbInviteSessionCleanupServiceImpl implements GbInviteSessionCleanup
         cleanupZlm(session);
         inviteSessionService.removeByStreamId(session.getStreamId());
         log.warn("[{}] 会话被动放弃 流ID:{} 原因:{}", logTag, session.getStreamId(), reason);
+    }
+
+    @Override
+    public boolean closeOrphanStream(String streamId) {
+        if (streamId == null || streamId.isBlank()) {
+            return false;
+        }
+        // 只探在线节点，离线节点要等连接超时，会把 stop 接口拖慢
+        List<MediaServer> servers = mediaServerMapper.selectList(
+                new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getStatus, 1));
+        for (MediaServer server : servers) {
+            Boolean online = zlmRestClient.isMediaOnlineOrNull(server, APP, streamId);
+            if (!Boolean.TRUE.equals(online)) {
+                continue;
+            }
+            zlmRestClient.closeRtpServer(server, streamId);
+            log.warn("[会话兜底] 无会话但节点上还有流，已关掉 节点:{} 流:{}", server.getServerId(), streamId);
+            return true;
+        }
+        return false;
     }
 
     @Override
