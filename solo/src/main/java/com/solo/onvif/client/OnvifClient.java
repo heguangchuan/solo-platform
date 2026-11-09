@@ -27,14 +27,7 @@ import java.util.Base64;
 import java.util.Date;
 import java.util.SimpleTimeZone;
 
-/**
- * <p>只覆盖设备维护 + 点播需要的 3 个操作：GetDeviceInformation / GetProfiles / GetStreamUri。
- * 用 dom4j + Java 21 HttpClient 手写 SOAP 报文，鉴权走 WS-Security UsernameToken PasswordDigest
- * （ONVIF 规范推荐方式）。</p>
- *
- * <p><b>不引用</b> {@code lib/onvif-ws-client-1.0.1.jar} 里的 stub：那批 JAX-WS 生成物基于
- * {@code javax.xml.bind}（老 JAXB），与本项目的 Jakarta 生态 + Java 21 有兼容风险，无实际收益。</p>
- */
+
 @Slf4j
 public class OnvifClient {
 
@@ -77,13 +70,7 @@ public class OnvifClient {
         };
     }
 
-    // ============================================================
-    //  公共 API
-    // ============================================================
 
-    /**
-     * TCP 端口连通性探测。定时任务先走这一步再决定要不要发 SOAP，避免每 30s 都做一次昂贵鉴权。
-     */
     public static boolean ping(String host, int port, int timeoutMs) {
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port <= 0 ? 80 : port), timeoutMs);
@@ -104,9 +91,6 @@ public class OnvifClient {
         return result;
     }
 
-    // ============================================================
-    //  三个 SOAP 操作
-    // ============================================================
 
     private void fillDeviceInformation(OnvifProbeResult out) {
         String body = """
@@ -159,9 +143,6 @@ public class OnvifClient {
         return uri;
     }
 
-    // ============================================================
-    //  底层 SOAP 收发
-    // ============================================================
 
     private Element callDevice(String bodyXml) {
         return callWithPathFallback(bodyXml, "GetDeviceInformation");
@@ -200,7 +181,7 @@ public class OnvifClient {
 
     private Element call(String url, String bodyXml, String action) {
         String envelope = buildEnvelope(bodyXml);
-        HttpRequest req = HttpRequest.newBuilder(URI.create("http://192.168.1.66/onvif/device_service"))
+        HttpRequest req = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofSeconds(8))
                 .header("Content-Type", "text/xml; charset=utf-8")
                 .header("SOAPAction", "\"" + action + "\"")
@@ -273,14 +254,7 @@ public class OnvifClient {
                 """.formatted(NS_ENV, securityHeader, bodyXml);
     }
 
-    // ============================================================
-    //  helpers
-    // ============================================================
 
-    /**
-     * WS-Security PasswordDigest = Base64(SHA1(nonceBytes + created + password))
-     * <p>注意：nonce 参与 SHA1 的是它未 Base64 前的原始字节。</p>
-     */
     private static String passwordDigest(byte[] nonceBytes, String created, String password) {
         try {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
@@ -326,9 +300,6 @@ public class OnvifClient {
         return s.length() > 300 ? s.substring(0, 300) + "..." : s;
     }
 
-    // ============================================================
-    //  返回值
-    // ============================================================
 
     @Getter
     public static class OnvifProbeResult {
