@@ -16,6 +16,8 @@
 [![ZLMediaKit](https://img.shields.io/badge/ZLMediaKit-integrated-7d5aFF.svg)](https://github.com/ZLMediaKit/ZLMediaKit)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)]()
 
+**仓库地址**：[Gitee（主仓库）](https://gitee.com/heguangchuan/solo-platform) · [GitHub（镜像，同步更新）](https://github.com/heguangchuan/shoulder-platform)
+
 </div>
 
 ---
@@ -191,6 +193,15 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 | 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
 
 ## 快速开始
+
+### 获取代码
+
+```bash
+git clone https://gitee.com/heguangchuan/solo-platform.git
+cd solo-platform
+```
+
+> GitHub 镜像仓库：<https://github.com/heguangchuan/shoulder-platform>，与 Gitee 同步更新，国内环境建议优先使用 Gitee。
 
 ### 环境要求
 
