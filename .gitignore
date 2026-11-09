@@ -1,5 +1,6 @@
 HELP.md
 target/
+target_test-classes/
 !/src/main//target/!/src/test/
 .apt_generated
 .classpath
