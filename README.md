@@ -16,7 +16,7 @@
 [![ZLMediaKit](https://img.shields.io/badge/ZLMediaKit-integrated-7d5aFF.svg)](https://github.com/ZLMediaKit/ZLMediaKit)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-ff69b4.svg)]()
 
-**仓库地址**：[Gitee（主仓库）](https://gitee.com/heguangchuan/solo-platform) · [GitHub（镜像，同步更新）](https://github.com/heguangchuan/shoulder-platform)
+**仓库地址**：[Gitee（主仓库）](https://gitee.com/heguangchuan/solo-platform) · [GitHub（镜像，同步更新）](https://github.com/heguangchuan/solo-platform)
 
 </div>
 
@@ -201,7 +201,7 @@ git clone https://gitee.com/heguangchuan/solo-platform.git
 cd solo-platform
 ```
 
-> GitHub 镜像仓库：<https://github.com/heguangchuan/shoulder-platform>，与 Gitee 同步更新，国内环境建议优先使用 Gitee。
+> GitHub 镜像仓库：<https://github.com/heguangchuan/solo-platform>，与 Gitee 同步更新，国内环境建议优先使用 Gitee。
 
 ### 环境要求
 
