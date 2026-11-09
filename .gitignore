@@ -53,3 +53,4 @@ upload
 # knife4j 运行时临时文件（schema 缓存等）
 solo/META-INF/
 logs
+.openidea
