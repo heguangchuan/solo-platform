@@ -4,7 +4,7 @@
 --  系统底座 + 国标 GB28181 + ONVIF + 开放 API + 语音播报权限
 --
 --  ⚠ 仅用于全新部署：脚本会 DROP 并重建全部表，已有数据会被清空。
---  已部署环境升级请按需执行模块增量脚本（sql/openapi.sql、sql/broadcast.sql）。
+--  脚本为全量重建，不含增量迁移；已部署环境升级请先备份数据。
 --
 --  执行方式：mysql -uroot -p < sql/solo_db.sql
 --  数据库：solo_db（自动创建，utf8mb4）
@@ -1002,7 +1002,7 @@ SELECT 1, id FROM sys_permission WHERE id BETWEEN 143 AND 148
                   WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
 
 -- ============================================================
---  调用日志菜单（149~150 已被 broadcast.sql 的语音播报占用，从 151 开始）
+--  调用日志菜单（149~150 已被语音播报权限占用，从 151 开始）
 --    151 调用日志  二级菜单 type=1 url=/openapi/log parent=143
 --    152 日志查询 / 153 日志导出 按钮 type=2 parent=151
 --  脚本可重复执行。
