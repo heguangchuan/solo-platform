@@ -214,10 +214,10 @@ cd solo-platform
 全新部署一个脚本装完（系统 + 国标 + ONVIF + 开放 API + 语音播报权限）：
 
 ```bash
-mysql -uroot -p < sql/solo_db.sql     # 首次部署（会重建全部表）
+mysql -uroot -p < sql/MySQL_solo_db.sql     # 首次部署（会重建全部表）
 ```
 
-> `sql/solo_db.sql` 为合并版首次部署脚本，已自动创建 `solo_db` 库并 `SET NAMES utf8mb4`；脚本会重建全部表，仅用于全新部署，已有数据请先备份。
+> `sql/MySQL_solo_db.sql` 为合并版首次部署脚本，已自动创建 `solo_db` 库并 `SET NAMES utf8mb4`；脚本会重建全部表，仅用于全新部署，已有数据请先备份。
 
 ### 2. 配置并启动后端
 
@@ -286,7 +286,7 @@ solo-platform/
 ├── openapi/               # 第三方对接资料（Bruno 前置签名脚本，见下方对接指南）
 ├── solo-ui/               # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
-└── sql/                   # 数据库脚本（solo_db.sql 首次部署合并版 + 各模块脚本）
+└── sql/                   # 数据库脚本（MySQL_solo_db.sql 首次部署合并版）
 ```
 
 
