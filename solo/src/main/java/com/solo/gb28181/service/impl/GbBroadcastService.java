@@ -503,7 +503,7 @@ public class GbBroadcastService {
             // 独立 openRtpServer 收上行，下行 startSendRtp 主动发，收/发两个 UDP 端口互不依赖，
             // 设备收到下行音频即可播，设备上行音频到收流口自然建立收听。
             // 收流端口不过滤 SSRC，但部分海康/大华固件若看到应答 y= 填 0 可能直接拒收/不回传，
-            // 因此优先回填设备 offer 中自带的 y= SSRC，没有再用全 0（兼容 WVP 行为）。
+            // 因此优先回填设备 offer 中自带的 y= SSRC，没有再用全 0。
             String answerSsrc = "0000000000";
             String deviceOfferedSsrc = SdpBuilder.extractSsrc(deviceSdp);
             if (deviceOfferedSsrc != null && !deviceOfferedSsrc.isBlank()) {
