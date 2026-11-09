@@ -1,18 +1,27 @@
--- =====================================================
--- Solo Platform Database Initialization Script
--- Database: solo_db
--- Date: 2026-06-19
--- =====================================================
+-- ============================================================
+--  Solo Platform 首次部署脚本（合并版）
+--  MySQL 8+ · 一次执行完成全部初始化
+--  系统底座 + 国标 GB28181 + ONVIF + 开放 API + 语音播报权限
+--
+--  ⚠ 仅用于全新部署：脚本会 DROP 并重建全部表，已有数据会被清空。
+--  已部署环境升级请按需执行模块增量脚本（sql/openapi.sql、sql/broadcast.sql）。
+--
+--  执行方式：mysql -uroot -p < sql/solo_db.sql
+--  数据库：solo_db（自动创建，utf8mb4）
+-- ============================================================
 
--- 创建数据库（如果不存在）
-CREATE
-DATABASE IF NOT EXISTS solo_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS solo_db DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-USE
-solo_db;
+USE solo_db;
 
-SET
-FOREIGN_KEY_CHECKS = 0;
+SET NAMES utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- ============================================================
+--  1/5  系统模块（RBAC / 字典 / 参数 / 文件 / 日志 / 消息）
+-- ============================================================
+
 
 -- =====================================================
 -- 系统模块表
@@ -475,10 +484,567 @@ CREATE TABLE sys_user_role
 INSERT INTO sys_user_role (id, user_id, role_id)
 VALUES (1, 1, 1);
 
-SET
-FOREIGN_KEY_CHECKS = 1;
 
--- =====================================================
--- 注：GB/T 28181 国标模块的所有表（gb_*）已拆分到 sql/gb28181.sql
--- 启用国标功能时再单独执行该脚本，按模块解耦。
--- =====================================================
+-- ============================================================
+--  2/5  国标模块（设备 / 通道 / 云台 / 级联 / 录像 / 报警 / 流媒体）
+-- ============================================================
+
+
+DROP TABLE IF EXISTS gb_device;
+CREATE TABLE gb_device
+(
+    id                     bigint      NOT NULL COMMENT '主键ID',
+    device_id              varchar(50) NOT NULL COMMENT '设备国标ID',
+    report_name            varchar(100)         DEFAULT NULL COMMENT '上报原始名称',
+    name                   varchar(100)         DEFAULT NULL COMMENT '自定义显示名称',
+    manufacturer           varchar(100)         DEFAULT NULL COMMENT '厂商',
+    model                  varchar(100)         DEFAULT NULL COMMENT '型号',
+    firmware               varchar(50)          DEFAULT NULL COMMENT '固件版本',
+    owner                  varchar(50)          DEFAULT NULL COMMENT '设备归属',
+    civil_code             varchar(20)          DEFAULT NULL COMMENT '行政区划编码',
+    address                varchar(500)         DEFAULT NULL COMMENT '安装地址',
+    ip                     varchar(64)          DEFAULT NULL COMMENT '注册来源IP',
+    recv_ip                varchar(64)          DEFAULT NULL COMMENT '收流IP覆盖',
+    port                   int                  DEFAULT NULL COMMENT '注册来源端口',
+    local_ip               varchar(64)          DEFAULT NULL COMMENT '本机通信IP',
+    host_address           varchar(80)          DEFAULT NULL COMMENT '主机地址 ip:port',
+    transport              varchar(10)          DEFAULT 'UDP' COMMENT '传输协议',
+    expires                int                  DEFAULT 3600 COMMENT '注册有效期（秒）',
+    charset                varchar(20)          DEFAULT 'GB2312' COMMENT '字符集',
+    status                 tinyint              DEFAULT 0 COMMENT '在线状态 0离线 1在线 2未注册',
+    source                 tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源 1新增 2导入 3注册',
+    register_time          datetime             DEFAULT NULL COMMENT '最后注册时间',
+    keepalive_time         datetime             DEFAULT NULL COMMENT '最后心跳时间',
+    last_catalog_sync_time datetime             DEFAULT NULL COMMENT '最后Catalog同步时间',
+    subscribe_cycle_for_catalog int            DEFAULT 0 COMMENT '目录订阅周期（秒），0=不订阅',
+    create_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time            datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_device_id (device_id),
+    KEY                    idx_status (status),
+    KEY                    idx_source (source)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_device_channel;
+CREATE TABLE gb_device_channel
+(
+    id           bigint      NOT NULL COMMENT '主键ID',
+    device_id    varchar(50) NOT NULL COMMENT '所属设备国标ID',
+    channel_id   varchar(50) NOT NULL COMMENT '通道/分组国标码',
+    report_name  varchar(255)         DEFAULT NULL COMMENT '上报原始名称',
+    name         varchar(255)         DEFAULT NULL COMMENT '自定义显示名称',
+    manufacturer varchar(100)         DEFAULT NULL COMMENT '厂商',
+    model        varchar(100)         DEFAULT NULL COMMENT '型号',
+    owner        varchar(50)          DEFAULT NULL COMMENT '设备归属',
+    civil_code   varchar(20)          DEFAULT NULL COMMENT '行政区划编码',
+    block        varchar(100)         DEFAULT NULL COMMENT '警区',
+    address      varchar(500)         DEFAULT NULL COMMENT '安装地址',
+    parental     tinyint     NOT NULL DEFAULT 0 COMMENT '0通道 1分组',
+    safety_way   tinyint              DEFAULT 0 COMMENT '信令安全模式',
+    register_way tinyint              DEFAULT 1 COMMENT '注册方式',
+    cert_num     varchar(50)          DEFAULT NULL COMMENT '证书序列号',
+    certifiable  tinyint              DEFAULT 0 COMMENT '证书有效标识',
+    err_code     int                  DEFAULT NULL COMMENT '证书无效原因码',
+    end_time     datetime             DEFAULT NULL COMMENT '证书终止有效期',
+    secrecy      tinyint              DEFAULT 0 COMMENT '保密属性',
+    ip_address   varchar(64)          DEFAULT NULL COMMENT '通道IP',
+    port         int                  DEFAULT NULL COMMENT '通道端口',
+    password     varchar(100)         DEFAULT NULL COMMENT '通道密码',
+    status       varchar(20)          DEFAULT 'OFF' COMMENT '在线状态 ON/OFF/UNREGISTERED',
+    longitude    double               DEFAULT NULL COMMENT '经度',
+    latitude     double               DEFAULT NULL COMMENT '纬度',
+    ptz_type     tinyint              DEFAULT 0 COMMENT '云台类型 0未知 1球机 2半球 3枪机 4遥控枪机',
+    parent_id    varchar(20) NOT NULL COMMENT '父节点国标码',
+    source       tinyint     NOT NULL DEFAULT 3 COMMENT '数据来源 1新增 2导入 3注册',
+    create_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time  datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_device_channel (device_id, channel_id),
+    KEY          idx_channel_id (channel_id),
+    KEY          idx_parent_id (parent_id),
+    KEY          idx_status (status),
+    KEY          idx_source (source)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_ptz_preset;
+CREATE TABLE gb_ptz_preset
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    channel_db_id bigint       NOT NULL COMMENT '通道主键',
+    preset_id     int          NOT NULL COMMENT '预置位编号',
+    name          varchar(100) NOT NULL COMMENT '预置位名称',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_channel_preset (channel_db_id, preset_id),
+    KEY           idx_channel (channel_db_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_ptz_cruise;
+CREATE TABLE gb_ptz_cruise
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    channel_db_id bigint       NOT NULL COMMENT '通道主键',
+    cruise_id     int          NOT NULL COMMENT '巡航路线编号',
+    name          varchar(100) NOT NULL COMMENT '巡航路线名称',
+    speed         int          NOT NULL DEFAULT 50 COMMENT '巡航速度（1~255）',
+    stay_seconds  int          NOT NULL DEFAULT 10 COMMENT '预置位停留秒数',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_channel_cruise (channel_db_id, cruise_id),
+    KEY           idx_channel (channel_db_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_ptz_cruise_point;
+CREATE TABLE gb_ptz_cruise_point
+(
+    id           bigint       NOT NULL COMMENT '主键ID',
+    cruise_id    bigint       NOT NULL COMMENT '巡航路线ID',
+    preset_id    int          NOT NULL COMMENT '预置位编号',
+    preset_name  varchar(100)          DEFAULT NULL COMMENT '预置位名称',
+    stay_seconds int                   DEFAULT NULL COMMENT '停留秒数',
+    sort_order   int          NOT NULL DEFAULT 0 COMMENT '排序号',
+    create_time  datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_cruise_preset (cruise_id, preset_id),
+    KEY          idx_cruise (cruise_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_platform;
+CREATE TABLE gb_platform
+(
+    id          bigint      NOT NULL COMMENT '主键ID',
+    platform_id varchar(20) NOT NULL COMMENT '国标ID',
+    name        varchar(255)         DEFAULT NULL COMMENT '备注名',
+    enabled     tinyint     NOT NULL DEFAULT 0 COMMENT '0禁用 1放行',
+    create_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_id (platform_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS media_server;
+CREATE TABLE media_server
+(
+    id               bigint      NOT NULL COMMENT '主键ID',
+    server_id        varchar(64) NOT NULL COMMENT 'ZLM节点标识',
+    name             varchar(100)         DEFAULT NULL COMMENT '节点名',
+    host_ip          varchar(64) NOT NULL COMMENT '管理面IP',
+    http_port        int         NOT NULL DEFAULT 80 COMMENT 'HTTP API端口',
+    secret           varchar(100)         DEFAULT NULL COMMENT 'API secret',
+    stream_ip        varchar(64)          DEFAULT NULL COMMENT '对外播放IP',
+    stream_http_port int                  DEFAULT 0 COMMENT '对外HTTP端口',
+    rtsp_port        int                  DEFAULT 0 COMMENT '对外RTSP端口',
+    rtc_port         int                  DEFAULT 0 COMMENT '对外WebRTC端口',
+    status           tinyint              DEFAULT 0 COMMENT '在线状态 0离线 1在线',
+    hook_alive_time  datetime             DEFAULT NULL COMMENT '最近keepalive时间',
+    create_time      datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time      datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    deleted          tinyint     NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_server_id (server_id),
+    KEY              idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS stream_proxy;
+CREATE TABLE stream_proxy
+(
+    id              bigint        NOT NULL COMMENT '主键ID',
+    app             varchar(50)   NOT NULL DEFAULT 'proxy' COMMENT 'app名',
+    stream          varchar(100)  NOT NULL COMMENT 'stream名',
+    src_url         varchar(1000) NOT NULL COMMENT '源地址',
+    media_server_id varchar(64)            DEFAULT NULL COMMENT 'ZLM节点ID',
+    rtp_type        tinyint       NOT NULL DEFAULT 0 COMMENT '拉流方式 0自适应 1TCP 2UDP 3组播',
+    proxy_key       varchar(100)           DEFAULT NULL COMMENT 'ZLM代理key',
+    status          tinyint       NOT NULL DEFAULT 0 COMMENT '0未启动 1已启动',
+    last_error      varchar(500)           DEFAULT NULL COMMENT '失败原因',
+    remark          varchar(255)           DEFAULT NULL COMMENT '备注',
+    create_time     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_app_stream (app, stream),
+    KEY             idx_media_server_id (media_server_id),
+    KEY             idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS stream_push;
+CREATE TABLE stream_push
+(
+    id              bigint       NOT NULL COMMENT '主键ID',
+    app             varchar(50)  NOT NULL COMMENT 'app名',
+    stream          varchar(100) NOT NULL COMMENT 'stream名',
+    media_server_id varchar(64)  NOT NULL COMMENT 'ZLM节点ID',
+    vhost           varchar(100)          DEFAULT '__defaultVhost__' COMMENT 'vhost',
+    stream_schema   varchar(100)          DEFAULT NULL COMMENT '推流协议',
+    origin_type     varchar(20)           DEFAULT NULL COMMENT '推流类型 rtmp/rtsp/rtc',
+    alive_second    int                   DEFAULT 0 COMMENT '存活秒数',
+    push_time       datetime              DEFAULT NULL COMMENT '首次推流时间',
+    client_id       varchar(64)           DEFAULT NULL COMMENT '推流方标识',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_app_stream (app, stream),
+    KEY             idx_media_server_id (media_server_id),
+    KEY             idx_client_id (client_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS stream_push_client;
+CREATE TABLE stream_push_client
+(
+    id          bigint      NOT NULL COMMENT '主键ID',
+    client_id   varchar(64) NOT NULL COMMENT '推流方标识',
+    token       varchar(64) NOT NULL COMMENT '鉴权令牌',
+    enabled     tinyint     NOT NULL DEFAULT 1 COMMENT '0禁用 1启用',
+    remark      varchar(255)         DEFAULT NULL COMMENT '备注',
+    create_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_client_id (client_id),
+    UNIQUE KEY uk_token (token)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_parent_platform;
+CREATE TABLE gb_parent_platform
+(
+    id               bigint       NOT NULL COMMENT '主键ID',
+    name             varchar(255) NOT NULL COMMENT '上级平台名称',
+    server_gb_id     varchar(20)  NOT NULL COMMENT '上级平台国标编码',
+    server_gb_domain varchar(20)  NOT NULL COMMENT '上级平台国标域',
+    server_ip        varchar(64)  NOT NULL COMMENT 'SIP IP',
+    server_port      int          NOT NULL DEFAULT 5060 COMMENT 'SIP端口',
+    username         varchar(64)  NOT NULL DEFAULT '' COMMENT 'SIP用户名',
+    password         varchar(64)  NOT NULL DEFAULT '' COMMENT 'SIP密码',
+    expires          int          NOT NULL DEFAULT 3600 COMMENT '注册有效期（秒）',
+    keep_timeout     int          NOT NULL DEFAULT 60 COMMENT '心跳周期（秒）',
+    transport        varchar(16)  NOT NULL DEFAULT 'UDP' COMMENT '传输协议',
+    character_set    varchar(16)  NOT NULL DEFAULT 'GB2312' COMMENT '字符集',
+    enabled          tinyint      NOT NULL DEFAULT 1 COMMENT '0禁用 1启用',
+    status           tinyint      NOT NULL DEFAULT 0 COMMENT '在线状态 0离线 1在线',
+    catalog_group    tinyint               DEFAULT NULL COMMENT 'Catalog单包Item数',
+    create_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time      datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_server_gb_id (server_gb_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_platform_group;
+CREATE TABLE gb_platform_group
+(
+    id          bigint      NOT NULL COMMENT '主键ID',
+    name        varchar(64) NOT NULL COMMENT '分组名称',
+    code        varchar(20) NOT NULL COMMENT '分组国标编码',
+    platform_id bigint      NOT NULL COMMENT '上级平台主键',
+    parent_id   bigint      NOT NULL COMMENT '父分组主键',
+    create_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    update_time datetime    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_code (platform_id, code),
+    KEY         idx_platform_parent (platform_id, parent_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_platform_share;
+CREATE TABLE gb_platform_share
+(
+    id           bigint   NOT NULL COMMENT '主键ID',
+    platform_id  bigint   NOT NULL COMMENT '上级平台主键',
+    group_id     bigint   NOT NULL COMMENT '推送分组主键',
+    resource_id  bigint   NOT NULL COMMENT '通道主键',
+    exposed_code varchar(20)       DEFAULT NULL COMMENT '对上级暴露国标码',
+    create_time  datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_platform_resource (platform_id, resource_id),
+    UNIQUE KEY uk_platform_exposed_code (platform_id, exposed_code),
+    KEY          idx_platform_group (platform_id, group_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_device_alarm;
+CREATE TABLE gb_device_alarm
+(
+    id                bigint       NOT NULL COMMENT '主键ID',
+    device_id         varchar(50)  NOT NULL COMMENT '设备国标ID',
+    channel_id        varchar(50)           DEFAULT NULL COMMENT '通道国标ID',
+    channel_name      varchar(255)          DEFAULT NULL COMMENT '通道名称',
+    alarm_priority    tinyint               DEFAULT NULL COMMENT '报警级别 1~4',
+    alarm_method      varchar(20)           DEFAULT NULL COMMENT '报警方式码',
+    alarm_method_desc varchar(255)          DEFAULT NULL COMMENT '报警方式描述',
+    alarm_type        varchar(10)           DEFAULT NULL COMMENT '报警类型码',
+    alarm_time        datetime              DEFAULT NULL COMMENT '报警发生时间',
+    alarm_description varchar(1000)         DEFAULT NULL COMMENT '报警内容',
+    longitude         double                DEFAULT NULL COMMENT '经度',
+    latitude          double                DEFAULT NULL COMMENT '纬度',
+    handle_status     tinyint      NOT NULL DEFAULT 0 COMMENT '处置状态 0未处理 1已确认 2已处置 3误报',
+    handle_remark     varchar(500)          DEFAULT NULL COMMENT '处置备注',
+    handle_user       varchar(64)           DEFAULT NULL COMMENT '处置人',
+    handle_time       datetime              DEFAULT NULL COMMENT '处置时间',
+    receive_time      datetime              DEFAULT NULL COMMENT '平台收到时间',
+    create_time       datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    KEY idx_alarm_time (alarm_time),
+    KEY idx_handle_status (handle_status),
+    KEY idx_device (device_id),
+    KEY idx_channel (channel_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS gb_mobile_position;
+CREATE TABLE gb_mobile_position
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    device_id     varchar(50)  NOT NULL COMMENT '设备国标ID',
+    device_name   varchar(255)          DEFAULT NULL COMMENT '设备名称（落库时冗余）',
+    position_time datetime              DEFAULT NULL COMMENT '设备上报的定位时间',
+    longitude     double                DEFAULT NULL COMMENT '经度（WGS84）',
+    latitude      double                DEFAULT NULL COMMENT '纬度（WGS84）',
+    altitude      double                DEFAULT NULL COMMENT '海拔（米）',
+    speed         double                DEFAULT NULL COMMENT '速度（设备原值，km/h 或 m/s 视厂商而定）',
+    direction     double                DEFAULT NULL COMMENT '方向角 0~359，正北为 0 顺时针',
+    receive_time  datetime              DEFAULT NULL COMMENT '平台收到报文时间',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    KEY idx_device_time (device_id, position_time),
+    KEY idx_create_time (create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='设备移动位置（GPS 轨迹）';
+
+DROP TABLE IF EXISTS gb_record_file;
+CREATE TABLE gb_record_file
+(
+    id            bigint       NOT NULL COMMENT '主键ID',
+    device_id     varchar(50)           DEFAULT NULL COMMENT '设备国标ID',
+    channel_id    varchar(50)           DEFAULT NULL COMMENT '通道国标ID',
+    stream_id     varchar(100) NOT NULL COMMENT 'ZLM流ID（GbInviteSession.streamId）',
+    app           varchar(50)  NOT NULL DEFAULT 'rtp' COMMENT 'ZLM app名',
+    server_id     varchar(64)           DEFAULT NULL COMMENT 'ZLM节点ID',
+    start_time    datetime              DEFAULT NULL COMMENT '录像段开始时间（优先取ZLM回调start_time）',
+    end_time      datetime              DEFAULT NULL COMMENT '录像段结束时间',
+    duration      double                DEFAULT NULL COMMENT '时长(秒)',
+    file_size     bigint                DEFAULT NULL COMMENT '文件大小(字节)',
+    object_name   varchar(500)          DEFAULT NULL COMMENT 'S3对象名(gb28181/record/...mp4)',
+    thumb_object_name varchar(500)        DEFAULT NULL COMMENT '缩略图S3对象名(截图抓拍，预留)',
+    status        tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0上传中 1成功 2失败',
+    fail_reason   varchar(500)          DEFAULT NULL COMMENT '最近一次失败原因',
+    retry_count   int          NOT NULL DEFAULT 0 COMMENT '已重试次数',
+    source_url    varchar(1000)         DEFAULT NULL COMMENT 'ZLM回调的MP4下载地址（失败重试要用）',
+    hook_key      varchar(500)          DEFAULT NULL COMMENT '幂等键（ZLM回调path），同一切片只落一次',
+    create_time   datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_hook_key (hook_key),
+    KEY idx_device_channel (device_id, channel_id),
+    KEY idx_start_time (start_time),
+    KEY idx_status_create (status, create_time)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云端录像文件元数据';
+
+DROP TABLE IF EXISTS gb_record_plan;
+CREATE TABLE gb_record_plan
+(
+    id             bigint       NOT NULL COMMENT '主键ID',
+    name           varchar(100)          DEFAULT NULL COMMENT '计划名称',
+    device_id      varchar(50)  NOT NULL COMMENT '设备国标ID',
+    channel_id     varchar(50)  NOT NULL COMMENT '通道国标ID',
+    enabled        tinyint      NOT NULL DEFAULT 1 COMMENT '是否启用 0停 1启',
+    transport      varchar(20)           DEFAULT NULL COMMENT '传输模式 UDP/TCP-active/TCP-passive，空随设备',
+    stream_number  varchar(20)           DEFAULT NULL COMMENT '码流token（空=主码流）',
+    retention_days int          NOT NULL DEFAULT 30 COMMENT '本计划录像保留天数，0=跟随全局',
+    create_time    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time    datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    KEY idx_device_channel (device_id, channel_id),
+    KEY idx_enabled (enabled)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='云端录像计划（周计划）';
+
+DROP TABLE IF EXISTS gb_record_plan_period;
+CREATE TABLE gb_record_plan_period
+(
+    id         bigint      NOT NULL COMMENT '主键ID',
+    plan_id    bigint      NOT NULL COMMENT '所属录像计划ID',
+    day_of_week tinyint    NOT NULL COMMENT '星期 1周一 ... 7周日',
+    start_time varchar(8)  NOT NULL COMMENT '开始时间 HH:mm（支持跨午夜，如23:00-06:00）',
+    end_time   varchar(8)  NOT NULL COMMENT '结束时间 HH:mm，跨午夜时早于开始时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_plan_day_start (plan_id, day_of_week, start_time),
+    KEY idx_plan (plan_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='录像计划周时段';
+
+
+-- ============================================================
+--  3/5  ONVIF 模块
+-- ============================================================
+
+
+DROP TABLE IF EXISTS onvif_device;
+CREATE TABLE onvif_device
+(
+    id              bigint       NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+    name            varchar(100)          DEFAULT NULL COMMENT '显示名称',
+    host            varchar(64)  NOT NULL COMMENT '设备IP',
+    port            int          NOT NULL DEFAULT 80 COMMENT 'ONVIF端口',
+    username        varchar(64)           DEFAULT NULL COMMENT '鉴权用户名',
+    password        varchar(128)          DEFAULT NULL COMMENT '鉴权密码',
+    status          tinyint               DEFAULT 0 COMMENT '在线状态 0离线 1在线',
+    stream_uri      varchar(500)          DEFAULT NULL COMMENT 'RTSP地址',
+    last_check_time datetime              DEFAULT NULL COMMENT '最近探测时间',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_host_port (host, port),
+    KEY        idx_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ============================================================
+--  4/5  开放 API 模块（应用 / Webhook / 调用日志 + 权限 143~148、151~153）
+-- ============================================================
+
+
+-- ============================================================
+--  第三方开放 API（/open-api/v1/**）
+--  与平台用户/角色体系完全解耦：第三方以"应用"身份接入，
+--  凭 appKey/appSecret 做 HMAC 签名鉴权，按 scope 授权。
+-- ============================================================
+
+DROP TABLE IF EXISTS open_app;
+CREATE TABLE open_app
+(
+    id              bigint       NOT NULL COMMENT '主键ID',
+    app_key         varchar(64)  NOT NULL COMMENT '应用标识（随请求传输）',
+    app_name        varchar(100) NOT NULL COMMENT '应用名称（第三方系统/公司）',
+    -- 当前生效密钥（AES-GCM 加密存储，创建/换钥时明文只展示一次）
+    secret_cipher   varchar(500) NOT NULL COMMENT '当前密钥密文',
+    -- 双钥轮换：换钥过渡期内旧密钥仍可用，过渡期结束置空
+    old_secret_cipher varchar(500)        DEFAULT NULL COMMENT '轮换期旧密钥密文',
+    old_secret_expire_time datetime        DEFAULT NULL COMMENT '旧密钥失效时间',
+    -- 逗号分隔的 scope 编码，如 gb:device:read,gb:play:ctrl
+    scopes          varchar(1000)         DEFAULT '' COMMENT '授权范围（逗号分隔）',
+    -- 逗号分隔的 IP/CIDR 白名单，为空不校验
+    ip_whitelist    varchar(500)          DEFAULT NULL COMMENT 'IP白名单（逗号分隔）',
+    callback_url    varchar(500)          DEFAULT NULL COMMENT 'Webhook 回调地址',
+    callback_secret_cipher varchar(500)   DEFAULT NULL COMMENT '回调签名密钥密文（可独立吊销）',
+    -- 逗号分隔的事件类型，空=不推送
+    event_subscriptions varchar(1000)     DEFAULT '' COMMENT '订阅事件类型（逗号分隔）',
+    qps_limit       int          NOT NULL DEFAULT 10 COMMENT 'QPS上限，0=不限',
+    daily_limit     bigint       NOT NULL DEFAULT 0 COMMENT '日调用量上限，0=不限',
+    status          tinyint      NOT NULL DEFAULT 1 COMMENT '状态 0停用 1启用',
+    expire_time     datetime              DEFAULT NULL COMMENT '应用过期时间，空=永不过期',
+    remark          varchar(500)          DEFAULT NULL COMMENT '备注',
+    deleted         tinyint      NOT NULL DEFAULT 0 COMMENT '逻辑删除',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_app_key (app_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='开放API应用';
+
+-- 事件出队记录：一个事件对每个订阅应用 fan-out 一行，重试/对账都靠它
+DROP TABLE IF EXISTS open_webhook_event;
+CREATE TABLE open_webhook_event
+(
+    id              bigint       NOT NULL COMMENT '主键ID',
+    event_id        varchar(40)  NOT NULL COMMENT '事件唯一ID（第三方按此幂等去重）',
+    app_id          bigint       NOT NULL COMMENT '目标应用ID',
+    app_key         varchar(64)  NOT NULL COMMENT '目标应用标识（冗余，便于排查）',
+    event_type      varchar(50)  NOT NULL COMMENT '事件类型',
+    payload         mediumtext   NOT NULL COMMENT '事件报文JSON',
+    callback_url    varchar(500) NOT NULL COMMENT '投递时使用的回调地址（快照）',
+    status          tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0待投递 1成功 2待重试 3放弃',
+    retry_count     int          NOT NULL DEFAULT 0 COMMENT '已重试次数',
+    max_retry       int          NOT NULL DEFAULT 5 COMMENT '最大重试次数',
+    next_retry_time datetime     NOT NULL COMMENT '下次投递时间',
+    last_error      varchar(500)          DEFAULT NULL COMMENT '最近一次失败原因',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    update_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_event_app (event_id, app_id),
+    KEY idx_status_retry (status, next_retry_time),
+    KEY idx_app (app_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='开放API Webhook事件';
+
+-- 调用审计：排障/对账用，保留周期由运维清理
+DROP TABLE IF EXISTS open_api_log;
+CREATE TABLE open_api_log
+(
+    id              bigint       NOT NULL COMMENT '主键ID',
+    app_key         varchar(64)           DEFAULT NULL COMMENT '调用方应用标识（鉴权失败也可能为空）',
+    request_id      varchar(40)           DEFAULT NULL COMMENT '请求唯一号',
+    method          varchar(10)  NOT NULL COMMENT 'HTTP方法',
+    path            varchar(300) NOT NULL COMMENT '请求路径',
+    query_string    varchar(1000)         DEFAULT NULL COMMENT '查询串',
+    client_ip       varchar(64)           DEFAULT NULL COMMENT '客户端IP',
+    http_status     int          NOT NULL DEFAULT 0 COMMENT 'HTTP状态码',
+    biz_code        int                   DEFAULT NULL COMMENT '业务码',
+    cost_ms         bigint       NOT NULL DEFAULT 0 COMMENT '耗时毫秒',
+    error_msg       varchar(500)          DEFAULT NULL COMMENT '失败原因',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (id),
+    KEY idx_app_time (app_key, create_time),
+    KEY idx_request (request_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='开放API调用日志';
+
+-- ============================================================
+--  管理端权限点（接在 sys_permission 现有最大 id 142 之后）
+--  三级结构，跟其他模块保持一致：
+--    143 开放平台      一级目录 type=1 url=NULL parent=0
+--    144 应用管理      二级菜单 type=1 url=/openapi/app parent=143 （前端约定式路由靠这个 url）
+--    145~148 增/查/改/换钥 按钮 type=2 parent=144
+--  脚本可重复执行：先清旧的错误数据再插入。
+-- ============================================================
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 143 AND 148;
+DELETE FROM sys_permission          WHERE id BETWEEN 143 AND 148;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (143, '开放平台', 'openapi',        NULL,            1, 0,   10, 'IconLock', 1, 0, NOW(), NOW()),
+ (144, '应用管理', 'openapi:app',    '/openapi/app',  1, 143, 1,  'IconLock', 1, 0, NOW(), NOW()),
+ (145, '应用查询', 'openapi:app:list',   NULL, 2, 144, 1, NULL, 1, 0, NOW(), NOW()),
+ (146, '应用新增', 'openapi:app:add',    NULL, 2, 144, 2, NULL, 1, 0, NOW(), NOW()),
+ (147, '应用编辑', 'openapi:app:edit',   NULL, 2, 144, 3, NULL, 1, 0, NOW(), NOW()),
+ (148, '应用换钥', 'openapi:app:rotate', NULL, 2, 144, 4, NULL, 1, 0, NOW(), NOW());
+
+-- 顺手把这几个权限挂给超级管理员（role_id=1）。其他角色在"角色管理"里自己勾。
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 143 AND 148
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+-- ============================================================
+--  调用日志菜单（149~150 已被 broadcast.sql 的语音播报占用，从 151 开始）
+--    151 调用日志  二级菜单 type=1 url=/openapi/log parent=143
+--    152 日志查询 / 153 日志导出 按钮 type=2 parent=151
+--  脚本可重复执行。
+-- ============================================================
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 151 AND 153;
+DELETE FROM sys_permission          WHERE id BETWEEN 151 AND 153;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (151, '调用日志', 'openapi:log',       '/openapi/log', 1, 143, 2, 'IconLock', 1, 0, NOW(), NOW()),
+ (152, '日志查询', 'openapi:log:list',  NULL,           2, 151, 1, NULL,       1, 0, NOW(), NOW()),
+ (153, '日志导出', 'openapi:log:export', NULL,          2, 151, 2, NULL,       1, 0, NOW(), NOW());
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 151 AND 153
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+-- ============================================================
+--  5/5  语音播报 / 对讲权限点（149~150，无新表）
+-- ============================================================
+
+
+-- ============================================================
+--  语音播报 / 语音对讲（网页麦克风，单设备单通道，单向播报或双向对讲）
+--  只加管理端权限点，没有新业务表：会话走 Redis，信令复用 gb_* 设备/通道表。
+--
+--  接在 sys_permission 现有最大 id 148（开放平台）之后：
+--    149 语音播报/对讲  二级菜单 type=1 url=/gb28181/broadcast parent=5（国标管理）
+--    150 播报/对讲控制  按钮   type=2 parent=149（开始/停止共用一个权限点）
+--  脚本可重复执行：先清旧数据再插入。
+-- ============================================================
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 149 AND 150;
+DELETE FROM sys_permission          WHERE id BETWEEN 149 AND 150;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (149, '语音播报/对讲', 'gb28181:broadcast',      '/gb28181/broadcast', 1, 5, 11, 'IconSpeakerphone', 1, 0, NOW(), NOW()),
+ (150, '播报/对讲控制', 'gb28181:broadcast:talk', NULL,                 2, 149, 1, NULL,             1, 0, NOW(), NOW());
+
+-- 顺手挂给超级管理员（role_id=1）。其他角色在"角色管理"里自己勾。
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 149 AND 150
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+SET FOREIGN_KEY_CHECKS = 1;
