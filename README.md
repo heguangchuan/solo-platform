@@ -217,7 +217,7 @@ cd solo-platform
 mysql -uroot -p < sql/solo_db.sql     # 首次部署（会重建全部表）
 ```
 
-> `sql/solo_db.sql` 为合并版首次部署脚本，已自动创建 `solo_db` 库并 `SET NAMES utf8mb4`；已部署环境升级时按需执行模块增量脚本（如 `sql/openapi.sql`、`sql/broadcast.sql`），各模块脚本仍保留在 `sql/` 目录。
+> `sql/solo_db.sql` 为合并版首次部署脚本，已自动创建 `solo_db` 库并 `SET NAMES utf8mb4`；脚本会重建全部表，仅用于全新部署，已有数据请先备份。
 
 ### 2. 配置并启动后端
 
