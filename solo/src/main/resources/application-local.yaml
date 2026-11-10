@@ -1,19 +1,32 @@
+# ============================================================
+#  部署地址统一维护
+#  project.ip 是平台本机地址（SIP 监听用）；各组件默认跟随它，
+#  组件分散部署时只改对应那一行，下面的连接配置不用动。
+# ============================================================
 project:
   ip: 192.168.1.205
+  # 数据库地址
+  db: ${project.ip}
+  # Redis 地址
+  redis: ${project.ip}
+  # 对象存储（S3 兼容）地址
+  s3: 192.168.1.200
+  # 流媒体 ZLMediaKit 地址
+  media: 192.168.1.200
 
 server:
   port: 8080
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/solo_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://${project.db}:3306/solo_db?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
     username: root
     password: root
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   data:
     redis:
-      host: localhost
+      host: ${project.redis}
       port: 6379
 
 jwt:
@@ -32,7 +45,7 @@ jwt:
 #  /华为云两种都支持；AWS S3 也能跑 path-style
 # ============================================================
 s3:
-  endpoint-override: http://192.168.1.200:9000
+  endpoint-override: http://${project.s3}:9000
   region: us-east-1
   access-key: rustfsadmin
   secret-key: rustfsadmin
@@ -109,7 +122,7 @@ media:
     # 节点显示名（仅用于管理面展示）
     name: 默认节点
     # ZLM 管理面 IP（用于 REST API 调用）
-    host-ip: 192.168.1.200
+    host-ip: ${project.media}
     # ZLM HTTP API 端口
     http-port: 8088
     # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）

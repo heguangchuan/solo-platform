@@ -210,6 +210,13 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- PostgreSQL JDBC 驱动：版本由 Spring Boot BOM 管理，运行时才需要 -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
         <!-- JAIN-SIP：GB/T 28181 信令协议栈实现，提供 SIP UDP/TCP Server、事务/Dialog 管理 -->
         <dependency>
             <groupId>javax.sip</groupId>
