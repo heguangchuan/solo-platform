@@ -2,35 +2,7 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD MyBatis 3 Mapper//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.solo.gb28181.mapper.GbDeviceChannelMapper">
 
-    <!--
-      批量 upsert（Catalog 同步落库用）
-      ─────────────────────────────────
-      入参：List<GbDeviceChannel>，由调用方预填 id（雪花）
-      走业务唯一键 uk_device_channel (device_id, channel_id)，不依赖预 SELECT。
-      device_id 标识推送源设备 / 下级平台（必填），同设备同 GB 码的通道或分组自动 upsert。
-      行数受调用方 batchSize 限制（默认 500），单条 SQL 一次往返。
-
-      条件更新（COALESCE：行为等价于 MyBatis <if>，但放在 SQL 内执行，4 万通道单 SQL 搞定）：
-        - 设备 XML 里有值的字段 → 写入设备值（覆盖人工值）
-        - 设备 XML 里 <xxx/> 为空的字段 → 保留数据库现有值（人工设的不会被 null 清空）
-      适用字段：经纬度、地址、行政区划、厂商、型号、IP、端口、密码、状态、PTZ 等
-      大部分 IPC 不在 Catalog XML 里报的字段。
-
-      保留语义（不在 ON DUPLICATE KEY UPDATE 中更新）：
-        - parental     通道/分组类型，由系统维护
-        - parent_id    人工编排父项
-        - source       数据来源（系统/导入/注册/级联）
-        - create_time  MyBatis-Plus FieldFill.INSERT 自动维护
-
-      性能：单 SQL 批量，4 万通道 ~10-50ms（本地 DB 实测）。
-      为什么不用 MyBatis <if>：<if> 在 ON DUPLICATE KEY UPDATE 里只能按单行参数判断，
-      必须拆成逐行调用——4 万次网络往返 = 4-20 秒，生产不可接受。COALESCE 在 SQL
-      端按行判断，单 SQL 即可达到等价的「按空跳过」效果。
-
-      注意：VALUES() 是 MySQL 8.0.20 前语法，兼容 5.7/8.0；
-      若升级至 8.0.20+ 可改为别名语法。
-    -->
-    <insert id="batchUpsert" parameterType="java.util.List" useGeneratedKeys="false">
+    <insert id="batchUpsertRaw" parameterType="java.util.List" databaseId="mysql" useGeneratedKeys="false">
         INSERT INTO gb_device_channel (
             id, device_id, channel_id,
             report_name, name, manufacturer, model, owner, civil_code, block, address,
@@ -74,6 +46,53 @@
             longitude          = COALESCE(VALUES(longitude), longitude),
             latitude           = COALESCE(VALUES(latitude), latitude),
             ptz_type       = COALESCE(VALUES(ptz_type), ptz_type)
+    </insert>
+
+    <insert id="batchUpsertRaw" parameterType="java.util.List" databaseId="postgresql">
+        INSERT INTO gb_device_channel (
+            id, device_id, channel_id,
+            report_name, name, manufacturer, model, owner, civil_code, block, address,
+            parental, safety_way, register_way,
+            cert_num, certifiable, secrecy,
+            ip_address, port, password, status,
+            longitude, latitude, ptz_type,
+            parent_id, source
+        )
+        VALUES
+        <foreach collection="list" item="ch" separator=",">
+            (
+                #{ch.id}, #{ch.deviceId}, #{ch.channelId},
+                #{ch.reportName}, #{ch.name}, #{ch.manufacturer}, #{ch.model},
+                #{ch.owner}, #{ch.civilCode}, #{ch.block}, #{ch.address},
+                #{ch.parental}, #{ch.safetyWay}, #{ch.registerWay},
+                #{ch.certNum}, #{ch.certifiable}, #{ch.secrecy},
+                #{ch.ipAddress}, #{ch.port}, #{ch.password}, #{ch.status},
+                #{ch.longitude}, #{ch.latitude}, #{ch.ptzType},
+                #{ch.parentId}, #{ch.source}
+            )
+        </foreach>
+        ON CONFLICT (device_id, channel_id) DO UPDATE SET
+            report_name    = COALESCE(EXCLUDED.report_name, gb_device_channel.report_name),
+            name           = COALESCE(EXCLUDED.name, gb_device_channel.name),
+            manufacturer   = COALESCE(EXCLUDED.manufacturer, gb_device_channel.manufacturer),
+            model          = COALESCE(EXCLUDED.model, gb_device_channel.model),
+            owner          = COALESCE(EXCLUDED.owner, gb_device_channel.owner),
+            civil_code     = COALESCE(EXCLUDED.civil_code, gb_device_channel.civil_code),
+            block          = COALESCE(EXCLUDED.block, gb_device_channel.block),
+            address        = COALESCE(EXCLUDED.address, gb_device_channel.address),
+            safety_way     = COALESCE(EXCLUDED.safety_way, gb_device_channel.safety_way),
+            register_way   = COALESCE(EXCLUDED.register_way, gb_device_channel.register_way),
+            cert_num       = COALESCE(EXCLUDED.cert_num, gb_device_channel.cert_num),
+            certifiable    = COALESCE(EXCLUDED.certifiable, gb_device_channel.certifiable),
+            secrecy        = COALESCE(EXCLUDED.secrecy, gb_device_channel.secrecy),
+            ip_address     = COALESCE(EXCLUDED.ip_address, gb_device_channel.ip_address),
+            port           = COALESCE(EXCLUDED.port, gb_device_channel.port),
+            password       = COALESCE(EXCLUDED.password, gb_device_channel.password),
+            status         = COALESCE(EXCLUDED.status, gb_device_channel.status),
+            longitude      = COALESCE(EXCLUDED.longitude, gb_device_channel.longitude),
+            latitude       = COALESCE(EXCLUDED.latitude, gb_device_channel.latitude),
+            ptz_type       = COALESCE(EXCLUDED.ptz_type, gb_device_channel.ptz_type),
+            update_time    = CURRENT_TIMESTAMP
     </insert>
 
 </mapper>

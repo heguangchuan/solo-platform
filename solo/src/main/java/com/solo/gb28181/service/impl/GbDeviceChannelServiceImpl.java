@@ -24,11 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * <p>合并后去 {@code device_db_id} 雪花主键引用，关系仅由 GB 码 {@code device_id} 维系。
- * {@code parent_id} 仍由 Catalog 同步写入（供级联回 XML 与共享树建层级使用），但<b>不暴露给前端</b>：
- * 后端不在响应里回填 {@code parentName}（避免名称查表 + N+1），前端也不展示 {@code parentId} 字段。</p>
- */
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -184,7 +180,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                 ch.setId(IdWorker.getId());
             }
         }
-        // 走 mapper 的 INSERT ... ON DUPLICATE KEY UPDATE：单 SQL 多行 upsert
+        // 走 mapper 的批量 upsert（MySQL / PG 各自方言，批内重复键先合并）：单 SQL 多行
         // 4 万通道场景必须用批量——逐行 4 万次网络往返 = 4-20 秒，生产不可接受
         // 条件更新在 SQL 端用 COALESCE 实现，行为等价于 MyBatis <if>，但单 SQL 内执行
         // 业务唯一键 uk_device_channel (device_id, channel_id) 同时覆盖通道和分组：

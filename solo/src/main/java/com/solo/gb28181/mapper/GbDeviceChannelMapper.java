@@ -7,27 +7,68 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
-/**
- * <p>本表业务键 ≠ 主键：主键是雪花 {@code id}，业务唯一键是 {@code uk_device_channel(device_id, channel_id)}。
- * 合并后无 {@code device_db_id} 字段（去除冗余雪花主键），关系仅由 GB 码 {@code device_id} 维系。
- * MyBatis-Plus 的 {@code saveOrUpdateBatch} 按主键 id 判定存在性，会走 INSERT 然后撞业务唯一键
- * （{@code Duplicate entry ... for key 'uk_device_channel'}），不适合本表场景。</p>
- *
- * <p>所以这里必须自造轮子：用 {@code INSERT ... ON DUPLICATE KEY UPDATE} 走业务唯一键 upsert，
- * 单 SQL 多行，不依赖预 SELECT。10w+ 通道 Catalog 同步落库是核心性能路径，必须用单 SQL
- * 批量方案——逐行 + {@code <if>} 动态 SET 在 4 万通道场景下要走 4 万次网络往返（4-20 秒），
- * 不可接受。</p>
- *
- * <p>条件更新用 SQL 端的 {@code COALESCE(VALUES(x), x)} 实现「设备没报就保留现有值」——行为
- * 等价于 MyBatis {@code <if>}，但放在单 SQL 内执行，4 万行一次往返搞定（10-50ms）。</p>
- */
+
 @Mapper
 public interface GbDeviceChannelMapper extends BaseMapper<GbDeviceChannel> {
 
-    int batchUpsert(@Param("list") List<GbDeviceChannel> channels);
+    // 先合并批内重复业务键，再走 XML 里的按库方言 upsert
+    default int batchUpsert(List<GbDeviceChannel> channels) {
+        if (channels == null || channels.isEmpty()) {
+            return 0;
+        }
+        return batchUpsertRaw(mergeDuplicates(channels));
+    }
+
+    int batchUpsertRaw(@Param("list") List<GbDeviceChannel> channels);
 
     @Select("SELECT parental, status, COUNT(*) AS count FROM gb_device_channel GROUP BY parental, status")
     List<GbChannelStatusCountVO> selectStatusCount();
+
+    // 合并语义对齐 MySQL：后出现的非 null 上报值覆盖先出现的，null 不覆盖
+    private static List<GbDeviceChannel> mergeDuplicates(List<GbDeviceChannel> channels) {
+        Map<String, GbDeviceChannel> merged = new LinkedHashMap<>(channels.size());
+        int invalid = 0;
+        for (GbDeviceChannel ch : channels) {
+            // channel_id 为空属于脏数据，不参与合并，交给库里的非空约束报错
+            String key = ch.getChannelId() == null
+                    ? "invalid#" + invalid++
+                    : ch.getDeviceId() + '\u0000' + ch.getChannelId();
+            GbDeviceChannel exist = merged.get(key);
+            if (exist == null) {
+                merged.put(key, ch);
+            } else {
+                mergeReportedFields(exist, ch);
+            }
+        }
+        return merged.size() == channels.size() ? channels : new ArrayList<>(merged.values());
+    }
+
+    // 只合并冲突时会被更新的上报字段；id / parental / parent_id / source / create_time 保留首行
+    private static void mergeReportedFields(GbDeviceChannel target, GbDeviceChannel later) {
+        if (later.getReportName() != null) target.setReportName(later.getReportName());
+        if (later.getName() != null) target.setName(later.getName());
+        if (later.getManufacturer() != null) target.setManufacturer(later.getManufacturer());
+        if (later.getModel() != null) target.setModel(later.getModel());
+        if (later.getOwner() != null) target.setOwner(later.getOwner());
+        if (later.getCivilCode() != null) target.setCivilCode(later.getCivilCode());
+        if (later.getBlock() != null) target.setBlock(later.getBlock());
+        if (later.getAddress() != null) target.setAddress(later.getAddress());
+        if (later.getSafetyWay() != null) target.setSafetyWay(later.getSafetyWay());
+        if (later.getRegisterWay() != null) target.setRegisterWay(later.getRegisterWay());
+        if (later.getCertNum() != null) target.setCertNum(later.getCertNum());
+        if (later.getCertifiable() != null) target.setCertifiable(later.getCertifiable());
+        if (later.getSecrecy() != null) target.setSecrecy(later.getSecrecy());
+        if (later.getIpAddress() != null) target.setIpAddress(later.getIpAddress());
+        if (later.getPort() != null) target.setPort(later.getPort());
+        if (later.getPassword() != null) target.setPassword(later.getPassword());
+        if (later.getStatus() != null) target.setStatus(later.getStatus());
+        if (later.getLongitude() != null) target.setLongitude(later.getLongitude());
+        if (later.getLatitude() != null) target.setLatitude(later.getLatitude());
+        if (later.getPtzType() != null) target.setPtzType(later.getPtzType());
+    }
 }
