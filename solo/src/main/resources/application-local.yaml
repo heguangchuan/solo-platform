@@ -4,15 +4,17 @@
 #  组件分散部署时只改对应那一行，下面的连接配置不用动。
 # ============================================================
 project:
-  ip: 192.168.1.205
-  # 数据库地址
-  db: ${project.ip}
+  ip: 172.16.202.180
+  # 数据库地址。本机部署用 localhost：pg_hba.conf 默认只放行 127.0.0.1，
+  # 用本机网卡 IP 连接会被当作远程主机拒绝（no pg_hba.conf entry）。
+  # 数据库独立部署时改成实际地址，并在 pg_hba.conf 放行本平台 IP。
+  db: localhost
   # Redis 地址
-  redis: ${project.ip}
+  redis: localhost
   # 对象存储（S3 兼容）地址
-  s3: 192.168.1.200
+  s3: 172.16.202.200
   # 流媒体 ZLMediaKit 地址
-  media: 192.168.1.200
+  media: 172.16.202.200
 
 server:
   port: 8080
@@ -112,6 +114,15 @@ media:
   # 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中 stream_push_client；
   # false=不做任何校验（生产环境务必开启）
   push-auth-enabled: true
+
+  # 观看记录：播放地址带签名令牌 wt，on_play 凭令牌识别观看者落库，on_flow_report 闭合
+  view-record:
+    # 关闭后不签发令牌，hook 侧识别不到观看者，只跳过记录不拦播放
+    enabled: true
+    # 令牌有效期（秒），只要求播放发起时有效，长时观看不受到期影响
+    token-ttl-seconds: 7200
+    # 定时清扫阈值（分钟）：超过该时长仍处于观看中的记录按兜底闭合
+    sweep-stale-minutes: 240
 
   # 启动时若 gb_media_server 表为空则自动 upsert 一个默认 ZLM 节点
   default-server:

@@ -8,6 +8,9 @@ import com.solo.gb28181.request.RecordInfoQueryRequest;
 import com.solo.gb28181.response.PlaybackResultResponse;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.media.support.ViewActor;
+import com.solo.media.support.ViewTokenSigner;
+import com.solo.openapi.auth.OpenAppContext;
 import com.solo.openapi.auth.RequireScope;
 import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.service.OpenCatalogService;
@@ -35,6 +38,7 @@ public class OpenPlaybackController {
 
     private final GbPlaybackService playbackService;
     private final OpenCatalogService catalogService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "设备录像查询")
     @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = "设备录像查询")
@@ -52,7 +56,23 @@ public class OpenPlaybackController {
     public OpenApiResult<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req,
                                                        HttpServletRequest request) {
         normalizeChannel(req);
-        return OpenApiResult.success(playbackService.start(req), OpenApiContextHolder.requestId(request));
+        PlaybackResultResponse vo = playbackService.start(req);
+        signWithOpenApp(vo, request);
+        return OpenApiResult.success(vo, OpenApiContextHolder.requestId(request));
+    }
+
+    /** 开放 API 请求不走平台用户体系，用应用身份给播放地址签观看令牌 */
+    private void signWithOpenApp(PlaybackResultResponse vo, HttpServletRequest request) {
+        OpenAppContext ctx = OpenApiContextHolder.get(request);
+        if (ctx == null) {
+            return;
+        }
+        ViewActor actor = ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
+        String sid = vo.getStreamId();
+        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
+        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
+        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
+        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
     }
 
     @Operation(summary = "停止回放")

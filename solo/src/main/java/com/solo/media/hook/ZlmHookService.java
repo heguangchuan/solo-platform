@@ -12,14 +12,17 @@ import com.solo.gb28181.service.GbPlaybackService;
 import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.service.impl.GbBroadcastService;
 import com.solo.media.entity.MediaServer;
+import com.solo.media.entity.GbViewRecord;
 import com.solo.media.entity.StreamPush;
 import com.solo.media.entity.StreamPushClient;
 import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.mapper.StreamPushClientMapper;
 import com.solo.media.properties.MediaProperties;
+import com.solo.media.service.GbViewRecordService;
 import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.StreamProxyService;
 import com.solo.media.service.StreamPushService;
+import com.solo.media.support.ViewTokenSigner;
 import com.solo.onvif.service.OnvifPlayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,6 +56,7 @@ import java.util.Map;
  *   <li>{@link StreamPushService} — 推流入表 + 推流兜底</li>
  *   <li>{@link CascadeSendService#onSendRtpStopped} — 级联推流异常断开清理</li>
  *   <li>{@link GbBroadcastService} — 语音广播推流异常断开清理（广播流在其他钩子中直接忽略/保活）</li>
+ *   <li>{@link GbViewRecordService} — on_play 开观看记录、on_flow_report 闭合，流断/无人观看兜底</li>
  * </ul>
  */
 @Slf4j
@@ -75,6 +79,8 @@ public class ZlmHookService {
     private final CascadeSendService cascadeSendService;
     private final GbBroadcastService gbBroadcastService;
     private final OnvifPlayService onvifPlayService;
+    private final GbViewRecordService viewRecordService;
+    private final ViewTokenSigner viewTokenSigner;
 
     // ============ 服务级 ============
 
@@ -133,9 +139,70 @@ public class ZlmHookService {
     // ============ 流级 ============
 
     public HookResult onPlay(Map<String, Object> body) {
-        log.info("[ZLM 回调] on_play {}", body);
-        // 实时点播默认放行；如需限制只许带正确 callId 的客户端拉流，可在此扩展
+        String id = stringOf(body, "id");
+        String app = stringOf(body, "app");
+        String stream = stringOf(body, "stream");
+        log.info("[ZLM 回调] on_play id={} app={} stream={}", id, app, stream);
+        try {
+            // 记观看账，认不出人（没令牌/验签失败/ZLM 内部读者）就跳过，播放一律放行
+            viewRecordService.openRecord(buildViewRecord(body, id, app, stream));
+        } catch (Exception e) {
+            log.warn("[ZLM 回调] on_play 观看记录落库失败 stream={} err={}", stream, e.getMessage());
+        }
         return HookResult.ok();
+    }
+
+    public HookResult onFlowReport(Map<String, Object> body) {
+        String id = stringOf(body, "id");
+        String stream = stringOf(body, "stream");
+        log.info("[ZLM 回调] on_flow_report id={} stream={} duration={}s player={}",
+                id, stream, stringOf(body, "duration"), body.get("player"));
+        try {
+            // player=false 是设备推流腿（RtpProcess 的标识就是流名），观看记录只认播放会话
+            if (!Boolean.TRUE.equals(booleanOf(body, "player"))) {
+                return HookResult.ok();
+            }
+            // 字段名按 ZLM master 实际报文：duration 整数秒、totalBytes 驼峰，没有上下行拆分
+            double duration = doubleOf(body, "duration");
+            viewRecordService.closeBySessionId(id,
+                    duration > 0 ? duration : null,
+                    longBoxed(body, "totalBytes"),
+                    GbViewRecordService.REASON_FLOW_REPORT);
+        } catch (Exception e) {
+            log.warn("[ZLM 回调] on_flow_report 闭合失败 id={} err={}", id, e.getMessage());
+        }
+        return HookResult.ok();
+    }
+
+    /** 按 wt 令牌认人，拼一条观看中记录；没有有效令牌返 null */
+    private GbViewRecord buildViewRecord(Map<String, Object> body, String id, String app, String stream) {
+        if (id == null || stream == null) {
+            return null;
+        }
+        String wt = parseParam(stringOf(body, "params"), ViewTokenSigner.PARAM);
+        ViewTokenSigner.ViewToken token = viewTokenSigner.verify(wt, stream);
+        if (token == null) {
+            log.info("[ZLM 回调] on_play 无有效观看令牌，跳过记录 stream={}", stream);
+            return null;
+        }
+        GbViewRecord record = new GbViewRecord();
+        record.setSessionId(id);
+        record.setActorType(token.actorType());
+        record.setActorId(token.actorId());
+        record.setActorName(token.actorName());
+        record.setStreamId(stream);
+        record.setApp(app);
+        record.setStreamSchema(stringOf(body, "schema"));
+        record.setClientIp(stringOf(body, "ip"));
+        record.setMediaServerId(stringOf(body, "mediaServerId"));
+        record.setStartTime(LocalDateTime.now());
+        // 设备/通道从点播会话补；查不到（外部推流的播放）就留空，流维度的统计不受影响
+        GbInviteSession session = inviteSessionService.getByStreamId(stream);
+        if (session != null) {
+            record.setDeviceId(session.getDeviceId());
+            record.setChannelId(session.getChannelId());
+        }
+        return record;
     }
 
     public HookResult onStreamNotFound(Map<String, Object> body) {
@@ -267,6 +334,12 @@ public class ZlmHookService {
                     }
                 }
                 streamPushService.onStreamCancel(app, stream, mediaServerId);
+                // 流都没了，没等到 flow_report 的观看会话在这里一次性兜底
+                try {
+                    viewRecordService.closeOpenByStreamId(stream, GbViewRecordService.REASON_STREAM_CLOSED);
+                } catch (Exception ex) {
+                    log.warn("[ZLM 回调] 观看记录流级兜底失败 stream={} err={}", stream, ex.getMessage());
+                }
             }
         } catch (Exception e) {
             log.error("[ZLM 回调] on_stream_changed 业务异常 stream={}", stream, e);
@@ -316,6 +389,13 @@ public class ZlmHookService {
         // GB 重连代价是重新走 SIP INVITE（几百 ms），ONVIF 重连代价是再 addStreamProxy，
         // 都可接受。关流后 ZLM 内部会发 on_stream_changed(regist=false)，由对应服务的 cleanup 兜底。
         boolean close = true;
+
+        // 最后一个观看者走了：flow_report 通常已经先到并闭合，这里只收没等到回调的漏网记录
+        try {
+            viewRecordService.closeOpenByStreamId(stream, GbViewRecordService.REASON_NONE_READER);
+        } catch (Exception ex) {
+            log.warn("[ZLM 回调] 观看记录无人观看兜底失败 stream={} err={}", stream, ex.getMessage());
+        }
 
         log.info("[ZLM 回调] on_stream_none_reader app={} stream={} originType={} 会话在册={} onvif={} -> close={}",
                 app, stream, originTypeStr, session != null, isOnvif, close);
@@ -452,6 +532,14 @@ public class ZlmHookService {
         if (v == null) return 0L;
         if (v instanceof Number n) return n.longValue();
         try { return Long.parseLong(v.toString().trim()); } catch (NumberFormatException e) { return 0L; }
+    }
+
+    /** 同 longOf，缺字段时返 null，落库时区分"没上报"和"上报 0" */
+    private static Long longBoxed(Map<String, Object> body, String key) {
+        Object v = body == null ? null : body.get(key);
+        if (v == null) return null;
+        if (v instanceof Number n) return n.longValue();
+        try { return Long.parseLong(v.toString().trim()); } catch (NumberFormatException e) { return null; }
     }
 
     private static double doubleOf(Map<String, Object> body, String key) {

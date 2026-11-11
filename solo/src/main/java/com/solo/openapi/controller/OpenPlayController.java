@@ -5,7 +5,10 @@ import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.media.support.ViewActor;
+import com.solo.media.support.ViewTokenSigner;
 import com.solo.openapi.auth.RequireScope;
+import com.solo.openapi.auth.OpenAppContext;
 import com.solo.openapi.constant.OpenApiConstants;
 import com.solo.openapi.service.OpenCatalogService;
 import com.solo.openapi.support.OpenApiContextHolder;
@@ -32,6 +35,7 @@ public class OpenPlayController {
 
     private final GbPlayService playService;
     private final OpenCatalogService catalogService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
     @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
@@ -41,7 +45,23 @@ public class OpenPlayController {
         GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
         req.setDeviceId(channel.getDeviceId());
         req.setChannelId(channel.getChannelId());
-        return OpenApiResult.success(playService.start(req), OpenApiContextHolder.requestId(request));
+        PlayResultResponse vo = playService.start(req);
+        signWithOpenApp(vo, request);
+        return OpenApiResult.success(vo, OpenApiContextHolder.requestId(request));
+    }
+
+    /** 开放 API 请求不走平台用户体系，用应用身份给播放地址签观看令牌 */
+    private void signWithOpenApp(PlayResultResponse vo, HttpServletRequest request) {
+        OpenAppContext ctx = OpenApiContextHolder.get(request);
+        if (ctx == null) {
+            return;
+        }
+        ViewActor actor = ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
+        String sid = vo.getStreamId();
+        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
+        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
+        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
+        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
     }
 
     @Operation(summary = "停止点播")

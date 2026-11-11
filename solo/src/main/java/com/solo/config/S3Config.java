@@ -16,21 +16,6 @@ import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 
 import java.net.URI;
 
-/**
- * <p>注册两个 bean：</p>
- * <ul>
- *   <li>{@link S3Client}：常规读写（上传、下载、删除、桶管理）</li>
- *   <li>{@link S3Presigner}：生成预签名 URL（与 {@link S3Client} 解耦，生命周期独立）</li>
- * </ul>
- *
- * <h3>兼容性配置</h3>
- * <ul>
- *   <li>默认启用 path-style：MinIO / Ceph / 自托管 S3 必须 path-style；阿里云 / 腾讯云 / 华为云
- *       两种都支持；AWS S3 也兼容。统一开 path-style 减少配置分支</li>
- *   <li>request/response checksum 设成 {@code WHEN_REQUIRED}：避开老版本 MinIO / 部分阿里云 OSS 模式
- *       拒收 SHA256 校验的问题（AWS SDK 默认会算 SHA256）</li>
- * </ul>
- */
 @Slf4j
 @Configuration
 @ConditionalOnClass(S3Client.class)

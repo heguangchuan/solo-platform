@@ -1134,6 +1134,56 @@ COMMENT ON COLUMN gb_record_plan_period.end_time IS '结束时间 HH:mm，跨午
 CREATE UNIQUE INDEX uk_plan_day_start ON gb_record_plan_period (plan_id, day_of_week, start_time);
 CREATE INDEX idx_plan ON gb_record_plan_period (plan_id);
 
+DROP TABLE IF EXISTS gb_view_record;
+CREATE TABLE gb_view_record
+(
+    id              bigint NOT NULL,
+    session_id      varchar(64) NOT NULL,
+    actor_type      smallint NOT NULL,
+    actor_id        bigint DEFAULT NULL,
+    actor_name      varchar(100) DEFAULT NULL,
+    device_id       varchar(50) DEFAULT NULL,
+    channel_id      varchar(50) DEFAULT NULL,
+    stream_id       varchar(100) NOT NULL,
+    app             varchar(50) NOT NULL DEFAULT 'rtp',
+    stream_schema   varchar(20) DEFAULT NULL,
+    client_ip       varchar(64) DEFAULT NULL,
+    media_server_id varchar(64) DEFAULT NULL,
+    start_time      timestamp(0) NOT NULL,
+    end_time        timestamp(0) DEFAULT NULL,
+    duration_sec    double precision DEFAULT NULL,
+    total_bytes     bigint DEFAULT NULL,
+    status          smallint NOT NULL DEFAULT 0,
+    close_reason    varchar(50) DEFAULT NULL,
+    create_time     timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+);
+COMMENT ON TABLE gb_view_record IS '观看记录（谁看了哪路流、看了多久）';
+COMMENT ON COLUMN gb_view_record.id IS '主键ID';
+COMMENT ON COLUMN gb_view_record.session_id IS 'ZLM 播放会话 id（on_play/on_flow_report 的 id），幂等键';
+COMMENT ON COLUMN gb_view_record.actor_type IS '观看者类型 1平台用户 2开放API应用';
+COMMENT ON COLUMN gb_view_record.actor_id IS '观看者 ID（用户 ID 或开放应用 ID）';
+COMMENT ON COLUMN gb_view_record.actor_name IS '观看者名称快照（用户名/应用名）';
+COMMENT ON COLUMN gb_view_record.device_id IS '设备国标ID';
+COMMENT ON COLUMN gb_view_record.channel_id IS '通道国标ID';
+COMMENT ON COLUMN gb_view_record.stream_id IS 'ZLM 流 ID';
+COMMENT ON COLUMN gb_view_record.app IS 'ZLM app 名';
+COMMENT ON COLUMN gb_view_record.stream_schema IS '播放协议（rtsp/rtmp/hls/fmp4/rtc）';
+COMMENT ON COLUMN gb_view_record.client_ip IS '观看端 IP';
+COMMENT ON COLUMN gb_view_record.media_server_id IS 'ZLM 节点 ID';
+COMMENT ON COLUMN gb_view_record.start_time IS '观看开始时间（on_play 落库时间）';
+COMMENT ON COLUMN gb_view_record.end_time IS '观看结束时间';
+COMMENT ON COLUMN gb_view_record.duration_sec IS '观看时长（秒）';
+COMMENT ON COLUMN gb_view_record.total_bytes IS '会话总字节（on_flow_report 的 totalBytes）';
+COMMENT ON COLUMN gb_view_record.status IS '状态 0观看中 1正常结束 2兜底关闭';
+COMMENT ON COLUMN gb_view_record.close_reason IS '关闭原因 flow_report/stream_closed/none_reader/sweep';
+COMMENT ON COLUMN gb_view_record.create_time IS '入库时间';
+CREATE UNIQUE INDEX uk_gb_view_record_session ON gb_view_record (session_id);
+CREATE INDEX idx_gb_view_record_stream ON gb_view_record (stream_id);
+CREATE INDEX idx_gb_view_record_actor_start ON gb_view_record (actor_type, actor_id, start_time);
+CREATE INDEX idx_gb_view_record_status_start ON gb_view_record (status, start_time);
+CREATE INDEX idx_gb_view_record_device_channel ON gb_view_record (device_id, channel_id);
+
 -- ============================================================
 --  3/5  ONVIF 模块
 -- ============================================================
@@ -1331,6 +1381,22 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id FROM sys_permission WHERE id BETWEEN 149 AND 150
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+-- ============================================================
+--  观看记录权限点（154~155，无新表）
+-- ============================================================
+
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 154 AND 155;
+DELETE FROM sys_permission          WHERE id BETWEEN 154 AND 155;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (154, '观看记录', 'gb28181:view-record',      '/gb28181/view-record', 1, 5, 12, 'IconEye', 1, 0, NOW(), NOW()),
+ (155, '观看查询', 'gb28181:view-record:list', NULL,                   2, 154, 1, NULL,      1, 0, NOW(), NOW());
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 154 AND 155
   AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
                   WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
 

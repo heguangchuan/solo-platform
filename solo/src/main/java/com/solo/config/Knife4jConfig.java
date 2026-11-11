@@ -11,15 +11,7 @@ import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * <p>对应注解：{@link io.swagger.v3.oas.annotations.tags.Tag}（Controller 类）/ {@link io.swagger.v3.oas.annotations.Operation}（方法）。
- * knife4j 自动读 Spring 注解（{@code @RestController} / {@code @GetMapping} 等）生成 OpenAPI 3.0 规范，
- * 额外补 {@code @Tag} / {@code @Operation} / {@code @Parameter} / {@code @Schema} 提供中文描述给前端看。</p>
- *
- * <h3>knife4j 分组</h3>
- * <p>按后端包路径 {@code com.solo.X.controller} 一对一映射成 knife4j 顶部 7 个分组，
- * UI 左侧导航树跟项目域一致。{@code @Tag(name = "X管理")} 在每个组内作为子节点。</p>
- */
+
 @Configuration
 public class Knife4jConfig {
 

@@ -50,6 +50,7 @@ import type {
   GbPlatformPageRequest,
   GbRecordFile,
   GbRecordPlan,
+  GbViewRecord,
   PageResult,
 } from '@/types/api'
 
@@ -563,6 +564,20 @@ export const stopCloudRecordApi = (streamId: string) =>
 /** 删除录像文件（同时删 S3 对象） */
 export const deleteCloudRecordApi = (id: string) =>
   del<void>(`/api/gb28181/cloud-record/${id}`)
+
+/* ===== 观看记录 ===== */
+
+/** 观看记录分页（后端分页字段是 size，由调用方把 pageSize 映射过来） */
+export const getViewRecordPageApi = (params: {
+  actorType?: number
+  deviceId?: string
+  channelId?: string
+  status?: number
+  start?: string
+  end?: string
+  page?: number
+  size?: number
+}) => get<PageResult<GbViewRecord>>('/api/gb28181/view-record/page', { params })
 
 /* ===== 云端录像计划 ===== */
 

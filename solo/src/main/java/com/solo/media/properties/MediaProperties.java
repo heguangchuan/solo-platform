@@ -64,6 +64,11 @@ public class MediaProperties {
     private DefaultServer defaultServer = new DefaultServer();
 
     /**
+     * 观看记录（谁看了哪路流、看了多久）相关配置。
+     */
+    private ViewRecord viewRecord = new ViewRecord();
+
+    /**
      * 默认 ZLM 节点定义；其 serverId 必须与 ZLM config.ini 中
      * [general].mediaServerId 完全一致，否则 hook 回来时找不到节点。
      */
@@ -87,5 +92,18 @@ public class MediaProperties {
          * 对外 WebRTC 端口；0 表示不生成 WebRTC URL
          */
         private int rtcPort = 0;
+    }
+
+    /** 观看记录的开关和参数 */
+    @Data
+    public static class ViewRecord {
+        /** 关了就不签令牌，on_play 认不出人，只跳过记录不拦播放 */
+        private boolean enabled = true;
+
+        /** 令牌有效期（秒），只管播放发起那一刻，看再久也不会中途失效 */
+        private long tokenTtlSeconds = 7200;
+
+        /** 清扫阈值（分钟）：观看中超过这么久还没闭合的，按兜底关掉 */
+        private int sweepStaleMinutes = 240;
     }
 }

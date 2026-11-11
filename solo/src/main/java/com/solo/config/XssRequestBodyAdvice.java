@@ -16,22 +16,11 @@ import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
-/**
- * <p>对所有 {@link RestController} / {@link Controller} 的 {@code @RequestBody} JSON 入参递归
- * 清洗：{@code String} 字段过 {@link XssUtils#sanitize}；Map / Collection / 数组 / 嵌套对象
- * 递归清洗；{@code com.solo.request} / {@code com.solo.controller} 包外的对象不递归（避免
- * 误改 MyBatis 实体等内部对象）。</p>
- *
- * <p>黑名单字段（{@code password} / {@code rawPassword} / {@code oldPassword} 等）通过
- * {@link XssUtils#shouldSkipField} 跳过，不消毒。</p>
- */
+
 @ControllerAdvice(annotations = {RestController.class, Controller.class})
 public class XssRequestBodyAdvice extends RequestBodyAdviceAdapter {
 
-    /**
-     * 始终返回 {@code true}——所有 {@code @RequestBody} 入参都走消毒；如需关闭，
-     * 在 {@code application.yaml} 切 {@code xss.enabled=false}（见 {@code XssProperties}）。
-     */
+
     @Override
     public boolean supports(MethodParameter methodParameter, Type targetType,
                             Class<? extends HttpMessageConverter<?>> converterType) {
