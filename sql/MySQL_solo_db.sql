@@ -803,6 +803,36 @@ CREATE TABLE gb_record_plan_period
     KEY idx_plan (plan_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='录像计划周时段';
 
+DROP TABLE IF EXISTS gb_view_record;
+CREATE TABLE gb_view_record
+(
+    id              bigint       NOT NULL COMMENT '主键ID',
+    session_id      varchar(64)  NOT NULL COMMENT 'ZLM 播放会话 id（on_play/on_flow_report 的 id），幂等键',
+    actor_type      tinyint      NOT NULL COMMENT '观看者类型 1平台用户 2开放API应用',
+    actor_id        bigint                DEFAULT NULL COMMENT '观看者 ID（用户 ID 或开放应用 ID）',
+    actor_name      varchar(100)          DEFAULT NULL COMMENT '观看者名称快照（用户名/应用名）',
+    device_id       varchar(50)           DEFAULT NULL COMMENT '设备国标ID',
+    channel_id      varchar(50)           DEFAULT NULL COMMENT '通道国标ID',
+    stream_id       varchar(100) NOT NULL COMMENT 'ZLM 流 ID',
+    app             varchar(50)  NOT NULL DEFAULT 'rtp' COMMENT 'ZLM app 名',
+    stream_schema   varchar(20)           DEFAULT NULL COMMENT '播放协议（rtsp/rtmp/hls/fmp4/rtc）',
+    client_ip       varchar(64)           DEFAULT NULL COMMENT '观看端 IP',
+    media_server_id varchar(64)           DEFAULT NULL COMMENT 'ZLM 节点 ID',
+    start_time      datetime     NOT NULL COMMENT '观看开始时间（on_play 落库时间）',
+    end_time        datetime              DEFAULT NULL COMMENT '观看结束时间',
+    duration_sec    double                DEFAULT NULL COMMENT '观看时长（秒）',
+    total_bytes     bigint                DEFAULT NULL COMMENT '会话总字节（on_flow_report 的 totalBytes）',
+    status          tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0观看中 1正常结束 2兜底关闭',
+    close_reason    varchar(50)           DEFAULT NULL COMMENT '关闭原因 flow_report/stream_closed/none_reader/sweep',
+    create_time     datetime     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '入库时间',
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_session_id (session_id),
+    KEY idx_stream_id (stream_id),
+    KEY idx_actor_start (actor_type, actor_id, start_time),
+    KEY idx_status_start (status, start_time),
+    KEY idx_device_channel (device_id, channel_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='观看记录（谁看了哪路流、看了多久）';
+
 -- ============================================================
 --  3/5  ONVIF 模块
 -- ============================================================
@@ -941,6 +971,22 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 
 INSERT INTO sys_role_permission (role_id, permission_id)
 SELECT 1, id FROM sys_permission WHERE id BETWEEN 149 AND 150
+  AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
+                  WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
+
+-- ============================================================
+--  观看记录权限点（154~155，无新表）
+-- ============================================================
+
+DELETE FROM sys_role_permission WHERE permission_id BETWEEN 154 AND 155;
+DELETE FROM sys_permission          WHERE id BETWEEN 154 AND 155;
+
+INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES
+ (154, '观看记录', 'gb28181:view-record',      '/gb28181/view-record', 1, 5, 12, 'IconEye', 1, 0, NOW(), NOW()),
+ (155, '观看查询', 'gb28181:view-record:list', NULL,                   2, 154, 1, NULL,      1, 0, NOW(), NOW());
+
+INSERT INTO sys_role_permission (role_id, permission_id)
+SELECT 1, id FROM sys_permission WHERE id BETWEEN 154 AND 155
   AND NOT EXISTS (SELECT 1 FROM sys_role_permission rp
                   WHERE rp.role_id = 1 AND rp.permission_id = sys_permission.id);
 

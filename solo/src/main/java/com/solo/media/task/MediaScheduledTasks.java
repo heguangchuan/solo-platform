@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>启动后 5s 起、之后每 10s → {@link MediaServerHealthDetector#probe()} ZLM 节点健康探测</li>
  *   <li>启动后 15s 起、之后每 30s → {@link StreamProxyReconciler#reconcile()} 拉流代理状态对账</li>
+ *   <li>启动后 60s 起、之后每 10min → {@link ViewRecordSweeper#sweep()} 观看记录兜底清扫</li>
  * </ul>
  *
  * <p>调度总开关 {@code @EnableScheduling} 在 {@code SoloApplication} 上开启。</p>
@@ -24,6 +25,7 @@ public class MediaScheduledTasks {
 
     private final MediaServerHealthDetector healthDetector;
     private final StreamProxyReconciler proxyReconciler;
+    private final ViewRecordSweeper viewRecordSweeper;
 
     /**
      * ZLM 节点健康探测：每 10s 主动 ping 一轮所有登记节点，
@@ -51,6 +53,19 @@ public class MediaScheduledTasks {
             proxyReconciler.reconcile();
         } catch (Exception e) {
             log.warn("[流媒体定时] 拉流代理对账异常 {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 观看记录兜底清扫：每 10min 把观看中超过阈值（默认 4h）还没闭合的记录关掉，
+     * 阈值在 media.view-record.sweep-stale-minutes 调。初始延迟 60s 避开启动期。
+     */
+    @Scheduled(initialDelay = 60_000, fixedDelay = 10 * 60_000)
+    public void sweepViewRecords() {
+        try {
+            viewRecordSweeper.sweep();
+        } catch (Exception e) {
+            log.warn("[流媒体定时] 观看记录清扫异常 {}", e.getMessage(), e);
         }
     }
 }

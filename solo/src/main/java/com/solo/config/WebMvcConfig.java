@@ -8,10 +8,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 import java.util.List;
 
-/**
- * 文件存储已统一使用 MinIO，对外访问由 MinIO 自身或 CDN/反代承担，
- * 服务端不再以静态资源方式暴露本地目录。
- */
+
 @Configuration
 @RequiredArgsConstructor
 public class WebMvcConfig implements WebMvcConfigurer {

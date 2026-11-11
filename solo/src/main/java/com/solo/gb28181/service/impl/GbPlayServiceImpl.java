@@ -26,6 +26,8 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerSelector;
 import com.solo.media.ssrc.SsrcFactory;
+import com.solo.media.support.ViewActor;
+import com.solo.media.support.ViewTokenSigner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -72,6 +74,7 @@ public class GbPlayServiceImpl implements GbPlayService {
     private final GbDeviceChannelMapper channelMapper;
     private final MediaServerSelector mediaServerSelector;
     private final GbMediaServerMapper mediaServerMapper;
+    private final ViewTokenSigner viewTokenSigner;
 
     /**
      * 等待 on_stream_changed 的 future，key=streamId
@@ -120,7 +123,7 @@ public class GbPlayServiceImpl implements GbPlayService {
             if (GbInviteSession.STATUS_READY.equals(existing.getStatus())) {
                 if (streamStillOnline(existing)) {
                     log.info("[实时点播] 复用已就绪会话 流ID:{} 码流:{}", streamId, streamLabel(streamNumber));
-                    return toResult(existing);
+                    return withViewToken(toResult(existing));
                 }
                 // 接管来的会话可能已经死在 ZLM 上（节点重启、流被外部关掉），清掉重拉，
                 // 不然前端拿到地址也是黑屏
@@ -200,7 +203,7 @@ public class GbPlayServiceImpl implements GbPlayService {
 
         // 同步等流就绪
         try {
-            return future.get(mediaProperties.getInviteTimeoutSeconds(), TimeUnit.SECONDS);
+            return withViewToken(future.get(mediaProperties.getInviteTimeoutSeconds(), TimeUnit.SECONDS));
         } catch (TimeoutException e) {
             pending.remove(streamId);
             inviteCleanup.timeoutSession(session, LOG_TAG, "等待流就绪超时");
@@ -421,6 +424,23 @@ public class GbPlayServiceImpl implements GbPlayService {
         vo.setWsFlvUrl(session.getWsFlvUrl());
         vo.setHlsUrl(session.getHlsUrl());
         vo.setRtcUrl(session.getRtcUrl());
+        return vo;
+    }
+
+    /**
+     * 返回前按当前观看者现签。会话上的裸地址多人共享，不能在流就绪时签死；
+     * 没有用户上下文的内部调用（级联取流、按需拉流）拿裸地址。
+     */
+    private PlayResultResponse withViewToken(PlayResultResponse vo) {
+        ViewActor actor = viewTokenSigner.currentUserActor();
+        if (actor == null) {
+            return vo;
+        }
+        String sid = vo.getStreamId();
+        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
+        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
+        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
+        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
         return vo;
     }
 

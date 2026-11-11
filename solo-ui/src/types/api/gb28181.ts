@@ -697,6 +697,34 @@ export interface GbRecordFilePageRequest extends PageRequest {
   end?: string
 }
 
+/* ----------------------- 观看记录 ----------------------- */
+
+/** 观看记录（actorType 1平台用户 2开放API应用；status 0观看中 1正常结束 2兜底关闭） */
+export interface GbViewRecord {
+  id: string
+  sessionId?: string
+  actorType: number
+  actorId?: string
+  actorName?: string
+  deviceId?: string
+  deviceName?: string
+  channelId?: string
+  channelName?: string
+  streamId?: string
+  app?: string
+  streamSchema?: string
+  clientIp?: string
+  mediaServerId?: string
+  startTime?: string
+  endTime?: string
+  /** 时长（秒），观看中为空 */
+  durationSec?: number | null
+  totalBytes?: number | null
+  status: number
+  closeReason?: string
+  createTime?: string
+}
+
 /* ----------------------- 云端录像计划 ----------------------- */
 
 /** 录像计划周时段（dayOfWeek 1周一 ~ 7周日，时间 HH:mm，支持跨午夜） */
