@@ -31,7 +31,7 @@ import java.util.Locale;
  * REGISTER 请求处理器。
  * 处理分支：
  * 1. 没带 Authorization → 401 发挑战（密码不为空才挑战，空密码直接放行）
- * 2. 带了 Authorization 但鉴权失败 → 403
+ * 2. 带了 Authorization 但鉴权失败 → 401 重新挑战
  * 3. 鉴权通过 + Expires=0 → 200 + 注销下线
  * 4. 鉴权通过 + Expires>0 → 200 + 注册上线
  * 注意：
@@ -49,6 +49,7 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
     private final GbDeviceService gbDeviceService;
     private final GbPlatformService gbPlatformService;
     private final ApplicationEventPublisher eventPublisher;
+    private final DigestServerAuthenticationHelper digestAuthHelper;
 
     @Override
     public String getMethod() {
@@ -84,26 +85,31 @@ public class RegisterRequestProcessor extends SipRequestProcessorBase implements
             log.warn("[设备注册] 命中禁用名单，静默丢弃 REGISTER: deviceId={}", deviceId);
             return;
         }
-        // 鉴权密码统一取 gb28181.password（见 ADR-022）
         String password = properties.getPassword();
         String title = isUnregister ? "[设备注销]" : "[设备注册]";
         log.info("{} deviceId={} from={}", title, deviceId, requestAddress);
+
+        // 非空密码启用严格 Digest 鉴权。首次请求、错误摘要、伪造或过期 nonce 都重新发 401，
+        // 并在查询/修改设备档案、发送上下线事件之前返回，失败请求不能影响现有会话。
+        if (password != null && !password.isBlank()) {
+            boolean hasAuthorization = request.getHeader(javax.sip.header.AuthorizationHeader.NAME) != null;
+            if (!hasAuthorization
+                    || !digestAuthHelper.authenticate(request, deviceId, properties.getDomain(), password)) {
+                SIPResponse challenge = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.UNAUTHORIZED, request);
+                digestAuthHelper.appendChallenge(HEADER_FACTORY, challenge, deviceId, properties.getDomain());
+                sipSender.send(request.getLocalAddress().getHostAddress(), challenge);
+                if (hasAuthorization) {
+                    log.warn("{} Digest 鉴权失败，已重新发起 401 挑战: deviceId={} from={}",
+                            title, deviceId, requestAddress);
+                } else {
+                    log.info("{} deviceId={} 回复 401 挑战", title, deviceId);
+                }
+                return;
+            }
+        }
+
+        // 鉴权通过后才允许读取并更新设备档案。
         GbDevice exist = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
-
-        // 401 挑战：仅当设备没带 Authorization 且全局密码非空时发出。空密码 = 开放模式，零挑战。
-        if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) == null && password != null && !password.isBlank()) {
-            SIPResponse challenge = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.UNAUTHORIZED, request);
-            new DigestServerAuthenticationHelper().appendChallenge(HEADER_FACTORY, challenge, properties.getDomain());
-            sipSender.send(request.getLocalAddress().getHostAddress(), challenge);
-            log.info("{} deviceId={} 回复 401 挑战", title, deviceId);
-            return;
-        }
-
-        // 不再校验 Digest 摘要 — "不管下级或者设备传什么 我方都应当放行"（见 ADR-022）。
-        // 设备带 Authorization 过来即视为鉴权通过；空密码场景下连 401 都不会发。
-        if (request.getHeader(javax.sip.header.AuthorizationHeader.NAME) != null) {
-            log.debug("{} deviceId={} 接受 Authorization 头，跳过 Digest 校验", title, deviceId);
-        }
 
         // 鉴权通过 → 构造 200 OK
         SIPResponse response = (SIPResponse) MESSAGE_FACTORY.createResponse(Response.OK, request);
