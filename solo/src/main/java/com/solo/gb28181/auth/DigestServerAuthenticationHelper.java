@@ -1,6 +1,9 @@
 package com.solo.gb28181.auth;
 
-import lombok.extern.slf4j.Slf4j;
+import com.solo.gb28181.constant.GbRedisKeys;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Component;
 
 import javax.sip.address.URI;
 import javax.sip.header.AuthorizationHeader;
@@ -8,116 +11,151 @@ import javax.sip.header.HeaderFactory;
 import javax.sip.header.WWWAuthenticateHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.text.ParseException;
+import java.time.Duration;
+import java.util.HexFormat;
+import java.util.Locale;
 
 /**
- * <p>完整实现包含 qop=auth + cnonce + nc 的版本，符合国标设备实际行为：
- * 海康/大华/宇视/华为等设备 401 挑战收到 qop=auth 后，都会按完整 KD 算 response。</p>
+ * REGISTER 服务端 Digest 鉴权。
  *
- * <p>
- *   HA1 = MD5( username : realm : password )<br/>
- *   HA2 = MD5( method : uri )<br/>
- *   qop=auth :  response = MD5( HA1 : nonce : nc : cnonce : qop : HA2 )<br/>
- *   无 qop :     response = MD5( HA1 : nonce : HA2 )
- * </p>
+ * <p>兼容 qop=auth 与不带 qop 的传统设备。nonce 必须由平台生成并写入 Redis，
+ * 校验时同时核对设备 ID、realm 和有效期，避免客户端自行编造 nonce。</p>
+ *
+ * <p>HA1 = MD5(username:realm:password)<br>
+ * HA2 = MD5(method:uri)<br>
+ * qop=auth：response = MD5(HA1:nonce:nc:cnonce:qop:HA2)<br>
+ * 无 qop：response = MD5(HA1:nonce:HA2)</p>
  */
-@Slf4j
+@Component
+@RequiredArgsConstructor
 public class DigestServerAuthenticationHelper {
 
-    private static final String ALGO = "MD5";
+    private static final String ALGORITHM = "MD5";
     private static final String SCHEME = "Digest";
-
-    private static final char[] HEX = {'0', '1', '2', '3', '4', '5', '6', '7',
-            '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+    private static final String QOP_AUTH = "auth";
+    private static final Duration NONCE_TTL = Duration.ofMinutes(5);
+    private static final int NONCE_BYTES = 32;
+    private static final int NONCE_LENGTH = NONCE_BYTES * 2;
+    private static final int DIGEST_LENGTH = 32;
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    private final MessageDigest md;
+    private final StringRedisTemplate redisTemplate;
 
-    public DigestServerAuthenticationHelper() throws NoSuchAlgorithmException {
-        this.md = MessageDigest.getInstance(ALGO);
+    /**
+     * 生成新的 nonce，保存其设备绑定关系，并向响应写入 401 挑战头。
+     * Redis 写入失败时直接抛出异常，调用方不得继续接受注册。
+     */
+    public void appendChallenge(HeaderFactory headerFactory, Response response,
+                                String deviceId, String realm) throws ParseException {
+        String nonce = generateNonce();
+        redisTemplate.opsForValue().set(
+                GbRedisKeys.REGISTER_NONCE_PREFIX + nonce,
+                nonceBinding(deviceId, realm),
+                NONCE_TTL);
+
+        WWWAuthenticateHeader auth = headerFactory.createWWWAuthenticateHeader(SCHEME);
+        auth.setParameter("realm", realm);
+        auth.setParameter("qop", QOP_AUTH);
+        auth.setParameter("nonce", nonce);
+        auth.setParameter("algorithm", ALGORITHM);
+        response.setHeader(auth);
     }
 
     /**
-     * 生成 401 挑战头并塞到响应里
+     * 校验 REGISTER 的 Authorization 头。任何字段缺失、nonce 未签发或已过期、
+     * 设备/realm/URI 不匹配、摘要错误都返回 false。
      */
-    public void appendChallenge(HeaderFactory headerFactory, Response response, String realm) {
-        try {
-            WWWAuthenticateHeader auth = headerFactory.createWWWAuthenticateHeader(SCHEME);
-            auth.setParameter("realm", realm);
-            auth.setParameter("qop", "auth");
-            auth.setParameter("nonce", generateNonce());
-            auth.setParameter("algorithm", ALGO);
-            response.setHeader(auth);
-        } catch (Exception ex) {
-            log.error("[设备鉴权] 构造 401 Digest 挑战失败", ex);
-        }
-    }
-
-    /**
-     * 用明文口令校验设备 REGISTER 的 Authorization 头
-     *
-     * @return true=通过
-     */
-    public boolean authenticate(Request request, String password) {
+    public boolean authenticate(Request request, String deviceId, String expectedRealm, String password) {
         AuthorizationHeader auth = (AuthorizationHeader) request.getHeader(AuthorizationHeader.NAME);
-        if (auth == null || auth.getRealm() == null) return false;
+        if (auth == null || deviceId == null || expectedRealm == null || password == null) {
+            return false;
+        }
 
-        String realm = auth.getRealm().trim();
-        String username = auth.getUsername() == null ? null : auth.getUsername().trim();
-        if (username == null) return false;
-
+        String username = auth.getUsername();
+        String realm = auth.getRealm();
         String nonce = auth.getNonce();
-        URI uri = auth.getURI();
-        if (uri == null || nonce == null) return false;
+        URI digestUri = auth.getURI();
+        URI requestUri = request.getRequestURI();
+        if (!deviceId.equals(username) || !expectedRealm.equals(realm)
+                || !isHex(nonce, NONCE_LENGTH) || digestUri == null || requestUri == null
+                || !requestUri.toString().equals(digestUri.toString())) {
+            return false;
+        }
 
-        String qop = auth.getQop();
-        String cnonce = auth.getCNonce();
-        int nc = auth.getNonceCount();
-        String ncStr = String.format("%08x", nc).toUpperCase();
+        String algorithm = auth.getAlgorithm();
+        if (algorithm != null && !algorithm.isBlank() && !ALGORITHM.equalsIgnoreCase(algorithm)) {
+            return false;
+        }
 
-        String a1 = username + ":" + realm + ":" + password;
-        String a2 = request.getMethod().toUpperCase() + ":" + uri.toString();
-        String ha1 = md5Hex(a1);
-        String ha2 = md5Hex(a2);
+        String issuedBinding = redisTemplate.opsForValue().get(GbRedisKeys.REGISTER_NONCE_PREFIX + nonce);
+        if (!nonceBinding(deviceId, expectedRealm).equals(issuedBinding)) {
+            return false;
+        }
 
+        String ha1 = md5Hex(username + ":" + realm + ":" + password);
+        String ha2 = md5Hex(request.getMethod().toUpperCase(Locale.ROOT) + ":" + digestUri);
         StringBuilder kd = new StringBuilder(ha1).append(':').append(nonce);
-        if (qop != null && qop.equalsIgnoreCase("auth")) {
-            if (nc != -1) kd.append(':').append(ncStr);
-            if (cnonce != null) kd.append(':').append(cnonce);
-            kd.append(':').append(qop);
+        String qop = auth.getQop();
+        if (qop != null && !qop.isBlank()) {
+            if (!QOP_AUTH.equalsIgnoreCase(qop)) {
+                return false;
+            }
+            String nc = auth.getParameter("nc");
+            String cnonce = auth.getCNonce();
+            if (!isNonceCount(nc) || cnonce == null || cnonce.isBlank()) {
+                return false;
+            }
+            // 必须使用设备报文中的原始 nc，不能用整数重新格式化，否则大小写变化会导致摘要不同。
+            kd.append(':').append(nc)
+                    .append(':').append(cnonce)
+                    .append(':').append(qop);
         }
         kd.append(':').append(ha2);
 
         String expected = md5Hex(kd.toString());
         String actual = auth.getResponse();
-
-        if (log.isDebugEnabled()) {
-            log.debug("[设备鉴权] Digest 校验: user={} realm={} qop={} nc={} cnonce={} expected={} actual={}",
-                    username, realm, qop, ncStr, cnonce, expected, actual);
+        if (!isHex(actual, DIGEST_LENGTH)) {
+            return false;
         }
-        return expected.equalsIgnoreCase(actual);
+        return MessageDigest.isEqual(
+                expected.getBytes(StandardCharsets.US_ASCII),
+                actual.toLowerCase(Locale.ROOT).getBytes(StandardCharsets.US_ASCII));
     }
 
-    private String generateNonce() {
-        byte[] buf = new byte[16];
-        RANDOM.nextBytes(buf);
-        byte[] mdBytes = md.digest((System.nanoTime() + ":" + toHex(buf)).getBytes());
-        return toHex(mdBytes);
+    private static String nonceBinding(String deviceId, String realm) {
+        return deviceId + "\n" + realm;
     }
 
-    private String md5Hex(String s) {
-        return toHex(md.digest(s.getBytes()));
+    private static String generateNonce() {
+        byte[] bytes = new byte[NONCE_BYTES];
+        RANDOM.nextBytes(bytes);
+        return HexFormat.of().formatHex(bytes);
     }
 
-    private static String toHex(byte[] b) {
-        char[] c = new char[b.length * 2];
-        int pos = 0;
-        for (byte v : b) {
-            c[pos++] = HEX[(v >> 4) & 0x0F];
-            c[pos++] = HEX[v & 0x0F];
+    private static boolean isNonceCount(String nc) {
+        return nc != null && nc.length() == 8 && nc.chars().allMatch(DigestServerAuthenticationHelper::isHexDigit);
+    }
+
+    private static boolean isHex(String value, int expectedLength) {
+        return value != null && value.length() == expectedLength
+                && value.chars().allMatch(DigestServerAuthenticationHelper::isHexDigit);
+    }
+
+    private static boolean isHexDigit(int c) {
+        return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
+    }
+
+    private static String md5Hex(String value) {
+        try {
+            MessageDigest md = MessageDigest.getInstance(ALGORITHM);
+            return HexFormat.of().formatHex(md.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("JDK 不支持 MD5", e);
         }
-        return new String(c);
     }
 }

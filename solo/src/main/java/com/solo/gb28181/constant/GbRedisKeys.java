@@ -8,6 +8,11 @@ package com.solo.gb28181.constant;
  */
 public interface GbRedisKeys {
 
+    // ===== 设备注册鉴权 =====
+
+    // REGISTER Digest 挑战 nonce，值为设备 ID 与 realm 的绑定关系，TTL 5 分钟
+    String REGISTER_NONCE_PREFIX = "gb28181:auth:register:nonce:";
+
     // ===== 设备在线状态 =====
 
     // 设备在线 key 前缀，值就是 "1"，靠 TTL 维持

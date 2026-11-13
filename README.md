@@ -44,7 +44,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 │  收流 · 转封装 · 分发 · 录像  │
 └───────────┬─────────────────┘
             ▼
-   MySQL · Redis · RustFS（S3 兼容存储）
+   MySQL / PostgreSQL · Redis · RustFS（S3 兼容存储）
 ```
 
 ## 界面截图
@@ -142,7 +142,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 ### 视频监控（GB/T 28181 国标）
 
-- **设备接入**：SIP 注册（配置密码时发 401 Digest 挑战，当前带 Authorization 即放行、不校验摘要，密码留空为开放模式；兼容海康/大华/宇视/华为）、心跳保活、在线状态实时维护（Redis TTL + 定时对账）
+- **设备接入**：SIP 注册 Digest 鉴权（配置密码时校验用户名、realm、请求 URI、平台签发的 nonce 与响应摘要，鉴权失败不修改设备状态；nonce 有效期 5 分钟，密码留空为仅限隔离测试环境的开放模式）、心跳保活、在线状态实时维护（Redis TTL + 定时对账）
 - **通道目录**：注册后自动拉取 Catalog，分片合并入库，支持超大目录；设备信息（厂商/型号/固件）自动同步
 - **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；按需拉流（无观看自动断流节能）
 - **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
@@ -190,7 +190,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 |---|---|
 | 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
 | 前端 | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
-| 基础设施 | MySQL 8 · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
+| 基础设施 | MySQL 8 / PostgreSQL · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
 
 ## 快速开始
 
@@ -205,31 +205,45 @@ cd solo-platform
 
 ### 环境要求
 
-- JDK 21+、Maven 3.8+、Node.js 18+、MySQL 8+、Redis 6+
+- JDK 21+、Maven 3.8+、Node.js 18+、Redis 6+
+- MySQL 8+ 或 PostgreSQL（二选一，初始化脚本与后端 profile 须保持一致）
 - ZLMediaKit（视频功能必需，可用 Docker 部署）
 - RustFS（S3 兼容对象存储，录像下载 / 文件管理必需；亦可使用其他 S3 兼容实现）
 
 ### 1. 初始化数据库
 
-全新部署一个脚本装完（系统 + 国标 + ONVIF + 开放 API + 语音播报权限）：
+全新部署一个脚本装完（系统 + 国标 + ONVIF + 开放 API + 语音播报权限）。**两个脚本都会重建全部表，仅用于全新部署，已有数据请先备份。**
+
+**PostgreSQL（默认）**：脚本不会自动创建数据库，先建库再执行：
 
 ```bash
-mysql -uroot -p < sql/MySQL_solo_db.sql     # 首次部署（会重建全部表）
+psql -U postgres -c "CREATE DATABASE solo_db"
+psql -U postgres -d solo_db -f sql/PostgreSQL_solo_db.sql
 ```
 
-> `sql/MySQL_solo_db.sql` 为合并版首次部署脚本，已自动创建 `solo_db` 库并 `SET NAMES utf8mb4`；脚本会重建全部表，仅用于全新部署，已有数据请先备份。
+**MySQL**：脚本自动创建 `solo_db` 并设置 `utf8mb4`：
+
+```bash
+mysql -uroot -p < sql/MySQL_solo_db.sql
+```
 
 ### 2. 配置并启动后端
 
-编辑 `solo/src/main/resources/application.yaml`：
+`solo/src/main/resources/application.yaml` 默认设置 `spring.profiles.active: pg`，实际连接信息位于对应 profile 文件：
 
-- `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接
-- `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码
-- `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段
-- `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）
+- PostgreSQL：编辑 `application-pg.yaml`。
+- MySQL：将 active profile 改为 `local`，再编辑 `application-local.yaml`。
+
+在对应 profile 文件中检查以下配置：
+
+- `project.*`：平台、数据库、Redis、对象存储和 ZLM 的部署地址。
+- `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接，须与所选数据库匹配。
+- `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码。**生产环境必须设置 `gb28181.password`，留空会进入不校验身份的开放模式。**
+- `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段。
+- `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）。
 
 ```bash
-cd solo && ./mvnw spring-boot:run
+cd solo && mvn spring-boot:run
 ```
 
 服务端口 `8080`，SIP 同时监听 UDP/TCP `5060`，等待 ZLM hook 回调。
@@ -265,7 +279,14 @@ cd solo-ui && npm install && npm run dev
 
 ### 5. 接入摄像头
 
-将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填 `application.yaml` 中的 `gb28181.id`。设备注册成功后平台自动拉取通道目录，即可点播。
+将国标设备（海康/大华/宇视等）的 SIP 服务器指向部署机 `IP:5060`，协议 ID 填当前生效 profile 中的 `gb28181.id`，域填 `gb28181.domain`。设备注册成功后平台自动拉取通道目录，即可点播。
+
+**注册鉴权：**
+
+- 生产环境在 `gb28181.password` 设置平台级统一注册密码，设备／下级平台的注册密码必须与其一致。当前不支持按设备分别设置 SIP 密码。
+- 配置密码后，首次 REGISTER 返回 401 属于正常 Digest 挑战流程；设备随后携带摘要重新注册，平台会校验设备 ID、realm、请求 URI、nonce 和响应摘要，注册与注销都需通过鉴权。
+- 平台签发的 nonce 保存在 Redis，有效期 5 分钟。设备持续收到 401 时，优先检查设备 ID、SIP 域、注册密码及设备 Digest 兼容性；鉴权失败不会改写设备地址或在线状态，也不会注销现有会话。
+- `gb28181.password` 留空表示不挑战、不校验的开放模式，**仅限网络隔离的测试环境使用，不能作为生产配置**。
 
 > **重启后端不会中断正在播放的流**：ZLM 和设备之间的 RTP 推流跟后端进程无关。启动时会把 Redis 里残留的会话逐个探活：ZLM 上流还在的原样接管，停止/回放控制照常可用；流已经没了、承载节点不在了，或者下载任务这类进程内状态续不上的，才会清掉。
 
@@ -286,7 +307,7 @@ solo-platform/
 ├── openapi/               # 第三方对接资料（Bruno 前置签名脚本，见下方对接指南）
 ├── solo-ui/               # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
-└── sql/                   # 数据库脚本（MySQL_solo_db.sql 首次部署合并版）
+└── sql/                   # MySQL / PostgreSQL 首次部署合并脚本（会重建全部表）
 ```
 
 

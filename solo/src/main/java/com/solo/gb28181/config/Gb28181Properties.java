@@ -39,7 +39,7 @@ public class Gb28181Properties {
     // 本平台 SIP 域
     private String domain;
 
-    // 设备注册鉴权密码，空密码就是开放模式，不挑战直接放行
+    // 设备注册 Digest 鉴权密码；空密码为开放模式，仅限隔离测试环境使用
     private String password;
 
     // 设备注册有效期，单位秒
