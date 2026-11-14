@@ -1,26 +1,54 @@
 <template>
-  <div class="flex h-full overflow-hidden">
-    <!-- 一级图标导航栏 -->
-    <nav class="flex w-14 shrink-0 flex-col items-center gap-1 border-r border-sidebar-border bg-sidebar py-3">
-      <div class="mb-2 grid h-8 w-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
-        S
+  <div class="relative flex h-full overflow-hidden">
+    <!-- 一级图标导航栏：未钉住时只占 56px，悬停以浮层展开显示模块名，避免挤压内容区 -->
+    <div v-if="!navPinned" class="w-14 shrink-0" />
+
+    <nav
+      class="flex h-full flex-col border-r border-sidebar-border bg-sidebar py-3 transition-[width,box-shadow] duration-200"
+      :class="navPinned
+        ? 'relative z-30 w-52 shrink-0'
+        : `absolute inset-y-0 left-0 z-40 ${navHoverOpen ? 'w-52 shadow-xl' : 'w-14'}`"
+      @mouseenter="navHoverOpen = true"
+      @mouseleave="navHoverOpen = false"
+    >
+      <div class="mb-2 flex items-center gap-2 px-3" :class="navExpanded ? '' : 'justify-center px-0'">
+        <div class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
+          S
+        </div>
+        <span v-if="navExpanded" class="truncate text-sm font-semibold text-sidebar-foreground">Solo 平台</span>
       </div>
 
-      <button
-        v-for="mod in navModules"
-        :key="mod.id"
-        class="group relative grid h-9 w-9 place-items-center rounded-lg text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-        :class="{ 'bg-sidebar-accent text-primary': activeModuleId === mod.id }"
-        @click="selectModule(mod.id)"
-      >
-        <component :is="mod.icon" :size="19" />
-        <!-- 悬浮提示 -->
-        <span class="pointer-events-none absolute left-12 z-50 whitespace-nowrap rounded-md border border-border bg-popover px-2 py-1 text-xs text-popover-foreground opacity-0 shadow-lg transition-opacity group-hover:opacity-100">
-          {{ mod.label }}
-        </span>
-      </button>
+      <div class="min-h-0 flex-1 overflow-y-auto px-2">
+        <div class="flex flex-col gap-1" :class="navExpanded ? '' : 'items-center'">
+          <button
+            v-for="mod in navModules"
+            :key="mod.id"
+            class="flex h-9 items-center gap-2.5 rounded-lg text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+            :class="[
+              navExpanded ? 'w-full px-3' : 'mx-auto w-9 justify-center',
+              { 'bg-sidebar-accent text-primary': activeModuleId === mod.id },
+            ]"
+            :title="mod.label"
+            @click="selectModule(mod.id)"
+          >
+            <component :is="mod.icon" :size="19" class="shrink-0" />
+            <span v-if="navExpanded" class="min-w-0 truncate text-sm">{{ mod.label }}</span>
+          </button>
+        </div>
+      </div>
 
-      <div class="flex-1" />
+      <div class="mt-2 border-t border-sidebar-border px-2 pt-2">
+        <button
+          class="flex h-9 items-center gap-2.5 rounded-lg text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
+          :class="navExpanded ? 'w-full px-3' : 'mx-auto w-9 justify-center'"
+          :title="navPinned ? '收起导航栏' : '钉住展开'"
+          @click="toggleNavPinned"
+        >
+          <PanelLeftClose v-if="navExpanded" class="h-[19px] w-[19px] shrink-0" />
+          <PanelLeftOpen v-else class="h-[19px] w-[19px] shrink-0" />
+          <span v-if="navExpanded" class="min-w-0 truncate text-sm">{{ navPinned ? '收起导航栏' : '钉住展开' }}</span>
+        </button>
+      </div>
     </nav>
 
     <!-- 常驻二级菜单栏 -->
@@ -160,7 +188,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from 'reka-ui'
-import { Search, Sun, Moon, ChevronRight, LogOut, UserRound, Maximize2, Minimize2 } from 'lucide-vue-next'
+import { Search, Sun, Moon, ChevronRight, LogOut, UserRound, Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen } from 'lucide-vue-next'
 import Avatar from '@/components/ui/avatar/Avatar.vue'
 import AvatarImage from '@/components/ui/avatar/AvatarImage.vue'
 import AvatarFallback from '@/components/ui/avatar/AvatarFallback.vue'
@@ -181,6 +209,16 @@ const router = useRouter()
 
 const paletteOpen = ref(false)
 const isFullscreen = ref(false)
+
+/* 一级导航栏展开状态：钉住（持久化）或悬停浮层展开 */
+const NAV_PIN_KEY = 'solo.nav-pinned'
+const navPinned = ref(localStorage.getItem(NAV_PIN_KEY) === '1')
+const navHoverOpen = ref(false)
+const navExpanded = computed(() => navPinned.value || navHoverOpen.value)
+const toggleNavPinned = () => {
+  navPinned.value = !navPinned.value
+  localStorage.setItem(NAV_PIN_KEY, navPinned.value ? '1' : '0')
+}
 
 /* 搜索框占位提示轮播：顺带传达"工作方式" */
 const searchHints = [
