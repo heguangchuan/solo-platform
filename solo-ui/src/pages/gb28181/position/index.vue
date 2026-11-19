@@ -65,7 +65,7 @@
               :data-row="i"
               class="group"
               :class="cursor === i ? 'bg-muted/50' : 'hover:bg-muted/30'"
-              @click="cursor = i"
+              @click="onRowClick(p, i)"
             >
               <td class="px-3 py-2">
                 <div class="truncate" :title="p.deviceName">{{ p.deviceName || '—' }}</div>
@@ -96,13 +96,6 @@
               </td>
               <td class="px-3 py-2">
                 <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="详情"
-                    @click.stop="openDetail(p)"
-                  >
-                    <Eye class="size-3.5" />
-                  </button>
                   <button
                     v-access="PERM.GB_POSITION_DELETE"
                     class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-red-400"
@@ -147,60 +140,38 @@
       <div
         class="flex h-8 shrink-0 items-center gap-3 border-t border-border px-3 text-[11px] text-muted-foreground/70"
       >
-        <span><kbd>J</kbd><kbd>K</kbd> 移动</span>
+        <span><kbd>J</kbd><kbd>K</kbd> 移动 <kbd>Enter</kbd> 查看 <kbd>ESC</kbd> 关闭</span>
         <div class="flex-1" />
         <span>共 {{ resource.total.value }} 条位置点</span>
       </div>
     </div>
 
-    <!-- 详情弹窗 -->
-    <Dialog :open="detailOpen" @update:open="(v) => (detailOpen = v)">
-      <DialogContent class="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>位置点详情</DialogTitle>
-          <DialogDescription />
-        </DialogHeader>
-        <dl v-if="detail" class="grid grid-cols-[96px_1fr] gap-x-4 gap-y-3 text-[13px]">
-          <dt class="text-muted-foreground">设备名称</dt>
-          <dd>{{ detail.deviceName || '—' }}</dd>
-          <dt class="text-muted-foreground">设备编码</dt>
-          <dd class="font-mono">{{ detail.deviceId }}</dd>
-          <dt class="text-muted-foreground">定位时间</dt>
-          <dd class="font-mono">{{ detail.positionTime || '—' }}</dd>
-          <dt class="text-muted-foreground">经度</dt>
-          <dd class="font-mono">{{ detail.longitude ?? '—' }}</dd>
-          <dt class="text-muted-foreground">纬度</dt>
-          <dd class="font-mono">{{ detail.latitude ?? '—' }}</dd>
-          <dt class="text-muted-foreground">海拔</dt>
-          <dd class="font-mono">{{ detail.altitude != null ? `${detail.altitude} 米` : '—' }}</dd>
-          <dt class="text-muted-foreground">速度</dt>
-          <dd class="font-mono">{{ detail.speed != null ? detail.speed : '—' }}</dd>
-          <dt class="text-muted-foreground">方向</dt>
-          <dd class="font-mono">{{ detail.direction != null ? `${detail.direction}°` : '—' }}</dd>
-          <dt class="text-muted-foreground">接收时间</dt>
-          <dd class="font-mono">{{ detail.receiveTime || '—' }}</dd>
-          <dt class="text-muted-foreground">入库时间</dt>
-          <dd class="font-mono">{{ detail.createTime || '—' }}</dd>
-        </dl>
-      </DialogContent>
-    </Dialog>
+    <!-- 右侧：检视器（位置详情 / 删除） -->
+    <Transition name="inspector">
+      <aside
+        v-if="selected"
+        class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+      >
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <GbPositionInspector
+            :position="selected"
+            @close="selected = null"
+            @delete="onDelete(selected)"
+          />
+        </div>
+      </aside>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { IconLoader2, IconRouteOff, IconX } from '@tabler/icons-vue'
-import { Eye, Trash2 } from 'lucide-vue-next'
+import { Trash2 } from 'lucide-vue-next'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
 import GbDeviceSelect from '@/features/gb/GbDeviceSelect.vue'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import GbPositionInspector from '@/features/gb/GbPositionInspector.vue'
 import { useResource } from '@/shared/composables/useResource'
 import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
@@ -255,13 +226,12 @@ watch(deviceIdQ, () => {
 })
 watch([startTimeQ, endTimeQ], triggerSearch)
 
-/* ---------------- 详情 ---------------- */
-const detailOpen = ref(false)
-const detail = ref<GbMobilePosition | null>(null)
+/* ---------------- 详情检视器 ---------------- */
+const selected = ref<GbMobilePosition | null>(null)
 
-const openDetail = (p: GbMobilePosition) => {
-  detail.value = p
-  detailOpen.value = true
+const onRowClick = (p: GbMobilePosition, i: number) => {
+  cursor.value = i
+  selected.value = p
 }
 
 /* ---------------- 删除 ---------------- */
@@ -276,6 +246,7 @@ const onDelete = async (p: GbMobilePosition) => {
   await deleteGbPositionApi(p.id)
   toast.success('删除成功')
   resource.removeWhere((item) => item.id === p.id)
+  if (selected.value?.id === p.id) selected.value = null
 }
 
 /* ---------------- 键盘流 ---------------- */
@@ -318,6 +289,12 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       cursor.value = Math.max(0, cursor.value - 1)
       scrollCursorIntoView()
       break
+    case 'Enter':
+      if (list.length) onRowClick(list[cursor.value], cursor.value)
+      break
+    case 'Escape':
+      selected.value = null
+      break
   }
 }
 
@@ -354,5 +331,18 @@ kbd {
   line-height: 16px;
   color: var(--muted-foreground);
   font-family: ui-monospace, monospace;
+}
+
+.inspector-enter-active,
+.inspector-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.inspector-enter-from,
+.inspector-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
 }
 </style>
