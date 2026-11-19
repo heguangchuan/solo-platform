@@ -183,7 +183,7 @@
               :data-row="i"
               class="group"
               :class="cursor === i ? 'bg-muted/50' : 'hover:bg-muted/30'"
-              @click="cursor = i"
+              @click="onRowClick(a, i)"
             >
               <td class="px-3 py-2">
                 <span class="text-xs" :class="priorityTextClass(a.alarmPriority)">
@@ -215,13 +215,6 @@
               </td>
               <td class="px-3 py-2">
                 <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground"
-                    title="详情"
-                    @click.stop="openDetail(a)"
-                  >
-                    <Eye class="size-3.5" />
-                  </button>
                   <button
                     v-access="PERM.GB_ALARM_HANDLE"
                     class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-emerald-400"
@@ -274,60 +267,28 @@
       <div
         class="flex h-8 shrink-0 items-center gap-3 border-t border-border px-3 text-[11px] text-muted-foreground/70"
       >
-        <span><kbd>J</kbd><kbd>K</kbd> 移动</span>
+        <span><kbd>J</kbd><kbd>K</kbd> 移动 <kbd>Enter</kbd> 查看 <kbd>ESC</kbd> 关闭</span>
         <div class="flex-1" />
         <span>共 {{ resource.total.value }} 条报警</span>
       </div>
     </div>
 
-    <!-- 详情弹窗 -->
-    <Dialog :open="detailOpen" @update:open="(v) => (detailOpen = v)">
-      <DialogContent class="sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>报警详情</DialogTitle>
-          <DialogDescription />
-        </DialogHeader>
-        <dl v-if="detail" class="grid grid-cols-[96px_1fr] gap-x-4 gap-y-3 text-[13px]">
-          <dt class="text-muted-foreground">设备编码</dt>
-          <dd class="font-mono">{{ detail.deviceId || '—' }}</dd>
-          <dt class="text-muted-foreground">通道名称</dt>
-          <dd>{{ detail.channelName || '—' }}</dd>
-          <dt class="text-muted-foreground">通道编码</dt>
-          <dd class="font-mono">{{ detail.channelId || '—' }}</dd>
-          <dt class="text-muted-foreground">报警级别</dt>
-          <dd>{{ priorityLabel(detail.alarmPriority) }}</dd>
-          <dt class="text-muted-foreground">报警方式</dt>
-          <dd>{{ detail.alarmMethodDesc || detail.alarmMethod || '—' }}</dd>
-          <dt class="text-muted-foreground">报警类型</dt>
-          <dd>{{ alarmTypeText(detail.alarmType) }}</dd>
-          <dt class="text-muted-foreground">报警时间</dt>
-          <dd class="font-mono">{{ detail.alarmTime || '—' }}</dd>
-          <dt class="text-muted-foreground">接收时间</dt>
-          <dd class="font-mono">{{ detail.receiveTime || '—' }}</dd>
-          <dt class="text-muted-foreground">经纬度</dt>
-          <dd class="font-mono">
-            <template v-if="detail.longitude != null && detail.latitude != null">
-              {{ detail.longitude }}, {{ detail.latitude }}
-            </template>
-            <template v-else>—</template>
-          </dd>
-          <dt class="text-muted-foreground">报警描述</dt>
-          <dd>{{ detail.alarmDescription || '—' }}</dd>
-          <dt class="text-muted-foreground">处置状态</dt>
-          <dd :class="handleStatusClass(detail.handleStatus)">
-            {{ handleStatusLabel(detail.handleStatus) }}
-          </dd>
-          <template v-if="detail.handleStatus !== 0">
-            <dt class="text-muted-foreground">处置人</dt>
-            <dd>{{ detail.handleUser || '—' }}</dd>
-            <dt class="text-muted-foreground">处置时间</dt>
-            <dd class="font-mono">{{ detail.handleTime || '—' }}</dd>
-            <dt class="text-muted-foreground">处置备注</dt>
-            <dd>{{ detail.handleRemark || '—' }}</dd>
-          </template>
-        </dl>
-      </DialogContent>
-    </Dialog>
+    <!-- 右侧：检视器（详情 / 处置 / 删除） -->
+    <Transition name="inspector">
+      <aside
+        v-if="selected"
+        class="flex w-[420px] shrink-0 flex-col overflow-hidden rounded-xl border border-border bg-card"
+      >
+        <div class="min-h-0 flex-1 overflow-y-auto p-5">
+          <GbAlarmInspector
+            :alarm="selected"
+            @close="selected = null"
+            @handle="openHandle(selected)"
+            @delete="onDelete(selected)"
+          />
+        </div>
+      </aside>
+    </Transition>
 
     <!-- 处置弹窗 -->
     <Dialog :open="handleOpen" @update:open="(v) => (handleOpen = v)">
@@ -389,9 +350,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { IconFilter, IconLoader2 } from '@tabler/icons-vue'
-import { BellOff, CheckCheck, Eye, Trash2 } from 'lucide-vue-next'
+import { BellOff, CheckCheck, Trash2 } from 'lucide-vue-next'
 import RefreshButton from '@/components/RefreshButton.vue'
 import Button from '@/components/ui/button/Button.vue'
+import GbAlarmInspector from '@/features/gb/GbAlarmInspector.vue'
 import {
   Dialog,
   DialogContent,
@@ -532,15 +494,24 @@ const handleStatusClass = (s?: number | null) =>
     3: 'text-muted-foreground',
   })[s ?? 0] ?? 'text-muted-foreground'
 
-/* ---------------- 详情 ---------------- */
-const detailOpen = ref(false)
-const detail = ref<GbDeviceAlarm | null>(null)
+/* ---------------- 详情检视器 ---------------- */
+const selected = ref<GbDeviceAlarm | null>(null)
 
-const openDetail = async (a: GbDeviceAlarm) => {
-  detailOpen.value = true
-  detail.value = a
+const openAlarmDetail = async (a: GbDeviceAlarm) => {
+  selected.value = a
   const res = await getGbAlarmDetailApi(a.id)
-  detail.value = res.data
+  // 拉取期间可能已切换/关闭，只回写当前仍选中的那条
+  if (selected.value?.id === a.id) selected.value = res.data
+}
+
+const onRowClick = (a: GbDeviceAlarm, i: number) => {
+  cursor.value = i
+  openAlarmDetail(a)
+}
+
+const refreshSelected = async () => {
+  if (!selected.value) return
+  openAlarmDetail(selected.value)
 }
 
 /* ---------------- 处置 ---------------- */
@@ -575,7 +546,7 @@ const confirmHandle = async () => {
     })
     toast.success('处置成功')
     handleOpen.value = false
-    await Promise.all([resource.search(), fetchUnhandled()])
+    await Promise.all([resource.search(), fetchUnhandled(), refreshSelected()])
   } finally {
     handling.value = false
   }
@@ -593,6 +564,7 @@ const onDelete = async (a: GbDeviceAlarm) => {
   await deleteGbAlarmApi(a.id)
   toast.success('删除成功')
   resource.removeWhere((item) => item.id === a.id)
+  if (selected.value?.id === a.id) selected.value = null
   if (a.handleStatus === 0) fetchUnhandled()
 }
 
@@ -636,6 +608,12 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
       cursor.value = Math.max(0, cursor.value - 1)
       scrollCursorIntoView()
       break
+    case 'Enter':
+      if (list.length) onRowClick(list[cursor.value], cursor.value)
+      break
+    case 'Escape':
+      selected.value = null
+      break
   }
 }
 
@@ -672,5 +650,18 @@ kbd {
   line-height: 16px;
   color: var(--muted-foreground);
   font-family: ui-monospace, monospace;
+}
+
+.inspector-enter-active,
+.inspector-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.inspector-enter-from,
+.inspector-leave-to {
+  opacity: 0;
+  transform: translateX(12px);
 }
 </style>
