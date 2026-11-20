@@ -182,7 +182,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 
 ## 前端说明
 
-前端代码位于本仓库 `solo-ui/` 目录：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn-vue (reka-ui) + Pinia，现代极简风格，覆盖国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置等全部能力，开发端口 `5173`。
+前端代码位于本仓库 `solo-console/` 目录：Vue 3.5 + TypeScript + Vite 6 + Tailwind CSS 4 + shadcn-vue (reka-ui) + Pinia，现代极简风格，覆盖国标设备/通道/级联、点播回放、流媒体节点、拉流代理、推流、ONVIF、RBAC、Web SSH、消息中心、系统设置等全部能力，开发端口 `5173`。
 
 ## 技术栈
 
@@ -272,7 +272,7 @@ cd solo && mvn spring-boot:run
 ### 4. 启动前端
 
 ```bash
-cd solo-ui && npm install && npm run dev
+cd solo-console && npm install && npm run dev
 ```
 
 访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:8080`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
@@ -305,7 +305,7 @@ solo-platform/
 │       ├── config/        # JWT / Redis / MyBatis-Plus / 安全头
 │       └── websocket/     # 消息推送 / Web SSH 终端
 ├── openapi/               # 第三方对接资料（Bruno 前置签名脚本，见下方对接指南）
-├── solo-ui/               # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
+├── solo-console/          # Vue 3 控制台（Vite + Tailwind + shadcn-vue，端口 5173）
 ├── zlm/                   # ZLMediaKit config.ini 示例（hook / 端口 / 录像参考配置）
 └── sql/                   # MySQL / PostgreSQL 首次部署合并脚本（会重建全部表）
 ```
@@ -339,7 +339,7 @@ solo-platform/
 - [x] **云端录像中心**：MP4 切片 hook 自动上传对象存储，设备 / 通道 / 时间 / 状态检索、在线回放、预签名下载、保留期自动清理、录制态探测补偿
 - [x] **语音广播**：网页麦克风 WebRTC 喊话，广播通知 + 设备反向 INVITE，裸 PCMA/PS 推流放音，UDP/TCP 自适应
 - [x] **开放 API**：第三方 HMAC-SHA256 签名鉴权接入，应用授权 / IP 白名单 / 限流 / 换钥过渡期 / 调用审计日志，已开放实时点播接口
-- [x] 全新 shadcn 风格控制台（`solo-ui/`，Vue 3 + Tailwind + shadcn-vue）
+- [x] 全新 shadcn 风格控制台（`solo-console/`，Vue 3 + Tailwind + shadcn-vue）
 
 ### 规划中
 
