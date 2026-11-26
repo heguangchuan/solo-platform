@@ -75,19 +75,7 @@ public final class WebUtils {
         return getClientIp(currentRequest());
     }
 
-    public static String getClientSource(HttpServletRequest request) {
-        if (request == null) return null;
-        String source = request.getHeader("X-Client-Source");
-        if (source == null || source.isBlank()) return null;
-        return truncate(source.trim().toLowerCase(), 16);
-    }
-
-    public static String getUserAgent(HttpServletRequest request) {
-        if (request == null) return null;
-        return truncate(request.getHeader("User-Agent"), 500);
-    }
-
-    public static String truncate(String s, int max) {
+    private static String truncate(String s, int max) {
         if (s == null) return null;
         return s.length() > max ? s.substring(0, max) : s;
     }

@@ -3,8 +3,6 @@ package com.solo.system.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
-import java.util.List;
-
 @Schema(description = "用户新增/编辑请求体")
 @Data
 public class UserRequest {
@@ -26,7 +24,4 @@ public class UserRequest {
 
     @Schema(description = "状态（0/1）")
     private Integer status;
-
-    @Schema(description = "角色ID列表（新增时必填，至少一个）")
-    private List<Long> roleIds;
 }

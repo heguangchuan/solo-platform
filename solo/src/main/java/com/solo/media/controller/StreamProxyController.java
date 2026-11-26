@@ -1,9 +1,6 @@
 package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -40,7 +37,6 @@ public class StreamProxyController {
 
     @Operation(summary = "拉流代理分页查询")
     @PostMapping("/page")
-    @RequirePermission({"media:stream-proxy:list"})
     public Result<PageResult<StreamProxy>> page(@RequestBody StreamProxyPageRequest request) {
         Page<StreamProxy> page = streamProxyService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -49,7 +45,6 @@ public class StreamProxyController {
     @Operation(summary = "代理详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
-    @RequirePermission({"media:stream-proxy:list"})
     public Result<StreamProxy> detail(@PathVariable Long id) {
         StreamProxy p = streamProxyService.getById(id);
         if (p == null) {
@@ -59,9 +54,7 @@ public class StreamProxyController {
     }
 
     @Operation(summary = "新增代理")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.ADD, description = "新增拉流代理")
     @PostMapping("/save")
-    @RequirePermission({"media:stream-proxy:add"})
     public Result<Void> save(@RequestBody StreamProxy proxy) {
         proxy.setId(null);
         streamProxyService.saveOrUpdateProxy(proxy);
@@ -69,9 +62,7 @@ public class StreamProxyController {
     }
 
     @Operation(summary = "编辑代理")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.EDIT, description = "编辑拉流代理")
     @PostMapping("/update")
-    @RequirePermission({"media:stream-proxy:edit"})
     public Result<Void> update(@RequestBody StreamProxy proxy) {
         if (proxy.getId() == null) {
             throw new ServiceException("id 不能为空");
@@ -81,7 +72,6 @@ public class StreamProxyController {
     }
 
     @Operation(summary = "启用")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.EDIT, description = "启用拉流代理")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/enable")
     public Result<Void> enable(@PathVariable Long id) {
@@ -90,7 +80,6 @@ public class StreamProxyController {
     }
 
     @Operation(summary = "停用")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.EDIT, description = "停用拉流代理")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/disable")
     public Result<Void> disable(@PathVariable Long id) {
@@ -115,19 +104,15 @@ public class StreamProxyController {
     }
 
     @Operation(summary = "删除代理")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.DELETE, description = "删除拉流代理")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
-    @RequirePermission({"media:stream-proxy:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         streamProxyService.deleteById(id);
         return Result.success();
     }
 
     @Operation(summary = "批量删除")
-    @OperationLog(module = "拉流代理管理", type = BusinessType.DELETE, description = "批量删除拉流代理")
     @PostMapping("/batch/delete")
-    @RequirePermission({"media:stream-proxy:delete"})
     @Transactional
     public Result<Void> batchDelete(@RequestBody StreamProxyBatchDeleteRequest request) {
         streamProxyService.deleteBatch(request.getIds());

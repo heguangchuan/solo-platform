@@ -1,8 +1,6 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
@@ -27,7 +25,6 @@ public class GbPlayController {
     private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
-    @OperationLog(module = "实时点播", type = BusinessType.OTHER, description = "开始实时点播")
     @PostMapping("/start")
     public Result<PlayResultResponse> start(@RequestBody PlayStartRequest req) {
         var actor = viewTokenSigner.requireCurrentUserActor();
@@ -37,7 +34,6 @@ public class GbPlayController {
     }
 
     @Operation(summary = "停止点播")
-    @OperationLog(module = "实时点播", type = BusinessType.OTHER, description = "停止实时点播")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody PlayStopRequest req) {
         playService.stop(req);

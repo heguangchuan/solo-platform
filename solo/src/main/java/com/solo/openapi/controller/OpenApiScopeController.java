@@ -1,6 +1,5 @@
 package com.solo.openapi.controller;
 
-import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.openapi.response.OpenApiScopeResponse;
 import com.solo.openapi.support.OpenApiScopeCatalog;
@@ -26,7 +25,6 @@ public class OpenApiScopeController {
 
     @Operation(summary = "查询 scope 目录")
     @GetMapping("/list")
-    @RequirePermission("openapi:app:list")
     public Result<List<OpenApiScopeResponse>> list() {
         return Result.success(scopeCatalog.getScopes());
     }

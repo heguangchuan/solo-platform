@@ -12,8 +12,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class AsyncConfig {
 
     /**
-     * 操作日志写入专用线程池
-     * 队列满时丢弃最旧任务，避免阻塞主请求
+     * OpenAPI 调用日志异步落库，队列满时丢弃最旧任务，避免阻塞主请求
      */
     @Bean("logExecutor")
     public ThreadPoolTaskExecutor logExecutor() {
@@ -24,19 +23,6 @@ public class AsyncConfig {
         executor.setKeepAliveSeconds(60);
         executor.setThreadNamePrefix("log-async-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.DiscardOldestPolicy());
-        executor.initialize();
-        return executor;
-    }
-
-    @Bean("aiTaskExecutor")
-    public ThreadPoolTaskExecutor aiTaskExecutor() {
-        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(4);
-        executor.setMaxPoolSize(8);
-        executor.setQueueCapacity(100);
-        executor.setKeepAliveSeconds(60);
-        executor.setThreadNamePrefix("ai-task-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.initialize();
         return executor;
     }

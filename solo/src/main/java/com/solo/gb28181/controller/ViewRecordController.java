@@ -1,6 +1,5 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.media.request.GbViewRecordPageRequest;
@@ -23,7 +22,6 @@ public class ViewRecordController {
 
     @Operation(summary = "分页查询观看记录")
     @GetMapping("/page")
-    @RequirePermission("gb28181:view-record:list")
     public Result<PageResult<GbViewRecordVO>> page(GbViewRecordPageRequest request) {
         return Result.success(viewRecordService.page(request));
     }

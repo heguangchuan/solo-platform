@@ -1,7 +1,6 @@
 import {
   IconLayoutDashboard,
   IconUser,
-  IconBell,
   IconDeviceCctv,
   IconList,
   IconShare2,
@@ -24,7 +23,6 @@ export interface NavItem {
   label: string
   path: string
   icon: Icon
-  perm?: string
 }
 
 export interface NavModule {
@@ -41,7 +39,6 @@ export const homeModule: NavModule = {
   items: [
     { label: '工作台首页', path: '/', icon: IconLayoutDashboard },
     { label: '个人信息', path: '/profile', icon: IconUser },
-    { label: '消息中心', path: '/messages', icon: IconBell },
   ],
 }
 
@@ -93,6 +90,3 @@ export const staticNavModules: NavModule[] = [
     items: [{ label: '用户列表', path: '/system/user', icon: IconUsers }],
   },
 ]
-
-/** 兼容原有调用点：始终返回静态导航模块。 */
-export const buildNavFromMenus = (_menus?: unknown): NavModule[] => staticNavModules

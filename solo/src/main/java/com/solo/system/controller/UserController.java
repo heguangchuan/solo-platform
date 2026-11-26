@@ -1,16 +1,12 @@
 package com.solo.system.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.system.entity.SysUser;
 import com.solo.system.request.UserExportRequest;
 import com.solo.system.request.UserPageRequest;
 import com.solo.system.request.UserRequest;
-import com.solo.system.request.UserRoleAssignRequest;
 import com.solo.system.response.UserExcelResponse;
 import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.service.SysUserService;
@@ -39,7 +35,6 @@ public class UserController {
 
     @Operation(summary = "分页查询用户列表")
     @PostMapping("/page")
-    @RequirePermission({"system:user:list"})
     public Result<PageResult<SysUser>> getPage(@RequestBody UserPageRequest req) {
         Page<SysUser> page = sysUserService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -47,15 +42,12 @@ public class UserController {
 
     @Operation(summary = "按状态统计用户数")
     @GetMapping("/status-count")
-    @RequirePermission({"system:user:list"})
     public Result<List<UserStatusCountVO>> statusCount() {
         return Result.success(sysUserService.statusCount());
     }
 
     @Operation(summary = "导出用户为 Excel")
     @PostMapping("/export")
-    @RequirePermission({"system:user:export"})
-    @OperationLog(module = "用户管理", type = BusinessType.EXPORT, description = "导出用户")
     public void export(@RequestBody UserExportRequest request, HttpServletResponse response) throws IOException {
         List<SysUser> users = queryExportUsers(request);
         List<UserExcelResponse> data = users.stream().map(this::toExcelResponse).toList();
@@ -85,8 +77,6 @@ public class UserController {
 
     @Operation(summary = "新增用户")
     @PostMapping
-    @RequirePermission({"system:user:add"})
-    @OperationLog(module = "用户管理", type = BusinessType.ADD, description = "新增用户")
     public Result<Void> save(@RequestBody UserRequest request) {
         sysUserService.createUser(request);
         return Result.success();
@@ -95,8 +85,6 @@ public class UserController {
     @Operation(summary = "修改用户信息")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
-    @RequirePermission({"system:user:edit"})
-    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "修改用户")
     public Result<Void> update(@PathVariable Long id, @RequestBody UserRequest request) {
         sysUserService.updateUser(id, request);
         return Result.success();
@@ -106,8 +94,6 @@ public class UserController {
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @Parameter(name = "status", description = "0=禁用、1=启用；禁用后该用户无法登录，已登录的会被踢出", in = ParameterIn.PATH)
     @PutMapping("/{id}/status/{status}")
-    @RequirePermission({"system:user:switch"})
-    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "切换用户状态")
     public Result<Void> switchStatus(@PathVariable Long id, @PathVariable Integer status) {
         sysUserService.switchStatus(id, status);
         return Result.success();
@@ -115,8 +101,6 @@ public class UserController {
 
     @Operation(summary = "批量删除用户")
     @DeleteMapping("/batch")
-    @RequirePermission({"system:user:delete"})
-    @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "批量删除用户")
     public Result<Void> deleteBatch(@RequestBody java.util.List<Long> ids) {
         sysUserService.deleteBatch(ids);
         return Result.success();
@@ -125,31 +109,9 @@ public class UserController {
     @Operation(summary = "删除单个用户")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
-    @RequirePermission({"system:user:delete"})
-    @OperationLog(module = "用户管理", type = BusinessType.DELETE, description = "删除用户")
     public Result<Void> delete(@PathVariable Long id) {
         sysUserService.deleteUser(id);
         return Result.success();
     }
 
-    @Operation(summary = "查询用户已分配的角色 ID 列表")
-    @Parameter(name = "userId", description = "用户主键 ID", in = ParameterIn.PATH)
-    @GetMapping("/r2u/{userId}")
-    @RequirePermission({"system:user:r2u"})
-    public Result<List<String>> listAssignedRoles(@PathVariable Long userId) {
-        // 与角色列表里 id（ToStringSerializer 序列化为 string）保持类型一致
-        List<String> ids = sysUserService.listRoleIds(userId).stream()
-                .map(String::valueOf)
-                .toList();
-        return Result.success(ids);
-    }
-
-    @Operation(summary = "给用户分配角色")
-    @PostMapping("/r2u")
-    @RequirePermission({"system:user:r2u"})
-    @OperationLog(module = "用户管理", type = BusinessType.EDIT, description = "用户授权")
-    public Result<Void> assignRoles(@RequestBody UserRoleAssignRequest request) {
-        sysUserService.assignRoles(request.getUserId(), request.getRoleIds());
-        return Result.success();
-    }
 }

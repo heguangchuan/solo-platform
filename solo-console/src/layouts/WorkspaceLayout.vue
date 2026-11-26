@@ -96,9 +96,6 @@
 
         <!-- 工具按钮组 -->
         <div class="flex items-center gap-0.5">
-          <!-- 消息中心 -->
-          <MessageCenter />
-
           <!-- 全屏 -->
           <button
             class="grid h-8 w-8 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
@@ -194,16 +191,13 @@ import AvatarImage from '@/components/ui/avatar/AvatarImage.vue'
 import AvatarFallback from '@/components/ui/avatar/AvatarFallback.vue'
 import CommandPalette from '@/features/command/CommandPalette.vue'
 import ForcePasswordChangeDialog from '@/features/auth/ForcePasswordChangeDialog.vue'
-import MessageCenter from '@/features/message/MessageCenter.vue'
-import { buildNavFromMenus, homeModule } from '@/app/nav'
+import { staticNavModules, homeModule } from '@/app/nav'
 import { useAuthStore } from '@/stores/auth'
-import { useMessageStore } from '@/stores/message'
 import { useUiStore } from '@/stores/ui'
 import { confirm } from '@/lib/confirm'
 
 const auth = useAuthStore()
 const ui = useUiStore()
-const messageStore = useMessageStore()
 const route = useRoute()
 const router = useRouter()
 
@@ -230,8 +224,7 @@ const hintIndex = ref(0)
 const searchHint = computed(() => searchHints[hintIndex.value])
 let hintTimer: ReturnType<typeof setInterval> | null = null
 
-const menuModules = computed(() => buildNavFromMenus())
-const navModules = computed(() => [homeModule, ...menuModules.value])
+const navModules = computed(() => [homeModule, ...staticNavModules])
 
 /** 判断路由是否命中某个导航项：首页 '/' 精确匹配；其余按路径段匹配，避免 /device 前缀命中 /device-channel */
 const matchItem = (path: string, itemPath: string) =>
@@ -293,7 +286,6 @@ const onLogout = async () => {
     danger: true,
   })
   if (!ok) return
-  messageStore.clear()
   auth.logout()
   router.push('/login')
 }
@@ -320,7 +312,6 @@ const onKeydown = (e: KeyboardEvent) => {
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   document.addEventListener('fullscreenchange', onFullscreenChange)
-  messageStore.init()
   hintTimer = setInterval(() => {
     hintIndex.value = (hintIndex.value + 1) % searchHints.length
   }, 4000)

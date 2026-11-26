@@ -1,9 +1,6 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -40,7 +37,6 @@ public class GbDeviceController {
 
     @Operation(summary = "分页查询设备")
     @PostMapping("/page")
-    @RequirePermission({"gb28181:device:list"})
     public Result<PageResult<GbDevice>> page(@RequestBody GbDevicePageRequest request) {
         Page<GbDevice> page = gbDeviceService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -49,7 +45,6 @@ public class GbDeviceController {
 
     @Operation(summary = "按状态统计设备数")
     @GetMapping("/status-count")
-    @RequirePermission({"gb28181:device:list"})
     public Result<List<GbDeviceStatusCountVO>> statusCount() {
         return Result.success(gbDeviceService.statusCount());
     }
@@ -57,7 +52,6 @@ public class GbDeviceController {
 
     @Operation(summary = "按关键词搜索设备")
     @GetMapping("/search")
-    @RequirePermission({"gb28181:device:list"})
     public Result<PageResult<GbDevice>> search(
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "页码，默认1") @RequestParam(defaultValue = "1") Long page,
@@ -69,7 +63,6 @@ public class GbDeviceController {
     @Operation(summary = "设备详情")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}")
-    @RequirePermission({"gb28181:device:list"})
     public Result<GbDevice> detail(@PathVariable String deviceId) {
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
         if (device == null) {
@@ -79,18 +72,14 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "手动新增设备")
-    @OperationLog(module = "国标设备管理", type = BusinessType.ADD, description = "手动新增设备")
     @PostMapping("/save")
-    @RequirePermission({"gb28181:device:add"})
     public Result<Void> save(@RequestBody GbDeviceCreateWithChannelsRequest request) {
         gbDeviceService.createByManual(request.getDevice(), request.getChannels());
         return Result.success();
     }
 
     @Operation(summary = "手动编辑设备资料")
-    @OperationLog(module = "国标设备管理", type = BusinessType.EDIT, description = "手动编辑设备资料")
     @PostMapping("/update")
-    @RequirePermission({"gb28181:device:edit"})
     public Result<Void> update(@RequestBody GbDevice device) {
         if (device.getId() == null) {
             throw new ServiceException("设备ID不能为空");
@@ -100,10 +89,8 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "手动触发设备信息 + 通道目录同步")
-    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "触发设备目录同步")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @PostMapping("/{deviceId}/sync")
-    @RequirePermission({"gb28181:device:sync"})
     public Result<SyncTriggerResponse> sync(@PathVariable String deviceId) {
         // 先检查设备状态，给出精确错误
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
@@ -129,7 +116,6 @@ public class GbDeviceController {
     @Operation(summary = "拉取当前设备同步进度")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/{deviceId}/sync-status")
-    @RequirePermission({"gb28181:device:sync"})
     public Result<String> syncStatus(@PathVariable String deviceId) {
         String raw = catalogSyncStatusService.getRawStatus(deviceId);
         if (raw == null) {
@@ -140,28 +126,22 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "取消设备通道目录同步")
-    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "取消设备目录同步")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{deviceId}/sync")
-    @RequirePermission({"gb28181:device:sync"})
     public Result<Void> cancelSync(@PathVariable String deviceId) {
         catalogSyncStatusService.cancel(deviceId);
         return Result.success();
     }
 
     @Operation(summary = "批量探测设备存活")
-    @OperationLog(module = "国标设备管理", type = BusinessType.OTHER, description = "批量探测设备存活")
     @PostMapping("/detect")
-    @RequirePermission({"gb28181:device:sync"})
     public Result<GbDeviceDetectResponse> detect(@RequestBody GbDeviceDetectRequest request) {
         return Result.success(gbDeviceService.detectBatch(request.getIds()));
     }
 
     @Operation(summary = "删除设备记录，连同其名下所有通道")
-    @OperationLog(module = "国标设备管理", type = BusinessType.DELETE, description = "删除设备")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{deviceId}")
-    @RequirePermission({"gb28181:device:delete"})
     @Transactional
     public Result<Void> delete(@PathVariable String deviceId) {
         GbDevice device = gbDeviceService.lambdaQuery().eq(GbDevice::getDeviceId, deviceId).one();
@@ -173,9 +153,7 @@ public class GbDeviceController {
     }
 
     @Operation(summary = "批量删除设备记录，连同每台设备名下所有通道")
-    @OperationLog(module = "国标设备管理", type = BusinessType.DELETE, description = "批量删除设备")
     @PostMapping("/batch/delete")
-    @RequirePermission({"gb28181:device:delete"})
     @Transactional
     public Result<Void> batchDelete(@RequestBody GbDeviceBatchDeleteRequest request) {
         gbDeviceService.deleteBatch(request.getIds());

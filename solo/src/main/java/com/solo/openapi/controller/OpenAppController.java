@@ -1,11 +1,8 @@
 package com.solo.openapi.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.openapi.entity.OpenApp;
 import com.solo.openapi.request.OpenAppPageRequest;
 import com.solo.openapi.request.OpenAppSaveRequest;
@@ -36,7 +33,6 @@ public class OpenAppController {
 
     @Operation(summary = "分页查询应用")
     @PostMapping("/page")
-    @RequirePermission("openapi:app:list")
     public Result<PageResult<OpenApp>> page(@Valid @RequestBody OpenAppPageRequest req) {
         Page<OpenApp> result = appService.pageQuery(req);
         return Result.success(new PageResult<>(result.getTotal(), result.getRecords()));
@@ -44,15 +40,12 @@ public class OpenAppController {
 
     @Operation(summary = "应用详情")
     @GetMapping("/{id}")
-    @RequirePermission("openapi:app:list")
     public Result<OpenApp> detail(@PathVariable Long id) {
         return Result.success(toView(appService.getDetail(id)));
     }
 
     @Operation(summary = "创建应用，明文密钥仅此一次返回")
-    @OperationLog(module = "开放API应用", type = BusinessType.ADD, description = "创建开放API应用")
     @PostMapping("/create")
-    @RequirePermission("openapi:app:add")
     public Result<OpenAppCreatedResponse> create(@Valid @RequestBody OpenAppSaveRequest req) {
         OpenApiAppService.CreatedSecret created = appService.createApp(req);
         return Result.success(new OpenAppCreatedResponse(created.id(), created.appKey(),
@@ -60,36 +53,28 @@ public class OpenAppController {
     }
 
     @Operation(summary = "编辑应用资料/授权/配额")
-    @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "编辑开放API应用")
     @PostMapping("/update")
-    @RequirePermission("openapi:app:edit")
     public Result<Void> update(@Valid @RequestBody OpenAppSaveRequest req) {
         appService.updateApp(req);
         return Result.success();
     }
 
     @Operation(summary = "启用应用")
-    @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "启用开放API应用")
     @PostMapping("/{id}/enable")
-    @RequirePermission("openapi:app:edit")
     public Result<Void> enable(@PathVariable Long id) {
         appService.enable(id);
         return Result.success();
     }
 
     @Operation(summary = "停用应用")
-    @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "停用开放API应用")
     @PostMapping("/{id}/disable")
-    @RequirePermission("openapi:app:edit")
     public Result<Void> disable(@PathVariable Long id) {
         appService.disable(id);
         return Result.success();
     }
 
     @Operation(summary = "换接口签名密钥，新明文密钥仅此一次返回")
-    @OperationLog(module = "开放API应用", type = BusinessType.EDIT, description = "开放API应用换钥")
     @PostMapping("/{id}/rotate-secret")
-    @RequirePermission("openapi:app:rotate")
     public Result<OpenAppCreatedResponse> rotateSecret(@PathVariable Long id) {
         OpenApiAppService.CreatedSecret created = appService.rotateSecret(id);
         return Result.success(new OpenAppCreatedResponse(id, created.appKey(), created.appSecret(), null));

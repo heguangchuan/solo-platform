@@ -1,9 +1,6 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -39,7 +36,6 @@ public class GbDeviceChannelController {
 
     @Operation(summary = "分页查询通道")
     @PostMapping("/page")
-    @RequirePermission({"gb28181:device-channel:list"})
     public Result<PageResult<GbDeviceChannelResponse>> page(@RequestBody GbDeviceChannelPageRequest request) {
         Page<GbDeviceChannelResponse> page = channelService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -48,7 +44,6 @@ public class GbDeviceChannelController {
 
     @Operation(summary = "按状态统计通道数")
     @GetMapping("/status-count")
-    @RequirePermission({"gb28181:device-channel:list"})
     public Result<List<GbChannelStatusCountVO>> statusCount() {
         return Result.success(channelService.statusCount());
     }
@@ -56,7 +51,6 @@ public class GbDeviceChannelController {
     @Operation(summary = "按设备国标ID列出全部通道")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @GetMapping("/by-device/{deviceId}")
-    @RequirePermission({"gb28181:device-channel:list"})
     public Result<List<GbDeviceChannel>> listByDevice(@PathVariable String deviceId) {
         List<GbDeviceChannel> list = channelService.lambdaQuery()
                 .eq(GbDeviceChannel::getDeviceId, deviceId)
@@ -67,18 +61,14 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "新增通道")
-    @OperationLog(module = "国标通道管理", type = BusinessType.ADD, description = "新增通道")
     @PostMapping("/save")
-    @RequirePermission({"gb28181:device-channel:add"})
     public Result<Void> save(@RequestBody GbDeviceChannel channel) {
         channelService.createByManual(channel);
         return Result.success();
     }
 
     @Operation(summary = "编辑通道")
-    @OperationLog(module = "国标通道管理", type = BusinessType.EDIT, description = "编辑通道")
     @PostMapping("/update")
-    @RequirePermission({"gb28181:device-channel:edit"})
     public Result<Void> update(@RequestBody GbDeviceChannel channel) {
         if (channel.getId() == null) {
             throw new ServiceException("通道ID不能为空");
@@ -88,19 +78,15 @@ public class GbDeviceChannelController {
     }
 
     @Operation(summary = "删除通道")
-    @OperationLog(module = "国标通道管理", type = BusinessType.DELETE, description = "删除通道")
     @Parameter(name = "id", description = "通道主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
-    @RequirePermission({"gb28181:device-channel:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         channelService.deleteById(id);
         return Result.success();
     }
 
     @Operation(summary = "批量删除通道")
-    @OperationLog(module = "国标通道管理", type = BusinessType.DELETE, description = "批量删除通道")
     @PostMapping("/batch/delete")
-    @RequirePermission({"gb28181:device-channel:delete"})
     @Transactional
     public Result<Void> batchDelete(@RequestBody GbDeviceChannelBatchDeleteRequest request) {
         channelService.deleteBatch(request.getIds());

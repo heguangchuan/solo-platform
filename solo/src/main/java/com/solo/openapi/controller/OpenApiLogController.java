@@ -1,11 +1,8 @@
 package com.solo.openapi.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.utils.ExcelUtils;
 import com.solo.openapi.constant.OpenApiErrorCode;
 import com.solo.openapi.entity.OpenApiLog;
@@ -26,7 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
- * 开放 API 调用日志管理端。只查不删，走平台内部 JWT 和权限体系。
+ * 开放 API 调用日志管理端。只查不删，走平台内部 JWT 认证。
  */
 @Tag(name = "开放API调用日志", description = "第三方调用审计日志的查询与导出")
 @RestController
@@ -40,16 +37,13 @@ public class OpenApiLogController {
 
     @Operation(summary = "分页查询调用日志")
     @PostMapping("/page")
-    @RequirePermission("openapi:log:list")
     public Result<PageResult<OpenApiLog>> page(@RequestBody OpenApiLogPageRequest req) {
         Page<OpenApiLog> page = logService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
     }
 
     @Operation(summary = "按筛选条件导出调用日志为 Excel")
-    @OperationLog(module = "开放API日志", type = BusinessType.EXPORT, description = "导出开放API调用日志")
     @PostMapping("/export")
-    @RequirePermission("openapi:log:export")
     public void export(@RequestBody OpenApiLogPageRequest req, HttpServletResponse response) throws IOException {
         List<OpenApiLog> logs = logService.queryForExport(req);
         List<OpenApiLogExcelResponse> data = logs.stream().map(this::toExcelResponse).toList();

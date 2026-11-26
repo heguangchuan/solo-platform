@@ -5,7 +5,6 @@ import type {
   RefreshTokenRequest,
   RefreshTokenResponse,
   UserInfoVO,
-  StatResponse,
   ChangePasswordRequest,
   ProfileUpdateRequest,
 } from '@/types/api'
@@ -18,11 +17,6 @@ export function loginApi(data: LoginRequest) {
 /** 用 refresh token 换取新的双 token（滚动刷新） */
 export function refreshTokenApi(data: RefreshTokenRequest) {
   return post<RefreshTokenResponse>('/api/auth/refresh', data)
-}
-
-/** 顶部统计 */
-export function getStatsApi() {
-  return get<StatResponse>('/api/auth/stats')
 }
 
 /** 个人档案 */

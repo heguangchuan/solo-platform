@@ -18,8 +18,8 @@ public class JwtInterceptor implements HandlerInterceptor {
     private final SysUserService sysUserService;
 
     /**
-     * 验证通过后从Redis比对Token一致性，防止用户被踢下线
-     * 验证通过后将 userId 和 username 写入请求属性，供后续权限校验使用
+     * 验证 JWT，并与 Redis 中的当前 token 比对，重新登录后旧 token 立即失效。
+     * 验证通过后将用户身份写入请求属性。
      */
     @Override
     public boolean preHandle(HttpServletRequest request,
@@ -43,8 +43,7 @@ public class JwtInterceptor implements HandlerInterceptor {
             return handleNotLogin(response, "Token无效或已过期");
         }
 
-        // 从Redis获取该用户当前的Token，比对是否一致
-        // 如果不一致，说明用户已重新登录或被管理员踢下线
+        // 同一账号在别处重新登录后，旧 token 不再接受
         String cachedToken = jwtUtils.getToken(username);
         if (cachedToken == null || !cachedToken.equals(token)) {
             return handleNotLogin(response, "Token无效或已过期");

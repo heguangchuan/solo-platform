@@ -1,9 +1,6 @@
 package com.solo.gb28181.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.utils.UserHolderUtils;
@@ -30,7 +27,6 @@ public class GbDeviceAlarmController {
 
     @Operation(summary = "分页查询报警")
     @PostMapping("/page")
-    @RequirePermission({"gb28181:alarm:list"})
     public Result<PageResult<GbDeviceAlarm>> page(@RequestBody GbDeviceAlarmPageRequest request) {
         Page<GbDeviceAlarm> page = alarmService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -39,25 +35,20 @@ public class GbDeviceAlarmController {
     @Operation(summary = "报警详情")
     @Parameter(name = "id", description = "报警主键 ID", in = ParameterIn.PATH)
     @GetMapping("/detail/{id}")
-    @RequirePermission({"gb28181:alarm:list"})
     public Result<GbDeviceAlarm> detail(@PathVariable Long id) {
         return Result.success(alarmService.getById(id));
     }
 
     @Operation(summary = "处置报警（确认/已处置/误报）")
-    @OperationLog(module = "报警中心", type = BusinessType.EDIT, description = "处置报警")
     @PostMapping("/handle")
-    @RequirePermission({"gb28181:alarm:handle"})
     public Result<Void> handle(@RequestBody GbDeviceAlarmHandleRequest request) {
         alarmService.handle(request, UserHolderUtils.getCurrentUsername());
         return Result.success();
     }
 
     @Operation(summary = "删除报警")
-    @OperationLog(module = "报警中心", type = BusinessType.DELETE, description = "删除报警")
     @Parameter(name = "id", description = "报警主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/delete/{id}")
-    @RequirePermission({"gb28181:alarm:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         alarmService.deleteAlarm(id);
         return Result.success();

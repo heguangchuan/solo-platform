@@ -1,9 +1,6 @@
 package com.solo.onvif.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -33,7 +30,6 @@ public class OnvifDeviceController {
 
     @Operation(summary = "设备分页查询")
     @PostMapping("/page")
-    @RequirePermission({"onvif:device:list"})
     public Result<PageResult<OnvifDevice>> page(@RequestBody OnvifDevicePageRequest req) {
         Page<OnvifDevice> page = onvifDeviceService.pageQuery(req);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -42,7 +38,6 @@ public class OnvifDeviceController {
     @Operation(summary = "设备详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
-    @RequirePermission({"onvif:device:list"})
     public Result<OnvifDevice> detail(@PathVariable Long id) {
         OnvifDevice device = onvifDeviceService.getById(id);
         if (device == null) {
@@ -52,9 +47,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "新增设备")
-    @OperationLog(module = "ONVIF设备管理", type = BusinessType.ADD, description = "新增ONVIF设备")
     @PostMapping("/save")
-    @RequirePermission({"onvif:device:add"})
     public Result<Void> save(@RequestBody OnvifDevice device) {
         device.setId(null); // 强制新增
         onvifDeviceService.saveWithProbe(device);
@@ -62,9 +55,7 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "编辑设备")
-    @OperationLog(module = "ONVIF设备管理", type = BusinessType.EDIT, description = "编辑ONVIF设备")
     @PostMapping("/update")
-    @RequirePermission({"onvif:device:edit"})
     public Result<Void> update(@RequestBody OnvifDevice device) {
         if (device.getId() == null) {
             throw new ServiceException("设备ID不能为空");
@@ -74,20 +65,16 @@ public class OnvifDeviceController {
     }
 
     @Operation(summary = "主动探测一次")
-    @OperationLog(module = "ONVIF设备管理", type = BusinessType.OTHER, description = "主动探测设备")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/probe")
-    @RequirePermission({"onvif:device:probe"})
     public Result<Void> probe(@PathVariable Long id) {
         onvifDeviceService.probe(id);
         return Result.success();
     }
 
     @Operation(summary = "删除设备")
-    @OperationLog(module = "ONVIF设备管理", type = BusinessType.DELETE, description = "删除ONVIF设备")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
-    @RequirePermission({"onvif:device:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         onvifDeviceService.removeById(id);
         return Result.success();

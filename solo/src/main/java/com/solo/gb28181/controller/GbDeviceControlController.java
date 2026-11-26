@@ -1,10 +1,7 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
-import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.service.GbDeviceService;
 import com.solo.gb28181.transmit.cmd.SipCommander;
@@ -30,10 +27,8 @@ public class GbDeviceControlController {
     private final GbDeviceService deviceService;
 
     @Operation(summary = "布防/撤防")
-    @OperationLog(module = "设备控制", type = BusinessType.OTHER, description = "布防撤防")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "action", description = "guard=布防 / reset=撤防")
-    @RequirePermission("gb28181:device:control")
     @PostMapping("/guard/{deviceId}")
     public Result<Void> guard(@PathVariable String deviceId,
                               @RequestParam String action) {
@@ -48,11 +43,9 @@ public class GbDeviceControlController {
     }
 
     @Operation(summary = "报警复位")
-    @OperationLog(module = "设备控制", type = BusinessType.OTHER, description = "报警复位")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "alarmMethod", description = "报警方式，不传全部复位")
     @Parameter(name = "alarmType", description = "报警类型，不传全部复位")
-    @RequirePermission("gb28181:device:control")
     @PostMapping("/alarm-reset/{deviceId}")
     public Result<Void> alarmReset(@PathVariable String deviceId,
                                    @RequestParam(required = false) String alarmMethod,
@@ -63,11 +56,9 @@ public class GbDeviceControlController {
     }
 
     @Operation(summary = "设备本地录像开关")
-    @OperationLog(module = "设备控制", type = BusinessType.OTHER, description = "本地录像控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "action", description = "record=开始录像 / stop=停止录像")
-    @RequirePermission("gb28181:device:control")
     @PostMapping("/record/{deviceId}/{channelId}")
     public Result<Void> record(@PathVariable String deviceId,
                                @PathVariable String channelId,
@@ -83,10 +74,8 @@ public class GbDeviceControlController {
     }
 
     @Operation(summary = "强制关键帧")
-    @OperationLog(module = "设备控制", type = BusinessType.OTHER, description = "强制关键帧")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
-    @RequirePermission("gb28181:device:control")
     @PostMapping("/iframe/{deviceId}/{channelId}")
     public Result<Void> iframe(@PathVariable String deviceId,
                                @PathVariable String channelId) {
@@ -96,9 +85,7 @@ public class GbDeviceControlController {
     }
 
     @Operation(summary = "远程重启设备")
-    @OperationLog(module = "设备控制", type = BusinessType.OTHER, description = "远程重启")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
-    @RequirePermission("gb28181:device:reboot")
     @PostMapping("/reboot/{deviceId}")
     public Result<Void> reboot(@PathVariable String deviceId) {
         GbDevice device = getOnlineDevice(deviceId);

@@ -50,21 +50,3 @@ export interface ProfileUpdateRequest {
   phone?: string
   avatar?: string
 }
-
-/** /auth/me 返回的菜单权限树节点 */
-export interface UserAuthResponse {
-  id: string
-  permissionName: string
-  icon: string
-  parentId: string | number
-  sort: number
-  url: string
-  children?: UserAuthResponse[]
-}
-
-/** 顶部统计 */
-export interface StatResponse {
-  userCount: number
-  roleCount: number
-  permissionCount: number
-}

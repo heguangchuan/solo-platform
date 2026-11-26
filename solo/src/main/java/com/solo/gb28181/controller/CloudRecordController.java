@@ -1,10 +1,7 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.response.GbRecordFileVO;
 import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbRecordFileService;
@@ -33,7 +30,6 @@ public class CloudRecordController {
 
     @Operation(summary = "分页查询录像文件")
     @GetMapping("/page")
-    @RequirePermission("gb28181:record:list")
     public Result<PageResult<GbRecordFileVO>> page(
             @RequestParam(required = false) String deviceId,
             @RequestParam(required = false) String channelId,
@@ -47,15 +43,12 @@ public class CloudRecordController {
 
     @Operation(summary = "取录像播放/下载地址（预签名，限时有效）")
     @GetMapping("/{id}/url")
-    @RequirePermission("gb28181:record:list")
     public Result<String> url(@PathVariable Long id) {
         return Result.success(recordFileService.presignedUrl(id));
     }
 
     @Operation(summary = "手动开始录制")
-    @OperationLog(module = "云端录像", type = BusinessType.OTHER, description = "手动开始录制")
     @PostMapping("/start")
-    @RequirePermission("gb28181:record:control")
     public Result<String> start(@RequestParam String deviceId,
                                 @RequestParam String channelId,
                                 @RequestParam(required = false) String transport,
@@ -64,18 +57,14 @@ public class CloudRecordController {
     }
 
     @Operation(summary = "手动停止录制")
-    @OperationLog(module = "云端录像", type = BusinessType.OTHER, description = "手动停止录制")
     @PostMapping("/stop")
-    @RequirePermission("gb28181:record:control")
     public Result<Void> stop(@RequestParam String streamId) {
         cloudRecordService.stop(streamId);
         return Result.success();
     }
 
     @Operation(summary = "删除录像文件（同时删存储对象）")
-    @OperationLog(module = "云端录像", type = BusinessType.DELETE, description = "删除录像文件")
     @DeleteMapping("/{id}")
-    @RequirePermission("gb28181:record:delete")
     public Result<Void> delete(@PathVariable Long id) {
         recordFileService.delete(id);
         return Result.success();

@@ -1,7 +1,6 @@
 export * from './common'
 export * from './auth'
 export * from './user'
-export * from './message'
 export * from './media'
 export * from './gb28181'
 export * from './onvif'

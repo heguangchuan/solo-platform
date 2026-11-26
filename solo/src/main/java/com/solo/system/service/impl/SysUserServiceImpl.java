@@ -3,53 +3,35 @@ package com.solo.system.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.solo.aop.PermissionCache;
 import com.solo.common.ServiceException;
+import com.solo.common.utils.JwtUtils;
+import com.solo.common.utils.PasswordUtils;
 import com.solo.system.constant.SystemConstants;
 import com.solo.system.entity.SysUser;
-import com.solo.system.entity.SysUserRole;
 import com.solo.system.mapper.SysUserMapper;
-import com.solo.system.mapper.SysUserRoleMapper;
 import com.solo.system.request.ProfileUpdateRequest;
 import com.solo.system.request.UserPageRequest;
 import com.solo.system.request.UserRequest;
 import com.solo.system.response.LoginResponse;
 import com.solo.system.response.RefreshTokenResponse;
-import com.solo.system.response.UserAuthResponse;
 import com.solo.system.response.UserInfoVO;
 import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.service.SysUserService;
-import com.solo.common.utils.JwtUtils;
-import com.solo.common.utils.PasswordUtils;
-import com.solo.common.utils.WebUtils;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
 
     private final JwtUtils jwtUtils;
-    private final SysUserRoleMapper sysUserRoleMapper;
-    private final PermissionCache permissionCache;
 
     @Override
     public SysUser getByUsername(String username) {
         return lambdaQuery().eq(SysUser::getUsername, username).one();
-    }
-
-    @Override
-    public List<String> getPermissionCodes(Long userId) {
-        return getBaseMapper().selectPermissionCodes(userId);
     }
 
     @Override
@@ -64,19 +46,14 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (!PasswordUtils.md5(password).equals(user.getPassword())) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
         }
-        // 未分配任何有效角色（角色被删除/停用同视为无权限）：不允许登录，避免进入空白控制台
-        List<String> roleCodes = getBaseMapper().selectRoleCodes(user.getId());
-        if (roleCodes == null || roleCodes.isEmpty()) {
-            throw new ServiceException(SystemConstants.HTTP_FORBIDDEN, "当前账号未分配角色，请联系管理员授权后再登录");
-        }
         LoginResponse loginResponse = new LoginResponse();
         String token = jwtUtils.generateToken(user.getUsername());
         String refreshToken = jwtUtils.generateRefreshToken(user.getUsername());
         loginResponse.setToken(token);
         loginResponse.setRefreshToken(refreshToken);
         loginResponse.setUser(buildUserInfoVO(user));
-        // 将 access token 及会话元数据存入 Redis，供"在线用户"查询
-        jwtUtils.saveSession(user.getUsername(), token, buildSessionMeta(user));
+        // 当前 access token 存入 Redis，JWT 拦截器会逐请求比对，重新登录后旧 token 立即失效
+        jwtUtils.saveToken(user.getUsername(), token);
         // 单独保存 refresh token，TTL 与 refresh 有效期一致，每次刷新会被覆盖（滚动失效）
         jwtUtils.saveRefreshToken(user.getUsername(), refreshToken);
         return loginResponse;
@@ -106,33 +83,13 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         // 滚动：换发一对全新的 access / refresh token，旧 refresh 因 Redis 被覆盖而失效
         String newAccess = jwtUtils.generateToken(username);
         String newRefresh = jwtUtils.generateRefreshToken(username);
-        jwtUtils.saveSession(username, newAccess, buildSessionMeta(user));
+        jwtUtils.saveToken(username, newAccess);
         jwtUtils.saveRefreshToken(username, newRefresh);
         RefreshTokenResponse resp = new RefreshTokenResponse();
         resp.setToken(newAccess);
         resp.setRefreshToken(newRefresh);
         return resp;
     }
-
-    /** 抓取登录请求的 IP / 来源 / UA 等元数据，与 token 一并写入 Redis */
-    private Map<String, Object> buildSessionMeta(SysUser user) {
-        Map<String, Object> meta = new HashMap<>();
-        meta.put(JwtUtils.FIELD_USER_ID, String.valueOf(user.getId()));
-        meta.put(JwtUtils.FIELD_NICKNAME, user.getNickname() == null ? "" : user.getNickname());
-        meta.put(JwtUtils.FIELD_LOGIN_TIME, LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
-        HttpServletRequest request = WebUtils.currentRequest();
-        if (request != null) {
-            meta.put(JwtUtils.FIELD_LOGIN_IP, nullToEmpty(WebUtils.getClientIp(request)));
-            meta.put(JwtUtils.FIELD_USER_AGENT, nullToEmpty(WebUtils.getUserAgent(request)));
-            meta.put(JwtUtils.FIELD_CLIENT_SOURCE, nullToEmpty(WebUtils.getClientSource(request)));
-        }
-        return meta;
-    }
-
-    private String nullToEmpty(String s) {
-        return s == null ? "" : s;
-    }
-
 
     @Override
     public Page<SysUser> pageQuery(UserPageRequest req) {
@@ -165,11 +122,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (existing != null) {
             throw new ServiceException("用户名已存在");
         }
-        // 未分配角色的账号无法登录，创建时必须至少选择一个角色
-        List<Long> roleIds = request.getRoleIds();
-        if (roleIds == null || roleIds.isEmpty()) {
-            throw new ServiceException("请至少为用户分配一个角色");
-        }
         SysUser user = new SysUser();
         user.setUsername(request.getUsername());
         user.setPassword(PasswordUtils.defaultPasswordHashOf(request.getUsername()));
@@ -180,14 +132,6 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         user.setStatus(request.getStatus() != null ? request.getStatus() : SystemConstants.STATUS_ENABLED);
         user.setPwdResetRequired(SystemConstants.PWD_RESET_REQUIRED);
         save(user);
-        // 创建时在同一事务内一并分配角色
-        for (Long roleId : roleIds) {
-            if (roleId == null) continue;
-            SysUserRole entry = new SysUserRole();
-            entry.setUserId(user.getId());
-            entry.setRoleId(roleId);
-            sysUserRoleMapper.insert(entry);
-        }
     }
 
     @Override
@@ -202,6 +146,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
         if (request.getStatus() != null) user.setStatus(request.getStatus());
         updateById(user);
+        if (request.getStatus() != null && request.getStatus() == SystemConstants.STATUS_DISABLED) {
+            jwtUtils.removeToken(user.getUsername());
+        }
     }
 
     @Override
@@ -212,62 +159,28 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         }
         user.setStatus(status);
         updateById(user);
-        // 禁用不影响缓存中已有的权限列表，但用户下次登录时应立即拦截——保守起见失效一次
-        permissionCache.evict(id);
+        if (status != null && status == SystemConstants.STATUS_DISABLED) {
+            jwtUtils.removeToken(user.getUsername());
+        }
     }
 
     @Override
     public void deleteUser(Long id) {
-        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, id));
+        SysUser user = getById(id);
         removeById(id);
-        permissionCache.evict(id);
+        if (user != null) {
+            jwtUtils.removeToken(user.getUsername());
+        }
     }
 
     @Override
     public void deleteBatch(List<Long> ids) {
-        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, ids));
-        removeByIds(ids);
-        if (ids != null) {
-            ids.forEach(permissionCache::evict);
-        }
-    }
-
-    @Override
-    public List<Long> listRoleIds(Long userId) {
-        if (userId == null) return new ArrayList<>();
-        List<SysUserRole> list = sysUserRoleMapper.selectList(
-                new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
-        return list.stream().map(SysUserRole::getRoleId).toList();
-    }
-
-    @Override
-    @Transactional
-    public void assignRoles(Long userId, List<Long> roleIds) {
-        if (userId == null) {
-            throw new ServiceException("用户ID不能为空");
-        }
-        SysUser user = getById(userId);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
-        }
-        sysUserRoleMapper.delete(new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getUserId, userId));
-        if (roleIds == null || roleIds.isEmpty()) {
-            permissionCache.evict(userId);
+        if (ids == null || ids.isEmpty()) {
             return;
         }
-        for (Long roleId : roleIds) {
-            if (roleId == null) continue;
-            SysUserRole entry = new SysUserRole();
-            entry.setUserId(userId);
-            entry.setRoleId(roleId);
-            sysUserRoleMapper.insert(entry);
-        }
-        permissionCache.evict(userId);
-    }
-
-    @Override
-    public List<UserAuthResponse> auth(Long userId) {
-        return getBaseMapper().auth(userId);
+        List<SysUser> users = listByIds(ids);
+        removeByIds(ids);
+        users.forEach(user -> jwtUtils.removeToken(user.getUsername()));
     }
 
     @Override

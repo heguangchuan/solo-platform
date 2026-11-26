@@ -1,8 +1,6 @@
 package com.solo.onvif.controller;
 
-import com.solo.aop.OperationLog;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.media.support.PlayTarget;
 import com.solo.media.support.ViewActor;
 import com.solo.media.support.ViewTokenSigner;
@@ -28,7 +26,6 @@ public class OnvifPlayController {
     private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
-    @OperationLog(module = "ONVIF实时点播", type = BusinessType.OTHER, description = "开始ONVIF实时点播")
     @PostMapping("/start")
     public Result<OnvifPlayResultResponse> start(@RequestBody OnvifPlayStartRequest req) {
         ViewActor actor = viewTokenSigner.requireCurrentUserActor();
@@ -48,7 +45,6 @@ public class OnvifPlayController {
     }
 
     @Operation(summary = "停止点播")
-    @OperationLog(module = "ONVIF实时点播", type = BusinessType.OTHER, description = "停止ONVIF实时点播")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody OnvifPlayStopRequest req) {
         onvifPlayService.stop(req);

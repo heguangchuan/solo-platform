@@ -73,18 +73,10 @@ public class Knife4jConfig {
     }
 
     @Bean
-    public GroupedOpenApi testsGroup() {
-        return GroupedOpenApi.builder()
-                .group("调试")
-                .packagesToScan("com.solo.tests.controller")
-                .build();
-    }
-
-    @Bean
     public GroupedOpenApi openApiGroup() {
         return GroupedOpenApi.builder()
                 .group("开放平台")
-                .packagesToScan("com.solo.openapi.controller", "com.solo.openapi.admin")
+                .packagesToScan("com.solo.openapi.controller")
                 .build();
     }
 }

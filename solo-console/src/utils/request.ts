@@ -41,7 +41,7 @@ const service: AxiosInstance = axios.create({
   },
 })
 
-// 请求拦截器：注入 JWT 与客户端来源
+// 请求拦截器：注入 JWT
 service.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const authStore = useAuthStore()
@@ -49,7 +49,6 @@ service.interceptors.request.use(
     if (token && !WHITE_LIST.some((p) => config.url?.startsWith(p))) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    config.headers['X-Client-Source'] = 'web'
     return config
   },
   (error) => Promise.reject(error)

@@ -11,25 +11,14 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Set;
 
 @Component
 public class JwtUtils {
 
     public static final String ONLINE_KEY_PREFIX = "auth:online:";
-    public static final String ONLINE_INDEX_KEY = "auth:online";
     public static final String REFRESH_KEY_PREFIX = "auth:refresh:";
 
     public static final String FIELD_TOKEN = "token";
-    public static final String FIELD_USER_ID = "userId";
-    public static final String FIELD_NICKNAME = "nickname";
-    public static final String FIELD_LOGIN_TIME = "loginTime";
-    public static final String FIELD_LOGIN_IP = "loginIp";
-    public static final String FIELD_USER_AGENT = "userAgent";
-    public static final String FIELD_CLIENT_SOURCE = "clientSource";
 
     // access 和 refresh 别混着用。
     public static final String CLAIM_TOKEN_TYPE = "type";
@@ -75,19 +64,6 @@ public class JwtUtils {
         return getClaims(token).getSubject();
     }
 
-    public Date getExpirationFromToken(String token) {
-        return getClaims(token).getExpiration();
-    }
-
-    public Claims getClaimsFromToken(String token) {
-        return getClaims(token);
-    }
-
-    public String getTokenType(String token) {
-        Object type = getClaims(token).get(CLAIM_TOKEN_TYPE);
-        return type != null ? type.toString() : null;
-    }
-
     public boolean validateToken(String token, String username) {
         try {
             Claims claims = getClaims(token);
@@ -115,10 +91,6 @@ public class JwtUtils {
         }
     }
 
-    public boolean isTokenExpired(String token) {
-        return getClaims(token).getExpiration().before(new Date());
-    }
-
     private Claims getClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSecretKey())
@@ -128,18 +100,10 @@ public class JwtUtils {
     }
 
 
-    public void saveSession(String username, String token, Map<String, Object> meta) {
-        String key = ONLINE_KEY_PREFIX + username;
-        Map<String, Object> data = new HashMap<>();
-        data.put(FIELD_TOKEN, token);
-        if (meta != null) data.putAll(meta);
-        redisTemplate.opsForHash().putAll(key, data);
-        redisTemplate.expire(key, Duration.ofMillis(jwtProperties.getAccessExpiration()));
-        redisTemplate.opsForSet().add(ONLINE_INDEX_KEY, username);
-    }
-
     public void saveToken(String username, String token) {
-        saveSession(username, token, null);
+        String key = ONLINE_KEY_PREFIX + username;
+        redisTemplate.opsForHash().put(key, FIELD_TOKEN, token);
+        redisTemplate.expire(key, Duration.ofMillis(jwtProperties.getAccessExpiration()));
     }
 
     public String getToken(String username) {
@@ -147,23 +111,8 @@ public class JwtUtils {
         return token != null ? token.toString() : null;
     }
 
-    public Map<Object, Object> getSession(String username) {
-        return redisTemplate.opsForHash().entries(ONLINE_KEY_PREFIX + username);
-    }
-
-    public Set<String> listOnlineUsernames() {
-        Set<Object> raw = redisTemplate.opsForSet().members(ONLINE_INDEX_KEY);
-        Set<String> result = new LinkedHashSet<>();
-        if (raw == null) return result;
-        for (Object o : raw) {
-            if (o != null) result.add(o.toString());
-        }
-        return result;
-    }
-
     public void removeToken(String username) {
         redisTemplate.delete(ONLINE_KEY_PREFIX + username);
-        redisTemplate.opsForSet().remove(ONLINE_INDEX_KEY, username);
         removeRefreshToken(username);
     }
 

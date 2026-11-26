@@ -1,8 +1,6 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.request.PlaybackControlRequest;
 import com.solo.gb28181.request.PlaybackStartRequest;
 import com.solo.gb28181.request.PlaybackStopRequest;
@@ -38,7 +36,6 @@ public class GbPlaybackController {
     }
 
     @Operation(summary = "开始回放")
-    @OperationLog(module = "历史回放", type = BusinessType.OTHER, description = "开始历史回放")
     @PostMapping("/start")
     public Result<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req) {
         var actor = viewTokenSigner.requireCurrentUserActor();
@@ -48,7 +45,6 @@ public class GbPlaybackController {
     }
 
     @Operation(summary = "停止回放")
-    @OperationLog(module = "历史回放", type = BusinessType.OTHER, description = "停止历史回放")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody PlaybackStopRequest req) {
         playbackService.stop(req);
@@ -56,7 +52,6 @@ public class GbPlaybackController {
     }
 
     @Operation(summary = "回放控制")
-    @OperationLog(module = "历史回放", type = BusinessType.OTHER, description = "回放控制")
     @PostMapping("/control")
     public Result<Void> control(@RequestBody PlaybackControlRequest req) {
         playbackService.control(req);

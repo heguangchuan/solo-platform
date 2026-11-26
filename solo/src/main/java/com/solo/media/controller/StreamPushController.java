@@ -1,9 +1,6 @@
 package com.solo.media.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
@@ -40,7 +37,6 @@ public class StreamPushController {
 
     @Operation(summary = "推流分页查询")
     @PostMapping("/page")
-    @RequirePermission({"media:stream-push:list"})
     public Result<PageResult<StreamPush>> page(@RequestBody StreamPushPageRequest request) {
         Page<StreamPush> page = streamPushService.pageQuery(request);
         return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
@@ -49,7 +45,6 @@ public class StreamPushController {
     @Operation(summary = "推流详情")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}")
-    @RequirePermission({"media:stream-push:list"})
     public Result<StreamPush> detail(@PathVariable Long id) {
         StreamPush p = streamPushService.getById(id);
         if (p == null) {
@@ -75,7 +70,6 @@ public class StreamPushController {
     }
 
     @Operation(summary = "强制中止")
-    @OperationLog(module = "推流管理", type = BusinessType.OTHER, description = "强制中止推流")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @PostMapping("/{id}/stop")
     public Result<Void> stop(@PathVariable Long id) {
@@ -84,19 +78,15 @@ public class StreamPushController {
     }
 
     @Operation(summary = "单条删除")
-    @OperationLog(module = "推流管理", type = BusinessType.DELETE, description = "删除推流")
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @DeleteMapping("/{id}")
-    @RequirePermission({"media:stream-push:delete"})
     public Result<Void> delete(@PathVariable Long id) {
         streamPushService.deleteById(id);
         return Result.success();
     }
 
     @Operation(summary = "批量删除")
-    @OperationLog(module = "推流管理", type = BusinessType.DELETE, description = "批量删除推流")
     @PostMapping("/batch/delete")
-    @RequirePermission({"media:stream-push:delete"})
     @Transactional
     public Result<Void> batchDelete(@RequestBody StreamPushBatchDeleteRequest request) {
         streamPushService.deleteBatch(request.getIds());

@@ -13,7 +13,6 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: () => import('@/pages/HomePage.vue') },
         { path: '/profile', name: 'profile', component: () => import('@/pages/ProfilePage.vue') },
-        { path: '/messages', name: 'messages', component: () => import('@/pages/MessagesPage.vue') },
         { path: '/gb28181/device', name: 'gb-device', component: () => import('@/pages/gb28181/device/index.vue') },
         { path: '/gb28181/device-channel', name: 'gb-channel', component: () => import('@/pages/gb28181/device-channel/index.vue') },
         { path: '/gb28181/platform', name: 'gb-platform', component: () => import('@/pages/gb28181/platform/index.vue') },

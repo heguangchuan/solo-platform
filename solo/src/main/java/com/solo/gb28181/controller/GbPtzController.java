@@ -1,8 +1,5 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
-import com.solo.aop.RequirePermission;
-import com.solo.common.enums.BusinessType;
 import com.solo.common.Result;
 import com.solo.common.ServiceException;
 import com.solo.gb28181.entity.GbDevice;
@@ -28,13 +25,11 @@ public class GbPtzController {
     private final GbDeviceService deviceService;
 
     @Operation(summary = "PTZ 控制")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ方向控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "command", description = "PTZ 指令：left/right/up/down/upleft/upright/downleft/downright/zoomin/zoomout/stop")
     @Parameter(name = "speed", description = "PTZ 移动速度（0-255）")
     @Parameter(name = "zoomSpeed", description = "PTZ 缩放速度（0-15）")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/control/{deviceId}/{channelId}")
     public Result<Void> control(@PathVariable String deviceId,
                                 @PathVariable String channelId,
@@ -76,12 +71,10 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 聚焦控制")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ聚焦控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "direction", description = "方向：near=近 / far=远 / stop=停")
     @Parameter(name = "speed", description = "聚焦速度（0-15），默认 5")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/focus/{deviceId}/{channelId}")
     public Result<Void> focus(@PathVariable String deviceId,
                               @PathVariable String channelId,
@@ -100,12 +93,10 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 光圈控制")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ光圈控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "direction", description = "方向：open=大(开) / close=小(关) / stop=停")
     @Parameter(name = "speed", description = "光圈速度（0-15），默认 5")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/iris/{deviceId}/{channelId}")
     public Result<Void> iris(@PathVariable String deviceId,
                              @PathVariable String channelId,
@@ -124,11 +115,9 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 雨刷控制")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ雨刷控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "action", description = "动作：on=开 / off=关")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/wiper/{deviceId}/{channelId}")
     public Result<Void> wiper(@PathVariable String deviceId,
                               @PathVariable String channelId,
@@ -145,7 +134,6 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 拉框放大/缩小")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ拉框控制")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "action", description = "in=放大 / out=缩小")
@@ -155,7 +143,6 @@ public class GbPtzController {
     @Parameter(name = "midPointY", description = "拉框中心纵轴像素")
     @Parameter(name = "lengthX", description = "拉框长度像素")
     @Parameter(name = "lengthY", description = "拉框宽度像素")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/drag-zoom/{deviceId}/{channelId}")
     public Result<Void> dragZoom(@PathVariable String deviceId,
                                  @PathVariable String channelId,
@@ -177,13 +164,11 @@ public class GbPtzController {
     }
 
     @Operation(summary = "PTZ 看守位设置")
-    @OperationLog(module = "云台控制", type = BusinessType.OTHER, description = "PTZ看守位")
     @Parameter(name = "deviceId", description = "设备国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "channelId", description = "通道国标 20 位 ID", in = ParameterIn.PATH)
     @Parameter(name = "enabled", description = "true=开启 / false=关闭")
     @Parameter(name = "resetTime", description = "自动归位时间（秒），开启时用")
     @Parameter(name = "presetIndex", description = "预置位编号（0-255），开启时用")
-    @RequirePermission("gb28181:ptz:control")
     @PostMapping("/home-position/{deviceId}/{channelId}")
     public Result<Void> homePosition(@PathVariable String deviceId,
                                      @PathVariable String channelId,

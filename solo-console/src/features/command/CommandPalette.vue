@@ -87,7 +87,7 @@ import { computed, nextTick, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { Search, SearchX, LogOut, UserRound } from 'lucide-vue-next'
 import { DialogRoot, DialogContent } from '@/components/ui/dialog'
-import { buildNavFromMenus, homeModule } from '@/app/nav'
+import { staticNavModules, homeModule } from '@/app/nav'
 import { useAuthStore } from '@/stores/auth'
 import { getUserPageApi } from '@/api/user'
 import type { SysUser } from '@/types/api'
@@ -112,7 +112,7 @@ const searchedUsers = ref<SysUser[]>([])
 
 // 页面导航 + 固定动作
 const staticCommands = computed<CmdEntry[]>(() => {
-  const nav: CmdEntry[] = [homeModule, ...buildNavFromMenus()]
+  const nav: CmdEntry[] = [homeModule, ...staticNavModules]
     .flatMap((m) => m.items)
     .map((i) => ({
       id: `nav:${i.path}`,
@@ -139,7 +139,6 @@ const staticCommands = computed<CmdEntry[]>(() => {
   return [...nav, ...actions]
 })
 
-// 跨实体：用户搜索（验证“搜索即跳转”的命令范式）
 let userTimer: number | undefined
 watch(keyword, (kw) => {
   window.clearTimeout(userTimer)

@@ -1,8 +1,6 @@
 package com.solo.gb28181.controller;
 
-import com.solo.aop.OperationLog;
 import com.solo.common.Result;
-import com.solo.common.enums.BusinessType;
 import com.solo.gb28181.request.BroadcastStartRequest;
 import com.solo.gb28181.request.BroadcastStopRequest;
 import com.solo.gb28181.request.BroadcastWebRtcRequest;
@@ -25,14 +23,12 @@ public class GbBroadcastController {
     private final GbBroadcastService broadcastService;
 
     @Operation(summary = "开始播报/对讲")
-    @OperationLog(module = "语音播报/语音对讲", type = BusinessType.OTHER, description = "开始语音播报或对讲")
     @PostMapping("/start")
     public Result<BroadcastResultResponse> start(@RequestBody BroadcastStartRequest req) {
         return Result.success(broadcastService.start(req));
     }
 
     @Operation(summary = "停止播报/对讲")
-    @OperationLog(module = "语音播报/语音对讲", type = BusinessType.OTHER, description = "停止语音播报或对讲")
     @PostMapping("/stop")
     public Result<Void> stop(@RequestBody BroadcastStopRequest req) {
         broadcastService.stop(req);
