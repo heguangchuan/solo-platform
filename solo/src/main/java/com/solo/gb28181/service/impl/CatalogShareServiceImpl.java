@@ -29,15 +29,7 @@ import org.springframework.util.StringUtils;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * <p>{@code gb_platform_share} <b>只存通道</b>（{@code gb_device_channel} 中 parental=0 的行）。
- * 分组是本平台内部的目录组织，当前不推送给上级（Catalog XML 只发通道 Item）。</p>
- * <p>share 表与推送分组（{@code gb_platform_group}）关联：UI 强制先在弹窗左侧选中分组才能挂载。
- * 同一通道在同一平台下只能挂载一次（{@code uk_platform_resource}），换组要先卸载旧组。
- * Catalog 响应 / INVITE 反查走全量（不分组）路径——上级不关心"挂在哪个组里"。</p>
- * <p>撞码检测是<b>平台级</b>的：上级看到扁平 DeviceID 空间，跨组同码也会让上级 INVITE 认错通道。</p>
- * <p>{@link #shareTree} 仍返回三级树（设备 → 分组 → 通道）供旧勾选 UI 用；前端契约保留 g_/c_ 前缀。</p>
- */
+// 同一通道在同一平台只能挂一次，换组先卸旧的。
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -45,10 +37,8 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
     private static final String LOG_TAG = "通道推送";
 
-    /** 前端 el-tree node-key 前缀：分组 / 通道，避免主键碰撞 */
     private static final String GROUP_PREFIX = "g_";
     private static final String CHANNEL_PREFIX = "c_";
-    /** 设备节点前缀（仅作枝干展示，不可勾选共享） */
     private static final String DEVICE_PREFIX = "d_";
 
     private final GbDeviceChannelMapper channelMapper;
@@ -63,7 +53,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
     @Override
     public List<GbShareTreeNodeResponse> shareTree() {
-        // 1) 拉所有 catalog item（分组 parental=1 + 通道 parental=0），按 device_id 聚合
         List<GbDeviceChannel> allItems = channelMapper.selectList(
                 new LambdaQueryWrapper<GbDeviceChannel>()
                         .orderByDesc(GbDeviceChannel::getParental)
@@ -72,12 +61,10 @@ public class CatalogShareServiceImpl implements CatalogShareService {
             return new ArrayList<>();
         }
 
-        // 2) 拉设备表（作枝干标签）
         Map<String, GbDevice> deviceByGbId = deviceMapper.selectList(
                         new LambdaQueryWrapper<GbDevice>().orderByAsc(GbDevice::getName)).stream()
                 .collect(Collectors.toMap(GbDevice::getDeviceId, d -> d, (a, b) -> a, LinkedHashMap::new));
 
-        // 3) 按 device_id 分桶
         Map<String, List<GbDeviceChannel>> itemsByDevice = new LinkedHashMap<>();
         for (GbDeviceChannel it : allItems) {
             if (it.getDeviceId() == null) {
@@ -86,7 +73,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
             itemsByDevice.computeIfAbsent(it.getDeviceId(), k -> new ArrayList<>()).add(it);
         }
 
-        // 4) 组装
         List<GbShareTreeNodeResponse> roots = new ArrayList<>();
         for (Map.Entry<String, List<GbDeviceChannel>> entry : itemsByDevice.entrySet()) {
             String deviceGbId = entry.getKey();
@@ -115,7 +101,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
 
     @Override
     public GbPlatformSharedResponse getShared(Long platformId) {
-        // 全量（不分组）：本表只存通道，节点 id 统一 c_ 前缀
         List<GbPlatformShare> shares = shareMapper.selectList(
                 new LambdaQueryWrapper<GbPlatformShare>()
                         .eq(GbPlatformShare::getPlatformId, platformId));
@@ -128,11 +113,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         return resp;
     }
 
-    /**
-     * @deprecated 旧 catalog 树"全量覆盖勾选"入口。{@code gb_platform_share.group_id} 已改为 NOT NULL
-     *             （必须挂在某个推送分组下），本方法没有 groupId 参数无法正确入库，故直接拒绝。
-     *             管理台请走按组接口：{@link #addShares} / {@link #removeShare} / {@link #clearShares}。
-     */
+    // 老的全量覆盖接口没有 groupId，现在 share 必须挂组，所以直接拒。
     @Deprecated
     @Override
     public void saveShared(Long platformId, GbPlatformShareSaveRequest request) {
@@ -232,7 +213,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                 LOG_TAG, platformId, items.size());
     }
 
-    // ==================== 按组增删（推送目录弹窗用） ====================
 
     @Override
     public IPage<GbDeviceChannel> pageSharedByGroup(Long platformId, Long groupId, Page<GbDeviceChannel> page, String keyword) {
@@ -254,7 +234,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         }
         GbPlatformGroup group = requireOwnedGroup(platformId, groupId);
 
-        // 1) 拉资源实体
         List<GbDeviceChannel> resources = channelMapper.selectBatchIds(resourceIds);
         if (resources.isEmpty()) {
             return 0;
@@ -262,14 +241,13 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         Map<Long, GbDeviceChannel> resourceById = resources.stream()
                 .collect(Collectors.toMap(GbDeviceChannel::getId, c -> c, (a, b) -> a));
 
-        // 2) 查该平台所有 share（本批若有重复 / 已挂其他组会一起出现 → 全部幂等跳过）
         //    uk_platform_resource (platform_id, resource_id) 唯一：同一资源在本平台任何组都已挂则
         //    不能再加；同组重复添加也是幂等跳过。
         List<GbPlatformShare> existing = shareMapper.selectList(
                 new LambdaQueryWrapper<GbPlatformShare>()
                         .eq(GbPlatformShare::getPlatformId, platformId)
                         .in(GbPlatformShare::getResourceId, resourceIds));
-        // 记录"已挂本组"与"已挂其他组"——后者要让用户知道在哪组，不能静默跳过
+        // 已挂别的组要带上组名，不然用户不知道该去哪卸
         Set<Long> alreadySharedInGroup = new HashSet<>();
         Set<Long> alreadySharedInOtherGroup = new HashSet<>();
         for (GbPlatformShare s : existing) {
@@ -280,7 +258,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
             }
         }
         if (!alreadySharedInOtherGroup.isEmpty()) {
-            // 找一下被占用的组名，给出更友好的错误信息
             List<GbPlatformGroup> occupiedGroups = groupMapper.selectBatchIds(
                     shareMapper.selectList(new LambdaQueryWrapper<GbPlatformShare>()
                                     .eq(GbPlatformShare::getPlatformId, platformId)
@@ -294,11 +271,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     "所选资源中 " + alreadySharedInOtherGroup.size() + " 项已挂载到其他分组（" + groupNames + "），请先在对应分组中卸载后再添加到「" + group.getName() + "」");
         }
 
-        // 3) 查"该平台已有 share"的 channelId 用于撞码检测。
-        //    ！！必须按 platform_id 全量查，不能限定 group_id ！！
-        //    撞码是平台级命名空间的问题：上级平台看到的是扁平的 DeviceID 空间，A 组的 34020...0001
-        //    和 B 组另一台设备的同码通道推上去就是两个同码 Item，上级 INVITE 必然认错通道。
-        //    分组只是本平台 admin UI 的组织结构，对上级不可见（Catalog XML 靠 channel.parent_id 表达层级）。
+        // 撞码必须查整个平台，不能只查当前组；上级看到的是扁平 DeviceID，跨组同码照样会点错通道
         Set<String> historyChannelIds = new HashSet<>();
         List<Long> existingChannelResourceIds = shareMapper.selectList(
                 new LambdaQueryWrapper<GbPlatformShare>()
@@ -318,7 +291,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     });
         }
 
-        // 4) 撞码检测：本批按 channelId 分组，size>1 自身撞码；任一与 historyChannelIds 相交视为撞码
         Map<String, List<Long>> conflictByChannelId = new HashMap<>();
         for (GbDeviceChannel c : resources) {
             if (c.getChannelId() == null) {
@@ -340,10 +312,7 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                 .flatMap(List::stream)
                 .collect(Collectors.toSet());
 
-        // 4.5) 查"本批通道是否已分码"（按 resource_id 跨平台捞旧码，ADR-020 决策 4 / ADR-026 决策 6
-        //      "已分码不收回"）。同一通道对所有上级复用同一 exposedCode，上级已缓存的旧 DeviceID 不失效。
-        //      虽然 nextExposedChannelCode 是纯函数（同输入同输出），但历史码可能是老 max+1 版本分配的，
-        //      不捞旧码会漂移。
+        // 已分过的 exposedCode 要一直复用；老数据可能是 max+1 时代分的，重算会漂移
         Map<Long, String> exposedByResource = new HashMap<>();
         if (!needExposed.isEmpty()) {
             shareMapper.selectList(new LambdaQueryWrapper<GbPlatformShare>()
@@ -353,7 +322,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
                     .forEach(s -> exposedByResource.putIfAbsent(s.getResourceId(), s.getExposedCode()));
         }
 
-        // 5) 批量插（跳过已挂本组的）
         List<GbPlatformShare> toInsert = new ArrayList<>();
         for (Long rid : resourceIds) {
             if (alreadySharedInGroup.contains(rid)) {
@@ -365,7 +333,6 @@ public class CatalogShareServiceImpl implements CatalogShareService {
             }
             String exposed = null;
             if (needExposed.contains(rid)) {
-                // 优先复用旧码（跨平台稳定），无旧码才按 (deviceId, channelId) 哈希派生
                 exposed = exposedByResource.get(rid);
                 if (exposed == null) {
                     exposed = gbCodeGenerator.nextExposedChannelCode(res.getDeviceId(), res.getChannelId());
@@ -440,15 +407,11 @@ public class CatalogShareServiceImpl implements CatalogShareService {
         return n;
     }
 
-    // ==================== helpers ====================
 
     private static String normalize(String keyword) {
         return StringUtils.hasText(keyword) ? keyword.trim() : null;
     }
 
-    /**
-     * 校验分组存在且属于该 platformId。抛 ServiceException 让全局异常处理统一翻译。
-     */
     private GbPlatformGroup requireOwnedGroup(Long platformId, Long groupId) {
         GbPlatformGroup g = groupMapper.selectById(groupId);
         if (g == null) {

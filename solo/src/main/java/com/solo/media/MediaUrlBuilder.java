@@ -26,7 +26,6 @@ public class MediaUrlBuilder {
                 + "/index/api/webrtc?app=" + app + "&stream=" + stream + "&type=play";
     }
 
-    // ---------------- helpers ----------------
 
     private static String ip(MediaServer server) {
         return server.getStreamIp() == null || server.getStreamIp().isBlank()

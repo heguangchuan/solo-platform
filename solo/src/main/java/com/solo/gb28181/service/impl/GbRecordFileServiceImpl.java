@@ -43,17 +43,8 @@ import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.stream.Collectors;
 
-/**
- * 云端录像中心：on_record_mp4 回调进来后登记切片元数据，异步把 MP4 拉到对象存储。
- *
- * <h3>状态机</h3>
- * <p>落库即 UPLOADING；异步任务传完翻 SUCCESS，失败翻 FAILED 并累计 retryCount。
- * FAILED / 僵死的 UPLOADING 由定时任务 {@link #retryFailed} 重新领取，超过配置次数不再重试。</p>
- *
- * <h3>幂等</h3>
- * <p>ZLM 可能因收不到 hook 响应重推同一个切片，以回调里的文件 path 作为 hook_key，
- * 落库前查一次 + 数据库 uk_hook_key 双保险。path 为空（老版本 ZLM）就退化为不幂等。</p>
- */
+// 切片一落库就是 UPLOADING，传完 SUCCESS，失败 FAILED；僵死任务由定时器重新领。
+// ZLM 可能重推同一切片，path 做 hook_key；老版本没 path 就没法靠它去重。
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -63,9 +54,7 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
     private static final String APP = "rtp";
     private static final String OBJECT_PREFIX = "gb28181/record/";
     private static final int PRESIGNED_EXPIRY_SEC = 3600;
-    /** 重试任务一轮最多领多少条，避免单轮把业务线程池占满 */
     private static final int RETRY_BATCH = 50;
-    /** 清理任务一轮删多少条 */
     private static final int CLEAN_BATCH = 200;
 
     private final GbRecordFileMapper gbRecordFileMapper;

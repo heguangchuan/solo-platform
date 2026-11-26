@@ -48,22 +48,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadPoolExecutor;
 
-/**
- * 历史录像下载：
- *
- * start 同步发 DOWNLOAD INVITE，注册 DownloadTask 后立即返回，前端轮询 getStatus 等 READY；
- * ZLM on_stream_changed 触发 onStreamReady，调 startRecord 开 MP4 录制，状态转 RECORDING；
- * 设备发完时间段流 BYE → ZLM 切片落盘 → on_record_mp4 触发 onRecordMp4，
- * 拉回调 URL 存 MinIO，状态转 READY；
- * 30 分钟没完成就由 DownloadTaskRegistry 的 sweep 标 TIMEOUT 并发事件，本类监听到后收尾。
- *
- * 下载不等流就绪，start() 直接返回，跟历史回放的同步等待不一样：一段录像可能下 5-30 分钟，
- * HTTP 挂着不现实。任务状态只在内存里，不入库，临时性的东西前端按需查就行。
- *
- * 和回放共用：SSRC 池走 isPlayback=true 的 D=1 段（GB/T 28181 §D.1）；
- * INVITE 复用 sendInvite，SDP 用 SdpBuilder.buildDownload；会话同样记在 GbInviteSession，
- * sessionType=TYPE_DOWNLOAD。
- */
+// start 发完 INVITE 就返回，流就绪后开 MP4 录制，on_record_mp4 再下载到对象存储并标 READY。
+// 一段录像可能要下几十分钟，HTTP 不能一直吊着；任务只放内存，SSRC 跟回放共用。
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -75,9 +61,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     private static final DateTimeFormatter UI_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter COMPACT_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    /** MinIO 对象名前缀：所有录像 MP4 都归在这个目录下 */
     private static final String OBJECT_PREFIX = "gb28181/download/";
-    /** MinIO 预签名 URL 有效期：1 小时 */
     private static final int PRESIGNED_EXPIRY_SEC = 3600;
 
     private final Gb28181Properties sipProperties;
@@ -96,14 +80,10 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     private final FileStorage fileStorage;
     private final ThreadPoolExecutor gb28181BizExecutor;
 
-    /** 下载 MP4 用的 HTTP 客户端（5 分钟超时，远超 1 段录像传输需要） */
     private final HttpClient downloadHttpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
 
-    // ============================================================
-    //  start / getStatus / stop
-    // ============================================================
 
     @Override
     public DownloadResultResponse start(DownloadStartRequest req) {
@@ -127,7 +107,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             throw new ServiceException("通道不存在: " + req.getChannelId());
         }
 
-        // 时间段解析
         LocalDateTime startDt = LocalDateTime.parse(req.getStartTime(), UI_FMT);
         LocalDateTime endDt = LocalDateTime.parse(req.getEndTime(), UI_FMT);
         long startEpoch = startDt.atZone(ZoneId.systemDefault()).toEpochSecond();
@@ -149,7 +128,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
                 + "_" + startDt.format(COMPACT_FMT) + "_" + endDt.format(COMPACT_FMT)
                 + (streamNumberForId == null ? "" : "_" + streamNumberForId);
 
-        // 已存在任务：直接返回当前状态（避免重复发 INVITE）
         DownloadTask exist = taskRegistry.get(streamId);
         if (exist != null) {
             log.info("[{}] 复用已有任务 流ID:{} 状态:{}", LOG_TAG, streamId, exist.getStatus());
@@ -175,7 +153,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         String callId = callIdHeader.getCallId();
         String fromTag = SipUtils.newFromTag();
 
-        // 写 GbInviteSession（让 ZlmHookService 能按 streamId 反查 sessionType=TYPE_DOWNLOAD 路由到这里）
         GbInviteSession session = new GbInviteSession();
         session.setStreamId(streamId);
         session.setServerId(server.getServerId());
@@ -193,7 +170,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         session.setStartTime(LocalDateTime.now());
         inviteSessionService.save(session);
 
-        // 写 DownloadTask（业务状态机 + MinIO 信息都走这里）
         DownloadTask task = new DownloadTask();
         task.setStreamId(streamId);
         task.setDeviceId(req.getDeviceId());
@@ -222,7 +198,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
 
             sipCommander.sendInvite(device, req.getChannelId(), sdpBody, ssrc, rtpPort, callIdHeader, fromTag,
                     okEv -> {
-                        // INVITE 2xx 到达：不阻塞 start()，仅日志；流就绪由 on_stream_changed 钩子推
                         log.info("[{}] INVITE 2xx 到达 流ID:{}", LOG_TAG, streamId);
                     },
                     errEv -> {
@@ -233,7 +208,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
                         String detail = reason == null || reason.isBlank() ? "" : " " + reason;
                         log.warn("[{}] INVITE 拒绝 流ID:{} 状态码:{}{}", LOG_TAG, streamId, code, detail);
                         String failReason = "INVITE 失败 status=" + code + detail;
-                        // 失败清扫：标 FAILED，清 ZLM 端口、释放 SSRC、删会话
                         DownloadTask t = taskRegistry.get(streamId);
                         if (t != null) {
                             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED, failReason);
@@ -292,9 +266,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
                 sipCommander.sendBye(device, session);
             }
         }
-        // 标 FAILED（区别于 READY/TIMEOUT；让前端明确是用户主动停）
         taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED, "用户主动停止");
-        // 资源清扫
         if (session != null) {
             inviteCleanup.cleanupZlm(session);
             inviteSessionService.removeByStreamId(streamId);
@@ -307,9 +279,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         log.info("[{}] stop 结果:成功 流ID:{}", LOG_TAG, streamId);
     }
 
-    // ============================================================
-    //  ZLM Hook 回调
-    // ============================================================
 
     @Override
     public void onStreamReady(String app, String stream, String mediaServerId) {
@@ -335,7 +304,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         String period = startDay.format(DateTimeFormatter.ISO_LOCAL_DATE);
         boolean ok = zlmRestClient.startRecord(t.getMediaServer(), APP, stream, period, maxSecond);
         if (!ok) {
-            // 录制启动失败：标 FAILED，清资源
             log.warn("[{}] ZLM startRecord 失败 流ID:{} 周期:{}", LOG_TAG, stream, period);
             taskRegistry.markStatus(stream, DownloadResultResponse.STATUS_FAILED, "ZLM 启动录制失败");
             cleanupForTask(t, false);
@@ -365,7 +333,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             return;
         }
         if (url == null || url.isBlank()) {
-            // ZLM 钩子没给 url：无法下载，标 FAILED
             log.warn("[{}] on_record_mp4 无 URL 流ID:{} 文件大小:{}B 时长:{}s",
                     LOG_TAG, stream, fileSize, duration);
             taskRegistry.markStatus(stream, DownloadResultResponse.STATUS_FAILED, "ZLM 未提供文件 URL");
@@ -401,13 +368,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         log.info("[{}] 设备 BYE 流ID:{} 等待 MP4 切片完成", LOG_TAG, session.getStreamId());
     }
 
-    /**
-     * 订阅 {@link com.solo.gb28181.support.DownloadTimeoutEvent}：Registry 命中超时任务时发事件，
-     * 本方法收到后做资源清扫（关 ZLM 端口、释放 SSRC、删会话）。
-     *
-     * 用 Spring Event 代替回调接口，断开
-     * GbDownloadService → DownloadTaskRegistry → GbDownloadService 的循环依赖。
-     */
+    // 用事件让 Registry 通知这里收资源，免得 Service 和 Registry 互相注入。
     @org.springframework.context.event.EventListener
     public void onDownloadTimeout(com.solo.gb28181.support.DownloadTimeoutEvent event) {
         String streamId = event.getStreamId();
@@ -419,15 +380,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         cleanupForTask(t, true);
     }
 
-    // ============================================================
-    //  内部：MP4 下载 + MinIO 上传
-    // ============================================================
 
-    /**
-     * 从 ZLM HTTP 服务拉 MP4 → 落 MinIO → 标 READY。
-     * 走 gb28181BizExecutor 异步执行：先把 URL GET 到临时文件（省得 HTTP 响应流跨线程），
-     * 再从临时文件上传 MinIO，最后删临时文件。
-     */
     private void downloadAndUpload(DownloadTask t, String zlmUrl, long declaredSize) {
         String streamId = t.getStreamId();
         Path tmpFile = null;
@@ -460,7 +413,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             try (InputStream in = Files.newInputStream(tmpFile)) {
                 fileStorage.upload(in, realSize, "video/mp4", objectName);
             }
-            // 标 READY
             String presigned = fileStorage.presignedUrl(objectName, PRESIGNED_EXPIRY_SEC);
             t.setObjectName(objectName);
             t.setDownloadUrl(presigned);
@@ -510,13 +462,9 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     }
 
     private String buildObjectName(DownloadTask t) {
-        // 路径：gb28181/download/<streamId>.mp4
         return OBJECT_PREFIX + t.getStreamId() + ".mp4";
     }
 
-    // ============================================================
-    //  helpers
-    // ============================================================
 
     private static int transportToTcpMode(String transport) {
         if (SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)) return 1;

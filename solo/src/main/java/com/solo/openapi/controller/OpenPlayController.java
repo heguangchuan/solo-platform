@@ -5,11 +5,14 @@ import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.gb28181.support.GbPlayUrlSigner;
 import com.solo.media.support.ViewActor;
 import com.solo.media.support.ViewTokenSigner;
 import com.solo.openapi.auth.RequireScope;
 import com.solo.openapi.auth.OpenAppContext;
 import com.solo.openapi.constant.OpenApiConstants;
+import com.solo.openapi.constant.OpenApiErrorCode;
+import com.solo.openapi.exception.OpenApiException;
 import com.solo.openapi.service.OpenCatalogService;
 import com.solo.openapi.support.OpenApiContextHolder;
 import com.solo.openapi.web.OpenApiResult;
@@ -22,11 +25,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * 开放 API 实时点播接口。三方通过 appKey/appSecret 签名调用，
- * 需具备 gb:play:write scope。
- * 复用 {@link GbPlayService}，入参出参与内部管理端一致。
- */
 @Tag(name = "开放API-实时点播", description = "三方调用实时点播")
 @RestController
 @RequestMapping("/open-api/v1/play")
@@ -41,27 +39,22 @@ public class OpenPlayController {
     @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
     @PostMapping("/start")
     public OpenApiResult<PlayResultResponse> start(@RequestBody PlayStartRequest req, HttpServletRequest request) {
+        ViewActor actor = openAppActor(request);
         // 三方可能传推送码，统一定位到真实通道后再点播
         GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
         req.setDeviceId(channel.getDeviceId());
         req.setChannelId(channel.getChannelId());
         PlayResultResponse vo = playService.start(req);
-        signWithOpenApp(vo, request);
+        GbPlayUrlSigner.sign(vo, actor, viewTokenSigner);
         return OpenApiResult.success(vo, OpenApiContextHolder.requestId(request));
     }
 
-    /** 开放 API 请求不走平台用户体系，用应用身份给播放地址签观看令牌 */
-    private void signWithOpenApp(PlayResultResponse vo, HttpServletRequest request) {
+    private ViewActor openAppActor(HttpServletRequest request) {
         OpenAppContext ctx = OpenApiContextHolder.get(request);
         if (ctx == null) {
-            return;
+            throw new OpenApiException(OpenApiErrorCode.MISSING_CREDENTIAL, "缺少开放应用播放授权身份");
         }
-        ViewActor actor = ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
-        String sid = vo.getStreamId();
-        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
-        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
-        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
-        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
+        return ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
     }
 
     @Operation(summary = "停止点播")

@@ -144,7 +144,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 - **设备接入**：SIP 注册 Digest 鉴权（配置密码时校验用户名、realm、请求 URI、平台签发的 nonce 与响应摘要，鉴权失败不修改设备状态；nonce 有效期 5 分钟，密码留空为仅限隔离测试环境的开放模式）、心跳保活、在线状态实时维护（Redis TTL + 定时对账）
 - **通道目录**：注册后自动拉取 Catalog，分片合并入库，支持超大目录；设备信息（厂商/型号/固件）自动同步
-- **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；按需拉流（无观看自动断流节能）
+- **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；播放地址携带绑定节点、流和协议的限时签名令牌；按需拉流（无观看自动断流节能）
 - **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
 - **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 落对象存储，预签名 URL 直接下载，失败自动重试
 - **云端录像**：按通道配置周计划（支持 7×24、跨午夜时段），定时对账自动拉起 / 停止录制，MP4 切片经 hook 自动上传对象存储；云端录像中心支持按设备 / 通道 / 时间 / 状态检索、在线回放、预签名下载、保留期自动清理；READY 会话周期性探测 ZLM 真实录制态（isRecording），外部误调 stopRecord 或 ZLM 丢录制态时自动补发 startRecord
@@ -165,7 +165,8 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - **多节点负载均衡**：Redis ZSet 按活跃流数智能选点，SSRC 池 Redis 化，多实例部署安全
 - **拉流代理**：外部 RTSP/RTMP 流拉入 ZLM 转推，启停管理、播放地址自动生成
 - **推流管理**：推流只读视角 + 推流方 token 鉴权，僵尸流自动对账清理
-- **自动点播**：播放地址被访问但流不存在时自动补发 INVITE
+- **自动点播**：持有有效播放令牌的地址被访问但流不存在时自动补发 INVITE；无令牌、错误令牌、过期令牌和跨目标令牌均拒绝播放且不会触发 INVITE
+- **播放访问控制**：`wt` 绑定媒体节点、app、stream、schema、传输 protocol（FLV）和有效期，所有环境默认拒绝无有效凭证的播放；HLS m3u8 与直播分片均通过 hook 校验，级联和平台内部 reader 按精确活动会话授权
 
 ### 系统底座（RBAC）
 
@@ -239,8 +240,24 @@ mysql -uroot -p < sql/MySQL_solo_db.sql
 - `project.*`：平台、数据库、Redis、对象存储和 ZLM 的部署地址。
 - `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接，须与所选数据库匹配。
 - `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码。**生产环境必须设置 `gb28181.password`，留空会进入不校验身份的开放模式。**
-- `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段。
+- `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段，以及下述强制播放鉴权配置。
 - `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）。
+
+播放访问控制在 `pg`、`local`、`mock` 和自定义 profile 中都强制开启，没有环境关闭开关：
+
+```yaml
+media:
+  play-auth:
+    # 建议生产显式配置至少 32 字节的独立随机密钥；留空时兼容回退到 jwt.secret
+    secret: ${MEDIA_PLAY_AUTH_SECRET:}
+    # 只限制每次播放发起时令牌是否有效，已建立的连接不会到期即断
+    token-ttl-seconds: 7200
+  view-record:
+    # 只控制观看审计落库，不影响播放鉴权
+    enabled: true
+```
+
+多实例必须共用相同的播放密钥。旧版仅绑定 stream 的令牌和裸播放地址不能用于新起播放；地址过期或重连失败后，重新调用原点播/播放地址 API 获取完整新 URL，不要手工复制或修改 `wt`。
 
 ```bash
 cd solo && mvn spring-boot:run
@@ -252,7 +269,7 @@ cd solo && mvn spring-boot:run
 
 仓库提供一份开箱参考配置 [zlm/config.ini](zlm/config.ini)，复制到 ZLM 的配置目录（与 `MediaServer` 可执行文件同级的 `conf/`）后按需修改三处：
 
-- **Hook 回调地址**：以 `on_stream_changed` 为例，完整写法为 `http://solo.com:8080/api/hook/on_stream_changed?secret=solo`；请将 `solo.com` 改为后端实际可达地址（本地联调可在 hosts 中把 `solo.com` 指向后端 IP），其余 `on_*` 事件同理。**secret 必须作为 URL 查询参数（`?secret=`）带上**，且与本文件 `[api].secret`、后端 `media.hook-secret`（统一 `solo`）三者一致，否则后端 `checkSecret` 会拒绝回调。
+- **Hook 回调地址**：以 `on_stream_changed` 为例，完整写法为 `http://solo.com:8080/api/hook/on_stream_changed?secret=solo`；请将 `solo.com` 改为后端实际可达地址（本地联调可在 hosts 中把 `solo.com` 指向后端 IP），其余 `on_*` 事件同理。**secret 必须作为 URL 查询参数（`?secret=`）带上**，且与本文件 `[api].secret`、后端 `media.hook-secret`（统一 `solo`）三者一致，否则后端 `checkSecret` 会拒绝回调。`on_play`、`on_stream_not_found`、`on_http_access` 是强制播放鉴权链路，部署时不得置空；`on_rtsp_realm` 保持为空，避免 RTSP 专属鉴权绕过 `on_play`。HTTP/WS-FLV 的强制区分优先使用 `on_play` 上报的 `protocol` 字段；旧版 ZLM 缺少该字段时，只在签名有效的 HTTP/WS-FLV 候选目标间匹配，节点、app、流、schema 和有效期等其他绑定维度不放宽。
 - **API 密钥**：`[api].secret` 须与后端媒体节点的 `secret` 一致（示例值 `solo`，生产环境请更换）。
 - **节点标识**：`[general].mediaServerId`（示例 `zlmediakit-local`）须与后端媒体节点的 `server-id` 完全一致。
 
@@ -737,9 +754,9 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
     "rtpPort": 30660,
     "transport": "TCP-passive",
     "streamNumber": null,
-    "flvUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
-    "wsFlvUrl": "ws://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv",
-    "hlsUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001/hls.m3u8",
+    "flvUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv?wt=eyJhbGciOiJIUzM4NCJ9...",
+    "wsFlvUrl": "ws://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001.live.flv?wt=eyJhbGciOiJIUzM4NCJ9...",
+    "hlsUrl": "http://192.168.1.200:8088/rtp/34020000001320000001_34020000001320000001/hls.m3u8?wt=eyJhbGciOiJIUzM4NCJ9...",
     "rtcUrl": ""
   },
   "requestId": "a1b2c3d4..."
@@ -749,9 +766,9 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 | 返回字段 | 说明 |
 |---|---|
 | `streamId` | 流 ID，停止点播时回传 |
-| `flvUrl` / `wsFlvUrl` | HTTP-FLV / WebSocket-FLV 播放地址 |
-| `hlsUrl` | HLS（m3u8）播放地址 |
-| `rtcUrl` | WebRTC 播放地址（节点未配置 rtcPort 时为空串） |
+| `flvUrl` / `wsFlvUrl` | 带独立 `wt` 的 HTTP-FLV / WebSocket-FLV 播放地址 |
+| `hlsUrl` | 带 `wt` 的 HLS（m3u8）播放地址；直播分片也受同一令牌约束 |
+| `rtcUrl` | WebRTC 播放地址（节点未配置 rtcPort 时为空串；非空时携带独立 `wt`） |
 | `ssrc` / `rtpPort` | RTP 收流参数，接入自有媒体处理时使用 |
 
 **⑤ 停止点播**

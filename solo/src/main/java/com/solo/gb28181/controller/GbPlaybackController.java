@@ -10,6 +10,8 @@ import com.solo.gb28181.request.RecordInfoQueryRequest;
 import com.solo.gb28181.response.PlaybackResultResponse;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.gb28181.support.GbPlayUrlSigner;
+import com.solo.media.support.ViewTokenSigner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import java.util.List;
 public class GbPlaybackController {
 
     private final GbPlaybackService playbackService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "录像查询")
     @PostMapping("/query")
@@ -38,7 +41,10 @@ public class GbPlaybackController {
     @OperationLog(module = "历史回放", type = BusinessType.OTHER, description = "开始历史回放")
     @PostMapping("/start")
     public Result<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req) {
-        return Result.success(playbackService.start(req));
+        var actor = viewTokenSigner.requireCurrentUserActor();
+        PlaybackResultResponse result = playbackService.start(req);
+        GbPlayUrlSigner.sign(result, actor, viewTokenSigner);
+        return Result.success(result);
     }
 
     @Operation(summary = "停止回放")

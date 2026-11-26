@@ -18,18 +18,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-/**
- * <p>设备注册成功后异步拉取 DeviceInfo 和 Catalog；
- * 间隔 500ms 避免设备瞬时处理压力，且 DeviceInfo 通常先到便于先填厂商型号。</p>
- *
- * <h3>防闪断</h3>
- * <p>设备闪断重连会反复触发 {@link DeviceOnlineEvent}。本类做两道防护：</p>
- * <ol>
- *   <li>先调 {@link CatalogDataCache#cancel} 抹掉可能残留的 in-flight 上下文（防老 sync 占 SN）</li>
- *   <li>走 {@link CatalogSyncStatusService#tryAcquire} Redis SETNX 锁（5 min TTL），
- *       挡住"5 分钟内重复触发"——锁由 {@code CatalogSyncProgressEvent} 非 RUNNING 状态时自动释放</li>
- * </ol>
- */
+// 设备闪断会反复触发上线，Catalog 用 Redis 锁挡住；DeviceInfo 和订阅不受这把锁影响。
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -47,7 +36,7 @@ public class DeviceOnlineEventListener {
     @Async("gb28181BizExecutor")
     @EventListener
     public void onDeviceOnline(DeviceOnlineEvent event) {
-        // 1) 先清残留的 in-flight sync：老 sync 占着 SN 不让位，新 sync 来了会被 startSync 丢
+        // 先清老同步，免得残留上下文还占着 SN
         catalogDataCache.cancel(event.getDeviceId());
 
         GbDevice device = deviceMapper.selectOne(
@@ -56,7 +45,6 @@ public class DeviceOnlineEventListener {
             return;
         }
 
-        // 2) DeviceInfo 查询不受 Catalog 同步锁影响，每次上线都发
         try {
             sipCommander.queryDeviceInfo(device);
             Thread.sleep(500);
@@ -66,7 +54,6 @@ public class DeviceOnlineEventListener {
             log.error("[设备上线] DeviceInfo 查询失败 deviceId={}", event.getDeviceId(), e);
         }
 
-        // 3) Catalog 同步走 Redis 锁，5 分钟内重复触发跳过
         boolean catalogStarted = false;
         if (catalogSyncStatusService.tryAcquire(event.getDeviceId())) {
             try {
@@ -83,10 +70,8 @@ public class DeviceOnlineEventListener {
                     event.getDeviceId(), event.isFirstTime());
         }
 
-        // 4) 启动目录订阅（不受 Catalog 锁影响，每次上线都尝试）
         catalogSubscribeManager.start(event.getDeviceId());
 
-        // 5) 级联 NOTIFY：向订阅了该设备的上级推单设备 Catalog NOTIFY
         notifyStatus(device);
     }
 

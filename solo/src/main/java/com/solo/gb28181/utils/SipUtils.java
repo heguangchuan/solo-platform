@@ -43,13 +43,7 @@ public class SipUtils {
         return null;
     }
 
-    /**
-     * 取设备/对端真实地址。
-     *
-     * NAT 场景下 From 头里的 IP 是内网的，没用，得用 Via 头的 received/rport 或者 socket 源地址。
-     * useSourceIpAsRemoteAddress=true 就直接取收包的源 IP/端口（更准），
-     * false 的话优先用 Via 头，拿不到再兜底到源地址。
-     */
+    // NAT 后 From 里的内网地址没用。默认拿收包源地址；关掉后才先看 Via 的 received/rport。
     public static RemoteAddressInfo getRemoteAddress(SIPRequest request, boolean useSourceIpAsRemoteAddress) {
         String ip;
         int port;
@@ -79,7 +73,6 @@ public class SipUtils {
         return new RemoteAddressInfo(ip, port);
     }
 
-    /** 来自请求顶层 Via 头的传输协议（UDP/TCP） */
     public static String getTransport(Request request) {
         if (request instanceof SIPRequest r) {
             ViaHeader via = r.getTopmostViaHeader();
@@ -88,14 +81,8 @@ public class SipUtils {
         return "UDP";
     }
 
-    // ---------------- Subject / SSRC ----------------
 
-    /**
-     * 从 Subject 头解析国标点播/回放语义的 channelId
-     * <p>Subject 格式：{@code <ChannelID>:<SSRC>,<RemoteID>:<SeqNum>}</p>
-     *
-     * @return 长度为 2 的数组：[0]=channelId，[1]=remoteId（可能为 null）
-     */
+    // Subject 长这样：channelId:ssrc,remoteId:seq；返回 [channelId, remoteId]。
     public static String[] getChannelIdFromSubject(Request request) {
         SubjectHeader subject = (Subject) request.getHeader("subject");
         if (subject == null) return null;
@@ -111,7 +98,6 @@ public class SipUtils {
         return result;
     }
 
-    // ---------------- 标识生成 ----------------
 
     public static String newViaTag() {
         return "z9hG4bK" + ThreadLocalRandom.current().nextInt(100_000_000, 999_999_999);
@@ -129,9 +115,7 @@ public class SipUtils {
         return String.valueOf(ThreadLocalRandom.current().nextInt(1_000_000_000));
     }
 
-    // ---------------- GB 编码 ----------------
 
-    /** 取设备 ID 的设备类型码（11-13 位） */
     public static int getTypeCodeFromGbCode(String deviceId) {
         if (deviceId == null || deviceId.length() < 13) return 0;
         try {
@@ -141,7 +125,6 @@ public class SipUtils {
         }
     }
 
-    /** 判断 GB 编码是否是前端设备（摄像机/IPC） */
     public static boolean isFrontEnd(String deviceId) {
         int type = getTypeCodeFromGbCode(deviceId);
         return type > 130 && type < 199;
@@ -153,16 +136,6 @@ public class SipUtils {
     }
 
     
-    /**
-     * 国标 PTZ 控制码计算
-     *
-     * @param leftRight 左移右移 0=停 1=左 2=右
-     * @param upDown    上移下移 0=停 1=上 2=下
-     * @param inOut     缩放    0=停 1=缩小 2=放大
-     * @param moveSpeed 移动速度 (0-255)
-     * @param zoomSpeed 缩放速度 (0-15)
-     * @return 8 字节 PTZ 控制码（16 进制大写串）
-     */
     public static String buildPtzCmd(int leftRight, int upDown, int inOut, int moveSpeed, int zoomSpeed) {
         int cmdCode = 0;
         if (leftRight == 2) cmdCode |= 0x01;       // 右
@@ -187,62 +160,26 @@ public class SipUtils {
         return b.toString();
     }
 
-    /**
-     * 设置预置位 PTZ 命令编码（告诉设备将当前位置保存到指定预置位槽）
-     * <p>国标规定：设置预置位时指令码为 0x81，预置位编号放在第 6 字节</p>
-     *
-     * @param presetId 预置位编号 (1-255)
-     * @return 8 字节 PTZ 控制码（16 进制大写串）
-     */
     public static String buildPtzSetPreset(int presetId) {
         return buildPtzPresetCmd(0x81, presetId);
     }
 
-    /**
-     * 调用预置位 PTZ 命令编码（告诉设备转到指定预置位）
-     * <p>国标规定：调用预置位时指令码为 0x82，预置位编号放在第 6 字节</p>
-     *
-     * @param presetId 预置位编号 (1-255)
-     * @return 8 字节 PTZ 控制码（16 进制大写串）
-     */
     public static String buildPtzCallPreset(int presetId) {
         return buildPtzPresetCmd(0x82, presetId);
     }
 
-    /**
-     * 删除预置位 PTZ 命令编码
-     * <p>国标规定：删除预置位时指令码为 0x83，预置位编号放在第 6 字节</p>
-     *
-     * @param presetId 预置位编号 (1-255)
-     * @return 8 字节 PTZ 控制码（16 进制大写串）
-     */
     public static String buildPtzDeletePreset(int presetId) {
         return buildPtzPresetCmd(0x83, presetId);
     }
 
-    /**
-     * 预置位 PTZ 命令编码（8 字节标准格式）
-     * <p>格式：A5 0F 01 [cmdCode] 00 [presetId] 00 [checksum]，预置位编号在第 6 字节</p>
-     *
-     * @param cmdCode  指令码：0x81=设置, 0x82=调用, 0x83=删除
-     * @param presetId 预置位编号 (1-255)
-     * @return 8 字节 PTZ 控制码（16 进制大写串）
-     */
+    // 0x81/82/83 = 设置/调用/删除；A5 0F 01 cmd 00 preset 00 checksum。
     private static String buildPtzPresetCmd(int cmdCode, int presetId) {
         int preset = presetId & 0xFF;
         int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + 0x00 + preset + 0x00) & 0xFF;
         return String.format("A50F01%02X00%02X00%02X", cmdCode, preset, checkCode);
     }
 
-    /**
-     * 聚焦控制 PTZ 命令编码
-     * <p>字节3组合码1：bit6=聚焦近(0x40)，bit7=聚焦远(0x80)</p>
-     * <p>字节7（第8字节）高4位=聚焦速度(0x00-0xF0)</p>
-     *
-     * @param direction 0=停 1=近 2=远
-     * @param focusSpeed 聚焦速度 (0-15)
-     * @return 8 字节 PTZ 控制码（16进制大写串）
-     */
+    // 方向 0停/1近/2远；速度 0-15，放在最后一个字节的高 4 位。
     public static String buildPtzFocusCmd(int direction, int focusSpeed) {
         int cmdCode = 0;
         if (direction == 1) cmdCode |= 0x40;    // 聚焦近
@@ -254,15 +191,7 @@ public class SipUtils {
     }
 
 
-    /**
-     * 光圈控制 PTZ 命令编码
-     * <p>字节4（第5字节）组合码2：bit0=光圈大(0x01)，bit1=光圈小(0x02)</p>
-     * <p>字节7（第8字节）低4位=光圈速度(0x00-0x0F)</p>
-     *
-     * @param direction 0=停 1=大(开) 2=小(关)
-     * @param irisSpeed 光圈速度 (0-15)
-     * @return 8 字节 PTZ 控制码（16进制大写串）
-     */
+    // 方向 0停/1大/2小；速度 0-15，放在最后一个字节的低 4 位。
     public static String buildPtzIrisCmd(int direction, int irisSpeed) {
         int cmdCode2 = 0;
         if (direction == 1) cmdCode2 |= 0x01;   // 光圈大
@@ -273,79 +202,44 @@ public class SipUtils {
         return String.format("A50F0100%02X00%02X%02X", cmdCode2, irisByte, checkCode);
     }
 
-    /**
-     * 雨刷控制 PTZ 命令编码
-     * <p>走辅助开关指令，使用扩展字节</p>
-     *
-     * @param on true=开 false=关
-     * @return 8 字节 PTZ 控制码（16进制大写串）
-     */
     public static String buildPtzWiperCmd(boolean on) {
         int cmd = on ? 0x0B : 0x0C;
         int checkCode = (0xA5 + 0x0F + 0x01 + cmd + 0x00 + 0x00 + 0x00) & 0xFF;
         return String.format("A50F01%02X000000%02X", cmd, checkCode);
     }
 
-    /**
-     * 添加巡航点
-     * <p>指令码 0x84：byte3=cruiseId, byte4=presetId, byte5=组合码(0)；
-     * 停留时间由 0x87 单独下发，不在本指令携带</p>
-     */
+    // 0x84 不携带停留时间，得另发 0x87。
     public static String buildPtzCruiseAddPoint(int cruiseId, int presetId, int staySeconds) {
         return buildPtzCruiseCmd(0x84, cruiseId & 0xFF, presetId & 0xFF, 0x00);
     }
 
-    /**
-     * 删除巡航点
-     * <p>指令码 0x85：byte3=cruiseId, byte4=presetId</p>
-     */
     public static String buildPtzCruiseRemovePoint(int cruiseId, int presetId) {
         return buildPtzCruiseCmd(0x85, cruiseId & 0xFF, presetId & 0xFF, 0x00);
     }
 
-    /**
-     * 设置巡航速度
-     * <p>指令码 0x86：byte3=cruiseId, byte4=speed(1~255)</p>
-     */
     public static String buildPtzCruiseSetSpeed(int cruiseId, int speed) {
         return buildPtzCruiseCmd(0x86, cruiseId & 0xFF, speed & 0xFF, 0x00);
     }
 
-    /**
-     * 设置巡航停留时间
-     * <p>指令码 0x87：byte3=cruiseId, byte4=staySeconds</p>
-     */
     public static String buildPtzCruiseSetStay(int cruiseId, int staySeconds) {
         return buildPtzCruiseCmd(0x87, cruiseId & 0xFF, staySeconds & 0xFF, 0x00);
     }
 
-    /**
-     * 开始巡航
-     * <p>指令码 0x88：byte3=cruiseId</p>
-     */
     public static String buildPtzCruiseStart(int cruiseId) {
         return buildPtzCruiseCmd(0x88, cruiseId & 0xFF, 0x00, 0x00);
     }
 
-    /**
-     * 停止巡航
-     * <p>指令码 0x89：byte3=cruiseId</p>
-     */
     public static String buildPtzCruiseStop(int cruiseId) {
         return buildPtzCruiseCmd(0x89, cruiseId & 0xFF, 0x00, 0x00);
     }
 
-    /**
-     * 巡航扩展指令通用构造
-     * <p>格式：A5 0F 01 [cmd] [byte3] [byte4] [byte5] [checksum]</p>
-     */
+    // 巡航指令统一是 A5 0F 01 cmd b3 b4 b5 checksum。
     private static String buildPtzCruiseCmd(int cmdCode, int b3, int b4, int b5) {
         int checkCode = (0xA5 + 0x0F + 0x01 + cmdCode + b3 + b4 + b5) & 0xFF;
         return String.format("A50F01%02X%02X%02X%02X%02X", cmdCode, b3, b4, b5, checkCode);
     }
 
 
-    /** 设备远端地址（IP+Port） */
     public record RemoteAddressInfo(String ip, int port) {
         public String hostAddress() { return ip + ":" + port; }
     }

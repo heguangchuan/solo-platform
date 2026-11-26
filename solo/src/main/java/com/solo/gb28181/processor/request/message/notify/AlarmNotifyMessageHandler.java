@@ -17,42 +17,7 @@ import org.springframework.stereotype.Component;
 import javax.sip.RequestEvent;
 import java.time.LocalDateTime;
 
-/**
- * <h3>报文结构</h3>
- * <pre>
- * &lt;Notify&gt;
- *   &lt;CmdType&gt;Alarm&lt;/CmdType&gt;
- *   &lt;SN&gt;...&lt;/SN&gt;
- *   &lt;DeviceID&gt;通道国标ID&lt;/DeviceID&gt;     &lt;!-- 国标规定设备报警中 DeviceID 字段是通道 ID --&gt;
- *   &lt;AlarmPriority&gt;1&lt;/AlarmPriority&gt;     &lt;!-- 1~4 --&gt;
- *   &lt;AlarmMethod&gt;5&lt;/AlarmMethod&gt;         &lt;!-- 可组合: 1..7 --&gt;
- *   &lt;AlarmTime&gt;2024-01-15T14:30:00&lt;/AlarmTime&gt;
- *   &lt;AlarmDescription&gt;...&lt;/AlarmDescription&gt;
- *   &lt;Longitude&gt;...&lt;/Longitude&gt;          &lt;!-- 可选 --&gt;
- *   &lt;Latitude&gt;...&lt;/Latitude&gt;            &lt;!-- 可选 --&gt;
- *   &lt;Info&gt;                              &lt;!-- 可选，alarmMethod=2/5/6 时携带 --&gt;
- *     &lt;AlarmType&gt;1&lt;/AlarmType&gt;
- *   &lt;/Info&gt;
- * &lt;/Notify&gt;
- * </pre>
- *
- * <h3>职责</h3>
- * <ol>
- *   <li>解析 XML 字段填进 {@link DeviceAlarm} DTO</li>
- *   <li>发布 {@link AlarmEvent}，由 {@link com.solo.gb28181.event.alarm.AlarmEventListener} 异步处理</li>
- *   <li>不落库（按当前 Sprint 决定），不推 SSE / 企微（后续 Sprint 补）</li>
- * </ol>
- *
- * <h3>来源分支</h3>
- * <ul>
- *   <li>下级设备上报：{@link #handleForDevice}，deviceId 取 SIP From 头</li>
- *   <li>上级平台转发：{@link #handleForPlatform}，deviceId 取平台 serverGbId</li>
- * </ul>
- *
- * <h3>200 OK 答复</h3>
- * <p>由 {@code MessageRequestProcessor} 在分发前统一回，本类不再自行 {@code responseAck}，
- * 避免与处理器的 ackQuietly 重复发 200 导致设备误判。</p>
- */
+// 200 OK 已在 MessageRequestProcessor 回过，这里别再 responseAck，重复回包容易把设备搞糊涂。
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -76,7 +41,6 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         if (alarm == null) {
             return;
         }
-        // 设备侧：SIP From 头才是设备 ID，报文里的 DeviceID 是通道
         alarm.setDeviceId(device.getDeviceId());
         publishEvent(alarm);
     }
@@ -87,19 +51,14 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         if (alarm == null) {
             return;
         }
-        // 平台侧：deviceId 用平台 serverGbId 标识来源平台
         alarm.setDeviceId(platform.getServerGbId());
         publishEvent(alarm);
     }
 
-    // ============================================================
-    // 解析
-    // ============================================================
 
     private DeviceAlarm parse(Element root) {
         DeviceAlarm alarm = new DeviceAlarm();
 
-        // DeviceID 在国标报警中是通道 ID（设备报警的"谁"指通道而非设备）
         String channelId = XmlUtils.childText(root, "DeviceID");
         alarm.setChannelId(channelId);
 
@@ -109,7 +68,7 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         alarm.setAlarmMethod(method);
         alarm.setAlarmMethodDesc(resolveMethodDesc(method));
 
-        // AlarmTime 必填，缺则整条报警丢弃（无时间戳的告警没意义）
+        // 没时间的报警没法用
         String time = XmlUtils.childText(root, "AlarmTime");
         if (time == null || time.isEmpty()) {
             log.warn("[报警通知] 缺少 AlarmTime，跳过 channelId={}", channelId);
@@ -124,7 +83,6 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
 
         alarm.setAlarmDescription(XmlUtils.childText(root, "AlarmDescription"));
 
-        // 经纬度：可选项，缺则留空
         String lng = XmlUtils.childText(root, "Longitude");
         String lat = XmlUtils.childText(root, "Latitude");
         if (lng != null && !lng.isEmpty()) {
@@ -141,7 +99,6 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
             }
         }
 
-        // AlarmType 子码：仅 alarmMethod=2/5/6 时 Info/AlarmType 才有意义
         Element info = root.element("Info");
         if (info != null) {
             alarm.setAlarmType(XmlUtils.childText(info, "AlarmType"));
@@ -151,10 +108,6 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         return alarm;
     }
 
-    /**
-     * 报警方式 code 可组合（如 "12" = 电话+设备），逐位翻译成中文描述。
-     * 解析失败或空返回空串，不抛异常。
-     */
     private String resolveMethodDesc(String code) {
         if (code == null || code.isEmpty()) {
             return "";
@@ -177,18 +130,12 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         return sb.toString();
     }
 
-    /**
-     * 解析 GB/T 28181 ISO8601 时间。海康/大华偶尔带毫秒或时区后缀，先剥再解析。
-     *
-     * @return 解析失败返回 null
-     */
+    // 海康/大华可能带毫秒、时区，甚至用空格替 T，能剥就先剥。
     private LocalDateTime parseTime(String s) {
-        // 标准格式：YYYY-MM-DDTHH:mm:ss
         try {
             return LocalDateTime.parse(s);
         } catch (Exception ignored) {
         }
-        // 带毫秒：YYYY-MM-DDTHH:mm:ss.SSS
         try {
             return LocalDateTime.parse(s.substring(0, Math.min(s.length(), 23)));
         } catch (Exception ignored) {
@@ -204,15 +151,11 @@ public class AlarmNotifyMessageHandler extends SipRequestProcessorBase implement
         return null;
     }
 
-    // ============================================================
-    // 事件发布
-    // ============================================================
 
     private void publishEvent(DeviceAlarm alarm) {
         try {
             eventPublisher.publishEvent(new AlarmEvent(this, alarm));
         } catch (Exception e) {
-            // 事件发布失败不影响 SIP 处理主链路——报警是 best-effort
             log.error("[报警通知] 发布 AlarmEvent 失败 channelId={} err={}",
                     alarm.getChannelId(), e.getMessage());
         }

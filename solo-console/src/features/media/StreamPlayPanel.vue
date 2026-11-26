@@ -19,11 +19,26 @@
 
     <!-- 播放器（jessibuca） -->
     <div class="aspect-video overflow-hidden rounded-md bg-black">
-      <GbPlayer v-if="playUrl" :src="playUrl" :video-buffer="0.2" />
+      <GbPlayer
+        v-if="playUrl"
+        :src="playUrl"
+        :video-buffer="0.2"
+        @error="onPlaybackFailure"
+        @timeout="onPlaybackFailure"
+        @stream-end="onPlaybackFailure"
+      />
       <div v-else class="grid h-full place-items-center text-xs text-white/60">
         <div class="flex flex-col items-center gap-2">
           <IconLoader2 v-if="loading" class="size-5 animate-spin" />
-          <span>{{ loading ? '正在获取播放地址…' : '未获取到可用的播放地址' }}</span>
+          <span>{{ loading ? '正在获取播放地址…' : failed ? '播放失败，请重新获取地址' : '未获取到可用的播放地址' }}</span>
+          <button
+            v-if="failed && !loading"
+            type="button"
+            class="rounded border border-white/20 px-3 py-1 text-white/80 hover:bg-white/10"
+            @click="loadUrls"
+          >
+            重新获取地址
+          </button>
         </div>
       </div>
     </div>
@@ -46,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { toast } from '@/lib/toast'
 import { IconCopy, IconLoader2, IconX } from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
@@ -69,7 +84,9 @@ const props = withDefaults(
 const emit = defineEmits<{ close: [] }>()
 
 const loading = ref(false)
+const failed = ref(false)
 const info = ref<StreamPlayUrl | null>(null)
+let loadSequence = 0
 
 const title = computed(() => `${props.target.app}/${props.target.stream}`)
 
@@ -78,7 +95,7 @@ const toWss = (url?: string) =>
 
 const urls = computed(() => {
   const u = info.value
-  if (!u) return []
+  if (!u || failed.value) return []
   return [
     { label: 'WS-FLV', url: toWss(u.wsFlvUrl) },
     { label: 'HTTP-FLV', url: u.flvUrl },
@@ -90,25 +107,36 @@ const urls = computed(() => {
 /** jessibuca 播放地址：优先 WS-FLV，退化为 HTTP-FLV */
 const playUrl = computed(() => {
   const u = info.value
-  if (!u) return ''
+  if (!u || failed.value) return ''
   return toWss(u.wsFlvUrl) || u.flvUrl || ''
 })
 
 const loadUrls = async () => {
+  const sequence = ++loadSequence
   loading.value = true
+  failed.value = false
   info.value = null
   try {
     const res =
       props.kind === 'proxy'
         ? await getStreamProxyPlayUrlsApi(props.target.id)
         : await getStreamPushPlayUrlsApi(props.target.id)
-    info.value = res.data
+    if (sequence === loadSequence) info.value = res.data
+  } catch {
+    if (sequence === loadSequence) failed.value = true
   } finally {
-    loading.value = false
+    if (sequence === loadSequence) loading.value = false
   }
 }
 
+const onPlaybackFailure = () => {
+  failed.value = true
+}
+
 watch(() => props.target.id, loadUrls, { immediate: true })
+onBeforeUnmount(() => {
+  loadSequence++
+})
 
 const copy = async (text: string) => {
   try {

@@ -13,6 +13,7 @@ import com.solo.gb28181.service.impl.CascadeSendService;
 import com.solo.gb28181.service.impl.GbBroadcastService;
 import com.solo.media.entity.MediaServer;
 import com.solo.media.entity.GbViewRecord;
+import com.solo.media.entity.StreamProxy;
 import com.solo.media.entity.StreamPush;
 import com.solo.media.entity.StreamPushClient;
 import com.solo.media.mapper.GbMediaServerMapper;
@@ -22,6 +23,7 @@ import com.solo.media.service.GbViewRecordService;
 import com.solo.media.service.MediaServerLoader;
 import com.solo.media.service.StreamProxyService;
 import com.solo.media.service.StreamPushService;
+import com.solo.media.support.PlayTarget;
 import com.solo.media.support.ViewTokenSigner;
 import com.solo.onvif.service.OnvifPlayService;
 import lombok.RequiredArgsConstructor;
@@ -29,36 +31,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 
-/**
- * <h3>职责</h3>
- * <ul>
- *   <li>消息字段解析（{@code stringOf / booleanOf}）</li>
- *   <li>按 streamId / 推流事件 / 服务事件等路由到对应业务 service</li>
- *   <li>节点级状态写回（status / hookAliveTime）：本类直接走 {@link GbMediaServerMapper}，
- *       不经 {@code MediaServerService}，避免 service-in-service</li>
- * </ul>
- *
- * <p>所有方法接收 ZLM 原始 body，返回 {@link HookResult}。Secret 校验由 {@link ZlmHookController}
- * 统一负责，业务方法内无需再判。</p>
- *
- * <h3>响应约定</h3>
- * <p>业务异常一律用日志承担并返 {@code code=0}，避免 ZLM 因 4xx/5xx 反复重试。</p>
- *
- * <h3>依赖说明</h3>
- * <p>本类作为 ZLM Hook 入口的编排层，<b>必须</b>调下列业务方法，因此直接依赖这些 service
- * （按项目规则，service 互相依赖的"业务编排"场景以"职责拆分不消解"为由允许，但应尽量集中到
- * 这种唯一编排点而非散落到多处）。每个 service 保留的业务调用点都注释了用途：</p>
- * <ul>
- *   <li>{@link GbInviteSessionService#getByStreamId} — 流级事件按 streamId 反查会话类型</li>
- *   <li>{@link GbPlayService} / {@link GbPlaybackService} — 实时 / 回放会话生命周期回调</li>
- *   <li>{@link StreamPushService} — 推流入表 + 推流兜底</li>
- *   <li>{@link CascadeSendService#onSendRtpStopped} — 级联推流异常断开清理</li>
- *   <li>{@link GbBroadcastService} — 语音广播推流异常断开清理（广播流在其他钩子中直接忽略/保活）</li>
- *   <li>{@link GbViewRecordService} — on_play 开观看记录、on_flow_report 闭合，流断/无人观看兜底</li>
- * </ul>
- */
+// secret 在 Controller 验过了。普通业务异常仍回 code=0，免得 ZLM 一直重试；鉴权失败不能这么放。
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -81,8 +57,8 @@ public class ZlmHookService {
     private final OnvifPlayService onvifPlayService;
     private final GbViewRecordService viewRecordService;
     private final ViewTokenSigner viewTokenSigner;
+    private final InternalPlayAuthorizer internalPlayAuthorizer;
 
-    // ============ 服务级 ============
 
     public HookResult onServerKeepalive(Map<String, Object> body) {
         String serverId = stringOf(body, "mediaServerId");
@@ -90,9 +66,7 @@ public class ZlmHookService {
             log.warn("[ZLM 回调] on_server_keepalive 缺少 mediaServerId: {}", body);
             return HookResult.ok();
         }
-        // 节点首次触达入负载索引（addIfAbsent，已存在不刷分数）
         loadIndex.onNodeOnline(serverId);
-        // 与 MediaServerService.keepalive 等价：直接走 update 一次性更新避免 select-then-update
         int rows = mediaServerMapper.update(null, new LambdaUpdateWrapper<MediaServer>()
                 .eq(MediaServer::getServerId, serverId)
                 .set(MediaServer::getStatus, 1)
@@ -108,7 +82,6 @@ public class ZlmHookService {
         log.info("[ZLM 回调] on_server_started serverId={}", serverId);
         if (serverId == null) return HookResult.ok();
 
-        // 节点首次触达入负载索引（即使节点在管理面已存在，也要确保入索引）
         loadIndex.onNodeOnline(serverId);
 
         MediaServer exist = mediaServerMapper.selectOne(
@@ -120,14 +93,11 @@ public class ZlmHookService {
             exist.setHookAliveTime(LocalDateTime.now());
             mediaServerMapper.updateById(exist);
         }
-        // ZLM 重启：该节点下所有 INVITE 会话都已死；GbPlayService 的 onStreamStopped 会按需清扫
-        // 推流表兜底同步：ZLM 上没有的 push 行删掉
         try {
             streamPushService.reconcileWithZlm(serverId);
         } catch (Exception e) {
             log.warn("[ZLM 回调] on_server_started 推流兜底同步异常 serverId={} err={}", serverId, e.getMessage());
         }
-        // 拉流代理兜底：ZLM 重启后所有 addStreamProxy 创建的流都没了，对账后标 status=0 + lastError
         try {
             streamProxyService.reconcileWithZlm(serverId);
         } catch (Exception e) {
@@ -136,18 +106,23 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
-    // ============ 流级 ============
 
     public HookResult onPlay(Map<String, Object> body) {
         String id = stringOf(body, "id");
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
-        log.info("[ZLM 回调] on_play id={} app={} stream={}", id, app, stream);
-        try {
-            // 记观看账，认不出人（没令牌/验签失败/ZLM 内部读者）就跳过，播放一律放行
-            viewRecordService.openRecord(buildViewRecord(body, id, app, stream));
-        } catch (Exception e) {
-            log.warn("[ZLM 回调] on_play 观看记录落库失败 stream={} err={}", stream, e.getMessage());
+        log.info("[ZLM 回调] on_play id={} app={} stream={} schema={}", id, app, stream, stringOf(body, "schema"));
+        PlayAuthorization authorization = authorizePlay(body);
+        if (authorization == null) {
+            return rejectPlay(body);
+        }
+        if (!authorization.internalReader() && mediaProperties.getViewRecord().isEnabled()) {
+            try {
+                // 观看记录写失败别影响已经通过的播放
+                viewRecordService.openRecord(buildViewRecord(body, id, authorization.token()));
+            } catch (Exception e) {
+                log.warn("[ZLM 回调] on_play 观看记录落库失败 stream={} err={}", stream, e.getMessage());
+            }
         }
         return HookResult.ok();
     }
@@ -174,15 +149,80 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
-    /** 按 wt 令牌认人，拼一条观看中记录；没有有效令牌返 null */
-    private GbViewRecord buildViewRecord(Map<String, Object> body, String id, String app, String stream) {
-        if (id == null || stream == null) {
+    // HLS 的 ts/m4s 等文件也得带同一枚 wt，不能只守住 m3u8
+    public HookResult onHttpAccess(Map<String, Object> body) {
+        String path = stringOf(body, "path");
+        if (hasHlsSuffix(path) && (path.indexOf('\\') >= 0 || path.contains(".."))) {
+            return rejectPlay(body);
+        }
+        HlsPathTarget target = liveHlsTarget(path);
+        if (target == null) {
+            return HookResult.ok();
+        }
+        String mediaServerId = stringOf(body, "mediaServerId");
+        String wt = parseParam(stringOf(body, "params"), ViewTokenSigner.PARAM);
+        try {
+            // record 也能被用户拿来当直播 app，确认不是直播后才按录像文件放行
+            if (target.recordPath() && !isLiveRecordApp(target.stream(), mediaServerId)) {
+                return HookResult.ok();
+            }
+            if (mediaServerId == null || mediaServerId.isBlank() || wt == null || wt.isBlank()
+                    || viewTokenSigner.verify(wt, PlayTarget.hls(mediaServerId, target.app(), target.stream())) == null) {
+                return rejectPlay(body);
+            }
+        } catch (Exception e) {
+            log.warn("[播放鉴权] HLS 文件校验异常，按拒绝处理 path={} err={}",
+                    stringOf(body, "path"), e.getMessage());
+            return rejectPlay(body);
+        }
+        return HookResult.ok();
+    }
+
+    private HlsPathTarget liveHlsTarget(String path) {
+        if (!hasHlsSuffix(path)) {
             return null;
         }
-        String wt = parseParam(stringOf(body, "params"), ViewTokenSigner.PARAM);
-        ViewTokenSigner.ViewToken token = viewTokenSigner.verify(wt, stream);
-        if (token == null) {
-            log.info("[ZLM 回调] on_play 无有效观看令牌，跳过记录 stream={}", stream);
+        String cleanPath = path.split("\\?", 2)[0].replaceAll("/+", "/");
+        String[] segments = cleanPath.startsWith("/") ? cleanPath.substring(1).split("/") : cleanPath.split("/");
+        if (segments.length < 3 || segments[0].isBlank() || segments[1].isBlank()) {
+            return null;
+        }
+        return new HlsPathTarget(segments[0], segments[1], "record".equalsIgnoreCase(segments[0]));
+    }
+
+    private boolean isLiveRecordApp(String stream, String mediaServerId) {
+        if (mediaServerId == null || mediaServerId.isBlank()) {
+            return true;
+        }
+        long proxies = streamProxyService.count(new LambdaQueryWrapper<StreamProxy>()
+                .eq(StreamProxy::getApp, "record")
+                .eq(StreamProxy::getStream, stream)
+                .eq(StreamProxy::getMediaServerId, mediaServerId)
+                .eq(StreamProxy::getStatus, 1));
+        if (proxies > 0) {
+            return true;
+        }
+        // stream_push 只保存当前活动推流，注销时会删除记录。
+        return streamPushService.count(new LambdaQueryWrapper<StreamPush>()
+                .eq(StreamPush::getApp, "record")
+                .eq(StreamPush::getStream, stream)
+                .eq(StreamPush::getMediaServerId, mediaServerId)) > 0;
+    }
+
+    private static boolean hasHlsSuffix(String path) {
+        if (path == null || path.isBlank()) {
+            return false;
+        }
+        String lowerPath = path.split("\\?", 2)[0].toLowerCase(java.util.Locale.ROOT);
+        return lowerPath.endsWith(".m3u8") || lowerPath.endsWith(".ts")
+                || lowerPath.endsWith(".m4s") || lowerPath.endsWith(".mp4");
+    }
+
+    private record HlsPathTarget(String app, String stream, boolean recordPath) {
+    }
+
+    private GbViewRecord buildViewRecord(Map<String, Object> body, String id, ViewTokenSigner.ViewToken token) {
+        if (id == null) {
             return null;
         }
         GbViewRecord record = new GbViewRecord();
@@ -190,14 +230,14 @@ public class ZlmHookService {
         record.setActorType(token.actorType());
         record.setActorId(token.actorId());
         record.setActorName(token.actorName());
-        record.setStreamId(stream);
-        record.setApp(app);
-        record.setStreamSchema(stringOf(body, "schema"));
+        record.setStreamId(token.streamId());
+        record.setApp(token.app());
+        record.setStreamSchema(token.schema());
         record.setClientIp(stringOf(body, "ip"));
-        record.setMediaServerId(stringOf(body, "mediaServerId"));
+        record.setMediaServerId(token.mediaServerId());
         record.setStartTime(LocalDateTime.now());
         // 设备/通道从点播会话补；查不到（外部推流的播放）就留空，流维度的统计不受影响
-        GbInviteSession session = inviteSessionService.getByStreamId(stream);
+        GbInviteSession session = inviteSessionService.getByStreamId(token.streamId());
         if (session != null) {
             record.setDeviceId(session.getDeviceId());
             record.setChannelId(session.getChannelId());
@@ -205,29 +245,112 @@ public class ZlmHookService {
         return record;
     }
 
+    private PlayAuthorization authorizePlay(Map<String, Object> body) {
+        try {
+            return doAuthorizePlay(body);
+        } catch (Exception e) {
+            // Redis、密钥或报文出错也拒绝，不能让异常变成放行
+            log.warn("[播放鉴权] 校验异常，按拒绝处理 server={} app={} stream={} err={}",
+                    stringOf(body, "mediaServerId"), stringOf(body, "app"), stringOf(body, "stream"), e.getMessage());
+            return null;
+        }
+    }
+
+    private PlayAuthorization doAuthorizePlay(Map<String, Object> body) {
+        String id = stringOf(body, "id");
+        String mediaServerId = stringOf(body, "mediaServerId");
+        String app = stringOf(body, "app");
+        String stream = stringOf(body, "stream");
+        String schema = stringOf(body, "schema");
+        if (isAnyBlank(mediaServerId, app, stream, schema)) {
+            return null;
+        }
+        String wt = parseParam(stringOf(body, "params"), ViewTokenSigner.PARAM);
+        if (wt == null || wt.isBlank()) {
+            return internalPlayAuthorizer.isAuthorized(id, mediaServerId, app, stream, schema)
+                    ? PlayAuthorization.internal() : null;
+        }
+        ViewTokenSigner.ViewToken token = verifyPlayToken(wt, mediaServerId, app, stream, schema,
+                stringOf(body, "protocol"));
+        return token == null ? null : PlayAuthorization.external(token);
+    }
+
+    private ViewTokenSigner.ViewToken verifyPlayToken(String wt, String mediaServerId, String app,
+                                                       String stream, String schema, String protocol) {
+        if (PlayTarget.SCHEMA_RTMP.equalsIgnoreCase(schema) && (protocol == null || protocol.isBlank())) {
+            // 这版 ZLM 的 FLV 回调不给 protocol，只能按 HTTP/WS 两种目标验，别当成报文异常
+            return viewTokenSigner.verifyAny(wt, List.of(
+                    PlayTarget.httpFlv(mediaServerId, app, stream),
+                    PlayTarget.wsFlv(mediaServerId, app, stream)));
+        }
+        return viewTokenSigner.verify(wt, new PlayTarget(mediaServerId, app, stream, schema, protocol));
+    }
+
+    private HookResult rejectPlay(Map<String, Object> body) {
+        logPlayReject(body);
+        return HookResult.rejectPlay("play unauthorized");
+    }
+
+    private HookResult rejectStreamNotFound(Map<String, Object> body) {
+        logPlayReject(body);
+        return HookResult.closeNotFoundStream("play unauthorized");
+    }
+
+    private void logPlayReject(Map<String, Object> body) {
+        log.warn("[播放鉴权] 拒绝播放 server={} app={} stream={} schema={} ip={}",
+                stringOf(body, "mediaServerId"), stringOf(body, "app"), stringOf(body, "stream"),
+                stringOf(body, "schema"), stringOf(body, "ip"));
+    }
+
+    private static boolean isAnyBlank(String... values) {
+        for (String value : values) {
+            if (value == null || value.isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record PlayAuthorization(ViewTokenSigner.ViewToken token, boolean internalReader) {
+        private static PlayAuthorization external(ViewTokenSigner.ViewToken token) {
+            return new PlayAuthorization(token, false);
+        }
+
+        private static PlayAuthorization internal() {
+            return new PlayAuthorization(null, true);
+        }
+    }
+
     public HookResult onStreamNotFound(Map<String, Object> body) {
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
         String mediaServerId = stringOf(body, "mediaServerId");
-        log.info("[ZLM 回调] on_stream_not_found app={} stream={}", app, stream);
+        log.info("[ZLM 回调] on_stream_not_found app={} stream={} schema={}",
+                app, stream, stringOf(body, "schema"));
 
-        // autoApplyPlay 开启时，流不存在自动发起点播
-        if (mediaProperties.isAutoApplyPlay()) {
-            // streamId 格式: 主码流 {deviceId}_{channelId}（与前端点播一致）；
-            // 子码流为 {deviceId}_{channelId}_{sanitize(码流token)}，其后缀经过 sanitize 不可逆推回原始
-            // 厂商 token，故按需拉流只对主码流生效；子码流靠前端显式 start（带 token）拉起，此处跳过。
-            String[] parts = stream == null ? null : stream.split("_");
-            if (parts != null && parts.length == 2) {
+        PlayAuthorization authorization = authorizePlay(body);
+        if (authorization == null) {
+            return rejectStreamNotFound(body);
+        }
+        // 内部 reader 能读已有源，但不能借这个 hook 去 INVITE 设备
+        if (authorization.internalReader()) {
+            return HookResult.ok();
+        }
+
+        // 只给国标主码流做按需点播
+        if (mediaProperties.isAutoApplyPlay() && "rtp".equals(app)) {
+            // 主码流名是 deviceId_channelId；子码流后缀反推不回厂商 token，只能让前端显式 start
+            String[] parts = stream.split("_");
+            if (parts.length == 2) {
                 String deviceId = parts[0];
                 String channelId = parts[1];
-                log.info("[ZLM 回调] on_stream_not_found 自动发起点播 deviceId={} channelId={}", deviceId, channelId);
-                // 异步发起点播，不阻塞 ZLM 回调
+                log.info("[ZLM 回调] on_stream_not_found 已鉴权，自动发起点播 deviceId={} channelId={}", deviceId, channelId);
+                // 异步拉流，别卡住 ZLM 回调
                 playService.autoStartPlay(deviceId, channelId, mediaServerId);
-            } else if (parts != null && parts.length > 2) {
-                log.info("[ZLM 回调] on_stream_not_found 子码流流名 stream={}，按需拉流跳过（需前端带 token 显式点播）", stream);
+            } else if (parts.length > 2) {
+                log.info("[ZLM 回调] on_stream_not_found 子码流流名 stream={}，按需拉流跳过（需前端显式点播）", stream);
             }
         }
-        // 默认：允许 pull，autoApplyPlay 已经异步处理，ZLM 等待推送即可
         return HookResult.ok();
     }
 
@@ -237,12 +360,10 @@ public class ZlmHookService {
         String app = stringOf(body, "app");
         String stream = stringOf(body, "stream");
 
-        // ============ 推流鉴权 ============
-        // 国标 rtp / 广播 / 对讲 是平台自己触发的推流，不需要 token；其他外部推流才校验。
+        // rtp/broadcast/talk 是平台自己发起的，其他 app 才查推流 token
         boolean isPlatformInternalApp = "rtp".equals(app) || "broadcast".equals(app) || "talk".equals(app);
         if (mediaProperties.isPushAuthEnabled() && !isPlatformInternalApp) {
             String token = parseParam(stringOf(body, "params"), "token");
-            // 与 StreamPushClientServiceImpl.authenticate 等价：token + enabled=1 才放行
             String clientId = authenticate(token);
             if (clientId == null) {
                 log.warn("[推流鉴权] 拒绝 app={} stream={} ip={} tokenPrefix={} 原因={}",
@@ -267,7 +388,7 @@ public class ZlmHookService {
             }
             return HookResult.ok();
         }
-        // ZLM 对每个派生 schema 都会触发一次（ts/rtsp/rtmp/fmp4），业务侧只需处理一次：固定取 rtsp
+        // 同一路流的 ts/rtsp/rtmp/fmp4 都会各调一次，这里只处理 rtsp，别重复计数
         if (!"rtsp".equalsIgnoreCase(schema)) return HookResult.ok();
 
         Boolean regist = booleanOf(body, "regist");
@@ -281,9 +402,7 @@ public class ZlmHookService {
             loadIndex.onStreamArrival(mediaServerId);
         } else if (Boolean.FALSE.equals(regist)) {
             loadIndex.onStreamDeparture(mediaServerId);
-            // ONVIF 流自然结束（无人观看主路径 / RTSP 源异常断开非正常路径）→ 清 Redis 记账。
-            // 无人观看主路径下 ZLM 已经内部 delStreamProxy；非正常路径下代理早就没了，都不需要
-            // 再调 delStreamProxy，只删 key 即可。
+            // ONVIF 到这时代理已经没了，只清 Redis，别再调 delStreamProxy
             if (onvifPlayService.isOnvifStream(app, stream)) {
                 try {
                     onvifPlayService.cleanupByStreamId(stream);
@@ -294,18 +413,10 @@ public class ZlmHookService {
         }
 
         try {
-            // 按 streamId 反查 session.sessionType 路由到对应业务：
-            //  - DOWNLOAD → 录像下载（GbDownloadService）走 MP4 录制 + MinIO 落库
-            //  - RECORD   → 云端录像（GbCloudRecordService）走 startRecord/断流清扫
-            //  - PLAYBACK → 历史回放（GbPlaybackService）走流就绪补 URL
-            //  - PLAY     → 实时点播（GbPlayService）走流就绪补 URL
-            //  - null     → 找不到 session（流已被清扫 / 外部推流），按实时点播兜底；
-            //               业务 service 内部若再 get 不到会无副作用返回。
-            //               switch 对 null 会 String.hashCode() 抛 NPE，所以必须先判空。
             String sessionType = sessionTypeOf(stream);
             if (Boolean.TRUE.equals(regist)) {
                 if (sessionType == null) {
-                    // 级联喊话源流 / 对讲设备回传流都是 rtp/recv_*（不在点播会话里），归广播 service 管；其余外部推流按实时点播兜底
+                    // rtp/recv_* 不在点播会话里，是对讲回传流
                     if (gbBroadcastService.ownsStream(app, stream)
                             || gbBroadcastService.ownsRecvStream(app, stream)) {
                         gbBroadcastService.onStreamReady(app, stream, mediaServerId);
@@ -320,7 +431,6 @@ public class ZlmHookService {
                         default -> playService.onStreamReady(app, stream, mediaServerId);
                     }
                 }
-                // 推流入表：仅当 originType∈PUSH 时，StreamPushService 内部会再判一次
                 streamPushService.onStreamRegister(app, stream, mediaServerId, body);
             } else {
                 if (sessionType == null) {
@@ -406,7 +516,7 @@ public class ZlmHookService {
         String streamId = stringOf(body, "stream_id");
         log.warn("[ZLM 回调] on_rtp_server_timeout stream_id={}", streamId);
         try {
-            // 找不到 session 时直接走实时点播兜底，避免 switch(null) 触发 String.hashCode() NPE
+            // sessionType 为空时先走默认分支，别直接 switch(null)
             String sessionType = sessionTypeOf(streamId);
             if (sessionType == null) {
                 playService.onRtpServerTimeout(streamId);
@@ -451,7 +561,6 @@ public class ZlmHookService {
             log.info("[ZLM 回调] on_record_mp4 无 session，跳过 stream={}", stream);
             return HookResult.ok();
         }
-        // 按会话类型路由：下载走下载业务，云端录像走录像中心
         try {
             String type = session.getSessionType();
             if (GbInviteSession.TYPE_DOWNLOAD.equals(type)) {
@@ -467,10 +576,7 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
-    /**
-     * TS 切片录像回调：平台只消费 MP4（on_record_mp4），这里仅应答成功，不落任何业务。
-     * ZLM 侧若开启了 TS 录制会周期性回调，缺这个端点会刷 NoResourceFoundException。
-     */
+    // 只用 MP4；TS 回调也得应一声，不然 ZLM 会一直刷 404
     public HookResult onRecordTs(Map<String, Object> body) {
         if (log.isDebugEnabled()) {
             log.debug("[ZLM 回调] on_record_ts 忽略 stream={}", body == null ? null : body.get("stream"));
@@ -480,13 +586,12 @@ public class ZlmHookService {
 
     public HookResult onSendRtpStopped(Map<String, Object> body) {
         log.info("[ZLM 回调] on_send_rtp_stopped {}", body);
-        // 级联推流被 ZLM 中止（对端断开 / 超时）：按 stream + ssrc 清理级联推流会话（S6.b-3）
         try {
             String stream = stringOf(body, "stream");
             String ssrc = stringOf(body, "ssrc");
             if (stream != null) {
                 cascadeSendService.onSendRtpStopped(stream, ssrc);
-                // 语音广播的 startSendRtp 被 ZLM 中止也走这里，按 srcStream + ssrc 清扫广播会话
+                // 广播的 startSendRtp 也走这个回调
                 try {
                     gbBroadcastService.onSendRtpStopped(stream, ssrc);
                 } catch (Exception ex) {
@@ -499,11 +604,6 @@ public class ZlmHookService {
         return HookResult.ok();
     }
 
-    /**
-     * 推流鉴权：与 {@code StreamPushClientServiceImpl.authenticate} 等价，
-     * 但本类直接走 {@link StreamPushClientMapper}，避免 service-in-service。
-     * token 命中且 {@code enabled=1} 返回 clientId，其他情况返回 null。
-     */
     private String authenticate(String token) {
         if (token == null || token.isBlank()) return null;
         StreamPushClient hit = streamPushClientMapper.selectOne(
@@ -513,7 +613,6 @@ public class ZlmHookService {
         return hit == null ? null : hit.getClientId();
     }
 
-    // ============ 工具 ============
 
     private static String stringOf(Map<String, Object> body, String key) {
         Object v = body == null ? null : body.get(key);
@@ -534,7 +633,7 @@ public class ZlmHookService {
         try { return Long.parseLong(v.toString().trim()); } catch (NumberFormatException e) { return 0L; }
     }
 
-    /** 同 longOf，缺字段时返 null，落库时区分"没上报"和"上报 0" */
+    // 这里要分清“没上报”和“上报 0”
     private static Long longBoxed(Map<String, Object> body, String key) {
         Object v = body == null ? null : body.get(key);
         if (v == null) return null;
@@ -549,11 +648,7 @@ public class ZlmHookService {
         try { return Double.parseDouble(v.toString().trim()); } catch (NumberFormatException e) { return 0d; }
     }
 
-    /**
-     * 解析 ZLM 上报的 {@code params} 串（形如 {@code token=abc&other=1}）取指定 key 的值。
-     * <p>ZLM 在上报时会把 URL 里的 {@code =} / {@code &} 做 HTML 实体转义（{@code &#61;} / {@code &#38;}），
-     * 因此拆分前先跑一遍简单的 HTML 实体解码。</p>
-     */
+    // ZLM 会把 params 里的 = 和 & 转成 HTML 实体，拆参数前先解回来
     private static String parseParam(String params, String key) {
         if (params == null || params.isEmpty() || key == null) return null;
         String decoded = decodeHtmlEntities(params);
@@ -567,10 +662,7 @@ public class ZlmHookService {
         return null;
     }
 
-    /**
-     * 极简 HTML 实体解码：只处理 ZLM params 里可能出现的 {@code &amp; &#38; &#61; &quot;}。
-     * 不引第三方库，覆盖数字实体（{@code &#N;} / {@code &#xNN;}）+ 常见命名实体。
-     */
+    // 只解 ZLM 这里会出现的几种实体，不为此引个 HTML 库
     private static String decodeHtmlEntities(String s) {
         if (s == null || s.indexOf('&') < 0) return s;
         StringBuilder sb = new StringBuilder(s.length());

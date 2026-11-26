@@ -135,7 +135,6 @@ public class GbInviteSessionServiceImpl implements GbInviteSessionService {
         return out;
     }
 
-    // ---------------- helpers ----------------
 
     private GbInviteSession resolveByIndex(String indexKey) {
         String streamId = redisTemplate.opsForValue().get(indexKey);

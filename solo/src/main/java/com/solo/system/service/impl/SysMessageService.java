@@ -25,7 +25,6 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
 
     public void sendMessage(String username, String title, String content,
                             String type, String level, String route) {
-        // 1. 持久化到数据库
         SysMessage message = new SysMessage();
         message.setUsername(username);
         message.setTitle(title);
@@ -37,18 +36,15 @@ public class SysMessageService extends ServiceImpl<SysMessageMapper, SysMessage>
         message.setCreateTime(LocalDateTime.now());
         save(message);
 
-        // 2. 构建 WebSocket 消息
         String jsonMessage = buildJsonMessage(message);
 
-        // 3. 尝试在线推送
         boolean pushed = SystemMessageWebSocket.sendToUser(username, jsonMessage);
         log.info("发送系统消息：用户={}, 标题={}, 在线推送={}", username, title, pushed);
 
     }
 
-    /** 广播消息给所有在线用户，不落库；返回成功推送的用户数 */
+    // 广播只推在线用户，不落库
     public int broadcast(String title, String content, String level) {
-        // 广播消息不持久化（或根据需求持久化给所有用户）
         Map<String, Object> msg = new HashMap<>();
         msg.put("id", System.currentTimeMillis());
         msg.put("title", title);

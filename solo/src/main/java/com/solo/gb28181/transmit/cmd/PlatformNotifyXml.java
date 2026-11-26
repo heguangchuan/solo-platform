@@ -9,30 +9,12 @@ import com.solo.gb28181.event.position.DevicePosition;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
-/**
- * <p>本平台作为下级向上级推送订阅事件时使用。NOTIFY body 是 MANSCDP+xml 格式，
- * 形如：</p>
- * <pre>
- * &lt;?xml version="1.0" encoding="GB2312"?&gt;
- * &lt;Notify&gt;
- *   &lt;CmdType&gt;Catalog|MobilePosition|Alarm&lt;/CmdType&gt;
- *   &lt;SN&gt;...&lt;/SN&gt;
- *   &lt;DeviceID&gt;...&lt;/DeviceID&gt;
- *   ... 事件字段 ...
- * &lt;/Notify&gt;
- * </pre>
- *
- * <p>与 {@link PlatformCatalogXml} 的 Response body 区别：Response 是被点播时回执，
- * NOTIFY 是主动推送；结构、字段、字集都与 Response 对齐以保持跨厂商兼容。</p>
- */
 public final class PlatformNotifyXml {
 
     private PlatformNotifyXml() {}
 
-    /** ISO8601 时间格式（无时区后缀，GB/T 28181 默认格式） */
     private static final DateTimeFormatter ISO_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
-    /** 构造单条 Catalog NOTIFY body——推送设备状态变化（在线/离线） */
     public static String buildCatalogItem(GbParentPlatform platform, String parentDeviceGbId,
                                           GbDevice device, String sn) {
         String charset = charset(platform);
@@ -68,7 +50,6 @@ public final class PlatformNotifyXml {
         return sb.toString();
     }
 
-    /** 构造 Catalog NOTIFY body——推送目录变更（分组 + 通道，ADR-028） */
     public static String buildCatalogList(GbParentPlatform platform, String parentDeviceGbId,
                                           String deviceId, List<GbDeviceChannel> channels, String sn) {
         String charset = charset(platform);
@@ -84,7 +65,6 @@ public final class PlatformNotifyXml {
         return sb.toString();
     }
 
-    /** 构造 MobilePosition NOTIFY body——设备移动位置变化 */
     public static String buildMobilePosition(GbParentPlatform platform, DevicePosition pos, String sn) {
         String charset = charset(platform);
         StringBuilder sb = new StringBuilder(384);
@@ -109,7 +89,6 @@ public final class PlatformNotifyXml {
         return sb.toString();
     }
 
-    /** 构造 Alarm NOTIFY body——设备报警 */
     public static String buildAlarm(GbParentPlatform platform, DeviceAlarm alarm, String sn) {
         String charset = charset(platform);
         StringBuilder sb = new StringBuilder(384);
@@ -141,7 +120,6 @@ public final class PlatformNotifyXml {
         return s == null ? "" : s;
     }
 
-    /** 最小 XML 转义——5 个破坏 XML 结构的字符 */
     private static String escape(String s) {
         if (s == null || s.isEmpty()) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);

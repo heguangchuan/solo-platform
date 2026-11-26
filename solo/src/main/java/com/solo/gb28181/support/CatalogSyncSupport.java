@@ -20,38 +20,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * <p>由 {@link com.solo.gb28181.processor.request.message.response.CatalogDataCache}
- * 在阈值/收尾时调 {@link #executeFlush} 提交一次 flush 任务。任务在
- * {@code catalogSyncExecutor} 上跑，DB 写不占用 SIP 消息分发线程。</p>
- *
- * <h3>合并后的数据流</h3>
- * <p>分组（parental=1）与通道（parental=0）落到同一张 {@code gb_device_channel}，靠 parental 区分。
- * item 的 {@code parent_id} 直接是父 item 的 20 位国标码（与父行 {@code channel_id} 对齐），
- * 字符串类型，{@code "0"} 表根（无父）。本类不再做 GB 码 ↔ 雪花 id 转换。</p>
- *
- * <h3>流程</h3>
- * <ol>
- *   <li>中间 flush：直接调 {@code channelService.saveOrUpdateBatch(items)}，单 SQL upsert。</li>
- *   <li>final flush：额外做两件事——
- *     <ul>
- *       <li><b>孤儿 parentId 回落</b>：item 的 {@code parent_id}（GB 码）在库/本批都找不到 →
- *           改挂 {@code device.getDeviceId()}，让目录树有唯一收口（中间 flush 不做，避免"先报子后报父"误伤）</li>
- *       <li>若 {@code completenessRatio >= threshold} 清扫"已不存在通道"（仅 parental=0 行），
- *           否则保留以备下次 sync 补齐</li>
- *     </ul>
- *   </li>
- * </ol>
- *
- * <h3>依赖说明</h3>
- * <p>本类直接走 {@link GbDeviceMapper} / {@link GbDeviceChannelMapper}，单表 CRUD 包装不绕 service。
- * 仍保留 {@link GbDeviceService#evictProfileCache}（设备档案缓存失效，业务方法，跨 Redis + DB）。</p>
- */
+// parent_id 直接存父节点的国标码，"0" 表示根。
+// 孤儿改挂设备节点和清理旧通道都只在 final flush 做；中途可能先收到子节点，别急着修。
 @Slf4j
 @Service
 public class CatalogSyncSupport {
 
-    /** 根哨兵——parent_id == "0" 表无父 */
     private static final String ROOT_PARENT = "0";
 
     private final Gb28181Properties properties;
@@ -60,10 +34,7 @@ public class CatalogSyncSupport {
     private final GbDeviceMapper deviceMapper;
     private final ThreadPoolTaskExecutor executor;
 
-    /**
-     * 显式构造器——Lombok @RequiredArgsConstructor 不会把字段上的 @Qualifier 复制到构造器参数上，
-     * 这里手写保证 executor 按 bean 名称注入。
-     */
+    // 手写构造器是因为 Lombok 不会把字段上的 @Qualifier 搬到构造参数上。
     public CatalogSyncSupport(Gb28181Properties properties,
                               GbDeviceService deviceService,
                               GbDeviceChannelMapper channelMapper,
@@ -76,25 +47,18 @@ public class CatalogSyncSupport {
         this.executor = executor;
     }
 
-    /**
-     * 提交一次 flush 任务到 catalogSyncExecutor。
-     */
     public void executeFlush(CatalogSyncContext ctx, List<GbDeviceChannel> items, boolean isFinalFlush) {
         if (ctx == null) {
             return;
         }
-        // 队列前再 check 一次：cancel 已发生（done=true）→ 不入队
-        // 但 final flush 必须入队——finalize 已设 done=true，这里再 check 会自误，
-        //   导致 sumNum 收齐时 final flush 被自己的 done=true 拦截、Item 永远不落库。
-        //   intermediate flush（accumulate 触发的）依然走 done check 尊重 cancel。
+        // final flush 前 finalize 已经把 done 设成 true，不能再拿 done 拦它，不然最后一批永远落不了库
         if (!isFinalFlush && ctx.done) {
             log.info("[通道目录] flush 被取消（入队前） deviceId={} sn={} items={}",
                     ctx.deviceId, ctx.sn, items.size());
             return;
         }
         executor.execute(() -> {
-            // 队列中、运行前的窗口：cancel 可能在这一刻发生，再 check 一次
-            // 同上：final flush 不受 done 拦截
+            // 排队期间也可能被取消，普通 flush 跑之前再查一次
             if (!isFinalFlush && ctx.done) {
                 log.info("[通道目录] 分片落库取消 设备:{} SN:{} 原因:运行前", ctx.deviceId, ctx.sn);
                 return;
@@ -121,28 +85,20 @@ public class CatalogSyncSupport {
             return;
         }
 
-        // 入库前预处理
         if (!items.isEmpty()) {
-            // 预填 id（雪花）—— batchUpsert 走业务唯一键 uk_device_channel (device_id, channel_id)
-            // 同时覆盖通道和分组（device_id 标识推送源设备）。
             for (GbDeviceChannel it : items) {
                 if (it.getId() == null) {
                     it.setId(IdWorker.getId());
                 }
-                // 源统一 REGISTER（合并后不再区分级联，ADR-016 决策点）
                 it.setSource(GbSource.REGISTER);
             }
 
-            // final flush 阶段做"孤儿 parentId 回落"：parent_id（GB 码）在库里/本批里都找不到
-            // （设备漏报父节点、报了非法 parent_id），一律改挂到 device.deviceId 下——
-            // 让目录树有唯一收口，不出现游离顶层节点。中间 flush 不做：设备可能先报子、后报父，那时判定会误伤。
+            // 最后一批才修孤儿 parentId；中途可能父节点还没来，修早了就误挂
             if (isFinalFlush) {
                 Set<String> knownCodes = new HashSet<>();
-                // 本批已见过的 channel_id 算"父可达"
                 for (GbDeviceChannel it : items) {
                     if (it.getChannelId() != null) knownCodes.add(it.getChannelId());
                 }
-                // 库里已存在的 channel_id 也算"父可达"（本次没重报但历史已入库）
                 channelMapper.selectList(
                                 new LambdaQueryWrapper<GbDeviceChannel>().select(GbDeviceChannel::getChannelId))
                         .forEach(e -> { if (e.getChannelId() != null) knownCodes.add(e.getChannelId()); });
@@ -165,7 +121,6 @@ public class CatalogSyncSupport {
             channelMapper.batchUpsert(items);
         }
 
-        // final flush 阶段：依据 completenessRatio 决定是否清理"已不存在通道"
         if (isFinalFlush) {
             double ratio = ctx.completenessRatio;
             double threshold = properties.getCatalog().getCompletenessThreshold();

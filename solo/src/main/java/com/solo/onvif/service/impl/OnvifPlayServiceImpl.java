@@ -28,45 +28,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * <h3>流程（start）</h3>
- * <ol>
- *   <li>校验设备已探测出 stream_uri</li>
- *   <li>幂等：Redis 中已存在同 streamId → 直接返回原播放 URL</li>
- *   <li>拼装带账密的 RTSP URL（URLEncoder 转账密特殊字符）</li>
- *   <li>{@link ZlmRestClient#addStreamProxy} 让 ZLM 拉流，rtp_type=1（TCP）</li>
- *   <li>写 Redis 记账 + 24h TTL 兜底（防 stop / hook 双双漏调时的僵尸）</li>
- *   <li>拼装 flv/wsFlv/hls/rtc 播放地址返回</li>
- * </ol>
- *
- * <p>与国标 {@code GbPlayServiceImpl} 相比省掉了 SIP INVITE、SSRC 分配、on_stream_changed 等待、
- * 超时清扫等一大堆流程，因为 ZLM 自己负责与源建立 RTSP 连接。</p>
- *
- * <h3>生命周期清理</h3>
- * <p>Redis 记账（Key {@code onvif:play:<streamId>}）有三道清理路径，<b>缺一不可</b>：</p>
- * <ol>
- *   <li><b>用户主动 stop</b> → {@link #stop} 显式删 key + 调 {@code delStreamProxy}（正常路径）</li>
- *   <li><b>无人观看</b> → ZLM {@code on_stream_none_reader} 钩子（{@link com.solo.media.hook.ZlmHookService#onStreamNoneReader}）
- *       检测到 ONVIF 流时回 {@code close: true}，ZLM 内部关流；{@code on_stream_changed(regist=false)}
- *       再调 {@link #cleanupByStreamId} 清 Redis（无人观看主路径）</li>
- *   <li><b>RTSP 源异常断开</b>（设备掉电 / ZLM 重启 / 网络中断）→ {@code on_stream_changed(regist=false)}
- *       同样调 {@link #cleanupByStreamId} 清 Redis（非正常路径）</li>
- * </ol>
- * <p>24h TTL 是兜底——以上三道全部漏调时 Redis 自己回收，避免永久僵尸。</p>
- */
+// ONVIF 不用走 SIP，ZLM 直接拉 RTSP。
+// stop、无人观看、源流断开都会清 Redis；24h TTL 只负责收拾前面全漏掉的残留。
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OnvifPlayServiceImpl implements OnvifPlayService {
 
-    /** Redis Key 前缀（与接口常量 STREAM_ID_PREFIX 拼出完整 key） */
     private static final String REDIS_PREFIX = "onvif:play:";
-    /** 拉流 rtp_type: 1=TCP */
     private static final int RTP_TYPE = 1;
-    /**
-     * Redis 记账硬上限 TTL。stop / hook 双双漏调时 Redis 自己回收，避免永久僵尸。
-     * 选 24h 是因为 ONVIF 点播正常单次观看时长远小于此，仅作兜底。
-     */
     private static final Duration SESSION_TTL = Duration.ofHours(24);
 
     @Override
@@ -97,7 +67,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         String streamId = STREAM_ID_PREFIX + device.getId();
         String redisKey = REDIS_PREFIX + streamId;
 
-        // 幂等：已有活跃会话直接复用
+        // Redis 有记录不代表 ZLM 上流还在，复用前再确认一下
         Map<Object, Object> exist = redisTemplate.opsForHash().entries(redisKey);
         if (!exist.isEmpty()) {
             String serverId = (String) exist.get("serverId");
@@ -106,7 +76,6 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 log.info("[ONVIF点播] 复用活跃会话 流ID: {}", streamId);
                 return buildResult(server, streamId);
             }
-            // Redis 有记录但流已断，先清掉再重新拉
             log.info("[ONVIF点播] 残留会话已失效，清扫后重拉 流ID: {}", streamId);
             String proxyKey = (String) exist.get("proxyKey");
             if (server != null) {
@@ -131,8 +100,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 "deviceId", String.valueOf(device.getId()),
                 "startTime", String.valueOf(System.currentTimeMillis())
         ));
-        // 兜底 TTL：stop / hook 三道清理路径全部漏调时 Redis 自己回收，避免永久僵尸。
-        // putAll 不会重置 TTL，所以这里必须显式 set（之前可能残留过 TTL 也无副作用）。
+        // putAll 不会重置 TTL，这里得自己设
         redisTemplate.expire(redisKey, SESSION_TTL);
         log.info("[ONVIF点播] 启动成功 设备ID: {} 流ID: {} 服务器ID: {}",
                 device.getId(), streamId, server.getServerId());
@@ -172,9 +140,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         if (Boolean.TRUE.equals(removed)) {
             log.info("[ONVIF点播] 钩子清扫 流ID: {}", streamId);
         }
-        // 不调 delStreamProxy：走到这一路时 ZLM 要么已主动断开（on_stream_none_reader
-        // 回的 close=true），要么本来就是异常断开（on_stream_changed regist=false），
-        // 代理早就没了。重复调用反而会 404。
+        // 到这里 ZLM 已经关流或源流已经断了，再调 delStreamProxy 只会收获 404
     }
 
     @Override
@@ -191,7 +157,6 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                     continue;
                 }
                 OnvifSession s = new OnvifSession();
-                // key 形如 "onvif:play:onvif_42" → 截最后一段作 streamId
                 int idx = key.lastIndexOf(':');
                 s.setStreamId(idx >= 0 ? key.substring(idx + 1) : key);
                 s.setServerId((String) hash.get("serverId"));
@@ -200,7 +165,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                     try {
                         s.setDeviceId(Long.parseLong(deviceIdRaw.toString()));
                     } catch (NumberFormatException ignore) {
-                        // 历史脏数据：deviceId 字段不是数字时跳过
+                        // 老数据里这个字段可能不是数字
                     }
                 }
                 s.setProxyKey((String) hash.get("proxyKey"));
@@ -210,21 +175,17 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                         s.setStartTime(java.time.Instant.ofEpochMilli(Long.parseLong(startMs.toString()))
                                 .atZone(java.time.ZoneId.systemDefault()).toLocalDateTime());
                     } catch (NumberFormatException ignore) {
-                        // 历史脏数据忽略
+                        // 同上，脏数据跳过就行
                     }
                 }
                 out.add(s);
             } catch (Exception e) {
-                // 单条失败不阻塞整体——脏数据 / 网络抖动
+                // 一条脏了别拖累整页
                 log.warn("[ONVIF点播] 会话解析失败 key={} err={}", key, e.getMessage());
             }
         }
         return out;
     }
-
-    // ============================================================
-    //  helpers
-    // ============================================================
 
     private OnvifPlayResultResponse buildResult(MediaServer server, String streamId) {
         OnvifPlayResultResponse vo = new OnvifPlayResultResponse();
@@ -244,10 +205,7 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
                 new LambdaQueryWrapper<MediaServer>().eq(MediaServer::getServerId, serverId));
     }
 
-    /**
-     * 把用户名/密码塞进 RTSP URL：{@code rtsp://user:pwd@host:port/path}。
-     * 账密里可能含特殊字符（@、:、/），必须 URLEncode。
-     */
+    // 账密可能有 @、:、/，必须编码；设备 URI 里已有的旧账密先剥掉
     private static String buildAuthorizedRtspUrl(OnvifDevice device) {
         String uri = device.getStreamUri();
         if (uri == null) {
@@ -263,7 +221,6 @@ public class OnvifPlayServiceImpl implements OnvifPlayService {
         }
         String scheme = uri.substring(0, schemeEnd + 3);
         String rest = uri.substring(schemeEnd + 3);
-        // 有些设备返回的 uri 里可能已经带了账密，先剥掉
         int atIdx = rest.indexOf('@');
         int slashIdx = rest.indexOf('/');
         if (atIdx > 0 && (slashIdx < 0 || atIdx < slashIdx)) {

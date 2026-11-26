@@ -158,7 +158,6 @@ public class CatalogResponseMessageHandler implements MessageHandler {
     private static final DateTimeFormatter FINISH_TIME_FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    // ---------------- Item 解析（ADR-023 合并版） ----------------
 
     /**
      * 解析单个 Item 为 GbDeviceChannel：parental=1 表分组，parental=0 表通道。
@@ -210,7 +209,6 @@ public class CatalogResponseMessageHandler implements MessageHandler {
         return ch;
     }
 
-    // ---------------- 辅助 ----------------
 
     /**
      * 解析 {@code Parental} 字段，对异常值做兜底。

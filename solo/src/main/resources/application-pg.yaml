@@ -1,19 +1,12 @@
-# ============================================================
-#  部署地址统一维护
-#  project.ip 是平台本机地址（SIP 监听用）；各组件默认跟随它，
-#  组件分散部署时只改对应那一行，下面的连接配置不用动。
-# ============================================================
+# project.ip 是平台本机地址；组件分开部署时，只改下面对应的地址
 project:
   ip: 172.16.202.180
   # 数据库地址。本机部署用 localhost：pg_hba.conf 默认只放行 127.0.0.1，
   # 用本机网卡 IP 连接会被当作远程主机拒绝（no pg_hba.conf entry）。
   # 数据库独立部署时改成实际地址，并在 pg_hba.conf 放行本平台 IP。
   db: localhost
-  # Redis 地址
   redis: localhost
-  # 对象存储（S3 兼容）地址
   s3: 172.16.202.200
-  # 流媒体 ZLMediaKit 地址
   media: 172.16.202.200
 
 server:
@@ -39,16 +32,8 @@ jwt:
   access-expiration: 1800000
   refresh-expiration: 604800000
 
-# ============================================================
-#  文件存储（S3 兼容：RustFS / MinIO / 阿里云 OSS / 腾讯云 COS / 华为云 OBS / Ceph RGW / AWS S3）
-#  ─────────────────────────────────
-#  endpoint-override 指向 S3 服务的访问入口（默认使用自托管 RustFS）。region 字段 AWS SDK 必填：
-#    - RustFS / MinIO / Ceph：随便写，推荐 us-east-1
-#    - 阿里云 OSS：用所在 region（cn-hangzhou 等）
-#    - AWS S3：用真实 region
-#  path-style-access 默认 true——RustFS / MinIO / Ceph / 自托管必须 path-style；阿里云/腾讯云
-#  /华为云两种都支持；AWS S3 也能跑 path-style
-# ============================================================
+# region 是 AWS SDK 必填项；自托管 RustFS/MinIO/Ceph 一般用 us-east-1 + path-style
+# 云厂商按实际 region 填
 s3:
   endpoint-override: http://${project.s3}:9000
   region: us-east-1
@@ -58,93 +43,71 @@ s3:
   public-url:
   path-style-access: true
 
-# ============================================================
-#  GB/T 28181 国标平台配置
-#  原则：可能需要部署改的字段都保留，值由代码默认/部署覆盖；
-#  只有"代码自动算"的（线程池）才不留。
-# ============================================================
 gb28181:
-  # SIP 监听 IP；无代码默认，必填
+  # 留空监听所有网卡
   ip: ${project.ip}
-  # SIP 公网 IP；NAT/公网部署时必填，用于构造 Via/Contact 头，让下级/设备能正常回包
+  # NAT/公网部署要填，用来写 Via/Contact，不然对端回包找不到路
   public-ip:
-  # SIP 监听端口（与代码默认 5060 一致，标准国标端口）
   port: 5060
 
-  # 本平台 SIP ID（20 位：行政区划 10 位 + 平台编号 10 位），无代码默认
+  # 本平台 20 位国标编码，必填
   id: 60000000042000000028
-  # 本平台 SIP 域（一般是行政区划 + 4 位 0000），无代码默认
+  # 一般是 10 位行政区划编码
   domain: 6000000004
 
-  # 设备注册 Digest 鉴权密码。生产环境必须设置强密码；留空 = 开放模式，仅限隔离测试环境
+  # 留空就不验 Digest，只能在隔离测试环境这么玩
   password:
 
 
-  # 级联下级侧：本平台作为下级向上级推送目录/通道时的分片节奏与超时
   cascade:
 
-    # Catalog 响应每片 XML 中装多少个 Item。1/2/4/8 是 ADR-027 收敛出的单包安全档位，
-    # 超过 8 某些品牌上级会拒收/拆包失败。保守起步 3，遇问题调成 1 或 2。
+    # 单包别贪大，超过 8 有些上级会拒收；一般就用 1/2/4/8
     catalog-page-size: 3
 
-    # 等上级回 200 OK 的超时（毫秒）。到点没收 ACK 就走 catalog-page-interval-ms 兜底节奏继续。
-    # 内网主流平台 3s 够用；公网/老国标可上调到 5-8s。
+    # 每片先等 ACK；公网/老设备可调到 5-8s
     catalog-ack-timeout-ms: 3000
 
-    # ACK 驱动改造（ADR-027）后，本字段退化为「ACK 超时/出错时的 fallback 兜底间隔」，
-    # 200ms 防止对端长时间无响应时 sender 线程被占用。ACK 正常时不走这条。
+    # 只有等 ACK 超时/出错才按这个间隔继续，正常收到 ACK 不走这里
     catalog-page-interval-ms: 200
 
-    # 上级点播 sendRtp 本地发送端口段（需与 media rtp 收流端口段错开、防火墙放行）
+    # 向上级发流的本地端口段，避开收流端口并放通防火墙
     send-rtp-port-start: 50000
     send-rtp-port-end: 60000
 
 
 
-# ============================================================
-#  流媒体（ZLMediaKit）相关配置
-#  原则同 gb28181：可能需要部署改的字段都保留。
-# ============================================================
 media:
-  # ZLM hook 回调的鉴权 secret（须与 ZLM config.ini 中 [api].secret 一致）；
-  # solo 收到 hook 后会校验请求中的 secret 字段。未配置时所有 hook 都会被拒，启动期日志会告警
+  # 必须和 ZLM config.ini 的 [api].secret 对上；不配的话 hook 全会被拒
   hook-secret: solo
 
-  # 自动点播：流不存在时自动向设备发 INVITE 发起点播（需 RTP 多端口模式启用）。
-  # 开启后用户通过播放 URL 访问不存在流时自动补一次 INVITE；关闭则需先点"播放"按钮
+  # 带有效 wt 访问不存在的国标流时，自动补发 INVITE
   auto-apply-play: true
 
-  # 推流鉴权是否启用。true=on_publish 时校验 URL 里的 ?token= 参数是否命中 stream_push_client；
-  # false=不做任何校验（生产环境务必开启）
+  # 关闭后任何客户端都能推流，生产环境别开这个口子
   push-auth-enabled: true
 
-  # 观看记录：播放地址带签名令牌 wt，on_play 凭令牌识别观看者落库，on_flow_report 闭合
-  view-record:
-    # 关闭后不签发令牌，hook 侧识别不到观看者，只跳过记录不拦播放
-    enabled: true
-    # 令牌有效期（秒），只要求播放发起时有效，长时观看不受到期影响
+  # 播放鉴权没有关闭开关；secret 留空用 jwt.secret，多实例要配成一样的
+  play-auth:
+    secret: ${MEDIA_PLAY_AUTH_SECRET:}
     token-ttl-seconds: 7200
-    # 定时清扫阈值（分钟）：超过该时长仍处于观看中的记录按兜底闭合
+
+  # 这里只管观看记录，不影响播放鉴权
+  view-record:
+    enabled: true
+    # 观看中超过这么多分钟还没闭合，就兜底关掉
     sweep-stale-minutes: 240
 
-  # 启动时若 gb_media_server 表为空则自动 upsert 一个默认 ZLM 节点
   default-server:
-    # 是否在启动时自动 upsert（测试环境可关掉,生产必开）
     enabled: true
-    # ZLM 节点唯一标识，必须与 ZLM config.ini 中 [general].mediaServerId 完全一致
+    # 必须和 ZLM config.ini 的 [general].mediaServerId 完全一致，不然 hook 找不到节点
     server-id: zlmediakit-local
-    # 节点显示名（仅用于管理面展示）
     name: 默认节点
-    # ZLM 管理面 IP（用于 REST API 调用）
     host-ip: ${project.media}
-    # ZLM HTTP API 端口
     http-port: 8088
-    # ZLM API secret（与 hook-secret 一般相同，但也允许单节点独立配置）
     secret: solo
-    # 对外播放使用的 IP（HTTP-FLV / WS-FLV / HLS / WebRTC）。留空则同 host-ip。
-    # 勿与 host-ip 混用：SDP c= 也从此取，需对端可达
+    # 对外播放和 SDP c= 都用它，留空跟 host-ip 走；必须是对端能到的地址
     stream-ip:
-    # 对外 HTTP/WS-FLV/HLS 端口；0 表示与 http-port 一致
+    # 0 表示跟 http-port 走
     stream-http-port: 0
-    # 对外 WebRTC 端口，取 ZLM [rtc].port；网页喊话推流依赖，防火墙放行 UDP
+    # 取 ZLM [rtc].port，网页喊话要用，防火墙放行 UDP
     rtc-port: 8000

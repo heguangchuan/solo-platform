@@ -7,9 +7,6 @@ import lombok.Data;
 import java.io.Serializable;
 import java.util.Set;
 
-/**
- * 鉴权通过后的应用身份，写入请求属性，与平台用户态互不依赖。
- */
 @Data
 @AllArgsConstructor
 public class OpenAppContext implements Serializable {

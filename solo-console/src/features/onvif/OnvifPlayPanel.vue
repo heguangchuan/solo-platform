@@ -2,11 +2,26 @@
   <div class="space-y-3">
     <!-- 播放器（jessibuca） -->
     <div class="aspect-video overflow-hidden rounded-md bg-black">
-      <GbPlayer v-if="playUrl" :src="playUrl" :video-buffer="0.2" />
+      <GbPlayer
+        v-if="playUrl"
+        :src="playUrl"
+        :video-buffer="0.2"
+        @error="onPlaybackFailure"
+        @timeout="onPlaybackFailure"
+        @stream-end="onPlaybackFailure"
+      />
       <div v-else class="grid h-full place-items-center text-xs text-white/60">
         <div class="flex flex-col items-center gap-2">
           <IconLoader2 v-if="loading" class="size-5 animate-spin" />
-          <span>{{ loading ? '正在建立点播…' : failed ? '点播失败，请检查设备后重试' : '未获取到可用的播放地址' }}</span>
+          <span>{{ loading ? '正在建立点播…' : failed ? '播放失败，请重新获取地址' : '未获取到可用的播放地址' }}</span>
+          <button
+            v-if="failed && !loading"
+            type="button"
+            class="rounded border border-white/20 px-3 py-1 text-white/80 hover:bg-white/10"
+            @click="start"
+          >
+            重新获取地址
+          </button>
         </div>
       </div>
     </div>
@@ -44,13 +59,14 @@ const props = defineProps<{
 const loading = ref(false)
 const failed = ref(false)
 const info = ref<OnvifPlayResult | null>(null)
+let startSequence = 0
 
 const toWss = (url?: string) =>
   url && window.location.protocol === 'https:' ? url.replace(/^ws:\/\//, 'wss://') : url
 
 const urls = computed(() => {
   const u = info.value
-  if (!u) return []
+  if (!u || failed.value) return []
   return [
     { label: 'WS-FLV', url: toWss(u.wsFlvUrl) },
     { label: 'HTTP-FLV', url: u.flvUrl },
@@ -62,7 +78,7 @@ const urls = computed(() => {
 /** jessibuca 播放地址：优先 WS-FLV，退化为 HTTP-FLV */
 const playUrl = computed(() => {
   const u = info.value
-  if (!u) return ''
+  if (!u || failed.value) return ''
   return toWss(u.wsFlvUrl) || u.flvUrl || ''
 })
 
@@ -79,20 +95,39 @@ const stop = async () => {
 }
 
 const start = async () => {
+  const sequence = ++startSequence
   await stop()
+  if (sequence !== startSequence) return
   loading.value = true
   failed.value = false
   try {
-    info.value = (await startOnvifPlayApi(props.device.id)).data
+    const result = (await startOnvifPlayApi(props.device.id)).data
+    if (sequence === startSequence) {
+      info.value = result
+    } else if (result?.streamId && info.value?.streamId !== result.streamId) {
+      // 设备已切换或组件已卸载：旧请求仍可能已拉起流，按返回的 streamId 尽力回收。
+      try {
+        await stopOnvifPlayApi(result.streamId)
+      } catch {
+        // 停止是尽力而为，不能覆盖当前设备的播放状态
+      }
+    }
   } catch {
-    failed.value = true
+    if (sequence === startSequence) failed.value = true
   } finally {
-    loading.value = false
+    if (sequence === startSequence) loading.value = false
   }
 }
 
+const onPlaybackFailure = () => {
+  failed.value = true
+}
+
 watch(() => props.device.id, start, { immediate: true })
-onBeforeUnmount(stop)
+onBeforeUnmount(() => {
+  startSequence++
+  void stop()
+})
 
 const copy = async (text: string) => {
   try {

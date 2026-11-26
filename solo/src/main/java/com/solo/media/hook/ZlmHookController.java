@@ -47,6 +47,12 @@ public class ZlmHookController {
         return hookService.onFlowReport(body).toMap();
     }
 
+    @PostMapping("/on_http_access")
+    public Map<String, Object> onHttpAccess(HttpServletRequest req, @RequestBody(required = false) Map<String, Object> body) {
+        if (!checkSecret(req, body)) return unauthorized();
+        return hookService.onHttpAccess(body).toMap();
+    }
+
     @PostMapping("/on_stream_not_found")
     public Map<String, Object> onStreamNotFound(HttpServletRequest req, @RequestBody(required = false) Map<String, Object> body) {
         if (!checkSecret(req, body)) return unauthorized();

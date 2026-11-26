@@ -7,6 +7,8 @@ import com.solo.gb28181.request.PlayStartRequest;
 import com.solo.gb28181.request.PlayStopRequest;
 import com.solo.gb28181.response.PlayResultResponse;
 import com.solo.gb28181.service.GbPlayService;
+import com.solo.gb28181.support.GbPlayUrlSigner;
+import com.solo.media.support.ViewTokenSigner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -22,12 +24,16 @@ import org.springframework.web.bind.annotation.RestController;
 public class GbPlayController {
 
     private final GbPlayService playService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
     @OperationLog(module = "实时点播", type = BusinessType.OTHER, description = "开始实时点播")
     @PostMapping("/start")
     public Result<PlayResultResponse> start(@RequestBody PlayStartRequest req) {
-        return Result.success(playService.start(req));
+        var actor = viewTokenSigner.requireCurrentUserActor();
+        PlayResultResponse result = playService.start(req);
+        GbPlayUrlSigner.sign(result, actor, viewTokenSigner);
+        return Result.success(result);
     }
 
     @Operation(summary = "停止点播")

@@ -14,10 +14,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * 连接地址：ws://localhost:8080/api/ws/message?token=xxx
- * <p>消息格式：JSON，包含类型、标题、内容、时间等
- */
 @Slf4j
 @Component
 @ServerEndpoint("/api/ws/message")
@@ -25,10 +21,7 @@ public class SystemMessageWebSocket {
 
     private static final AtomicInteger ONLINE_COUNT = new AtomicInteger(0);
 
-    /**
-     * 注意：@ServerEndpoint 是多例的，必须用 static 集合共享会话。
-     * 同一用户可能打开多个浏览器标签页，允许多连接并存，避免互相踢下线后反复重连。
-     */
+    // @ServerEndpoint 是多例，会话必须放 static；同一用户开多个标签页也别互踢。
     private static final Map<String, Set<Session>> SESSION_MAP = new ConcurrentHashMap<>();
 
     private String username;
@@ -44,7 +37,6 @@ public class SystemMessageWebSocket {
     public void onOpen(Session session, EndpointConfig config) {
         log.info("WebSocket 连接请求：sessionId={}, query={}", session.getId(), session.getQueryString());
 
-        // 从 query 参数解析 token 并验证
         String query = session.getQueryString();
         String token = extractToken(query);
 
@@ -92,12 +84,9 @@ public class SystemMessageWebSocket {
         }
     }
 
-    /**
-     * 系统消息是服务端主动推送，客户端消息仅用于心跳保活
-     */
+    // 客户端消息只用来 ping/pong。
     @OnMessage
     public void onMessage(String message, Session session) {
-        // 心跳响应：收到 ping 回复 pong
         if ("ping".equals(message)) {
             try {
                 session.getBasicRemote().sendText("pong");
@@ -112,9 +101,6 @@ public class SystemMessageWebSocket {
         log.error("WebSocket 异常：用户={}, 错误={}", username, error.getMessage(), error);
     }
 
-    /**
-     * @return false 表示用户不在线（无可用会话）
-     */
     public static boolean sendToUser(String targetUsername, String message) {
         Set<Session> sessions = SESSION_MAP.get(targetUsername);
         if (sessions == null || sessions.isEmpty()) {
@@ -136,9 +122,6 @@ public class SystemMessageWebSocket {
         return success;
     }
 
-    /**
-     * @return 成功发送的会话数
-     */
     public static int broadcast(String message) {
         int successCount = 0;
         for (Map.Entry<String, Set<Session>> entry : SESSION_MAP.entrySet()) {
@@ -165,9 +148,7 @@ public class SystemMessageWebSocket {
         return sessions != null && sessions.stream().anyMatch(Session::isOpen);
     }
 
-    /**
-     * 兼容 token=xxx 和 Authorization=Bearer xxx 两种 query 格式
-     */
+    // query 里兼容 token= 和 Authorization=Bearer 两种写法。
     private String extractToken(String query) {
         if (query == null || query.isEmpty()) {
             return null;

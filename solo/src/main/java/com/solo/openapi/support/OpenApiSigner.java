@@ -8,19 +8,7 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.TreeMap;
 
-/**
- * 开放 API 签名/摘要工具（HMAC-SHA256）。
- *
- * <p>待签名串按固定顺序逐行拼接：
- * <pre>
- * METHOD
- * PATH（不含域名、不含 query）
- * 排序后的 query（k=v 以 &amp; 拼接，value 做 URL 编码）
- * BODY_SHA256（GET 为空串）
- * TIMESTAMP
- * NONCE
- * </pre>
- */
+// 签名串固定六行：METHOD / PATH / 排序编码后的 QUERY / BODY_SHA256 / TIMESTAMP / NONCE。
 public final class OpenApiSigner {
 
     private OpenApiSigner() {
@@ -36,9 +24,6 @@ public final class OpenApiSigner {
         }
     }
 
-    /**
-     * 计算 query 的规范化串：key 字典序排列，value URL 编码。
-     */
     public static String canonicalQuery(Map<String, String[]> parameterMap) {
         if (parameterMap == null || parameterMap.isEmpty()) {
             return "";
@@ -81,7 +66,7 @@ public final class OpenApiSigner {
         }
     }
 
-    /** 常量时间比对，防时序侧信道 */
+    // 签名别用 equals，走常量时间比对。
     public static boolean matches(String expected, String actual) {
         if (expected == null || actual == null) {
             return false;

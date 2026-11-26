@@ -4,13 +4,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Arrays;
 
-/**
- * 字面量 IP / CIDR。
- * <p>只接受点分 IPv4 与 IPv6 字面量，解析过程不触发 DNS——白名单条目一旦允许域名，
- * 每个请求都会查一次 DNS，名单内容还会被对方 DNS 记录间接改写。
- * <p>IPv4-mapped IPv6（{@code ::ffff:1.2.3.4}）与回环 {@code ::1} 统一折算成 IPv4，
- * 否则双栈监听时客户端地址和配置永远对不上。
- */
+// 白名单只收 IP/CIDR，别用会查 DNS 的域名解析；域名记录变了，权限也跟着变了。
+// ::ffff:IPv4 和 ::1 统一折算成 IPv4，不然双栈下总对不上。
 final class IpRange {
 
     private final byte[] network;
@@ -23,7 +18,6 @@ final class IpRange {
         this.source = source;
     }
 
-    /** 解析单条目（IP 或 CIDR），非法条目抛 IllegalArgumentException，消息可直接展示给管理员 */
     static IpRange parse(String entry) {
         String value = entry == null ? "" : entry.trim();
         if (value.isEmpty()) {
@@ -75,7 +69,6 @@ final class IpRange {
         return source;
     }
 
-    /** 解析字面量地址；不是合法 IP 时返回 null，绝不查 DNS */
     static byte[] tryParse(String ip) {
         if (ip == null) {
             return null;
@@ -92,7 +85,6 @@ final class IpRange {
         return raw == null ? null : normalize(raw);
     }
 
-    /** 字节地址转规范写法；入参必须是 4 或 16 字节 */
     static String format(byte[] address) {
         try {
             return InetAddress.getByAddress(address).getHostAddress();
@@ -169,7 +161,7 @@ final class IpRange {
         return out;
     }
 
-    /** 把不带 "::" 的一段写进 groups，返回写入的 16 位组数；内嵌 IPv4 占两组；非法返回 -1 */
+    // 解析不带 :: 的一段；内嵌 IPv4 占两个 16 位组，非法返回 -1。
     private static int fillGroups(int[] groups, int offset, String part) {
         if (part.isEmpty()) {
             return 0;

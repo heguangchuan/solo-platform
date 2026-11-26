@@ -7,16 +7,9 @@ import java.lang.annotation.*;
 @Documented
 public @interface RequirePermission {
 
-    /**
-     * 需要的权限编码
-     */
     String[] value();
 
-    /**
-     * 权限验证模式
-     * ALL：需要拥有所有指定的权限
-     * ANY：需要拥有任意一个指定权限即可
-     */
+    // ALL 全都要有，ANY 有一个就行。
     RequireMode mode() default RequireMode.ANY;
 
     enum RequireMode {

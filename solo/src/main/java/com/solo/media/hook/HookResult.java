@@ -3,12 +3,6 @@ package com.solo.media.hook;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/**
- * <p>ZLM 视 {@code code=0} 为成功，业务侧错误一律用日志兜底，不通过 HTTP 状态码反馈
- * （否则 ZLM 会按 retry 反复请求）。</p>
- * <p>支持携带扩展字段（如 on_publish 的 {@code enable_audio}、on_stream_none_reader 的
- * {@code close}），通过 {@link #put(String, Object)} 链式追加即可。</p>
- */
 public class HookResult {
 
     private final Map<String, Object> body = new LinkedHashMap<>();
@@ -22,17 +16,25 @@ public class HookResult {
         return new HookResult(0, "success");
     }
 
-    /** 用于 secret 校验失败：Controller 层会把 code=401 转为 HTTP 401，让 ZLM 停止 retry */
+    // secret 不对时 Controller 会转成 HTTP 401，让 ZLM 别一直重试
     public static HookResult reject(String msg) {
         return new HookResult(401, msg);
     }
 
-    /**
-     * 用于 on_publish 拒绝推流：HTTP 保持 200 让 ZLM 不 retry，
-     * 但 code=-1 让 ZLM 立即断开推流方连接。ffmpeg 侧会收到 WSAECONNABORTED / EOF。
-     */
+    // on_publish 要保持 HTTP 200，再靠 code=-1 断开推流，不然 ZLM 会重试
     public static HookResult rejectPublish(String msg) {
         return new HookResult(-1, msg);
+    }
+
+    // on_play 也是 HTTP 200 + 非零 code 才拒绝播放
+    public static HookResult rejectPlay(String msg) {
+        return new HookResult(-1, msg);
+    }
+
+    // on_stream_not_found 偏偏反过来：得回 code=0 + close=true。
+    // 回 code=-1 时 ZLM 只看 hook 失败，根本不读 close。
+    public static HookResult closeNotFoundStream(String msg) {
+        return new HookResult(0, msg).put("close", true);
     }
 
     public HookResult put(String key, Object value) {

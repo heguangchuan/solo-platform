@@ -30,8 +30,6 @@ import com.solo.media.mapper.GbMediaServerMapper;
 import com.solo.media.properties.MediaProperties;
 import com.solo.media.service.MediaServerSelector;
 import com.solo.media.ssrc.SsrcFactory;
-import com.solo.media.support.ViewActor;
-import com.solo.media.support.ViewTokenSigner;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -90,7 +88,6 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
     private final GbDeviceChannelMapper channelMapper;
     private final MediaServerSelector mediaServerSelector;
     private final GbMediaServerMapper mediaServerMapper;
-    private final ViewTokenSigner viewTokenSigner;
 
     /** RecordInfo 查询等待表，key = {@code deviceId + ":" + sn} */
     private final Map<String, CompletableFuture<List<RecordItemResponse>>> pendingQuery = new ConcurrentHashMap<>();
@@ -220,7 +217,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         if (exist != null) {
             if (GbInviteSession.STATUS_READY.equals(exist.getStatus())) {
                 log.info("[{}] 复用已就绪会话 流ID:{}", LOG_TAG, streamId);
-                return withViewToken(toResult(exist, startEpoch, endEpoch));
+                return toResult(exist, startEpoch, endEpoch);
             }
             if (GbInviteSession.STATUS_INVITING.equals(exist.getStatus())) {
                 log.warn("[{}] 发现残留 INVITING 会话 流ID:{} 原因:强制清扫后重新点播", LOG_TAG, streamId);
@@ -295,7 +292,7 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         }
 
         try {
-            return withViewToken(future.get(mediaProperties.getPlaybackTimeoutSeconds(), TimeUnit.SECONDS));
+            return future.get(mediaProperties.getPlaybackTimeoutSeconds(), TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             pendingPlay.remove(streamId);
             inviteCleanup.timeoutSession(session, LOG_TAG, "等待流就绪超时");
@@ -567,17 +564,4 @@ public class GbPlaybackServiceImpl implements GbPlaybackService {
         return vo;
     }
 
-    /** 同实时点播，返回前按当前观看者现签，裸地址多人共享不能签死 */
-    private PlaybackResultResponse withViewToken(PlaybackResultResponse vo) {
-        ViewActor actor = viewTokenSigner.currentUserActor();
-        if (actor == null) {
-            return vo;
-        }
-        String sid = vo.getStreamId();
-        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
-        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
-        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
-        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
-        return vo;
-    }
 }

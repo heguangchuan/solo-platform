@@ -184,7 +184,6 @@ public class StreamProxyServiceImpl extends ServiceImpl<StreamProxyMapper, Strea
         return vo;
     }
 
-    // ---------------- helpers ----------------
 
     private void validate(StreamProxy p) {
         if (p.getStream() == null || p.getStream().isBlank()) {

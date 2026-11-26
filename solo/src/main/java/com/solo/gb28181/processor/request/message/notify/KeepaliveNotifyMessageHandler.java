@@ -17,15 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
-/**
- * <p>大规模设备同时心跳会打爆 DB，所以采用<b>队列削峰 + 定时批处理</b>模式：
- * 收到心跳时直接入队（200 OK 已由 {@code MessageRequestProcessor} 在分发前回复），
- * {@link com.solo.gb28181.task.GbHealthScheduledTasks} 每 100ms 调 {@link #drain()} 把队列里的批量处理。</p>
- *
- * <p>海康兼容：海康某些设备 Keepalive 报文 From 字段是通道 ID 而不是设备 ID。
- * 后续 Sprint 加入 SsrcTransaction 后可以反查；当前阶段直接以 deviceId 查不到时按设备 ID 长度兜底
- * （20 位是设备 ID，否则跳过本次心跳）。</p>
- */
+// 心跳先入队，每 100ms 批处理一次，别让设备同时上线时把 DB 打爆。
+// 200 OK 在 MessageRequestProcessor 已经回过，这里别重复回。
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -80,7 +73,6 @@ public class KeepaliveNotifyMessageHandler extends SipRequestProcessorBase imple
 
     private void processOne(KeepaliveTask task) throws Exception {
         SIPRequest request = (SIPRequest) task.event.getRequest();
-        // 200 OK 已由 MessageRequestProcessor 在分发前统一回复，这里不重复回
 
         GbDevice device = task.device;
         SipUtils.RemoteAddressInfo remote = SipUtils.getRemoteAddress(request,
@@ -102,6 +94,5 @@ public class KeepaliveNotifyMessageHandler extends SipRequestProcessorBase imple
         gbDeviceService.keepalive(device);
     }
 
-    /** 入队任务结构 */
     private record KeepaliveTask(RequestEvent event, GbDevice device) { }
 }

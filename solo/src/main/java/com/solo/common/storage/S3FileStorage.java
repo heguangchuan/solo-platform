@@ -24,16 +24,6 @@ import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequ
 import java.io.InputStream;
 import java.time.Duration;
 
-/**
- * <p>通过 {@code S3Properties.endpoint-override} 适配 MinIO / 阿里云 OSS / 腾讯云 COS /
- * 华为云 OBS / Ceph RGW / AWS S3 等任意 S3 兼容服务。</p>
- *
- * <h3>URL 拼接规则</h3>
- * <ul>
- *   <li>配置了 {@code s3.public-url} 则用其作为前缀（适合走 CDN / 反代）</li>
- *   <li>否则使用 {@code s3.endpoint-override}（适合开发环境直连）</li>
- * </ul>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -41,7 +31,7 @@ public class S3FileStorage implements FileStorage {
 
     private static final int DEFAULT_PRESIGNED_EXPIRY_SEC = 3600;
 
-    /** us-east-1 是 AWS SDK 的默认 region，也是唯一不需要 LocationConstraint 的 region */
+    // us-east-1 建桶不用 LocationConstraint，其他 region 一般要。
     private static final String US_EAST_1 = "us-east-1";
 
     private final S3Client s3;
@@ -87,7 +77,6 @@ public class S3FileStorage implements FileStorage {
             log.warn("[S3存储] 检查 bucket 失败 bucket={} 状态码:{} 错误:{}",
                     bucket, code, e.getMessage());
         } catch (Exception e) {
-            // 启动时不打断应用：bucket 也许已经存在但接口偶发失败；运行时再操作会重新检测。
             log.warn("[S3存储] 检查 bucket 异常 bucket={} 错误:{}",
                     bucket, e.getMessage());
         }
@@ -199,7 +188,6 @@ public class S3FileStorage implements FileStorage {
         }
     }
 
-    /* ============================== 内部 ============================== */
 
     private String bucket() {
         String b = props.getBucket();
@@ -207,10 +195,7 @@ public class S3FileStorage implements FileStorage {
         return b;
     }
 
-    /**
-     * 拼接对外可访问的 URL。
-     * 配置了 public-url 时用 public-url（适合 CDN / 反代），否则用 endpoint-override。
-     */
+    // public-url 给 CDN/反代用，没配才用 endpoint-override。
     private String buildPublicUrl(String bucket, String object) {
         String base = props.getPublicUrl();
         if (base == null || base.isBlank()) base = props.getEndpointOverride();

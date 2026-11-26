@@ -37,19 +37,8 @@ import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
-
-/**
- * <p>为 MESSAGE / INVITE / SUBSCRIBE / INFO / BYE / NOTIFY 等"本平台主动发起"的请求统一生成头部。</p>
- * <p>关键点：</p>
- * <ul>
- *   <li>Request-URI 用对端 deviceId/channelId @ 对端 hostAddress</li>
- *   <li>From 用本平台 ID @ 本平台 domain</li>
- *   <li>To 与 Request-URI 同 SipURI</li>
- *   <li>Via 上 setRPort() 让对端按收到包的端口回（NAT 友好）</li>
- *   <li>CSeq 单调递增（同一进程内全局序列）</li>
- * </ul>
- */
 @Component
+// Via 都带 rport，NAT 后让对端按实际收包端口回。
 public class SipRequestHeaderProvider {
 
     private static final AddressFactory ADDRESS_FACTORY;
@@ -71,51 +60,27 @@ public class SipRequestHeaderProvider {
     private final Gb28181Properties properties;
     private final SipLayer sipLayer;
 
-    /** 全局 CSeq 序列 */
     private final AtomicLong cseqSeed = new AtomicLong(System.currentTimeMillis() / 1000);
 
-    /**
-     * {@link SipLayer} 用 {@code @Lazy} 注入，打破观察者模式天然的循环依赖：
-     * <pre>
-     *   SipLayer → SipProcessorObserver → List&lt;SipResponseProcessor&gt; →
-     *   InviteResponseProcessor → SipRequestHeaderProvider → SipLayer
-     * </pre>
-     * 与 {@link com.solo.gb28181.sip.SipSender} 处理方式一致。
-     */
+    // @Lazy 是特意加的：SipLayer -> 处理器 -> 这里 -> SipLayer，直接注入会成环。
     public SipRequestHeaderProvider(Gb28181Properties properties, @Lazy SipLayer sipLayer) {
         this.properties = properties;
         this.sipLayer = sipLayer;
     }
 
-    /**
-     * 构造一个发往设备的 MESSAGE 请求
-     *
-     * @param device     目标设备
-     * @param xmlBody    XML 报文体（MANSCDP+xml）
-     * @param callId     调用方提供的 Call-Id（不能为空）
-     * @return Request
-     */
     public Request buildMessageRequest(GbDevice device, String xmlBody, CallIdHeader callId)
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
-
-        // Request-URI: sip:<deviceId>@<deviceHost:devicePort>
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
-
-        // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
         String sipIp = properties.resolveSipIp(localIp);
         ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
-
-        // From: sip:<platformId>@<platformDomain>
         SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
         Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, SipUtils.newFromTag());
-
-        // To: 与 Request-URI 同结构
         SipURI toUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
         Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
         ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, null);
@@ -131,9 +96,6 @@ public class SipRequestHeaderProvider {
         return request;
     }
 
-    /**
-     * 用对端 transport 取一个新的 Call-Id
-     */
     public CallIdHeader newCallId(GbDevice device) {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
@@ -144,42 +106,20 @@ public class SipRequestHeaderProvider {
         return provider == null ? null : provider.getNewCallId();
     }
 
-    // ============================================================
-    // INVITE / ACK / BYE  (S2.2 实时点播)
-    // ============================================================
-
-    /**
-     * 构造发往设备的 INVITE 请求（实时点播 / 回放共用）
-     *
-     * @param device       目标设备
-     * @param channelId    通道国标 ID（写入 Request-URI / To / Subject）
-     * @param sdpBody      SDP 报文体（由 {@link SdpBuilder} 生成）
-     * @param ssrc         10 位 SSRC（写入 Subject）
-     * @param callId       调用方持有的 Call-Id
-     * @param fromTag      调用方持有的 from-tag
-     */
     public Request buildInviteRequest(GbDevice device, String channelId, String sdpBody,
                                       String ssrc, CallIdHeader callId, String fromTag)
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
-
-        // Request-URI: sip:<channelId>@<deviceHostAddress>
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(channelId, device.getHostAddress());
-
-        // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
         String sipIp = properties.resolveSipIp(localIp);
         ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
-
-        // From: sip:<platformId>@<platformDomain>;tag=<fromTag>
         SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
         Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, fromTag);
-
-        // To: sip:<channelId>@<deviceHostAddress>
         SipURI toUri = ADDRESS_FACTORY.createSipURI(channelId, device.getHostAddress());
         Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
         ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, null);
@@ -189,29 +129,19 @@ public class SipRequestHeaderProvider {
 
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.INVITE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
-
-        // Contact: sip:<platformId>@<sipIp:platformPort>（sipIp 经 resolveSipIp 解析，公网部署时为 publicIp）
         SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         request.addHeader(contact);
-
-        // Subject: <channelId>:<ssrc>,<platformId>:0
         SubjectHeader subject = HEADER_FACTORY.createSubjectHeader(
                 channelId + ":" + ssrc + "," + properties.getId() + ":0");
         request.addHeader(subject);
-
-        // SDP body
         ContentTypeHeader ct = HEADER_FACTORY.createContentTypeHeader("Application", "SDP");
         request.setContent(sdpBody, ct);
         return request;
     }
 
-    /**
-     * 构造发给设备的 ACK 请求（对 INVITE 200 OK 的确认）
-     * <p>Request-URI 取响应 SDP 中 {@code o=} username + 收包源地址；
-     * CallId / From / To 全部沿用 200 OK 响应里的，仅 CSeq 升到 ACK 方法。</p>
-     */
+    // ACK 沿用 200 OK 的 CallId/From/To，只把 CSeq 方法换成 ACK。
     public Request buildAckRequest(GbDevice device, SIPResponse response, String remoteHost, int remotePort)
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
@@ -256,9 +186,6 @@ public class SipRequestHeaderProvider {
         return ack;
     }
 
-    /**
-     * 构造发给设备的 BYE 请求（结束一次 INVITE Dialog）
-     */
     public Request buildByeRequest(GbDevice device, GbInviteSession session)
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
@@ -294,11 +221,7 @@ public class SipRequestHeaderProvider {
         return request;
     }
 
-    /**
-     * 构造发给设备的 INFO 请求（Dialog 内控制，回放 PAUSE/PLAY/SCALE 用）
-     * <p>Dialog 内请求复用 session 的 callId / from-tag / to-tag，仅 Via 用新 branch、CSeq 递增。
-     * Body 是 {@code application/MANSRTSP} 文本（由 {@link RtspControlBuilder} 构造）。</p>
-     */
+    // Dialog 内复用 callId/from-tag/to-tag，Via 换 branch，CSeq 继续递增。
     public Request buildInfoRequest(GbDevice device, GbInviteSession session, String rtspBody)
             throws ParseException, InvalidArgumentException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
@@ -337,22 +260,7 @@ public class SipRequestHeaderProvider {
         return request;
     }
 
-    // ============================================================
-    // SUBSCRIBE（目录/移动位置订阅）
-    // ============================================================
-
-    /**
-     * 构造发往设备的 SUBSCRIBE 请求
-     *
-     * @param device    目标设备
-     * @param eventType 事件类型（catalog / mobilePosition 等）
-     * @param xmlBody   XML 报文体，退订时可为 null
-     * @param charset   XML 字符集，用于编码 body 字节
-     * @param expires   有效期（秒），0 表示退订
-     * @param callId    首次传 null，续期/退订复用原 dialog 的 callId
-     * @param fromTag   from-tag，首次传 null
-     * @param toTag     to-tag，首次传 null
-     */
+    // 首次订阅 tag 传 null，续期/退订复用原 dialog；expires=0 是退订。
     public Request buildSubscribeRequest(GbDevice device, String eventType, String xmlBody,
                                          String charset, int expires, CallIdHeader callId,
                                          String fromTag, String toTag)
@@ -360,22 +268,14 @@ public class SipRequestHeaderProvider {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
         String transport = device.getTransport() == null ? "UDP" : device.getTransport();
         String sipIp = properties.resolveSipIp(localIp);
-
-        // Request-URI: sip:<deviceId>@<deviceHostAddress>
         SipURI requestUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
-
-        // Via
         List<ViaHeader> viaHeaders = new ArrayList<>();
         ViaHeader via = HEADER_FACTORY.createViaHeader(sipIp, properties.getPort(), transport, SipUtils.newViaTag());
         via.setRPort();
         viaHeaders.add(via);
-
-        // From
         SipURI fromUri = ADDRESS_FACTORY.createSipURI(properties.getId(), properties.getDomain());
         Address fromAddr = ADDRESS_FACTORY.createAddress(fromUri);
         FromHeader fromHeader = HEADER_FACTORY.createFromHeader(fromAddr, fromTag);
-
-        // To
         SipURI toUri = ADDRESS_FACTORY.createSipURI(device.getDeviceId(), device.getHostAddress());
         Address toAddr = ADDRESS_FACTORY.createAddress(toUri);
         ToHeader toHeader = HEADER_FACTORY.createToHeader(toAddr, toTag);
@@ -385,18 +285,12 @@ public class SipRequestHeaderProvider {
 
         Request request = MESSAGE_FACTORY.createRequest(
                 requestUri, Request.SUBSCRIBE, callId, cseq, fromHeader, toHeader, viaHeaders, maxForwards);
-
-        // Contact
         SipURI contactUri = ADDRESS_FACTORY.createSipURI(properties.getId(), sipIp + ":" + properties.getPort());
         Address contactAddr = ADDRESS_FACTORY.createAddress(contactUri);
         ContactHeader contact = HEADER_FACTORY.createContactHeader(contactAddr);
         request.addHeader(contact);
-
-        // Event 头
         EventHeader eventHeader = HEADER_FACTORY.createEventHeader(eventType);
         request.addHeader(eventHeader);
-
-        // Expires 头
         ExpiresHeader expiresHeader = HEADER_FACTORY.createExpiresHeader(Math.max(0, expires));
         request.addHeader(expiresHeader);
 
@@ -409,20 +303,7 @@ public class SipRequestHeaderProvider {
         return request;
     }
 
-    // ============================================================
-    // 语音广播：应答设备反向 INVITE / Dialog 内 BYE
-    // ============================================================
-
-    /**
-     * 应答设备收到 Broadcast 通知后主动发来的 INVITE，构造 200 OK。
-     * <p>媒体方向与正常点播相反：设备 a=recvonly，平台 a=sendonly。
-     * Contact / SDP 出口 IP 都按设备所在网卡解析，不走全局 IP。</p>
-     *
-     * @param device      发来 INVITE 的设备
-     * @param request     设备的 INVITE（Call-ID / From / To / CSeq 沿用它）
-     * @param sdpBody     平台侧 m=audio 应答 SDP（{@link SdpBuilder#buildBroadcastAnswer}）
-     * @param localToTag  本平台生成的 To-tag
-     */
+    // 广播方向和点播反过来：设备 recvonly，平台 sendonly。
     public Response buildBroadcastInviteOk(GbDevice device, SIPRequest request, String sdpBody, String localToTag)
             throws ParseException {
         String localIp = sipLayer.getLocalIp(device.getLocalIp());
@@ -441,17 +322,7 @@ public class SipRequestHeaderProvider {
         return response;
     }
 
-    /**
-     * 平台主动结束广播，向设备发 BYE。
-     * <p>Dialog 标识沿用设备 INVITE：Call-ID 不变；
-     * From 用本平台 ID 带本地 To-tag，To 用通道码带设备的 From-tag。</p>
-     *
-     * @param device    目标设备
-     * @param channelId 放音通道码（Request-URI / To user）
-     * @param callId    设备 INVITE 的 Call-ID
-     * @param fromTag   设备 INVITE 的 From-tag（在本 BYE 里放到 To）
-     * @param toTag     本平台回 200 时生成的 To-tag（在本 BYE 里放到 From）
-     */
+    // 设备是主叫，所以 BYE 里 From 用本地 toTag，To 用设备 fromTag，别写反。
     public Request buildBroadcastByeRequest(GbDevice device, String channelId, String callId,
                                             String fromTag, String toTag)
             throws ParseException, InvalidArgumentException {
@@ -488,9 +359,6 @@ public class SipRequestHeaderProvider {
         return request;
     }
 
-    /**
-     * 收到设备的 BYE 后，给设备回 200 OK 响应
-     */
     public Response buildResponse(int statusCode, Request request) throws ParseException {
         return MESSAGE_FACTORY.createResponse(statusCode, request);
     }

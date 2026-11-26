@@ -19,21 +19,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-/**
- * <p>设备录像列表会分片送回（每片若干 Item，分多个 MESSAGE），本类负责：</p>
- * <ol>
- *   <li>解析单片 Item 列表（{@code <RecordList><Item>...} 节点）</li>
- *   <li>交给 {@link RecordInfoDataCache} 按 {@code (deviceId, sn)} 累积</li>
- *   <li>达到 SumNum 时按"路由目的地"分发——
- *       <ul>
- *         <li>SN 在 {@link UpperRecordQueryHolder} 里 → 改 outer SN 转给上级（ADR-031）</li>
- *         <li>SN 不在 holder 里 → 现有 {@code playbackService.onRecordInfoReceived} 路径</li>
- *       </ul>
- *   </li>
- * </ol>
- *
- * <p>分片累积用 in-memory cache — 单条 RecordInfo 查询生命周期通常只有几秒，无需 Redis 持久化。</p>
- */
+// 分片按 deviceId+sn 攒到 SumNum；holder 命中说明是上级查询，要换回 outer SN，否则给内部回放。
+// SumNum=0 也要路由一次空结果。
 @Slf4j
 @Component
 public class RecordInfoResponseMessageHandler implements MessageHandler {
@@ -41,20 +28,14 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
     @Autowired
     private RecordInfoDataCache cache;
 
-    /**
-     * 用 @Lazy 避免循环依赖：
-     * RecordInfoResponseMessageHandler → GbPlaybackService → SipCommander → SipSender → SipLayer
-     * → SipProcessorObserver → List&lt;MessageHandler&gt; → RecordInfoResponseMessageHandler
-     */
+    // @Lazy 用来拆消息处理器、回放服务和 SIP 层的循环依赖。
     @Autowired
     @Lazy
     private GbPlaybackService playbackService;
 
-    /** ADR-031：命中说明这是上级查询的响应，要转给上级 */
     @Autowired
     private UpperRecordQueryHolder upperRecordQueryHolder;
 
-    /** ADR-031：转给上级时通过这个 commander 发 */
     @Autowired
     private PlatformCommander platformCommander;
 
@@ -74,7 +55,6 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
         }
 
         if (sumNum == 0) {
-            // 设备回复"该时段无录像"：按 SN 路由到上级或内部
             UpperQueryContext upperCtx = upperRecordQueryHolder.consume(sn);
             if (upperCtx != null) {
                 log.info("[录像查询] 上级侧空响应 platform={} outerSN={} deviceId={} innerSN={}",
@@ -104,7 +84,6 @@ public class RecordInfoResponseMessageHandler implements MessageHandler {
         RecordInfoDataCache.Batch batch = cache.accumulate(device.getDeviceId(), sn, sumNum, chunk);
         if (batch != null && batch.done) {
             List<RecordItemResponse> items = batch.items();
-            // ADR-031：先查 holder，命中转上级；未命中走现有内部路径
             UpperQueryContext upperCtx = upperRecordQueryHolder.consume(sn);
             if (upperCtx != null) {
                 log.info("[录像查询] 上级侧收齐 platform={} outerSN={} deviceId={} innerSN={} total={}",

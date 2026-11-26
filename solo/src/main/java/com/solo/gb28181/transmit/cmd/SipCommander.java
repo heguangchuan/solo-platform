@@ -27,25 +27,12 @@ public class SipCommander {
     private final SipSender sipSender;
     private final SipRequestHeaderProvider headerProvider;
 
-    /**
-     * 查询设备信息（DeviceInfo）
-     * 设备会通过 MESSAGE Response/DeviceInfo 报文返回 manufacturer / model / firmware / deviceName 等
-     */
     public void queryDeviceInfo(GbDevice device) {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildQuery("DeviceInfo", sn, device.getDeviceId(), charsetOf(device));
         send(device, xml, "DeviceInfo", sn);
     }
 
-    /**
-     * 查询设备信息并等待应答（用于手动存活探测）
-     * <p>通过 {@link SipSender#send} 带回调发送：设备回任何响应触发 {@code onOk}，
-     * 事务超时触发 {@code onError}，业务超时由 {@link com.solo.gb28181.sip.SipSubscribe#sweep()} 回收。</p>
-     *
-     * @param onOk      收到设备应答回调（存活）
-     * @param onError   非 2xx 回调
-     * @param timeoutMs 订阅超时（毫秒，0 = 用默认 10s）
-     */
     public void queryDeviceInfo(GbDevice device,
                                 Consumer<ResponseEvent> onOk,
                                 Consumer<ResponseEvent> onError,
@@ -53,11 +40,7 @@ public class SipCommander {
         queryDeviceInfo(device, onOk, onError, null, timeoutMs);
     }
 
-    /**
-     * 查询设备信息并登记存活/超时回调（用于手动存活探测，fire-and-forget）
-     * <p>设备回包→{@code onOk}；超时无应答→{@code onTimeout}。
-     * 发送失败时同步调 {@code onError} 让调用方知晓。</p>
-     */
+    // 发送失败也会同步调 onError；timeoutMs=0 用默认 10s。
     public void queryDeviceInfo(GbDevice device,
                                 Consumer<ResponseEvent> onOk,
                                 Consumer<ResponseEvent> onError,
@@ -78,48 +61,22 @@ public class SipCommander {
         }
     }
 
-    /**
-     * 查询设备目录（Catalog）
-     * 设备会通过多个 MESSAGE Response/Catalog 报文分批返回所有 Item（按 SumNum 累加）
-     */
+    // Catalog 会按 SumNum 分多包回来，别指望一包收齐。
     public void queryCatalog(GbDevice device) {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildQuery("Catalog", sn, device.getDeviceId(), charsetOf(device));
         send(device, xml, "Catalog", sn);
     }
 
-    /**
-     * 查询通道预置位（Query/Preset）
-     * <p>设备通过 Response/Preset 报文返回预置位列表，由 PresetResponseMessageHandler 处理并落库。</p>
-     *
-     * @param device      目标设备
-     * @param channelId   通道国标 ID
-     * @param channelDbId 通道数据库主键（用于响应落库时关联）
-     * @return 本次查询的 SN
-     */
     public int queryPreset(GbDevice device, String channelId, Long channelDbId) {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildPresetQuery(sn, channelId, charsetOf(device));
-        // 注册 SN → channelDbId 映射，响应回来时用
         PresetQueryHolder.register(sn, channelDbId);
         send(device, xml, "Preset", sn);
         return sn;
     }
 
-    /**
-     * 目录订阅（SUBSCRIBE / Event: catalog）
-     * <p>首次订阅 callId/fromTag/toTag 传 null，续期/退订复用上次返回的 dialog 参数。</p>
-     *
-     * @param device    目标设备
-     * @param expires   有效期（秒），0 表示退订
-     * @param callId    首次传 null
-     * @param fromTag   首次传 null
-     * @param toTag     首次传 null
-     * @param onOk      2xx 回调
-     * @param onError   非 2xx 回调
-     * @param timeoutMs 超时（毫秒）
-     * @return 构造的 SIPRequest；发送失败返回 null
-     */
+    // 首次订阅 callId/fromTag/toTag 传 null，续期/退订复用上次的；expires=0 是退订。
     public SIPRequest catalogSubscribe(GbDevice device, int expires,
                                        CallIdHeader callId, String fromTag, String toTag,
                                        Consumer<ResponseEvent> onOk,
@@ -152,39 +109,12 @@ public class SipCommander {
         }
     }
 
-    /**
-     * 查询通道录像（RecordInfo）
-     * <p>设备返回 Response/RecordInfo 分片报文，由 {@code RecordInfoResponseMessageHandler} 累计。
-     * 调用方需要预先把 sn 注册到 pending 表，等响应到达时按 sn 唤醒等待者。</p>
-     *
-     * @param device     设备
-     * @param channelId  通道国标 ID（RecordInfo 查询的是通道，不是设备本体）
-     * @param sn         调用方持有的会话 SN，用于响应分片关联
-     * @param startTime  ISO-8601 起始时间，例 {@code 2026-06-30T00:00:00}
-     * @param endTime    ISO-8601 结束时间
-     */
+    // 查的是通道不是设备；调用方先登记 sn，响应分片回来后靠它关联。
     public void queryRecordInfo(GbDevice device, String channelId, int sn, String startTime, String endTime) {
         String xml = DeviceCommandXml.buildRecordInfoQuery(sn, channelId, startTime, endTime, charsetOf(device));
         send(device, xml, "RecordInfo", sn);
     }
 
-    // ---------------- INVITE / BYE (S2.2 实时点播) ----------------
-
-    /**
-     * 发起 INVITE
-     *
-     * @param device     目标设备
-     * @param channelId  通道国标 ID
-     * @param sdpBody    SDP 报文（由 {@link SdpBuilder} 生成，码流标识已写入其 a= 行）
-     * @param ssrc       10 位 SSRC
-     * @param rtpPort    ZLM 实际分配的多端口收流端口（写到日志便于排查，
-     *                   也与下级平台在 200 OK SDP 里看到的 m= 端口一致）
-     * @param callId     调用方持有的 Call-Id（保存到 invite session）
-     * @param fromTag    调用方持有的 from-tag（保存到 invite session）
-     * @param onOk       2xx 回调；通常用于解析 200 OK 中真实 SSRC（业务确认）
-     * @param onError    非 2xx 回调
-     * @param timeoutMs  订阅超时（毫秒）
-     */
     public void sendInvite(GbDevice device, String channelId, String sdpBody, String ssrc, int rtpPort,
                            CallIdHeader callId, String fromTag,
                            Consumer<ResponseEvent> onOk,
@@ -204,9 +134,6 @@ public class SipCommander {
         }
     }
 
-    /**
-     * 发起 BYE（结束既有 INVITE Dialog）
-     */
     public void sendBye(GbDevice device, GbInviteSession session) {
         try {
             Request request = headerProvider.buildByeRequest(device, session);
@@ -219,12 +146,6 @@ public class SipCommander {
         }
     }
 
-    // ---------------- INFO (S3 回放控制) ----------------
-
-    /**
-     * 在既有 INVITE Dialog 内发送 SIP INFO（携带 MANSRTSP body）
-     * <p>用于历史回放的 PAUSE / PLAY / SCALE / SEEK 控制；rtspBody 由 {@link RtspControlBuilder} 生成。</p>
-     */
     public void sendInfo(GbDevice device, GbInviteSession session, String rtspBody) {
         try {
             Request request = headerProvider.buildInfoRequest(device, session, rtspBody);
@@ -236,21 +157,7 @@ public class SipCommander {
         }
     }
 
-    // ---------------- 语音广播 ----------------
-
-    /**
-     * 发起语音广播通知（MESSAGE → Notify/Broadcast）
-     * <p>设备回 200 OK 后会主动向平台发 INVITE 建音频通道，由 InviteRequestProcessor 路由到广播服务。
-     * DeviceID 写的是要放音的通道码，不是设备本体 ID。</p>
-     *
-     * @param device    目标设备
-     * @param channelId 放音通道国标 ID
-     * @param talk      true=双向对讲（日志标题[语音对讲]），false=单向播报（[语音播报]）
-     * @param onOk      2xx 回调（设备愿意接收广播）
-     * @param onError   非 2xx 回调
-     * @param onTimeout 事务超时回调
-     * @param timeoutMs 订阅超时（毫秒）
-     */
+    // 设备回 200 后还会主动 INVITE 建音频通道；通道码写在 XML，不在 Request-URI。
     public void sendBroadcastNotify(GbDevice device, String channelId, boolean talk,
                                     Consumer<ResponseEvent> onOk,
                                     Consumer<ResponseEvent> onError,
@@ -274,15 +181,6 @@ public class SipCommander {
         }
     }
 
-    // ---------------- 内部 ----------------
-
-    /**
-     * 发送 PTZ 云台控制指令（SIP MESSAGE → DeviceControl/PTZCmd）
-     *
-     * @param device    目标设备
-     * @param channelId 通道国标 ID
-     * @param ptzCmd    8 字节 PTZ 控制码十六进制串（{@link com.solo.gb28181.utils.SipUtils#buildPtzCmd}）
-     */
     public void sendPtzCmd(GbDevice device, String channelId, String ptzCmd) {
         int sn = nextSn();
         String xml = DeviceCommandXml.buildPtzControl(sn, channelId, ptzCmd, charsetOf(device));
@@ -375,14 +273,7 @@ public class SipCommander {
         }
     }
 
-    /**
-     * 级联透传上级的 DeviceControl 报文，只重写 SN 与 DeviceID，命令体不动。
-     *
-     * @param device       通道所属设备
-     * @param channelId    设备侧真实通道国标 ID
-     * @param upstreamRoot 上级 Control 根元素
-     * @param cmdLabel     命令标签，日志用
-     */
+    // 只重写 SN 和 DeviceID，其余命令原样透传。
     public void sendDeviceControlPassthrough(GbDevice device, String channelId,
                                              Element upstreamRoot, String cmdLabel) {
         int sn = nextSn();

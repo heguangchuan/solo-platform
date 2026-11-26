@@ -22,30 +22,8 @@ import javax.sip.RequestEvent;
 import javax.sip.message.Response;
 import java.util.List;
 
-/**
- * <p>本平台作为下级挂上级时，上级发来
- * {@code <Query><CmdType>RecordInfo</CmdType>...</Query>} 索要某通道某时段录像列表。
- * 本平台不存录像，必须主动向下级设备转发同样的 {@code Query/RecordInfo}：</p>
- *
- * <h3>转发路径</h3>
- * <ol>
- *   <li>立刻回 200 OK 给上级（释放 SIP 事务）</li>
- *   <li>查 {@link GbDevice}，命中则走主动转发路径（生成 inner SN →
- *       登记 {@link UpperRecordQueryHolder} → {@link SipCommander#queryRecordInfo} 转发给设备）</li>
- *   <li>设备未登记则立刻给上级回 {@code SumNum=0} 空响应（不挂起）</li>
- *   <li>设备响应回包在 {@code RecordInfoResponseMessageHandler} 里命中 holder，
- *       改 outer SN 转给上级（详见 {@link UpperRecordQueryHolder}）</li>
- *   <li>30s 内设备不响应，holder sweep 主动给上级回空响应，避免上级无限等</li>
- * </ol>
- *
- * <h3>限制</h3>
- * <ul>
- *   <li>只支持直接登记的 {@link GbDevice}；上级的 {@code DeviceID} 命中子平台（{@code GbPlatform}）
- *       时不做多级级联转发——S6.b 后续迭代</li>
- *   <li>假设上级的 {@code DeviceID} 是设备级 ID（与 {@code GbPlaybackServiceImpl.queryRecordInfo}
- *       的 UI 行为对齐），如果是通道级 ID 走 lookup fallback——见下方 fallback 逻辑</li>
- * </ul>
- */
+// 上级来查录像，先回 200，再换 inner SN 转给设备；设备回包后由 holder 换回 outer SN。
+// 查不到设备、字段不全、发送失败或超时都回空列表，别让上级一直等。多级级联没做。
 @Slf4j
 @Component
 public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase implements MessageHandler {
@@ -55,15 +33,7 @@ public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase imple
     @Autowired
     private GbDeviceMapper deviceMapper;
 
-    /**
-     * 用 {@code @Lazy} 避免循环依赖（ADR-015）：
-     * <pre>
-     *   RecordInfoQueryMessageHandler → SipCommander → SipLayer → SipProcessorObserver
-     *   → List&lt;SipRequestProcessor&gt; → MessageRequestProcessor → List&lt;MessageHandler&gt;
-     *   → RecordInfoQueryMessageHandler
-     * </pre>
-     * 设备应答超时 30s 才走 holder sweep，期间不调用本字段，{@code @Lazy} 零副作用。
-     */
+    // @Lazy 用来拆 SipLayer -> 消息处理器 -> SipCommander 的循环依赖。
     @Autowired
     @Lazy
     private SipCommander sipCommander;
@@ -105,12 +75,10 @@ public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase imple
         if (deviceId == null || deviceId.isBlank() || startTime == null || endTime == null) {
             log.warn("{} 收到上级查询但字段不全 platform={} SN={} deviceId={} startTime={} endTime={}",
                     LOG_TAG, platform.getServerGbId(), sn, deviceId, startTime, endTime);
-            // 不登记 holder、不转发设备；直接给上级回空（避免静默丢）
             platformCommander.sendRecordInfoResponse(platform, sn, deviceId == null ? "" : deviceId, List.of());
             return;
         }
 
-        // 按设备 ID 查本平台登记表。命中则转发；未命中回空
         GbDevice device = deviceMapper.selectOne(
                 new LambdaQueryWrapper<GbDevice>().eq(GbDevice::getDeviceId, deviceId));
         if (device == null) {
@@ -120,7 +88,6 @@ public class RecordInfoQueryMessageHandler extends SipRequestProcessorBase imple
             return;
         }
 
-        // 生成 inner SN，登记 holder，再转发给设备
         int snInner = SipCommander.nextSn();
         upperRecordQueryHolder.register(snInner,
                 new UpperQueryContext(platform, sn, deviceId));

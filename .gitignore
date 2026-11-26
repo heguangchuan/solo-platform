@@ -54,3 +54,5 @@ upload
 solo/META-INF/
 logs
 .openidea
+
+/COMMENT_STYLE.md

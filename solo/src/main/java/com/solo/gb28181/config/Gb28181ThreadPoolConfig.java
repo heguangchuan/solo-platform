@@ -8,19 +8,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
-/**
- * <p>
- * 专门的线程池处理 SIP 消息、心跳、点播回调等业务，避免占用 Spring MVC 默认线程池，
- * 保证高并发下发国标业务不会阻塞主业务请求。
- * </p>
- * <ul>
- *   <li>corePoolSize = max(2 * CPU cores, 16)</li>
- *   <li>maximumPoolSize = 10 * corePoolSize</li>
- *   <li>queueCapacity = 10000</li>
- *   <li>拒绝策略: CallerRunsPolicy - 撑满了直接调用者线程跑，不丢任务</li>
- * </ul>
- * </p>
- */
 @Slf4j
 @Configuration
 public class Gb28181ThreadPoolConfig {
@@ -58,17 +45,7 @@ public class Gb28181ThreadPoolConfig {
         return executor;
     }
 
-    /**
-     * 通道目录同步专用线程池。
-     * <p>与 {@link #gb28181BizExecutor} 隔离：Catalog 落库是 10w+ 通道场景下的 IO 密集型重活，
-     * 跑在业务池上会拖垮 SIP 消息分发。这里专门起一个独立池做分片入库、批量 upsert。</p>
-     * <ul>
-     *   <li>core 20 / max 50：DB 写并发能撑住且不抢占 DB 连接池</li>
-     *   <li>queue 5000：长任务排队</li>
-     *   <li>CallerRunsPolicy：撑满就回压到调用者（CatalogDataCache 落盘线程），
-     *       让上游慢下来而不是丢任务</li>
-     * </ul>
-     */
+    // 目录批量入库单独跑，别把 SIP 消息线程拖住；池满由调用线程执行，顺便回压
     @Bean("catalogSyncExecutor")
     public ThreadPoolTaskExecutor catalogSyncExecutor(Gb28181Properties properties) {
         Gb28181Properties.CatalogSyncPool cfg = properties.getCatalogSyncPool();
@@ -79,9 +56,7 @@ public class Gb28181ThreadPoolConfig {
         executor.setKeepAliveSeconds(60);
         executor.setThreadNamePrefix("gb-catalog-sync-");
         executor.setDaemon(true);
-        // setRejectedExecutionHandler 走 setter 即可，Spring 会包装成 RejectedExecutionHandler
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
-        // 不等待任务在关停时跑完——短任务在 shutdown 之前大多已落库
         executor.setWaitForTasksToCompleteOnShutdown(false);
         executor.setAwaitTerminationSeconds(30);
         executor.initialize();

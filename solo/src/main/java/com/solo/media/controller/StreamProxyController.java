@@ -12,6 +12,9 @@ import com.solo.media.request.StreamProxyBatchDeleteRequest;
 import com.solo.media.request.StreamProxyPageRequest;
 import com.solo.media.response.StreamProxyPlayUrlResponse;
 import com.solo.media.service.StreamProxyService;
+import com.solo.media.support.PlayTarget;
+import com.solo.media.support.ViewActor;
+import com.solo.media.support.ViewTokenSigner;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -33,6 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class StreamProxyController {
 
     private final StreamProxyService streamProxyService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "拉流代理分页查询")
     @PostMapping("/page")
@@ -98,7 +102,16 @@ public class StreamProxyController {
     @Parameter(name = "id", description = "主键 ID", in = ParameterIn.PATH)
     @GetMapping("/{id}/play-urls")
     public Result<StreamProxyPlayUrlResponse> playUrls(@PathVariable Long id) {
-        return Result.success(streamProxyService.getPlayUrls(id));
+        StreamProxyPlayUrlResponse result = streamProxyService.getPlayUrls(id);
+        String serverId = result.getMediaServerId();
+        String app = result.getApp();
+        String stream = result.getStream();
+        ViewActor actor = viewTokenSigner.requireCurrentUserActor();
+        result.setFlvUrl(viewTokenSigner.appendToken(result.getFlvUrl(), actor, PlayTarget.httpFlv(serverId, app, stream)));
+        result.setWsFlvUrl(viewTokenSigner.appendToken(result.getWsFlvUrl(), actor, PlayTarget.wsFlv(serverId, app, stream)));
+        result.setHlsUrl(viewTokenSigner.appendToken(result.getHlsUrl(), actor, PlayTarget.hls(serverId, app, stream)));
+        result.setRtcUrl(viewTokenSigner.appendToken(result.getRtcUrl(), actor, PlayTarget.rtc(serverId, app, stream)));
+        return Result.success(result);
     }
 
     @Operation(summary = "删除代理")

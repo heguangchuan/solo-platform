@@ -2,15 +2,6 @@ package com.solo.gb28181.support;
 
 import java.time.LocalDateTime;
 
-/**
- * <p>{@link #status} 取值：</p>
- * <ul>
- *   <li>{@code IDLE}：从未同步过 / 上下文已清理</li>
- *   <li>{@code RUNNING}：同步进行中</li>
- *   <li>{@code SUCCESS}：正常收齐（partial=false）</li>
- *   <li>{@code FAILED}：超时 / 异常收尾（partial=true）</li>
- * </ul>
- */
 public class CatalogSyncProgress {
 
     public static final String STATUS_IDLE = "IDLE";

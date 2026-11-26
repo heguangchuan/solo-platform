@@ -3,6 +3,9 @@ package com.solo.onvif.controller;
 import com.solo.aop.OperationLog;
 import com.solo.common.Result;
 import com.solo.common.enums.BusinessType;
+import com.solo.media.support.PlayTarget;
+import com.solo.media.support.ViewActor;
+import com.solo.media.support.ViewTokenSigner;
 import com.solo.onvif.request.OnvifPlayStartRequest;
 import com.solo.onvif.request.OnvifPlayStopRequest;
 import com.solo.onvif.response.OnvifPlayResultResponse;
@@ -22,12 +25,26 @@ import org.springframework.web.bind.annotation.RestController;
 public class OnvifPlayController {
 
     private final OnvifPlayService onvifPlayService;
+    private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
     @OperationLog(module = "ONVIF实时点播", type = BusinessType.OTHER, description = "开始ONVIF实时点播")
     @PostMapping("/start")
     public Result<OnvifPlayResultResponse> start(@RequestBody OnvifPlayStartRequest req) {
-        return Result.success(onvifPlayService.start(req));
+        ViewActor actor = viewTokenSigner.requireCurrentUserActor();
+        OnvifPlayResultResponse result = onvifPlayService.start(req);
+        signUrls(result, actor);
+        return Result.success(result);
+    }
+
+    private void signUrls(OnvifPlayResultResponse result, ViewActor actor) {
+        String serverId = result.getMediaServerId();
+        String app = result.getApp();
+        String streamId = result.getStreamId();
+        result.setFlvUrl(viewTokenSigner.appendToken(result.getFlvUrl(), actor, PlayTarget.httpFlv(serverId, app, streamId)));
+        result.setWsFlvUrl(viewTokenSigner.appendToken(result.getWsFlvUrl(), actor, PlayTarget.wsFlv(serverId, app, streamId)));
+        result.setHlsUrl(viewTokenSigner.appendToken(result.getHlsUrl(), actor, PlayTarget.hls(serverId, app, streamId)));
+        result.setRtcUrl(viewTokenSigner.appendToken(result.getRtcUrl(), actor, PlayTarget.rtc(serverId, app, streamId)));
     }
 
     @Operation(summary = "停止点播")

@@ -15,15 +15,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
-/**
- * <h3>Key 布局（前缀 {@link GbRedisKeys#CASCADE_SEND_PREFIX}）</h3>
- * <ul>
- *   <li>{@link GbRedisKeys#CASCADE_SEND_SESSION}{sendStreamId}  主体 JSON</li>
- *   <li>{@link GbRedisKeys#CASCADE_SEND_BY_CALL}{callId} = sendStreamId  上级 INVITE Call-Id 反查（ACK/BYE 用）</li>
- *   <li>{@link GbRedisKeys#CASCADE_SEND_BY_SRC_STREAM}{srcStream} = Set&lt;sendStreamId&gt;  源流反查（一路流被多上级点播）</li>
- *   <li>{@link GbRedisKeys#CASCADE_SEND_ALL_ACTIVE}  全集 Set</li>
- * </ul>
- */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -133,7 +124,6 @@ public class CascadeSendSessionServiceImpl implements CascadeSendSessionService 
         return start + offset;
     }
 
-    // ---------------- helpers ----------------
 
     private static void validate(CascadeSendSession s) {
         if (s == null || s.getSendStreamId() == null || s.getSendStreamId().isBlank()) {

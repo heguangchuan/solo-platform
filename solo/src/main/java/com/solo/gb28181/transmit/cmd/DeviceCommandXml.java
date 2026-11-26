@@ -7,9 +7,6 @@ public final class DeviceCommandXml {
     private DeviceCommandXml() {
     }
 
-    /**
-     * 构造一个 Query 报文
-     */
     public static String buildQuery(String cmdType, int sn, String deviceId, String charset) {
         StringBuilder sb = new StringBuilder(220);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -21,15 +18,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 构造一个 RecordInfo 录像查询 Query 报文
-     *
-     * @param sn        查询会话编号（响应分片回来时按 SN 关联）
-     * @param channelId 通道国标 ID（不是设备 ID — RecordInfo 是按通道查询）
-     * @param startTime ISO-8601 起始时间，
-     * @param endTime   ISO-8601 结束时间
-     * @param charset   设备字符集
-     */
     public static String buildRecordInfoQuery(int sn, String channelId, String startTime, String endTime, String charset) {
         StringBuilder sb = new StringBuilder(320);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -46,13 +34,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 构造一个 PTZ 云台控制 Control 报文（DeviceControl + PTZCmd）
-     * @param sn        命令序号
-     * @param channelId 通道国标 ID（PTZ 指令发给通道，不是设备）
-     * @param ptzCmd    8 字节 PTZ 控制码十六进制字符串（由 {@link com.solo.gb28181.utils.SipUtils#buildPtzCmd} 生成）
-     * @param charset   设备字符集
-     */
     public static String buildPtzControl(int sn, String channelId, String ptzCmd, String charset) {
         StringBuilder sb = new StringBuilder(320);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -168,10 +149,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 级联透传用：拷贝上级的 Control 报文，只把 SN 换成本平台序号、
-     * DeviceID 改成设备侧真实通道码（上级传的可能是撞码暴露码），命令体原样保留。
-     */
     public static String buildPassthroughControl(Element upstreamRoot, int sn, String channelId, String charset) {
         Element root = upstreamRoot.createCopy();
         setChildText(root, "SN", String.valueOf(sn));
@@ -182,9 +159,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 直接子元素存在就改文本，不存在就补一个
-     */
     private static void setChildText(Element root, String name, String value) {
         Element child = root.element(name);
         if (child == null) {
@@ -194,15 +168,6 @@ public final class DeviceCommandXml {
         }
     }
 
-    /**
-     * 构造预置位查询 Query 报文（Query/Preset）
-     *
-     * <p>设备返回 Response/Preset，其中 PresetList/Item 列出设备端所有预置位。</p>
-     *
-     * @param sn        命令序号（响应回来时按 SN 关联）
-     * @param channelId 通道国标 ID（预置位按通道查询）
-     * @param charset   设备字符集
-     */
     public static String buildPresetQuery(int sn, String channelId, String charset) {
         StringBuilder sb = new StringBuilder(260);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -214,15 +179,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 构造语音广播通知报文（Notify/Broadcast）
-     * <p>设备收到后回 200 OK，随后主动向平台发 INVITE（m=audio，a=recvonly），
-     * 平台在该 INVITE 协商的通道上把麦克风音频推给设备放音。</p>
-     *
-     * @param sn        命令序号
-     * @param channelId 要放音的通道国标 ID
-     * @param charset   设备字符集
-     */
     public static String buildBroadcastNotify(int sn, String channelId, String charset) {
         StringBuilder sb = new StringBuilder(220);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");
@@ -234,9 +190,6 @@ public final class DeviceCommandXml {
         return sb.toString();
     }
 
-    /**
-     * 构造 SUBSCRIBE XML 报文（Catalog / MobilePosition / Alarm 共用）
-     */
     public static String buildSubscribe(String cmdType, int sn, String deviceId, int expires, String charset) {
         StringBuilder sb = new StringBuilder(260);
         sb.append("<?xml version=\"1.0\" encoding=\"").append(charset).append("\"?>\r\n");

@@ -40,7 +40,6 @@ public class Knife4jConfig {
                 .addSecurityItem(globalSecurity);
     }
 
-    /** 系统管理：用户 / 角色 / 权限 / 字典 / 配置 / 文件 / 日志 / 消息 / 在线 / 认证 / 任务 / 服务器 */
     @Bean
     public GroupedOpenApi systemGroup() {
         return GroupedOpenApi.builder()
@@ -49,7 +48,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** 国标：设备 / 通道 / 上下级平台 / 录像下载 / 点播 / 回放 / 云台 / 分组 */
     @Bean
     public GroupedOpenApi gb28181Group() {
         return GroupedOpenApi.builder()
@@ -58,7 +56,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** ONVIF：设备 / 实时点播 */
     @Bean
     public GroupedOpenApi onvifGroup() {
         return GroupedOpenApi.builder()
@@ -67,7 +64,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** 媒体节点：节点管理 / 拉流代理 / 推流 / 推流方鉴权 */
     @Bean
     public GroupedOpenApi mediaGroup() {
         return GroupedOpenApi.builder()
@@ -76,7 +72,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** 调试（开发期诊断）：限流 / 防重提交 / XSS 过滤 */
     @Bean
     public GroupedOpenApi testsGroup() {
         return GroupedOpenApi.builder()
@@ -85,7 +80,6 @@ public class Knife4jConfig {
                 .build();
     }
 
-    /** 开放平台：第三方调用的 /open-api/** 和后台应用管理 /api/openapi/** */
     @Bean
     public GroupedOpenApi openApiGroup() {
         return GroupedOpenApi.builder()

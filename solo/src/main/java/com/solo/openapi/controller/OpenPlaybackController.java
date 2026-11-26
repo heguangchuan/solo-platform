@@ -8,11 +8,14 @@ import com.solo.gb28181.request.RecordInfoQueryRequest;
 import com.solo.gb28181.response.PlaybackResultResponse;
 import com.solo.gb28181.response.RecordItemResponse;
 import com.solo.gb28181.service.GbPlaybackService;
+import com.solo.gb28181.support.GbPlayUrlSigner;
 import com.solo.media.support.ViewActor;
 import com.solo.media.support.ViewTokenSigner;
 import com.solo.openapi.auth.OpenAppContext;
 import com.solo.openapi.auth.RequireScope;
 import com.solo.openapi.constant.OpenApiConstants;
+import com.solo.openapi.constant.OpenApiErrorCode;
+import com.solo.openapi.exception.OpenApiException;
 import com.solo.openapi.service.OpenCatalogService;
 import com.solo.openapi.support.OpenApiContextHolder;
 import com.solo.openapi.web.OpenApiResult;
@@ -27,9 +30,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/**
- * 开放 API 历史回放。复用 {@link GbPlaybackService}，入参出参与内部管理端一致。
- */
 @Tag(name = "开放API-历史回放", description = "录像查询、回放开始/停止/控制")
 @RestController
 @RequestMapping("/open-api/v1/playback")
@@ -55,24 +55,19 @@ public class OpenPlaybackController {
     @PostMapping("/start")
     public OpenApiResult<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req,
                                                        HttpServletRequest request) {
+        ViewActor actor = openAppActor(request);
         normalizeChannel(req);
         PlaybackResultResponse vo = playbackService.start(req);
-        signWithOpenApp(vo, request);
+        GbPlayUrlSigner.sign(vo, actor, viewTokenSigner);
         return OpenApiResult.success(vo, OpenApiContextHolder.requestId(request));
     }
 
-    /** 开放 API 请求不走平台用户体系，用应用身份给播放地址签观看令牌 */
-    private void signWithOpenApp(PlaybackResultResponse vo, HttpServletRequest request) {
+    private ViewActor openAppActor(HttpServletRequest request) {
         OpenAppContext ctx = OpenApiContextHolder.get(request);
         if (ctx == null) {
-            return;
+            throw new OpenApiException(OpenApiErrorCode.MISSING_CREDENTIAL, "缺少开放应用播放授权身份");
         }
-        ViewActor actor = ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
-        String sid = vo.getStreamId();
-        vo.setFlvUrl(viewTokenSigner.appendToken(vo.getFlvUrl(), actor, sid));
-        vo.setWsFlvUrl(viewTokenSigner.appendToken(vo.getWsFlvUrl(), actor, sid));
-        vo.setHlsUrl(viewTokenSigner.appendToken(vo.getHlsUrl(), actor, sid));
-        vo.setRtcUrl(viewTokenSigner.appendToken(vo.getRtcUrl(), actor, sid));
+        return ViewActor.openApp(ctx.getAppId(), ctx.getAppName());
     }
 
     @Operation(summary = "停止回放")
@@ -91,7 +86,6 @@ public class OpenPlaybackController {
         return OpenApiResult.success(null, OpenApiContextHolder.requestId(request));
     }
 
-    /** 三方可能传推送码，统一定位到真实通道后再查录像 / 回放 */
     private void normalizeChannel(RecordInfoQueryRequest req) {
         GbDeviceChannel channel = catalogService.resolveChannel(req.getDeviceId(), req.getChannelId());
         req.setDeviceId(channel.getDeviceId());

@@ -13,17 +13,12 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class MediaServerLoader {
 
-    /**
-     * ZSet key：成员 = mediaServerId，分数 = 活跃流数
-     */
+    // ZSet 分数就是活跃流数。
     private static final String ONLINE_KEY = "media:server:online";
 
     private final StringRedisTemplate redis;
 
-    /**
-     * 离线节点在 ZSet 中的占位分：足够大，保证排在所有在线节点后面，
-     * 不会被 {@link #pickLeastLoadedServerId()} 选中。
-     */
+    // 离线节点先给个超大分，选最闲节点时就不会撞上它。
     private static final double OFFLINE_SCORE = 1_000_000_000d;
 
     public void onNodeOnline(String serverId) {
@@ -42,9 +37,6 @@ public class MediaServerLoader {
         log.info("[流媒体节点] 节点离线下线，负载分置为占位值 serverId={}", serverId);
     }
 
-    /**
-     * 管理面删除节点时调用，彻底从 ZSet 中移除。
-     */
     public void removeNode(String serverId) {
         if (serverId == null || serverId.isBlank()) {
             return;
@@ -65,8 +57,7 @@ public class MediaServerLoader {
             return;
         }
         Double newScore = redis.opsForZSet().incrementScore(ONLINE_KEY, serverId, -1);
-        // 下限保护：流事件时序异常（如节点已离线但仍收到流离开、重复 hook 等）可能导致负数，
-        // 负数会让负载均衡误判为"最闲节点"，这里强制钳位到 0。
+        // 重复 hook 可能把分数减成负数，那反而成了“最闲节点”，拉回 0
         if (newScore != null && newScore < 0) {
             redis.opsForZSet().add(ONLINE_KEY, serverId, 0);
             log.warn("[流媒体节点] 负载分钳位到 0 serverId={} 原值={}", serverId, newScore);
@@ -75,13 +66,6 @@ public class MediaServerLoader {
         log.debug("[流媒体节点] 流断开 -1 serverId={} score={}", serverId, newScore);
     }
 
-    /**
-     * <p>ZSet 升序取首位 = 分数最低 = 活跃流数最少。本方法<strong>只返回 {@code serverId} 字符串</strong>，
-     * 拿到完整实体（IP / 端口 / secret 等）由调用方去 MySQL 查——避免 Loader 反向依赖 Service。</p>
-     *
-     * @return 最闲节点的 serverId；null 表示 ZSet 为空（冷启动 / Redis 抖动 / 节点刚被清空），
-     *         调用方需自行兜底
-     */
     public String pickLeastLoadedServerId() {
         Set<String> ids = redis.opsForZSet().range(ONLINE_KEY, 0, 0);
         if (ids == null || ids.isEmpty()) {
@@ -90,11 +74,6 @@ public class MediaServerLoader {
         return ids.iterator().next();
     }
 
-    /**
-     * 仅查询负载分（不触发选点），供监控 / 调试用
-     *
-     * @return null 表示该节点不在索引中
-     */
     public Double getLoad(String serverId) {
         if (serverId == null) {
             return null;
@@ -102,13 +81,6 @@ public class MediaServerLoader {
         return redis.opsForZSet().score(ONLINE_KEY, serverId);
     }
 
-    /**
-     * 全网 ZLM 活跃流总数 = 所有 ZSet 成员的 score 之和。
-     *
-     * <p>供仪表盘 / 监控面板一站式读"当前全网承载多少路流"——
-     * 避免调用方自己遍历 ZSet 累加（同样的 SQL 已经在 {@code onStreamArrival / onStreamDeparture}
-     * 里同步维护过）。Redis 不可达或索引空时返回 0，不抛异常。</p>
-     */
     public long getTotalLoad() {
         try {
             Set<String> ids = redis.opsForZSet().range(ONLINE_KEY, 0, -1);

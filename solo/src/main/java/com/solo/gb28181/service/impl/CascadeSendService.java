@@ -34,32 +34,8 @@ import javax.sip.message.Response;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 级联被上级点播编排（本平台作为下级，上级发 INVITE 点播本平台共享通道）。
- *
- * <p>两条腿模型（见 ADR-019）：</p>
- * <ol>
- *   <li><strong>取流腿</strong>：复用 {@link GbPlayService#start} 向真实下级设备取流，流进 ZLM（app=rtp/srcStream）。
- *       这一步阻塞等流就绪，由 {@code InviteRequestProcessor} 丢到 gb28181 业务线程池执行，不阻塞 SIP 线程（ADR-007）。</li>
- *   <li><strong>推流腿</strong>：取流就绪后用 ZLM {@code startSendRtp} 把 srcStream 推到上级 SDP 给的 ip/port/ssrc。</li>
- * </ol>
- *
- * <p>SSRC 策略：直接用上级 SDP 的 {@code y=} 值（顺从上级指定，见 ADR-019 决策 3），不自行分配。</p>
- * <p>推流触发时机：UDP / TCP 被动（本平台主动去连上级）在收到上级 ACK 后 {@code startSendRtp}；
- * TCP 主动（上级来连本平台）在回 200 OK 后立即 {@code startSendRtpPassive} 开监听。</p>
- *
- * <h3>依赖说明</h3>
- * <p>本类作为级联点播唯一编排层，<b>必须</b>调下列业务方法，因此直接依赖这些 service：</p>
- * <ul>
- *   <li>{@link CatalogShareService#loadSharedChannels} — 共享通道 + 授权校验（跨表 JOIN，非 mapper 能替代）</li>
- *   <li>{@link CascadeSendSessionService} — 推流会话生命周期（CRUD + 端口分配，全 Redis 复合键）</li>
- *   <li>{@link GbInviteSessionService#getByStreamId} — 取流侧会话查询（Redis 实现，无 mapper）</li>
- *   <li>{@link GbPlayService#start} — 复用设备点播全链路</li>
- *   <li>{@link GbInviteSessionCleanupService#failAndBye} — 取流回收（关 RTP 端口 + 释放 SSRC + 删会话）</li>
- *   <li>{@link PlatformSipHeaderProvider} / {@link SipSender} / {@link ZlmRestClient} — SIP 出站 + ZLM 推流接口</li>
- * </ul>
- * <p>单表查（节点、平台）走 mapper；保留的 service 依赖都是真正业务方法或跨表逻辑。</p>
- */
+// 上级 INVITE 后先从真实设备取流，再用 startSendRtp 推给上级。
+// SSRC 直接用上级 SDP 的 y=；UDP/TCP-passive 等 ACK，TCP-active 回 200 OK 时先开监听。
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -81,10 +57,6 @@ public class CascadeSendService {
     private final SipSender sipSender;
     private final GbParentPlatformMapper gbParentPlatformMapper;
 
-    /**
-     * 处理上级 INVITE：校验共享 → 取流 → 建会话 → 回 200 OK（sendonly SDP）。
-     * <p>调用方（InviteRequestProcessor）已回过 100 Trying 且在业务线程池内执行。</p>
-     */
     public void onUpstreamInvite(SIPRequest request, GbParentPlatform platform,
                                  String channelId, String upstreamSdp) {
         javax.sip.header.CallIdHeader callIdHeader =
@@ -92,7 +64,6 @@ public class CascadeSendService {
         String callId = callIdHeader.getCallId();
         String upstreamFromTag = request.getFromHeader().getTag();
 
-        // 1) 校验通道确已共享给该上级（loadSharedChannels 走 JOIN 且只筛 parental=0 通道，天然做授权 + 定位真实设备）
         GbDeviceChannel channel = findSharedChannel(platform.getId(), channelId);
         if (channel == null) {
             log.warn("[{}] 上级 {} 点播未共享/不存在的通道 上级通道编码:{} 原因:回 404",
@@ -101,9 +72,7 @@ public class CascadeSendService {
             return;
         }
 
-        // 2) 解析上级期望收流的目的地址 / SSRC / 传输模式
-        // 严格走协议层 SDP c=/m=/y=：下级无 authority 修改上级声明的收流地址（ADR-034）
-        // —— 网络不通时让上级修 SDP，不在业务代码层面做静默覆盖
+        // 上级给什么收流地址就用什么，网络不通让上级改 SDP，别在这里偷偷换
         String dstIp = SdpBuilder.extractConnectionIp(upstreamSdp);
         int dstPort = SdpBuilder.extractMediaPort(upstreamSdp);
         String ssrc = SdpBuilder.extractSsrc(upstreamSdp);
@@ -117,9 +86,7 @@ public class CascadeSendService {
         log.info("[{}] 收到上级点播 上级平台:{} 上级通道编码:{} 本平台通道编码:{} 收流目标:{}:{} SSRC:{} 传输方式:{}",
                 LOG_TAG, platform.getServerGbId(), channelId, channel.getChannelId(), dstIp, dstPort, ssrc, transport);
 
-        // 3) 向真实下级设备取流（阻塞等流就绪；复用设备点播全链路）
-        //    注意：上级来的 channelId 可能是 exposed_code，取流必须用真实通道原始 channelId + deviceId，
-        //    否则下级设备不认识 exposed_code。二者已由 findSharedChannel 解析到 channel 实体。
+        // 上级传来的可能是 exposed_code，设备只认真实 deviceId/channelId
         PlayResultResponse play;
         try {
             PlayStartRequest req = new PlayStartRequest();
@@ -142,7 +109,6 @@ public class CascadeSendService {
             return;
         }
 
-        // 4) 建推流会话
         String localToTag = SipUtils.newToTag();
         CascadeSendSession session = new CascadeSendSession();
         session.setSendStreamId("send_" + callId);
@@ -165,7 +131,9 @@ public class CascadeSendService {
         session.setStatus(CascadeSendSession.STATUS_WAIT_ACK);
         session.setCreateTime(LocalDateTime.now());
 
-        // 5) TCP 主动（上级来连本平台）：先开监听端口拿到本地端口，写进回复 SDP
+        // 先存会话再开监听，不然 on_play 可能先到，内部 reader 会被误拒
+        sendSessionService.save(session);
+
         int sendPort = 0;
         boolean upstreamActive = session.isUpstreamActive();
         if (upstreamActive) {
@@ -174,7 +142,9 @@ public class CascadeSendService {
                 session.setLocalSendPort(sendPort);
                 session.setStatus(CascadeSendSession.STATUS_SENDING);
                 session.setSendTime(LocalDateTime.now());
+                sendSessionService.update(session);
             } catch (Exception e) {
+                sendSessionService.removeBySendStreamId(session.getSendStreamId());
                 log.error("[{}] startSendRtpPassive 失败 流ID:{} 错误:{}",
                         LOG_TAG, play.getStreamId(), e.getMessage(), e);
                 sendError(request, Response.SERVER_INTERNAL_ERROR, "passive listen failed");
@@ -182,9 +152,6 @@ public class CascadeSendService {
             }
         }
 
-        sendSessionService.save(session);
-
-        // 6) 回 200 OK（sendonly SDP）
         String sdpIp = server.getStreamIp() != null && !server.getStreamIp().isBlank()
                 ? server.getStreamIp() : server.getHostIp();
         String answer = SdpBuilder.buildSendAnswer(properties.getId(), sdpIp, sendPort, ssrc, transport);
@@ -200,16 +167,13 @@ public class CascadeSendService {
         }
     }
 
-    /**
-     * 上级 ACK 到达：对 UDP / TCP 被动会话真正 startSendRtp（TCP 主动已在回 200 时开监听，跳过）。
-     */
     public void onUpstreamAck(String callId) {
         CascadeSendSession session = sendSessionService.getByCallId(callId);
         if (session == null) {
             return;
         }
         if (CascadeSendSession.STATUS_SENDING.equals(session.getStatus())) {
-            // TCP 主动已在回 200 时启动监听，或重复 ACK，幂等跳过
+            // TCP 主动已经开过监听；重复 ACK 也直接跳过
             return;
         }
         MediaServer server = mediaServer(session.getServerId());
@@ -237,9 +201,6 @@ public class CascadeSendService {
         }
     }
 
-    /**
-     * 上级发 BYE 停播（由 ByeRequestProcessor 在按 callId 命中推流会话时调用）。
-     */
     public void onUpstreamBye(CascadeSendSession session) {
         if (session == null) return;
         cleanup(session, false);
@@ -247,9 +208,6 @@ public class CascadeSendService {
                 LOG_TAG, session.getPlatformServerGbId(), session.getLocalChannelId(), session.getSrcStream());
     }
 
-    /**
-     * ZLM {@code on_send_rtp_stopped} 回调：某路推流被 ZLM 中止（对端断开 / 超时），清理会话。
-     */
     public void onSendRtpStopped(String stream, String ssrc) {
         List<CascadeSendSession> sessions = sendSessionService.listBySrcStream(stream);
         for (CascadeSendSession s : sessions) {
@@ -260,9 +218,6 @@ public class CascadeSendService {
         }
     }
 
-    /**
-     * 扫描 WAIT_ACK 超时会话：回 200 OK 后迟迟收不到上级 ACK → 释放并 BYE 上级。由 GbHealthScheduledTasks 定时调用。
-     */
     public void sweepAckTimeout() {
         long timeoutMs = properties.getCascade().getSendAckTimeoutMs();
         LocalDateTime deadline = LocalDateTime.now().minusNanos(timeoutMs * 1_000_000L);
@@ -276,17 +231,10 @@ public class CascadeSendService {
         }
     }
 
-    // ---------------- helpers ----------------
 
-    /**
-     * 统一清理：stopSendRtp → 删会话 → BYE 上级(可选) → 无人观看时停取流。
-     *
-     * @param byeUpstream 是否需要本平台主动向上级发 BYE（上级主动 BYE 的场景传 false，其余传 true）
-     */
     private void cleanup(CascadeSendSession session, boolean byeUpstream) {
         MediaServer server = mediaServer(session.getServerId());
 
-        // 1) 停推流
         if (server != null) {
             try {
                 zlmRestClient.stopSendRtp(server, session.getSrcApp(), session.getSrcStream(), session.getSsrc());
@@ -295,21 +243,17 @@ public class CascadeSendService {
             }
         }
 
-        // 2) 删推流会话
         sendSessionService.removeBySendStreamId(session.getSendStreamId());
 
-        // 3) 主动 BYE 上级（超时 / startSendRtp 失败等本平台主动结束的场景）
         if (byeUpstream) {
             byeUpstream(session);
         }
 
-        // 4) 若这路源流已无其它上级在推、且本地也无人观看，则向真实下级停取流回收
         try {
             boolean stillSharing = !sendSessionService.listBySrcStream(session.getSrcStream()).isEmpty();
             if (!stillSharing && server != null) {
                 GbInviteSession invite = inviteSessionService.getByStreamId(session.getSrcStream());
                 if (invite != null && !streamHasReader(server, session.getSrcStream())) {
-                    // 复用设备点播语义：BYE 下级 + closeRtpServer + 释放 SSRC + 删会话
                     support.failAndBye(invite, LOG_TAG, "级联无观看者回收取流");
                 }
             }
@@ -334,22 +278,16 @@ public class CascadeSendService {
         }
     }
 
-    /**
-     * 从 loadSharedChannels（仅 parental=0 通道）结果里定位上级点播的真实通道（含共享授权校验）。
-     * <p>上级 INVITE 带的 channelId 是本平台对它暴露的码：优先按 exposed_code 精确匹配（平台唯一，
-     * 跨设备/级联撞码也能唯一定位）；未命中再回退按原始 channelId 匹配（兼容未分配 exposed_code 的存量，
-     * 但存量撞码时只能取第一条并告警）。</p>
-     */
+    // 优先 exposed_code；老数据没有这个码才回退原始 channelId。
+    // 原始码可能撞，真撞了至少把错误日志打出来，别装没事。
     private GbDeviceChannel findSharedChannel(Long platformDbId, String channelId) {
         List<GbDeviceChannel> shared = catalogShareService.loadSharedChannels(platformDbId);
         if (shared == null) return null;
-        // 1) 优先 exposed_code 精确匹配
         GbDeviceChannel byExposed = shared.stream()
                 .filter(c -> channelId.equals(c.getExposedCode()))
                 .findFirst()
                 .orElse(null);
         if (byExposed != null) return byExposed;
-        // 2) 回退原始 channelId（存量兼容）
         List<GbDeviceChannel> byRaw = shared.stream()
                 .filter(c -> channelId.equals(c.getChannelId()))
                 .toList();
@@ -372,7 +310,6 @@ public class CascadeSendService {
                 properties.getCascade().getSendRtpPortEnd());
     }
 
-    /** getMediaList 里 totalReaderCount / readerCount > 0 视为仍有观看者 */
     private boolean streamHasReader(MediaServer server, String stream) {
         for (JsonNode node : zlmRestClient.getMediaList(server)) {
             if (APP.equals(node.path("app").asText()) && stream.equals(node.path("stream").asText())) {

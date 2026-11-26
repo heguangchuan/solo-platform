@@ -28,27 +28,15 @@ import javax.sip.header.ViaHeader;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
 
-/**
- * <p>本平台主动发出 INVITE 后，设备会以 100/180/200 响应。此处只关心 2xx：
- * <ol>
- *     <li>解析 SDP 中的 {@code o=} 用户名 + {@code y=} SSRC</li>
- *     <li>构造 ACK 并立即回发（GB28181 要求 INVITE 100% 必须 ACK）</li>
- *     <li>把 to-tag 持久化到 {@link GbInviteSession}，BYE 时需要复用</li>
- * </ol>
- * <p>业务上的"流就绪"由 ZLM hook {@code on_stream_changed regist=true} 触发 PlayService，
- * 不在本 processor 中处理。</p>
- */
+// 2xx 里先存 to-tag、回 ACK，再处理设备自报 SSRC；流就绪不归这里，等 ZLM hook。
+// 上级反向 INVITE 用 parentCallId，不在普通点播会话里。
 @Slf4j
 @Component
 public class InviteResponseProcessor implements SipResponseProcessor {
 
     @Autowired
     private SipSender sipSender;
-    /**
-     * 用 @Lazy 打破 InviteResponseProcessor → SipLayer → SipProcessorObserver →
-     * List&lt;SipResponseProcessor&gt; → InviteResponseProcessor 循环。
-     * （与 {@link SipSender} 注入 SipLayer 同样的处理方式。）
-     */
+    // 这些 @Lazy 都是拆 SIP 处理器与 SipLayer/Service 的循环依赖，别随手去掉。
     @Autowired
     @Lazy
     private SipLayer sipLayer;
@@ -56,14 +44,9 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     private SipRequestHeaderProvider headerProvider;
     @Autowired
     private GbInviteSessionService inviteSessionService;
-    /** 设备查表：按 ADR-037 原则直接走 mapper，不绕 service。 */
     @Autowired
     private GbDeviceMapper deviceMapper;
 
-    /**
-     * 用 @Lazy 打破 InviteResponseProcessor → GbPlayService → SipCommander →
-     * SipSender → SipLayer → SipProcessorObserver → InviteResponseProcessor 循环。
-     */
     @Autowired
     @Lazy
     private GbPlayService playService;
@@ -72,7 +55,6 @@ public class InviteResponseProcessor implements SipResponseProcessor {
     @Lazy
     private GbPlaybackService playbackService;
 
-    /** 级联喊话：本平台主动 INVITE 上级收音频，响应按 parentCallId 反查 */
     @Autowired
     @Lazy
     private GbPlatformBroadcastService platformBroadcastService;
@@ -125,7 +107,7 @@ public class InviteResponseProcessor implements SipResponseProcessor {
             return;
         }
 
-        // 1) 持久化 to-tag
+        // BYE 还要用 to-tag。
         ToHeader to = (ToHeader) response.getHeader(ToHeader.NAME);
         String toTag = to == null ? null : to.getTag();
         if (toTag != null && (session.getToTag() == null || !toTag.equals(session.getToTag()))) {
@@ -133,12 +115,11 @@ public class InviteResponseProcessor implements SipResponseProcessor {
             inviteSessionService.update(session);
         }
 
-        // 2) 解析 SDP 中的 y= SSRC（设备实际使用的 SSRC，可能与本平台分配的不一致）
+        // 设备实际 SSRC 可能和申请的不一样。
         byte[] raw = response.getRawContent();
         String sdp = raw == null ? null : new String(raw);
         String remoteSsrc = SdpBuilder.extractSsrc(sdp);
 
-        // 3) 构造并发送 ACK（必须在 SSRC 自适应前发，让设备先稳定 Dialog）
         String remoteHost;
         int remotePort;
         if (response.getPeerPacketSourceAddress() != null) {
@@ -149,11 +130,11 @@ public class InviteResponseProcessor implements SipResponseProcessor {
             remoteHost = via.getReceived() != null ? via.getReceived() : via.getHost();
             remotePort = via.getRPort() != -1 ? via.getRPort() : via.getPort();
         }
+        // ACK 先于 SSRC 修正发，先把 Dialog 稳住。
         Request ack = headerProvider.buildAckRequest(device, response, remoteHost, remotePort);
         sipSender.send(sipLayer.getLocalIp(device.getLocalIp()), ack);
         log.info("[实时点播] 收到 200 OK 自动发送 ACK stream={} callId={}", session.getStreamId(), callId);
 
-        // 4) SSRC 自适应：若设备自报 SSRC 与本地不一致，改写 ZLM 过滤值（失败则 BYE）。按 sessionType 路由。
         if (GbInviteSession.TYPE_PLAYBACK.equals(session.getSessionType())
                 || GbInviteSession.TYPE_DOWNLOAD.equals(session.getSessionType())) {
             playbackService.onInviteOk(callId, remoteSsrc);

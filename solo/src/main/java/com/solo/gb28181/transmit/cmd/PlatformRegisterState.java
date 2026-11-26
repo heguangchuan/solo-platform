@@ -22,7 +22,6 @@ public class PlatformRegisterState {
     private final Map<String, PlatformRegisterTx> registerCallId = new ConcurrentHashMap<>();
     private final Map<String, Integer> keepaliveFail = new ConcurrentHashMap<>();
 
-    // ---- 注册事务 callId 关联 ----
 
     public void markRegistering(String callId, String serverGbId, boolean register) {
         registerCallId.put(callId, new PlatformRegisterTx(serverGbId, register));
@@ -36,7 +35,6 @@ public class PlatformRegisterState {
         registerCallId.remove(callId);
     }
 
-    // ---- 心跳超时计数 ----
 
     /** 记一次心跳超时，返回累计次数 */
     public int incKeepaliveFail(String serverGbId) {

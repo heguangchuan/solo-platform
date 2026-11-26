@@ -9,16 +9,8 @@ import gov.nist.javax.sip.stack.SIPTransactionStack;
 import javax.sip.SipStack;
 import java.util.Properties;
 
-/**
- * <p>本类必须保留：JAIN-SIP 启动时无条件通过 {@code gov.nist.javax.sip.SERVER_LOGGER} 属性
- * 反射加载，漏设即回落到 {@code StackLoggerImpl}（依赖 log4j 1.x）抛
- * {@code NoClassDefFoundError: org/apache/log4j/Priority}，见 ADR-001。</p>
- *
- * <p>报文全文打印功能已废弃（ADR-033）：本类所有 logMessage 重载均为 no-op，
- * 排查 SIP 报文走 tcpdump / wireshark 等专业工具，不再走日志。</p>
- *
- * <p>注意：本类必须有公共无参构造，由 JAIN-SIP 反射创建。</p>
- */
+// 这个类不能删：JAIN-SIP 会反射建它，缺了会去摸 log4j 1.x 并抛 NoClassDefFoundError。
+// 公共无参构造也不能动。报文全文不再打日志，要抓包就用 tcpdump/Wireshark。
 public class Slf4jServerLogger implements ServerLogger {
 
     private StackLogger stackLogger;

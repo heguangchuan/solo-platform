@@ -23,10 +23,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.function.Consumer;
 
-/**
- * <p>REGISTER 走「按方法名分发」的 {@link com.solo.gb28181.processor.response.RegisterResponseProcessor}
- * 统一处理响应（fire-and-forget 发送即可）；Keepalive 走 {@link SipSender} 的响应订阅以便感知超时。</p>
- */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -36,14 +32,8 @@ public class PlatformCommander {
     private final PlatformRegisterState registerState;
     private final SipSender sipSender;
     private final Gb28181Properties properties;
-    /** 字段名故意与 Bean 名一致，Spring 按名装配 gb28181-biz 专属线程池（见 Gb28181ThreadPoolConfig） */
     private final ThreadPoolExecutor gb28181BizExecutor;
 
-    /**
-     * 首次注册（无认证）。新建 Call-Id / from-tag，记入注册态缓存供响应回查。
-     *
-     * @param expires 注册有效期秒；传 0 表示注销
-     */
     public void register(GbParentPlatform p, int expires) {
         String localIp = headerProvider.localIp();
         String transport = p.getTransport() == null ? "UDP" : p.getTransport();
@@ -61,9 +51,6 @@ public class PlatformCommander {
         }
     }
 
-    /**
-     * 收到 401 后带 Digest 应答重发（复用响应回显的 Call-Id / from-tag）。
-     */
     public void registerWithAuth(GbParentPlatform p, int expires, WWWAuthenticateHeader www,
                                  CallIdHeader callId, String fromTag) {
         String localIp = headerProvider.localIp();
@@ -78,9 +65,6 @@ public class PlatformCommander {
         }
     }
 
-    /**
-     * 发送心跳（Keepalive Notify）。订阅响应：超时/错误走 onFail，成功走 onOk。
-     */
     public void keepalive(GbParentPlatform p, Runnable onOk, Runnable onFail) {
         String localIp = headerProvider.localIp();
         String transport = p.getTransport() == null ? "UDP" : p.getTransport();
@@ -106,9 +90,6 @@ public class PlatformCommander {
         }
     }
 
-    /**
-     * 回复上级喊话通知是否接收（OK/ERROR），SN 透传。
-     */
     public void broadcastResultCmd(GbParentPlatform p, int sn, String channelId, boolean ok) {
         String localIp = headerProvider.localIp();
         try {
@@ -120,9 +101,6 @@ public class PlatformCommander {
         }
     }
 
-    /**
-     * 级联喊话结束时 BYE 上级，本平台为主叫。
-     */
     public void broadcastByeCmd(GbParentPlatform p, String callId, String localFromTag, String upstreamToTag) {
         String localIp = headerProvider.localIp();
         try {
@@ -135,18 +113,8 @@ public class PlatformCommander {
         }
     }
 
-    /**
-     * 响应上级 Catalog 查询：按 {@code catalogPageSize} 分片，每片一条独立事务的 MESSAGE。
-     * <p><b>ACK 驱动节奏（ADR-027）</b>：每发一片等上级回 200 OK 之后才发下一片——上级快则快、慢则让。
-     * 若 {@code catalogAckTimeoutMs} 内没收到 ACK，按 {@code catalogPageIntervalMs} 兜底继续
-     * （防止对端死掉时 sender 线程被长时间占用）。整个过程跑在专属业务线程池，不阻塞调用者。</p>
-     * <p>每片走全新 fromTag/CallId（与请求 CallId 无关），SIP 层合规，免去 dialog 状态维护。
-     * 回调链路靠 {@link SipSubscribe} 按 Call-Id+CSeq 匹配。</p>
-     *
-     * @param platform 上级平台配置
-     * @param sn       请求 SN，透传回去
-     * @param items    共享的 catalog item 明细（顺序=输出顺序；分组 parental=1 排在通道 parental=0 之前）
-     */
+    // 每片等上级 200 OK 再发下一片；超时按配置间隔继续，4xx/5xx 就停。
+    // 每片都是新 CallId/fromTag 的独立 MESSAGE。
     public void sendCatalogResponse(GbParentPlatform platform, String sn,
                                     List<GbDeviceChannel> items) {
         gb28181BizExecutor.execute(() -> doSendCatalogResponse(platform, sn, items));
@@ -165,11 +133,7 @@ public class PlatformCommander {
         sendPage(platform, sn, total, items, 1, totalPages, pageSize);
     }
 
-    /**
-     * 取该平台生效的 catalog 单包 Item 数。per-platform 配置（{@code catalogGroup}）优先，
-     * 必须是 1/2/4/8；NULL 或越界回落到 {@link Gb28181Properties.Cascade#getCatalogPageSize()}。
-     * <p>per-platform 越界时打 warn 不抛错——线上容错优先于拒绝服务。</p>
-     */
+    // 平台自己的 catalogGroup 只认 1/2/4/8，其他值用全局默认。
     private int resolveCatalogPageSize(GbParentPlatform platform) {
         int globalDefault = Math.max(1, properties.getCascade().getCatalogPageSize());
         if (platform == null) {
@@ -187,13 +151,6 @@ public class PlatformCommander {
         return globalDefault;
     }
 
-    /**
-     * 发送第 {@code pageIdx} 片 Catalog Response，并按回调决定是否继续下一片。
-     * 整个链路由 {@link #gb28181BizExecutor} 驱动，每次新一片都重新提交到池里——避免单线程被
-     * 长时间占用，pool 大小天然限流。
-     *
-     * @param pageSize 该平台生效的单包 Item 数（per-platform 或全局默认，由 {@link #resolveCatalogPageSize} 算好）
-     */
     private void sendPage(GbParentPlatform platform, String sn, int sumNum,
                           List<GbDeviceChannel> allItems, int pageIdx, int totalPages,
                           int pageSize) {
@@ -212,7 +169,6 @@ public class PlatformCommander {
             log.info("[级联目录] 响应 Catalog 查询 上级平台:{} SN:{} sumNum:{} 分片:{}/{} 条目:{}",
                     platform.getServerGbId(), sn, sumNum, pageIdx, totalPages, pageItems.size());
 
-            // 下一片只在还有剩余时才有意义
             int nextIdx = pageIdx + 1;
             boolean hasNext = nextIdx <= totalPages;
 
@@ -227,7 +183,7 @@ public class PlatformCommander {
                 int status = e.getResponse() != null ? e.getResponse().getStatusCode() : -1;
                 log.warn("[级联目录] ACK 失败 上级平台:{} SN:{} 分片:{}/{} 状态码:{} 原因:停止后续分片",
                         platform.getServerGbId(), sn, pageIdx, totalPages, status);
-                // 4xx/5xx 视为对端已拒收，继续推大概率会重复被拒，整条链停下
+                // 对端明确拒收就别接着推后面的片了
             };
             Runnable onTimeout = () -> {
                 long fallbackMs = Math.max(0, properties.getCascade().getCatalogPageIntervalMs());
@@ -257,72 +213,42 @@ public class PlatformCommander {
         }
     }
 
-    // ==================== DeviceInfo 业务应答（ADR-031） ====================
 
-    /**
-     * 响应上级 {@code Query/DeviceInfo}：本平台登记的设备，回完整厂商/型号/固件。
-     * <p>异步走业务线程池；fire-and-forget（不订阅响应，上级是否回 ACK 不重要）。</p>
-     */
     public void sendDeviceInfoResponse(GbParentPlatform platform, String sn, GbDevice device) {
         String xml = PlatformDeviceInfoXml.buildResponse(platform, device.getDeviceId(), sn, device);
         sendSingleMessageResponse(platform, xml, "设备信息", sn);
     }
 
-    /**
-     * 响应上级 {@code Query/DeviceInfo}：设备未登记，回 {@code Result=ERROR}。
-     */
     public void sendDeviceInfoError(GbParentPlatform platform, String deviceId, String sn, String reason) {
         String xml = PlatformDeviceInfoXml.buildErrorResponse(platform, deviceId, sn, reason);
         sendSingleMessageResponse(platform, xml, "设备信息-ERROR", sn);
     }
 
-    // ==================== DeviceStatus 业务应答（ADR-031 同范式） ====================
 
-    /**
-     * 响应上级 {@code Query/DeviceStatus}：回设备在线/健康状态。
-     * <p>异步走业务线程池；fire-and-forget（不订阅响应，上级是否回 ACK 不重要）。</p>
-     */
     public void sendDeviceStatusResponse(GbParentPlatform platform, String sn, GbDevice device) {
         String xml = PlatformDeviceStatusXml.buildResponse(platform, device.getDeviceId(), sn, device);
         sendSingleMessageResponse(platform, xml, "设备状态", sn);
     }
 
-    /**
-     * 响应上级 {@code Query/DeviceStatus}：回通道在线状态（通道维度，国标 DeviceStatus 本义）。
-     * <p>{@code channelStatus} 取 {@code GbDeviceChannel#getStatus()} 的
-     * {@code ON}/{@code OFF}/{@code UNREGISTERED} 字符串。</p>
-     */
     public void sendDeviceStatusResponse(GbParentPlatform platform, String sn,
                                           String deviceId, String channelStatus) {
         String xml = PlatformDeviceStatusXml.buildResponse(platform, deviceId, sn, channelStatus);
         sendSingleMessageResponse(platform, xml, "设备状态-通道", sn);
     }
 
-    /**
-     * 响应上级 {@code Query/DeviceStatus}：设备未登记，回 {@code Result=ERROR}。
-     */
     public void sendDeviceStatusError(GbParentPlatform platform, String deviceId, String sn, String reason) {
         String xml = PlatformDeviceStatusXml.buildErrorResponse(platform, deviceId, sn, reason);
         sendSingleMessageResponse(platform, xml, "设备状态-ERROR", sn);
     }
 
-    // ==================== RecordInfo 业务应答（ADR-031） ====================
 
-    /**
-     * 响应上级 {@code Query/RecordInfo}：回录像段列表（设备响应经 SN 重映射后转给上级）。
-     * <p>{@code items} 可为空或空集合——空集合会出 {@code SumNum=0 RecordList Num=0} 报文，
-     * 用于"设备无录像 / 设备超时未响应"两种场景。</p>
-     */
+    // 空列表也要回 SumNum=0 + 空 RecordList，别让上级一直等。
     public void sendRecordInfoResponse(GbParentPlatform platform, String sn, String deviceId,
                                        List<RecordItemResponse> items) {
         String xml = PlatformRecordInfoXml.buildResponse(platform, deviceId, sn, items);
         sendSingleMessageResponse(platform, xml, "录像查询", sn);
     }
 
-    /**
-     * 单条 MESSAGE 响应上级的私有 helper：每条独立事务（新 Call-Id / fromTag），走业务线程池。
-     * <p>与 {@link #sendCatalogResponse} 的"分片每片一条事务"是同一思路，只是这里不分片。</p>
-     */
     private void sendSingleMessageResponse(GbParentPlatform platform, String xml, String label, String sn) {
         gb28181BizExecutor.execute(() -> {
             String localIp = headerProvider.localIp();
@@ -339,17 +265,8 @@ public class PlatformCommander {
         });
     }
 
-    // ==================== NOTIFY 推送（ADR-030） ====================
 
-    /**
-     * 推送 Catalog NOTIFY（设备上下线 / 通道变更）给单个上级平台。
-     * <p>fire-and-forget——NOTIFY 是事件流，不等上级回 200；失败仅日志，由订阅方的
-     * 重 SUBSCRIBE 兜底（按 SIP 标准做法，GB/T 28181 也未要求 NOTIFY 可靠送达）。</p>
-     *
-     * @param platform 上级平台
-     * @param device   事件源设备（仅用于 DeviceID/Item 字段）
-     * @param sn       业务 SN（通常取订阅时收到的 SN 让上级对账）
-     */
+    // NOTIFY 不等 200，丢了就靠上级重新 SUBSCRIBE。
     public void sendNotifyCatalogItem(GbParentPlatform platform, GbDevice device, String sn) {
         gb28181BizExecutor.execute(() -> {
             String localIp = headerProvider.localIp();
@@ -370,9 +287,6 @@ public class PlatformCommander {
         });
     }
 
-    /**
-     * 推送多通道 Catalog NOTIFY 给单个上级平台——通道目录同步完成后批量上报
-     */
     public void sendNotifyCatalogList(GbParentPlatform platform, String deviceId,
                                       List<GbDeviceChannel> channels, String sn) {
         // 空目录也推（SumNum=0），让上级知道该设备/平台的通道已清空
@@ -395,9 +309,6 @@ public class PlatformCommander {
         });
     }
 
-    /**
-     * 推送 MobilePosition NOTIFY 给单个上级平台
-     */
     public void sendNotifyMobilePosition(GbParentPlatform platform, DevicePosition pos, String sn) {
         gb28181BizExecutor.execute(() -> {
             String localIp = headerProvider.localIp();
@@ -416,9 +327,6 @@ public class PlatformCommander {
         });
     }
 
-    /**
-     * 推送 Alarm NOTIFY 给单个上级平台
-     */
     public void sendNotifyAlarm(GbParentPlatform platform, DeviceAlarm alarm, String sn) {
         gb28181BizExecutor.execute(() -> {
             String localIp = headerProvider.localIp();
@@ -438,7 +346,6 @@ public class PlatformCommander {
         });
     }
 
-    /** 业务 SN（10w-99w，与 SubscribeRequestProcessor / keepalive 同分布） */
     public static int nextSn() {
         return ThreadLocalRandom.current().nextInt(100_000, 999_999);
     }

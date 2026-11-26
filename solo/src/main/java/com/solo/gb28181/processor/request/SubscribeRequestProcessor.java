@@ -24,40 +24,9 @@ import java.time.LocalDateTime;
 import static com.solo.gb28181.processor.request.SubscribeResponseBuilder.buildSubscribeOk;
 import static com.solo.gb28181.processor.request.SubscribeResponseBuilder.buildTerminated;
 
-/**
- * <p>本平台作为下级时，收到上级对 {@code Event: catalog} / {@code Event: mobilePosition} 的 SUBSCRIBE
- * 后回 200 OK（含 {@code Subscription-State: active;expires=N} + {@code Event} 头 + MANSCDP+xml body）
- * 并把订阅关系登记到 {@link SubscribeHolder}，供后续变更 NOTIFY 推送使用（ADR-030 跟进）。</p>
- *
- * <h3>CmdType 分支</h3>
- * <ul>
- *   <li>{@code Catalog}：登记订阅，回 OK。当前 NOTIFY 推送未实现，但订阅关系已入表，将来 catalog
- *       变更即可遍历订阅方推 NOTIFY。</li>
- *   <li>{@code MobilePosition}：200+接受，订阅入表。当前 NOTIFY 推送未实现，先留订阅关系。</li>
- *   <li>{@code Alarm}：200+接受，订阅入表。当前 NOTIFY 推送未实现，订阅关系入表为后续 ADR-030 推送打底
- *       （Sprint 5 报警数据不落库，仅日志，订阅方仅登记）。</li>
- *   <li>其他：200 + 默认 30s Expires，不打 ERROR，避免 S5 启动前的告警噪音。</li>
- * </ul>
- *
- * <h3>退订（Expires=0）</h3>
- * 从订阅表移除，回 200 + {@code Subscription-State: terminated}。
- *
- * <h3>不命中处理</h3>
- * <ul>
- *   <li>黑名单（{@code gb_platform.enabled=0}）：静默丢弃，与 {@code RegisterRequestProcessor} 一致。</li>
- *   <li>报文解析失败：400 Bad Request（语法层错误要告诉对方）。</li>
- *   <li>fromUser 未匹配到上级平台：静默丢弃——避免 NVR 周期性 SUBSCRIBE 刷屏。</li>
- * </ul>
- *
- * <h3>不实现</h3>
- * <ul>
- *   <li>NOTIFY 推送（需要 catalog 变更事件总线）→ ADR-030</li>
- *   <li>订阅持久化（GB 协议默许重启重发）</li>
- * </ul>
- *
- * @see SubscribeHolder
- * @see SubscribeInfo
- */
+// 不认识的来源和黑名单直接丢，别让 NVR 周期 SUBSCRIBE 刷日志。
+// expires=0 退订；不认识的 CmdType 回个 30s 的 200，不入订阅表。
+// 订阅只放内存，重启后等对端重新 SUBSCRIBE。
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -65,19 +34,10 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
 
     private static final String LOG_TAG = "[级联订阅]";
 
-    /**
-     * GB/T 28181 建议目录订阅有效期。
-     */
     private static final int DEFAULT_EXPIRES_SECONDS = 600;
 
-    /**
-     * 未知 CmdType 默认 Expires（30s 短期订阅，避免无谓占用订阅表）。
-     */
     private static final int DEFAULT_UNKNOWN_EXPIRES_SECONDS = 30;
 
-    /**
-     * MANSCDP+xml 响应 body 中事件名（与 CmdType 一致，全小写驼峰）。
-     */
     private static final String CMD_CATALOG = "Catalog";
     private static final String CMD_MOBILE_POSITION = "MobilePosition";
     private static final String CMD_ALARM = "Alarm";
@@ -97,15 +57,12 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         SIPRequest request = (SIPRequest) event.getRequest();
         String fromUser = SipUtils.getUserIdFromFromHeader(request);
 
-        // 黑名单拦截——与 REGISTER/MESSAGE 入口一致
         if (gbPlatformService.isBlocked(fromUser)) {
             log.warn("{} 命中禁用名单，静默丢弃 SUBSCRIBE: from={}", LOG_TAG, fromUser);
             return;
         }
 
-        // 解析 + 业务处理全程包 try/catch——JAIN-SIP 多个 header factory 在边界值下会抛
-        // InvalidArgumentException（典型：createExpiresHeader(int) 不接受负数），不能让单条
-        // 坏报文把整条 SIP listener 线程拖死。失败时回 500 + 业务日志，让对端按自身重传机制处理。
+        // JAIN-SIP 遇到负数 Expires 这类值会直接抛，别让一条坏报文拖死 listener 线程
         try {
             handleInternal(request, fromUser);
         } catch (javax.sip.InvalidArgumentException iae) {
@@ -119,11 +76,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         }
     }
 
-    /**
-     * 解析 body 并按 CmdType 分发。失败回 SIP 错误响应，失败本身只 log 不抛。
-     */
     private void handleInternal(SIPRequest request, String fromUser) throws Exception {
-        // body 解析
         Element root = getRootElement(request);
         if (root == null) {
             log.warn("{} 报文体为空或解析失败 from={}", LOG_TAG, fromUser);
@@ -137,20 +90,16 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         if (cmd.isEmpty()) cmd = CMD_CATALOG; // GB/T 28181 必有，缺失则按 Catalog 处理（最常见）
         String eventId = normalizeEventId(getEventHeader(request));
 
-        // 上级平台查询——与 MessageRequestProcessor.process 范式一致
         GbParentPlatform platform = gbParentPlatformService.lambdaQuery()
                 .eq(GbParentPlatform::getServerGbId, fromUser)
                 .eq(GbParentPlatform::getEnabled, 1)
                 .one();
         if (platform == null) {
-            // 未注册来源 SUBSCRIBE：与 MessageRequestProcessor "Catalog 未注册" 静默丢弃策略一致，
-            // 避免 NVR 周期性 SUBSCRIBE 刷屏。
             return;
         }
 
         int expires = resolveExpires(request, root);
 
-        // 分支
         if (CMD_CATALOG.equalsIgnoreCase(cmd)
                 || CMD_MOBILE_POSITION.equalsIgnoreCase(cmd)
                 || CMD_ALARM.equalsIgnoreCase(cmd)) {
@@ -163,9 +112,6 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         }
     }
 
-    /**
-     * 兜底回 SIP 错误响应——只 log 不抛，避免坏报文把监听线程拖死。
-     */
     private void safeResponse(SIPRequest request, int statusCode, String reason) {
         try {
             responseAck(request, statusCode, reason);
@@ -174,16 +120,12 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         }
     }
 
-    /**
-     * 处理已识别的 SUBSCRIBE（Catalog / MobilePosition / Alarm）：回 200 OK + 登记/续订/退订。
-     */
     private void processSubscribe(SIPRequest request, GbParentPlatform platform,
                                   String cmd, String eventId, String sn, String deviceId,
                                   int expires) throws Exception {
         String platformId = platform.getServerGbId();
 
         if (expires <= 0) {
-            // 退订
             SubscribeInfo removed = subscribeHolder.remove(platformId, cmd);
             log.info("{} 退订 platform={} cmd={} deviceId={} SN={}（{}前订阅）",
                     LOG_TAG, platformId, cmd, deviceId, sn, removed == null ? "无" : "有");
@@ -192,8 +134,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
             return;
         }
 
-        // 订阅/续订：入表
-        // Catalog 订阅下，DeviceID 为空或 == 本级平台 ID → 归一化为空（订阅整个平台目录，推送按 share 过滤）
+        // Catalog 的 DeviceID 为空或就是本平台，表示订阅整个平台，统一存空串
         boolean platformCatalog = CMD_CATALOG.equalsIgnoreCase(cmd)
                 && (deviceId == null || deviceId.isEmpty() || deviceId.equals(properties.getId()));
         String subscribedDeviceId = platformCatalog ? "" : deviceId;
@@ -210,19 +151,12 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
                 buildSubscribeOk(request, eventId, expires, body));
     }
 
-    /**
-     * 未知 CmdType 的兜底：200 + 默认 Expires + Subscription-State: active，不入订阅表，不打 ERROR。
-     */
     private void sendDefaultOk(SIPRequest request, String eventId, int expires) throws Exception {
         sipSender.send(request.getLocalAddress().getHostAddress(),
                 buildSubscribeOk(request, eventId, expires, null));
     }
 
-    /**
-     * 解析 SUBSCRIBE 的 Expires：优先 SIP {@code Expires} 头，否则取 body {@code <Expires>} 元素，
-     * 否则默认 600s。返回 0 表示退订。负数 / 越界值钳到 [0, MAX_SECONDS] 区间，规避 JAIN-SIP
-     * {@code createExpiresHeader(int)} 在 {@code expires < 0} 时抛 {@code InvalidArgumentException}。
-     */
+    // 先看 SIP Expires 头，再看 XML；负数按退订，最大钳到 24h，免得 JAIN-SIP 抛错。
     private static int resolveExpires(SIPRequest request, Element root) {
         int raw = readExpiresRaw(request, root);
         if (raw < 0) {
@@ -234,9 +168,6 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         return raw;
     }
 
-    /**
-     * Expires 上限：GB/T 28181 建议目录订阅最长 24h，再长没意义。
-     */
     private static final int MAX_EXPIRES_SECONDS = 86400;
 
     private static int readExpiresRaw(SIPRequest request, Element root) {
@@ -260,11 +191,7 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         return eh == null ? "" : eh.getEventType();
     }
 
-    /**
-     * 把 Event 头取值规整成"小写驼峰"，与 response 头兼容（catalog / mobilePosition）。
-     * 设备 / 上级有时带完整 URI 形式（{@code <urn:gb28181:sip:event:catalog>}），
-     * 这里只取冒号后最后一段，避免响应头变成巨长字符串。
-     */
+    // 有的对端发完整 urn，只取最后一个冒号后面的 catalog/mobilePosition。
     private static String normalizeEventId(String raw) {
         if (raw == null) {
             return CMD_CATALOG.toLowerCase();
@@ -277,24 +204,12 @@ public class SubscribeRequestProcessor extends SipRequestProcessorBase implement
         if (colon >= 0 && colon + 1 < s.length()) {
             s = s.substring(colon + 1);
         }
-        // 首字母小写
         if (!s.isEmpty() && Character.isUpperCase(s.charAt(0))) {
             s = Character.toLowerCase(s.charAt(0)) + s.substring(1);
         }
         return s;
     }
 
-    /**
-     * 构造响应 body（MANSCDP+xml）：
-     * <pre>
-     * &lt;Response&gt;
-     *   &lt;CmdType&gt;Catalog&lt;/CmdType&gt;
-     *   &lt;SN&gt;...&lt;/SN&gt;
-     *   &lt;DeviceID&gt;...&lt;/DeviceID&gt;
-     *   &lt;Result&gt;OK&lt;/Result&gt;
-     * &lt;/Response&gt;
-     * </pre>
-     */
     private static String buildResponseBody(String cmd, String sn, String deviceId) {
         return "<?xml version=\"1.0\" encoding=\"GB2312\"?>\r\n"
                 + "<Response>\r\n"

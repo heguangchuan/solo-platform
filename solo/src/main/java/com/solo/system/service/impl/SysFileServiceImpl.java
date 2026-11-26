@@ -119,7 +119,6 @@ public class SysFileServiceImpl extends ServiceImpl<SysFileMapper, SysFile> impl
         }
     }
 
-    /* ============================== 内部工具 ============================== */
 
     private void fillUploader(SysFile record) {
         fillUploader(record, null, null);

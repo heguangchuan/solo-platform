@@ -28,14 +28,9 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 class OpenFishingLiveApiTest {
 
-    // ===== 数据库真实应用凭证 =====
-    /** appKey 只是应用标识（类似用户名），可随仓库保留默认值 */
     private static final String APP_KEY = System.getProperty("openapi.app-key",
             "ak_83o0hlS2kHjfffSof3MMigz2");
-    /**
-     * 明文 appSecret 仅创建时展示一次，严禁提交进仓库：
-     * 通过 -Dopenapi.app-secret=xxx 或环境变量 OPENAPI_APP_SECRET 注入，未配置则整类跳过。
-     */
+    // 明文 appSecret 用 -Dopenapi.app-secret 或 OPENAPI_APP_SECRET 传，别提交；没配就跳过整类。
     private static final String APP_SECRET = System.getProperty("openapi.app-secret",
             System.getenv("OPENAPI_APP_SECRET"));
     private static final String DEVICE_ID = "50011800001320000856";
@@ -47,7 +42,6 @@ class OpenFishingLiveApiTest {
     private static final HttpClient HTTP = HttpClient.newHttpClient();
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    /** 目标平台地址：默认本机部署，CI/联调机可通过 -Dopenapi.base-url 覆盖 */
     private static final String BASE_URL = System.getProperty("openapi.base-url", "http://localhost:8080");
 
     private final SecureRandom random = new SecureRandom();
@@ -67,7 +61,6 @@ class OpenFishingLiveApiTest {
         assumeTrue(reachable, "开放 API 平台未启动（" + BASE_URL + "），跳过业务联调测试");
     }
 
-    // ===== 1. 真实点播业务链路：开始（INVITE + 收流）→ 停止（BYE 清理） =====
 
     @Test
     @DisplayName("合法签名：真实开始点播 → 校验流信息与 requestId 回显 → 真实停止点播，停止幂等")
@@ -80,17 +73,14 @@ class OpenFishingLiveApiTest {
         SignedRequest startReq = signed(START_PATH, startBody, APP_KEY, APP_SECRET, null, null);
         HttpResponse<String> resp = post(startReq);
 
-        // HTTP 层与统一响应体（失败时把业务消息带出来：通常是设备离线 40004 / INVITE 失败 60001）
         assertThat(resp.statusCode()).as(resp.body()).isEqualTo(200);
         JsonNode json = MAPPER.readTree(resp.body());
         assertThat(json.get("code").asInt()).as(resp.body()).isEqualTo(200);
         assertThat(json.get("message").asString()).isEqualTo("success");
-        // requestId 由调用方传入时原样回显（响应头 + 响应体各一份，便于第三方对账）
         assertThat(json.get("requestId").asString()).isEqualTo(startReq.requestId());
         assertThat(resp.headers().firstValue(OpenApiConstants.HEADER_REQUEST_ID).orElseThrow())
                 .isEqualTo(startReq.requestId());
 
-        // 真实点播结果：SSRC / 收流端口 / 播放地址都由 ZLM + 业务库产出，不是 mock 数据
         JsonNode data = json.get("data");
         String streamId = DEVICE_ID + "_" + CHANNEL_ID;
         assertThat(data.get("streamId").asString()).isEqualTo(streamId);
@@ -102,7 +92,6 @@ class OpenFishingLiveApiTest {
         assertThat(data.get("wsFlvUrl").asString()).startsWith("ws").contains(streamId);
         assertThat(data.get("mediaServerId").asString()).isNotBlank();
 
-        // 无论后续断言如何，真实拉起来的流必须停掉（向设备发 BYE、关 ZLM RTP Server、删 invite 会话）
         try {
             String stopBody = """
                     {"streamId":"%s"}""".formatted(streamId);
@@ -114,18 +103,15 @@ class OpenFishingLiveApiTest {
             assertThat(stopJson.get("code").asInt()).isEqualTo(200);
             assertThat(stopJson.get("requestId").asString()).isEqualTo(stopReq.requestId());
 
-            // 停止幂等：会话已清扫后再停一次，业务约定仍然成功
             SignedRequest again = signed(STOP_PATH, stopBody, APP_KEY, APP_SECRET, null, null);
             HttpResponse<String> againResp = post(again);
             assertThat(againResp.statusCode()).isEqualTo(200);
             assertThat(MAPPER.readTree(againResp.body()).get("code").asInt()).isEqualTo(200);
         } finally {
-            // best-effort：断言失败导致上面没发出去时兜底再停一次，避免在真实设备上残留一路流
             bestEffortStop(streamId);
         }
     }
 
-    // ===== 2. 鉴权失败：真实打在 OpenApiAuthFilter + 真实 MySQL/Redis 上，不触碰设备 =====
 
     @Test
     @DisplayName("缺少鉴权头 → HTTP 401 / 40101")
@@ -189,7 +175,6 @@ class OpenFishingLiveApiTest {
         assertThat(bizCode(replayResp)).isEqualTo(40105);
     }
 
-    // ===== 3. 业务参数校验：签名合法进入真实 GbPlayService + 真实 DB，不发 SIP =====
 
     @Test
     @DisplayName("签名合法但缺少 deviceId/channelId → HTTP 400 / 40001")
@@ -215,7 +200,6 @@ class OpenFishingLiveApiTest {
         assertThat(bizCode(resp)).isEqualTo(40003);
     }
 
-    // ===== 公共工具：按线上协议真实构造签名请求 =====
 
     private String freshNonce() {
         byte[] buf = new byte[16];
@@ -223,12 +207,7 @@ class OpenFishingLiveApiTest {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(buf);
     }
 
-    /**
-     * 按对接方真实调用方式组装请求：6 个鉴权头 + HMAC-SHA256 签名。
-     *
-     * @param tsOverride    为 null 取当前秒级时间戳（过期用例传历史值）
-     * @param nonceOverride 为 null 随机生成（重放用例两次传同一个）
-     */
+    // tsOverride/nonceOverride 是给过期和重放用例固定值用的，正常调用传 null
     private SignedRequest signed(String path, String body, String appKey, String secret,
                                  Long tsOverride, String nonceOverride) {
         long ts = tsOverride != null ? tsOverride : Instant.now().getEpochSecond();
@@ -261,7 +240,6 @@ class OpenFishingLiveApiTest {
         return HTTP.send(builder.build(), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
     }
 
-    /** 断言中断后的兜底清理：忽略一切错误（流可能已正常停掉） */
     private void bestEffortStop(String streamId) {
         try {
             SignedRequest stop = signed(STOP_PATH, """
@@ -280,7 +258,6 @@ class OpenFishingLiveApiTest {
         }
     }
 
-    /** 一次完整签名请求：路径 + body + 鉴权头 + 调用方自己的 requestId（用于回显断言） */
     private record SignedRequest(String path, String body, Map<String, String> headers, String requestId) {
     }
 }

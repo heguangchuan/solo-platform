@@ -2,25 +2,16 @@ package com.solo.gb28181.transmit.cmd;
 
 public final class SdpBuilder {
 
-    /** 收流模式 — UDP */
     public static final String TRANSPORT_UDP = "UDP";
-    /** 收流模式 — TCP 被动（设备主动连 ZLM） */
     public static final String TRANSPORT_TCP_PASSIVE = "TCP-passive";
-    /** 收流模式 — TCP 主动（ZLM 主动连设备） */
     public static final String TRANSPORT_TCP_ACTIVE = "TCP-active";
 
-    /** RTP 载荷：MPEG-PS */
     public static final int PT_PS = 96;
-    /** RTP 载荷：G.711 PCMA */
     public static final int PT_PCMA = 8;
 
     private SdpBuilder() {
     }
 
-    /**
-     * 把上层传入的传输方式字符串归一成 {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE}
-     * / {@link #TRANSPORT_TCP_ACTIVE} 之一；空值/未知值回落到 UDP。
-     */
     public static String normalizeTransport(String t) {
         if (t == null || t.isBlank()) return TRANSPORT_UDP;
         if (TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(t)) return TRANSPORT_TCP_PASSIVE;
@@ -28,27 +19,11 @@ public final class SdpBuilder {
         return TRANSPORT_UDP;
     }
 
-    /**
-     * 构造实时点播 SDP body（{@code s=Play}, {@code t=0 0}）
-     *
-     * @param platformId 本平台 SIP ID（用于 o= 行 username）
-     * @param sdpIp      本平台对设备暴露的 IP（c= 行 + o= 行）
-     * @param rtpPort    ZLM 分配的收流 RTP 端口（m= 行）
-     * @param ssrc       10 位 SSRC（y= 行）
-     * @param transport  {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE} / {@link #TRANSPORT_TCP_ACTIVE}
-     */
     public static String buildPlay(String platformId, String sdpIp, int rtpPort,
                                    String ssrc, String transport, String streamNumber) {
         return buildInternal("Play", platformId, sdpIp, rtpPort, ssrc, transport, 0L, 0L, null, streamNumber);
     }
 
-    /**
-     * 构造历史回放 SDP body（{@code s=Playback}, {@code t=<startEpoch> <endEpoch>}）
-     *
-     * @param startEpochSec 回放起始 Unix 秒
-     * @param endEpochSec   回放结束 Unix 秒
-     * @param streamNumber  码流 token（主码流传 null/空，子码流原样写进 {@code a=<token>}；与点播共用一套写法）
-     */
     public static String buildPlayback(String platformId, String sdpIp, int rtpPort, String ssrc,
                                        String transport, long startEpochSec, long endEpochSec,
                                        String streamNumber) {
@@ -56,14 +31,6 @@ public final class SdpBuilder {
                 startEpochSec, endEpochSec, null, streamNumber);
     }
 
-    /**
-     * 构造录像下载 SDP body（{@code s=Download}, {@code t=<startEpoch> <endEpoch>}, {@code a=downloadspeed:N}）
-     * <p>S3 暂不调用，预留给 S3.2 / S4 下载阶段。</p>
-     *
-     * @param startEpochSec 起始 Unix 秒
-     * @param endEpochSec   结束 Unix 秒
-     * @param downloadSpeed 下载倍速（1/2/4/8）
-     */
     public static String buildDownload(String platformId, String sdpIp, int rtpPort, String ssrc,
                                        String transport, long startEpochSec, long endEpochSec,
                                        int downloadSpeed) {
@@ -112,9 +79,6 @@ public final class SdpBuilder {
         return sb.toString();
     }
 
-    /**
-     * 从 200 OK SDP body 中抓 {@code y=<ssrc>}；不存在返回 null。
-     */
     public static String extractSsrc(String sdpBody) {
         if (sdpBody == null) return null;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -125,9 +89,6 @@ public final class SdpBuilder {
         return null;
     }
 
-    /**
-     * 从 200 OK SDP body 中抓 {@code o=<user> ...} 的 username；不存在返回 null。
-     */
     public static String extractOriginUser(String sdpBody) {
         if (sdpBody == null) return null;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -140,10 +101,6 @@ public final class SdpBuilder {
         return null;
     }
 
-    /**
-     * 从 SDP body 抓连接地址 {@code c=IN IP4 <ip>} 的 IP；不存在返回 null。
-     * <p>上级 INVITE 里 c= 行即上级期望收流的 IP。</p>
-     */
     public static String extractConnectionIp(String sdpBody) {
         if (sdpBody == null) return null;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -158,10 +115,6 @@ public final class SdpBuilder {
         return null;
     }
 
-    /**
-     * 从 SDP body 抓 {@code m=video <port> ...} 的端口；不存在/非法返回 -1。
-     * <p>上级 INVITE 里 m= 行端口即上级期望收流的端口（UDP/TCP 主动去连的目标端口）。</p>
-     */
     public static int extractMediaPort(String sdpBody) {
         if (sdpBody == null) return -1;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -179,9 +132,6 @@ public final class SdpBuilder {
         return -1;
     }
 
-    /**
-     * 从 SDP body 抓会话名 {@code s=<name>}（Play / Playback / Download）；不存在返回 null。
-     */
     public static String extractSessionName(String sdpBody) {
         if (sdpBody == null) return null;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -192,14 +142,7 @@ public final class SdpBuilder {
         return null;
     }
 
-    /**
-     * 判断上级 SDP 的传输语义，返回归一后的 transport 常量。
-     * <p>{@code m=video <port> TCP/RTP/AVP ...} + {@code a=setup:active} → 上级主动来连本平台（本平台 TCP 被动收听）；
-     * {@code a=setup:passive} → 上级被动等本平台去连；无 TCP 协议 → UDP。</p>
-     *
-     * @return {@link #TRANSPORT_UDP} / {@link #TRANSPORT_TCP_PASSIVE} / {@link #TRANSPORT_TCP_ACTIVE}
-     *         语义站在<strong>上级</strong>视角：TCP_ACTIVE=上级主动来连；TCP_PASSIVE=上级等本平台去连
-     */
+    // 这里站在上级视角：active 是上级来连本平台，passive 是上级等本平台去连。
     public static String extractTransport(String sdpBody) {
         if (sdpBody == null) return TRANSPORT_UDP;
         boolean tcp = false;
@@ -216,29 +159,7 @@ public final class SdpBuilder {
         return "active".equals(setup) ? TRANSPORT_TCP_ACTIVE : TRANSPORT_TCP_PASSIVE;
     }
 
-    /**
-     * 构造本平台作为<strong>发流方</strong>回给上级的 200 OK SDP（{@code a=sendonly}）。
-     * <p>用于级联被上级点播：本平台向真实设备取流后，用此 SDP 告诉上级最终的媒体地址/端口/SSRC。</p>
-     *
-     * <pre>
-     * v=0
-     * o=&lt;platformId&gt; 0 0 IN IP4 &lt;sdpIp&gt;
-     * s=Play
-     * c=IN IP4 &lt;sdpIp&gt;
-     * t=0 0
-     * m=video &lt;sendPort&gt; {RTP/AVP|TCP/RTP/AVP} 96
-     * a=sendonly
-     * a=rtpmap:96 PS/90000
-     * [a=setup:active|passive]      -- TCP 时，与上级取反
-     * y=&lt;ssrc&gt;
-     * </pre>
-     *
-     * @param platformId    本平台对该上级使用的国标编号（deviceGbId），写 o= 行 username
-     * @param sdpIp         本平台发流的媒体 IP（c=/o= 行）
-     * @param sendPort      本平台发流端口（m= 行；UDP/TCP 主动去连时可为 0，TCP 被动监听时为 ZLM 监听端口）
-     * @param ssrc          最终 SSRC（y= 行，回给上级）
-     * @param upstreamTransport 上级 SDP 解析出的传输语义（{@link #extractTransport} 的结果）
-     */
+    // 回给上级的 sendonly SDP；TCP 的 setup 要和上级反过来。
     public static String buildSendAnswer(String platformId, String sdpIp, int sendPort,
                                          String ssrc, String upstreamTransport) {
         boolean tcp = TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(upstreamTransport)
@@ -264,29 +185,18 @@ public final class SdpBuilder {
         return sb.toString();
     }
 
-    /**
-     * 广播回给设备的 200 OK SDP（m=audio，a=sendonly），载荷按 {@link #selectAudioPayload} 的结果只列一个。
-     */
     public static String buildBroadcastAnswer(String platformId, String sdpIp, int sendPort,
                                               String ssrc, String upstreamTransport, int pt) {
         return buildAudioAnswer(platformId, sdpIp, sendPort, ssrc, upstreamTransport, pt, "sendonly");
     }
 
-    /**
-     * 对讲回给设备的 200 OK SDP（m=audio），端口填平台收流端口。
-     *
-     * @param answerDirection 应答方向，取值 sendrecv / sendonly / recvonly / inactive（由调用方按设备类型决定）
-     */
     public static String buildTalkAnswer(String platformId, String sdpIp, int recvPort,
                                          String ssrc, String upstreamTransport, int pt,
                                          String answerDirection) {
         return buildAudioAnswer(platformId, sdpIp, recvPort, ssrc, upstreamTransport, pt, answerDirection);
     }
 
-    /**
-     * 按 RFC 3264 取 m=audio 下的方向属性；无方向行时默认 sendrecv。
-     * 用于判断设备反向 INVITE 到底是要双向对讲（sendrecv）还是只接收喊话（recvonly）。
-     */
+    // 只看 m=audio 下面的方向行；没写就按 RFC 3264 默认 sendrecv。
     public static String extractAudioDirection(String sdpBody) {
         if (sdpBody == null) {
             return "sendrecv";
@@ -333,9 +243,6 @@ public final class SdpBuilder {
         return sb.toString();
     }
 
-    /**
-     * 级联喊话反向 INVITE 上级的 SDP（m=audio，a=recvonly），端口为本地收流端口。
-     */
     public static String buildAudioRecvonlyOffer(String platformId, String sdpIp, int recvPort,
                                                  String ssrc) {
         StringBuilder sb = new StringBuilder(300);
@@ -353,10 +260,7 @@ public final class SdpBuilder {
         return sb.toString();
     }
 
-    /**
-     * 设备广播反向 INVITE 的载荷选择：offer 带 8 就选裸 PCMA，否则带 96 选 PS，都没有默认 PCMA。
-     * 语音广播主流形态是裸 PCMA；部分厂商（如大华）同时列 8/96，优先按标准走 PCMA。
-     */
+    // 优先裸 PCMA；大华等设备同时列 8/96 时也别误选 PS。
     public static int selectAudioPayload(String deviceSdp) {
         boolean supportsPcma = false;
         boolean supportsPs = false;
@@ -375,7 +279,6 @@ public final class SdpBuilder {
         return PT_PCMA;
     }
 
-    /** 取 m=audio 行端口，不存在返回 -1。 */
     public static int extractAudioPort(String sdpBody) {
         if (sdpBody == null) return -1;
         for (String line : sdpBody.split("\\r?\\n")) {
@@ -393,9 +296,6 @@ public final class SdpBuilder {
         return -1;
     }
 
-    /**
-     * 取设备音频传输语义：UDP / TCP_ACTIVE（设备来连）/ TCP_PASSIVE（设备等连）。
-     */
     public static String extractAudioTransport(String sdpBody) {
         if (sdpBody == null) return TRANSPORT_UDP;
         boolean tcp = false;

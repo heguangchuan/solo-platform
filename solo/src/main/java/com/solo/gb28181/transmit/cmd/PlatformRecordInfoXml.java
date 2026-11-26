@@ -5,32 +5,11 @@ import com.solo.gb28181.response.RecordItemResponse;
 
 import java.util.List;
 
-/**
- * <p>本平台作为下级，收到上级 {@code <Query><CmdType>RecordInfo</CmdType>...</Query>}
- * 后回包使用。数据源：本平台不存录像，收到查询后主动 {@code SipCommander.queryRecordInfo}
- * 转发给下属设备，把设备响应按相同字段集转回上级（SN 改为外层 SN，详见
- * {@link com.solo.gb28181.support.UpperRecordQueryHolder}）。</p>
- *
- * <p>字段对齐 GB/T 28181-2016 9.5.5 RecordInfo Response：</p>
- * <ul>
- *   <li>{@code SumNum}：本片/本次录像段总条数</li>
- *   <li>{@code RecordList Num=N}：Item 列表</li>
- *   <li>空响应：{@code SumNum=0 RecordList Num=0}，不省略 RecordList 节点（部分上级 XML 解析器
- *       期望节点存在）</li>
- * </ul>
- */
+// 空结果也保留 RecordList Num=0，有些上级少了这个节点就解析失败。
 public final class PlatformRecordInfoXml {
 
     private PlatformRecordInfoXml() {}
 
-    /**
-     * 构造 RecordInfo Response XML。
-     *
-     * @param platform 上级平台配置；从 p 取字符集
-     * @param deviceId 上级请求的 DeviceID（透传回去；按 GB 协议此处通常是 channelId）
-     * @param sn       原请求的 SN，透传回去
-     * @param items    录像段列表（按设备返回的顺序，调用方已排序）
-     */
     public static String buildResponse(GbParentPlatform platform, String deviceId, String sn,
                                        List<RecordItemResponse> items) {
         String charset = charsetOf(platform);
@@ -85,7 +64,6 @@ public final class PlatformRecordInfoXml {
         sb.append("</").append(name).append(">\r\n");
     }
 
-    /** 最小 XML 转义：与 PlatformDeviceInfoXml 同款（后续可抽 XmlBuilderUtils） */
     private static String escapeXml(String s) {
         if (s == null || s.isEmpty()) return "";
         StringBuilder out = new StringBuilder(s.length() + 16);
