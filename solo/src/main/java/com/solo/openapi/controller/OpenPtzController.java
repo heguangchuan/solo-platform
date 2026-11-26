@@ -37,7 +37,7 @@ public class OpenPtzController {
     private final OpenCatalogService catalogService;
 
     @Operation(summary = "云台控制")
-    @RequireScope(value = OpenApiConstants.SCOPE_PTZ_CTRL, name = "云台控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PTZ_CTRL, name = OpenApiConstants.SCOPE_NAME_PTZ_CTRL)
     @PostMapping("/control")
     public OpenApiResult<Void> control(@Valid @RequestBody OpenPtzControlRequest req, HttpServletRequest request) {
         // 三方可能传推送码，统一定位到真实通道后再下发 SIP 指令

@@ -55,6 +55,14 @@ public interface OpenApiConstants {
     String SCOPE_POSITION_READ = "gb:position:read";
     String SCOPE_EVENT_SUBSCRIBE = "gb:event:subscribe";
 
+    // 管理端展示名；同一 scope 的所有接口必须复用同一名称，目录只保留扫描到的首个名称
+    String SCOPE_NAME_DEVICE_READ = "设备目录查询";
+    String SCOPE_NAME_PLAY_WRITE = "实时点播控制";
+    String SCOPE_NAME_PLAYBACK_CTRL = "历史回放控制";
+    String SCOPE_NAME_RECORD_READ = "录像查询";
+    String SCOPE_NAME_RECORD_CTRL = "录制控制";
+    String SCOPE_NAME_PTZ_CTRL = "云台控制";
+
     // ===== Webhook 事件类型 =====
     String EVENT_DEVICE_ONLINE = "device.online";
     String EVENT_DEVICE_OFFLINE = "device.offline";

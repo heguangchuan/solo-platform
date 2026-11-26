@@ -36,7 +36,7 @@ public class OpenPlayController {
     private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "开始点播")
-    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = OpenApiConstants.SCOPE_NAME_PLAY_WRITE)
     @PostMapping("/start")
     public OpenApiResult<PlayResultResponse> start(@RequestBody PlayStartRequest req, HttpServletRequest request) {
         ViewActor actor = openAppActor(request);
@@ -58,7 +58,7 @@ public class OpenPlayController {
     }
 
     @Operation(summary = "停止点播")
-    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = "实时点播控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAY_WRITE, name = OpenApiConstants.SCOPE_NAME_PLAY_WRITE)
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@RequestBody PlayStopRequest req, HttpServletRequest request) {
         playService.stop(req);

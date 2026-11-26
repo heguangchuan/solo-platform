@@ -30,7 +30,7 @@ public class OpenRecordController {
     private final OpenRecordService recordService;
 
     @Operation(summary = "开始录制")
-    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_CTRL, name = "开始录制")
+    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_CTRL, name = OpenApiConstants.SCOPE_NAME_RECORD_CTRL)
     @PostMapping("/start")
     public OpenApiResult<OpenRecordStartResponse> start(@Valid @RequestBody OpenRecordStartRequest req,
                                                         HttpServletRequest request) {
@@ -41,7 +41,7 @@ public class OpenRecordController {
     }
 
     @Operation(summary = "停止录制")
-    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_CTRL, name = "停止录制")
+    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_CTRL, name = OpenApiConstants.SCOPE_NAME_RECORD_CTRL)
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@Valid @RequestBody OpenRecordStopRequest req,
                                     HttpServletRequest request) {
@@ -50,7 +50,7 @@ public class OpenRecordController {
     }
 
     @Operation(summary = "查询录制态")
-    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = "查询录制态")
+    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = OpenApiConstants.SCOPE_NAME_RECORD_READ)
     @PostMapping("/status")
     public OpenApiResult<OpenRecordStatusResponse> status(
             @Valid @RequestBody OpenRecordStatusRequest req, HttpServletRequest request) {

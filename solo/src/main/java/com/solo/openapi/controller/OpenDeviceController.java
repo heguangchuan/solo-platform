@@ -27,7 +27,7 @@ public class OpenDeviceController {
     private final OpenCatalogService catalogService;
 
     @Operation(summary = "设备详情")
-    @RequireScope(value = OpenApiConstants.SCOPE_DEVICE_READ, name = "设备目录只读")
+    @RequireScope(value = OpenApiConstants.SCOPE_DEVICE_READ, name = OpenApiConstants.SCOPE_NAME_DEVICE_READ)
     @GetMapping("/{deviceId}")
     public OpenApiResult<GbDevice> device(@PathVariable String deviceId, HttpServletRequest request) {
         return OpenApiResult.success(catalogService.deviceDetail(deviceId),

@@ -370,24 +370,18 @@ solo-platform/
 | 响应格式 | 统一信封 `code` / `message` / `data` / `requestId` |
 | 配套工具 | [`openapi/pre-script.js`](openapi/pre-script.js)（Bruno 自动签名） |
 
-**接口清单**
+**接口清单（按 scope）**
 
-| 能力 | 方法 | 路径 | 所需 scope |
-|---|---|---|---|
-| 设备详情 | `GET` | `/open-api/v1/device/{deviceId}` | `gb:device:read` |
-| 通道详情 | `GET` | `/open-api/v1/channel/{channelId}` | `gb:device:read` |
-| 开始点播 | `POST` | `/open-api/v1/play/start` | `gb:play:write` |
-| 停止点播 | `POST` | `/open-api/v1/play/stop` | `gb:play:write` |
-| 录像查询 | `POST` | `/open-api/v1/playback/records` | `gb:record:read` |
-| 开始回放 | `POST` | `/open-api/v1/playback/start` | `gb:playback:ctrl` |
-| 停止回放 | `POST` | `/open-api/v1/playback/stop` | `gb:playback:ctrl` |
-| 回放控制 | `POST` | `/open-api/v1/playback/control` | `gb:playback:ctrl` |
-| 开始录制 | `POST` | `/open-api/v1/record/start` | `gb:record:ctrl` |
-| 停止录制 | `POST` | `/open-api/v1/record/stop` | `gb:record:ctrl` |
-| 查询录制态 | `POST` | `/open-api/v1/record/status` | `gb:record:read` |
-| 云台控制 | `POST` | `/open-api/v1/ptz/control` | `gb:ptz:ctrl` |
+| scope | 授权含义 | 可调用接口 |
+|---|---|---|
+| `gb:device:read` | 设备目录查询 | `GET /open-api/v1/device/{deviceId}`、`GET /open-api/v1/channel/{channelId}` |
+| `gb:play:write` | 实时点播控制 | `POST /open-api/v1/play/start`、`POST /open-api/v1/play/stop` |
+| `gb:playback:ctrl` | 历史回放控制 | `POST /open-api/v1/playback/start`、`POST /open-api/v1/playback/stop`、`POST /open-api/v1/playback/control` |
+| `gb:record:read` | 录像查询 | `POST /open-api/v1/playback/records`、`POST /open-api/v1/record/status` |
+| `gb:record:ctrl` | 录制控制 | `POST /open-api/v1/record/start`、`POST /open-api/v1/record/stop` |
+| `gb:ptz:ctrl` | 云台控制 | `POST /open-api/v1/ptz/control` |
 
-> 新增应用的 `scopes` 必须显式包含 `gb:record:ctrl` 才能调用开始 / 停止录制；查询录制态复用 `gb:record:read`。scope 不存在时请求会被拒绝（`SCOPE_DENIED`）。
+> 创建应用时授予对应 scope 后即可调用该组接口；未授予时返回 `40303`（`SCOPE_DENIED`）。每个接口的请求/响应明细见第 5 节，按同一 scope 归组。
 
 **对接流程**
 
@@ -408,7 +402,7 @@ solo-platform/
 
 创建应用时请平台方一并确认：
 
-- 按需授予 scope：`gb:device:read`（设备目录）、`gb:play:write`（实时点播）、`gb:playback:ctrl`（历史回放）、`gb:record:read`（录像查询）、`gb:ptz:ctrl`（云台控制）
+- 按需授予 scope（决定该应用能调用哪些接口）：`gb:device:read`（设备目录查询）、`gb:play:write`（实时点播控制）、`gb:playback:ctrl`（历史回放控制）、`gb:record:read`（录像查询，含设备录像与录制状态）、`gb:record:ctrl`（录制控制，含开始与停止）、`gb:ptz:ctrl`（云台控制）
 - 按需配置 IP 白名单：只接受字面量 IP / CIDR（如 `203.0.113.10`、`10.0.0.0/8`、`2001:db8::/32`），保存时校验；留空表示不限制来源，应用列表会标为「不限」
 - 按需设置 QPS 与日调用量配额
 
@@ -537,15 +531,19 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 
 ### 5. 接口说明
 
-以下只描述 `data` 结构，统一信封见上节。时间字段未特别说明时均为平台服务器本地时区。
+以下只描述 `data` 结构，统一信封见第 4 节。接口按 scope 归组；接入方只需关注自己被授予的 scope。时间字段未特别说明时均为平台服务器本地时区。
 
 > 所有接收 `channelId` 的接口，既接受真实通道国标码，也接受级联共享时对上级暴露的「推送码」（`gb_platform_share.exposed_code`）。传推送码时接口内部会换成真实通道码再下发设备，响应里的 `channelId` 始终是真实码。
 
-#### 5.1 设备 / 通道详情
+#### 5.1 设备目录查询
 
 **设备详情** `GET /open-api/v1/device/{deviceId}`
 
-按国标编码查询，未接入返回 `40003`。
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| `deviceId` | path | 是 | 设备国标 20 位 ID |
+
+`data` 字段：
 
 | 字段 | 说明 |
 |---|---|
@@ -558,33 +556,143 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 | `registerTime` / `keepaliveTime` | 最近注册 / 心跳时间 |
 | `owner` / `civilCode` / `address` | 设备归属 / 行政区划 / 安装地址 |
 
+失败：设备未接入返回 `40003`。
+
 **通道详情** `GET /open-api/v1/channel/{channelId}?deviceId={deviceId}`
 
-通道编码的唯一约束是「设备编码 + 通道编码」，同一个 `channelId` 挂在多个设备下时必须带 `deviceId` 消歧，否则返回 `40001`；通道不存在返回 `40002`。
+| 参数 | 位置 | 必填 | 说明 |
+|---|---|---|---|
+| `channelId` | path | 是 | 通道国标码，或推送码 |
+| `deviceId` | query | 否 | 同一通道挂在多个设备下时必填，用于消歧；传推送码时忽略 |
 
-若传入的是推送码，则按推送码（平台内唯一）直接定位通道，此时 `deviceId` 忽略；响应的 `exposedCode` 回显该推送码，`channelId` 为真实通道码。
+`data` 字段：
 
 | 字段 | 说明 |
 |---|---|
-| `channelId` / `deviceId` | 通道 / 所属设备国标 ID |
+| `channelId` / `deviceId` | 真实通道 / 所属设备国标 ID |
 | `name` / `reportName` | 自定义名称 / 上报名称 |
 | `status` | `ON` 在线、`OFF` 离线、`UNREGISTERED` 未注册 |
 | `ptzType` | `0` 未知、`1` 球机、`2` 半球、`3` 固定枪机、`4` 遥控枪机 |
 | `parental` | `0` 通道、`1` 分组 |
 | `longitude` / `latitude` | 经纬度（设备上报原值，未做坐标系转换） |
 | `address` | 安装地址 |
+| `exposedCode` | 传推送码时回显该码，否则为空 |
 
-> 通道的 SIP 密码属于平台内部凭证，不会返回。
+失败：同一 `channelId` 多设备且未传 `deviceId` 返回 `40001`；通道不存在返回 `40002`。通道 SIP 密码属于平台内部凭证，不会返回。
 
-#### 5.2 实时点播
+#### 5.2 实时点播控制
 
-请求与响应字段见 [Bruno 快速调通](#6-bruno-快速调通) 中的「开始点播」示例。
+**开始点播** `POST /open-api/v1/play/start`
 
-**停止点播** `POST /open-api/v1/play/stop`，Body `{ "streamId": "..." }`。接口幂等，会话已被自动清扫时同样返回成功。
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "transport": "TCP-passive",
+  "streamNumber": null
+}
+```
 
-#### 5.3 历史回放
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID，或推送码 |
+| `transport` | 否 | `TCP-passive`（默认）/ `UDP` |
+| `streamNumber` | 否 | 显式传 `null` = 主码流；不传或传 `"streamnumber:1"` = 子码流 |
 
-**录像查询** `POST /open-api/v1/playback/records`
+`data` 字段：
+
+| 字段 | 说明 |
+|---|---|
+| `streamId` | 流 ID，停止点播时回传；同一设备/通道重复调用复用已就绪流 |
+| `app` | 固定 `rtp` |
+| `mediaServerId` | 承载该流的 ZLM 节点 ID |
+| `ssrc` / `rtpPort` | RTP 收流参数，接入自有媒体处理时使用 |
+| `transport` / `streamNumber` | 实际生效的收流方式与码流 |
+| `flvUrl` / `wsFlvUrl` | 带独立 `wt` 令牌的 HTTP-FLV / WebSocket-FLV 地址 |
+| `hlsUrl` | 带 `wt` 的 HLS（m3u8）地址，分片同样受令牌约束 |
+| `rtcUrl` | WebRTC 地址；节点未配置 `rtcPort` 时为空串 |
+
+失败：设备不存在 `40003`、设备/通道不在线 `40004`、设备拒绝 INVITE `60001`。
+
+**停止点播** `POST /open-api/v1/play/stop`
+
+```json
+{ "streamId": "34020000001320000001_34020000001320000001" }
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `streamId` | 是 | 开始点播返回的流 ID |
+
+`data` 为 `null`。接口幂等；会话已被自动清扫时同样返回成功。不看时务必调用，以释放设备会话与收流端口。
+
+#### 5.3 历史回放控制
+
+**开始回放** `POST /open-api/v1/playback/start`
+
+```json
+{
+  "deviceId": "34020000001320000001",
+  "channelId": "34020000001320000001",
+  "startTime": "2026-10-01 08:00:00",
+  "endTime": "2026-10-01 09:00:00",
+  "transport": "TCP-passive",
+  "streamNumber": null
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID，或推送码 |
+| `startTime` / `endTime` | 是 | 回放时间段，格式 `yyyy-MM-dd HH:mm:ss`，结束必须晚于开始 |
+| `transport` | 否 | `TCP-passive`（默认）/ `UDP` / `TCP-active` |
+| `streamNumber` | 否 | 空 = 主码流；`"streamnumber:1"` = 子码流 |
+
+`data` 在实时点播字段基础上增加：
+
+| 字段 | 说明 |
+|---|---|
+| `startEpochSec` / `endEpochSec` | 回放起止 Unix 时间戳（秒） |
+| `durationSec` | 回放总时长（秒） |
+
+`streamId` 形如 `<deviceId>_<channelId>_<开始时间 yyyyMMddHHmmss>_<结束时间 yyyyMMddHHmmss>`，子码流追加 `_streamnumber_1`；同一时间段重复调用复用已就绪流。失败：设备拒绝 INVITE `60001`、等待流就绪超时 `60003`。
+
+**停止回放** `POST /open-api/v1/playback/stop`
+
+```json
+{ "streamId": "<开始回放返回的 streamId>" }
+```
+
+`data` 为 `null`，接口幂等。
+
+**回放控制** `POST /open-api/v1/playback/control`
+
+```json
+{
+  "streamId": "<开始回放返回的 streamId>",
+  "action": "seek",
+  "param": "600"
+}
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `streamId` | 是 | 开始回放返回的流 ID |
+| `action` | 是 | 控制指令，见下表 |
+| `param` | 视指令 | 指令参数，见下表 |
+
+| `action` | `param` | 说明 |
+|---|---|---|
+| `pause` | 可省 | 暂停推流，画面冻结 |
+| `resume` | 可省 | 从暂停点继续 |
+| `seek` | 相对回放起点的偏移秒数，如 `"600"` | 跳到回放起点后第 N 秒 |
+| `speed` | 倍速值，如 `"0.5"` / `"2"`（无法解析按 1 倍处理） | 从当前位置按新倍速播放 |
+
+`data` 为 `null`。控制指令经 SIP INFO + MANSRTSP 下发设备，返回成功仅表示指令已发出；流已清扫或对点播会话做回放控制返回 `60002`。
+
+#### 5.4 录像查询
+
+**设备录像查询** `POST /open-api/v1/playback/records`
 
 ```json
 {
@@ -595,7 +703,19 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 }
 ```
 
-四个字段均必填，时间格式 `yyyy-MM-dd HH:mm:ss`。设备未响应或设备不支持 RecordInfo 时返回**空数组**，需与「该时间段确实没有录像」结合设备能力自行判断。`data` 为录像段列表：
+四个字段均必填，时间格式 `yyyy-MM-dd HH:mm:ss`。`data` 为录像段数组：
+
+| 字段 | 说明 |
+|---|---|
+| `channelId` | 通道国标 ID |
+| `name` / `filePath` / `address` | 录像文件名 / 设备本地路径 / 录像地址（以设备返回为准） |
+| `startTime` / `endTime` | ISO-8601 格式 |
+| `fileSize` | 字节，设备未提供时为 `0` |
+| `type` | `time` 计划 / `alarm` 报警 / `manual` 手动 |
+| `recorderId` | 录像设备 ID（NVR 等，可为空） |
+| `secrecy` | `0` 不限、`1` 涉密 |
+
+`data` 示例：
 
 ```json
 [
@@ -614,23 +734,46 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 ]
 ```
 
+设备未响应或不支持 RecordInfo 时返回空数组；需结合设备能力判断是“没有录像”还是“查询不可用”。
+
+**查询录制态** `POST /open-api/v1/record/status`
+
+```json
+{ "streamId": "34020000001320000001_34020000001320000001" }
+```
+
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `streamId` | 是 | 开始录制返回的流 ID |
+
+`data` 字段：
+
 | 字段 | 说明 |
 |---|---|
-| `name` / `filePath` / `address` | 录像文件名 / 设备本地路径 / 录像地址（以设备返回为准） |
-| `startTime` / `endTime` | ISO-8601 格式 |
-| `fileSize` | 字节，设备未提供时为 `0` |
-| `type` | `time` 计划 / `alarm` 报警 / `manual` 手动 |
-| `recorderId` | 录像设备 ID（NVR 等，可为空） |
-| `secrecy` | `0` 不限、`1` 涉密 |
+| `streamId` | 传入的流 ID |
+| `serverId` | 承载该录制流的 ZLM 节点；无会话时为空 |
+| `status` | `RECORDING` / `IDLE` / `UNAVAILABLE` / `NO_SESSION` |
 
-**开始回放** `POST /open-api/v1/playback/start`
+`data` 示例：
+
+```json
+{
+  "streamId": "34020000001320000001_34020000001320000001",
+  "serverId": "zlmediakit-local",
+  "status": "RECORDING"
+}
+```
+
+`NO_SESSION` 表示平台没有对应录制会话；`UNAVAILABLE` 表示节点不存在或 ZLM 查询失败。该接口只读，不触发自动补录。
+
+#### 5.5 录制控制
+
+**开始录制** `POST /open-api/v1/record/start`
 
 ```json
 {
   "deviceId": "34020000001320000001",
   "channelId": "34020000001320000001",
-  "startTime": "2026-10-01 08:00:00",
-  "endTime": "2026-10-01 09:00:00",
   "transport": "TCP-passive",
   "streamNumber": null
 }
@@ -638,31 +781,37 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
-| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID |
-| `startTime` / `endTime` | 是 | 回放时间段，结束时间必须晚于起始时间 |
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID，或推送码 |
 | `transport` | 否 | `TCP-passive`（默认）/ `UDP` / `TCP-active` |
-| `streamNumber` | 否 | 空 = 主码流；传 `"streamnumber:1"` = 子码流 |
+| `streamNumber` | 否 | 空 = 主码流；`"streamnumber:1"` = 子码流 |
 
-响应在点播字段基础上增加 `startEpochSec` / `endEpochSec` / `durationSec`。`streamId` 形如 `<deviceId>_<channelId>_<开始时间 yyyyMMddHHmmss>_<结束时间 yyyyMMddHHmmss>`，子码流再追加 `_streamnumber_1`；同一时间段重复调用会复用已就绪的流。设备拒绝 INVITE 返回 `60001`，等待流就绪超时返回 `60003`。
+`data` 字段：
 
-**停止回放** `POST /open-api/v1/playback/stop`，Body `{ "streamId": "..." }`，幂等。
+| 字段 | 说明 |
+|---|---|
+| `streamId` | 录制流 ID，停止录制和查询录制态时回传 |
 
-**回放控制** `POST /open-api/v1/playback/control`
+`data` 示例：
 
 ```json
-{ "streamId": "34020000001320000001_34020000001320000001_20261001080000_20261001090000", "action": "seek", "param": "600" }
+{ "streamId": "34020000001320000001_34020000001320000001" }
 ```
 
-| `action` | `param` | 说明 |
+同一设备/通道/码流已有录制会话时直接复用，不重复拉流。设备/通道不在线返回 `40004`。录像计划编排由业务系统实现，平台只提供该原子控制能力。
+
+**停止录制** `POST /open-api/v1/record/stop`
+
+```json
+{ "streamId": "<开始录制返回的 streamId>" }
+```
+
+| 字段 | 必填 | 说明 |
 |---|---|---|
-| `pause` | 可省 | 暂停推流，画面冻结 |
-| `resume` | 可省 | 从暂停点继续 |
-| `seek` | 相对回放起点的偏移秒数，如 `"600"` | 跳到回放起点后第 N 秒 |
-| `speed` | 倍速值，如 `"0.5"` / `"2"`（无法解析时按 1 倍处理） | 从当前位置按新倍速播放 |
+| `streamId` | 是 | 开始录制返回的流 ID |
 
-> 控制指令经 SIP INFO + MANSRTSP 直接下发设备，接口返回成功表示指令已发出，不代表设备画面已跳转完成。流已被清扫、或对点播会话做回放控制时返回 `60002`。
+`data` 为 `null`。ZLM 会先切出最后一段 MP4 并回调平台登记，随后释放设备会话与收流端口。
 
-#### 5.4 云台控制
+#### 5.6 云台控制
 
 `POST /open-api/v1/ptz/control`
 
@@ -678,8 +827,8 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 
 | 字段 | 必填 | 说明 |
 |---|---|---|
-| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID |
-| `command` | 是 | 见下表 |
+| `deviceId` / `channelId` | 是 | 设备 / 通道国标 ID，或推送码 |
+| `command` | 是 | 控制指令，见下表 |
 | `speed` | 否 | 方向速度 `0-255`，默认 `100` |
 | `zoomSpeed` | 否 | 变倍速度 `0-15`，默认 `5` |
 
@@ -690,7 +839,7 @@ X-Signature = lower_hex( HMAC_SHA256(待签名串, appSecret) )
 | `zoomin` / `zoomout` | 变倍放大 / 缩小 |
 | `stop` | 停止当前动作（速度字段忽略，按 0 下发） |
 
-> 方向与变倍指令是「启动」语义，需在合适时机再调用一次 `stop`。设备离线返回 `40004`，不支持的指令返回 `40001`。
+`data` 为 `null`。方向与变倍指令是「启动」语义，需在合适时机再调用一次 `stop`。设备离线返回 `40004`，不支持的指令返回 `40001`。
 
 ### 6. Bruno 快速调通
 

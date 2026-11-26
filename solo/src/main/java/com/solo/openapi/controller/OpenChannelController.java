@@ -28,7 +28,7 @@ public class OpenChannelController {
     private final OpenCatalogService catalogService;
 
     @Operation(summary = "通道详情")
-    @RequireScope(value = OpenApiConstants.SCOPE_DEVICE_READ, name = "设备目录只读")
+    @RequireScope(value = OpenApiConstants.SCOPE_DEVICE_READ, name = OpenApiConstants.SCOPE_NAME_DEVICE_READ)
     @GetMapping("/{channelId}")
     public OpenApiResult<GbDeviceChannel> channel(@PathVariable String channelId,
                                                   @RequestParam(required = false) String deviceId,

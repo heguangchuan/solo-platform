@@ -41,7 +41,7 @@ public class OpenPlaybackController {
     private final ViewTokenSigner viewTokenSigner;
 
     @Operation(summary = "设备录像查询")
-    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = "设备录像查询")
+    @RequireScope(value = OpenApiConstants.SCOPE_RECORD_READ, name = OpenApiConstants.SCOPE_NAME_RECORD_READ)
     @PostMapping("/records")
     public OpenApiResult<List<RecordItemResponse>> records(@RequestBody RecordInfoQueryRequest req,
                                                            HttpServletRequest request) {
@@ -51,7 +51,7 @@ public class OpenPlaybackController {
     }
 
     @Operation(summary = "开始回放")
-    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = "历史回放控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = OpenApiConstants.SCOPE_NAME_PLAYBACK_CTRL)
     @PostMapping("/start")
     public OpenApiResult<PlaybackResultResponse> start(@RequestBody PlaybackStartRequest req,
                                                        HttpServletRequest request) {
@@ -71,7 +71,7 @@ public class OpenPlaybackController {
     }
 
     @Operation(summary = "停止回放")
-    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = "历史回放控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = OpenApiConstants.SCOPE_NAME_PLAYBACK_CTRL)
     @PostMapping("/stop")
     public OpenApiResult<Void> stop(@RequestBody PlaybackStopRequest req, HttpServletRequest request) {
         playbackService.stop(req);
@@ -79,7 +79,7 @@ public class OpenPlaybackController {
     }
 
     @Operation(summary = "回放控制")
-    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = "历史回放控制")
+    @RequireScope(value = OpenApiConstants.SCOPE_PLAYBACK_CTRL, name = OpenApiConstants.SCOPE_NAME_PLAYBACK_CTRL)
     @PostMapping("/control")
     public OpenApiResult<Void> control(@RequestBody PlaybackControlRequest req, HttpServletRequest request) {
         playbackService.control(req);
