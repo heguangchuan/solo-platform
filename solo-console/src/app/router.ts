@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import WorkspaceLayout from '@/layouts/WorkspaceLayout.vue'
 import { useAuthStore } from '@/stores/auth'
-import { registerDynamicRoutes, resetDynamicRoutes } from '@/app/dynamic-routes'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -15,40 +14,33 @@ const router = createRouter({
         { path: '', name: 'home', component: () => import('@/pages/HomePage.vue') },
         { path: '/profile', name: 'profile', component: () => import('@/pages/ProfilePage.vue') },
         { path: '/messages', name: 'messages', component: () => import('@/pages/MessagesPage.vue') },
+        { path: '/gb28181/device', name: 'gb-device', component: () => import('@/pages/gb28181/device/index.vue') },
+        { path: '/gb28181/device-channel', name: 'gb-channel', component: () => import('@/pages/gb28181/device-channel/index.vue') },
+        { path: '/gb28181/platform', name: 'gb-platform', component: () => import('@/pages/gb28181/platform/index.vue') },
+        { path: '/gb28181/alarm', name: 'gb-alarm', component: () => import('@/pages/gb28181/alarm/index.vue') },
+        { path: '/gb28181/position', name: 'gb-position', component: () => import('@/pages/gb28181/position/index.vue') },
+        { path: '/gb28181/cloud-record', name: 'gb-cloud-record', component: () => import('@/pages/gb28181/cloud-record/index.vue') },
+        { path: '/gb28181/record-plan', name: 'gb-record-plan', component: () => import('@/pages/gb28181/record-plan/index.vue') },
+        { path: '/gb28181/broadcast', name: 'gb-broadcast', component: () => import('@/pages/gb28181/broadcast/index.vue') },
+        { path: '/gb28181/view-record', name: 'gb-view-record', component: () => import('@/pages/gb28181/view-record/index.vue') },
+        { path: '/onvif/device', name: 'onvif-device', component: () => import('@/pages/onvif/device/index.vue') },
+        { path: '/media/server', name: 'media-server', component: () => import('@/pages/media/server/index.vue') },
+        { path: '/media/stream-proxy', name: 'media-stream-proxy', component: () => import('@/pages/media/stream-proxy/index.vue') },
+        { path: '/media/stream-push', name: 'media-stream-push', component: () => import('@/pages/media/stream-push/index.vue') },
+        { path: '/openapi/app', name: 'openapi-app', component: () => import('@/pages/openapi/app/index.vue') },
+        { path: '/openapi/log', name: 'openapi-log', component: () => import('@/pages/openapi/log/index.vue') },
+        { path: '/system/user', name: 'system-user', component: () => import('@/pages/system/user/index.vue') },
       ],
     },
+    { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
 })
 
-router.beforeEach(async (to) => {
+router.beforeEach((to) => {
   const auth = useAuthStore()
-
   if (!auth.isLogin) {
-    resetDynamicRoutes()
     return to.name === 'login' ? true : { name: 'login', query: { redirect: to.fullPath } }
   }
-
-  // 已登录但菜单尚未加载（刷新页面的场景）：先拉取菜单，再注册动态路由并重新导航
-  if (auth.menus.length === 0) {
-    try {
-      await auth.loadProfile()
-    } catch {
-      // 档案/菜单加载失败（典型：登录态已失效，如 Redis 会话被清）——回到登录页
-      auth.logout()
-      resetDynamicRoutes()
-      return { name: 'login', query: { redirect: to.fullPath } }
-    }
-    registerDynamicRoutes(router, auth.menus)
-    return { ...to, replace: true }
-  }
-
-  // 登录后首次跳转：菜单已在内存，但动态路由尚未注册
-  // 首次注册动态路由后需重新导航：目标动态路由在本次导航发起时尚不存在，
-  // 直接放行会渲染空白页面（刷新才恢复）。
-  if (registerDynamicRoutes(router, auth.menus)) {
-    return { ...to, replace: true }
-  }
-
   if (to.name === 'login') return { name: 'home' }
   return true
 })

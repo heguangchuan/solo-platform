@@ -86,19 +86,9 @@
           <span class="shrink-0 text-muted-foreground">文件大小</span>
           <span class="font-mono">{{ file.fileSize != null ? fmtSize(file.fileSize) : '—' }}</span>
         </div>
-        <div v-if="file.streamId" class="flex items-center justify-between gap-3">
-          <span class="shrink-0 text-muted-foreground">流 ID</span>
-          <span class="truncate font-mono" :title="file.streamId">{{ file.streamId }}</span>
-        </div>
         <div class="flex items-center justify-between gap-3">
           <span class="shrink-0 text-muted-foreground">入库时间</span>
           <span class="truncate font-mono">{{ file.createTime || '—' }}</span>
-        </div>
-        <div v-if="file.status === 2 && file.failReason" class="pt-1">
-          <div class="mb-1 text-muted-foreground">失败原因</div>
-          <div class="rounded-md bg-red-50 px-2.5 py-1.5 text-[11px] leading-relaxed text-red-600">
-            {{ file.failReason }}
-          </div>
         </div>
       </div>
     </section>

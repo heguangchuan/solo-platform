@@ -73,27 +73,6 @@
 
             <div class="my-3.5 h-px bg-border" />
 
-            <!-- 角色信息 -->
-            <div>
-              <p class="mb-2.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">角色信息</p>
-              <div v-if="rolesLoading" class="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                <LoaderCircle class="h-3 w-3 animate-spin" />
-                加载中…
-              </div>
-              <div v-else-if="roles.length" class="flex flex-col gap-1.5">
-                <span
-                  v-for="r in roles"
-                  :key="r.id"
-                  class="inline-flex items-center gap-2 rounded-md border border-border bg-secondary/60 px-2.5 py-1.5 text-[11px]"
-                  :title="r.roleCode"
-                >
-                  <ShieldCheck class="h-3.5 w-3.5 text-muted-foreground" />
-                  {{ r.roleName }}
-                </span>
-              </div>
-              <p v-else class="text-[11px] text-muted-foreground">暂未分配角色</p>
-            </div>
-
             <!-- 初始密码警示 -->
             <div
               v-if="profile.pwdResetRequired === 1"
@@ -213,9 +192,7 @@
 import { onMounted, reactive, ref } from 'vue'
 import {
   TriangleAlert,
-  ShieldCheck,
   ShieldAlert,
-  LoaderCircle,
   UserRound,
   UserCircle,
   KeyRound,
@@ -233,9 +210,8 @@ import {
   getProfileApi,
   updateProfileApi,
   changePasswordApi,
-  getMyRolesApi,
 } from '@/api/auth'
-import type { UserInfoVO, SysRole } from '@/types/api'
+import type { UserInfoVO } from '@/types/api'
 import { toast } from '@/lib/toast'
 
 const profile = ref<UserInfoVO>({
@@ -248,8 +224,6 @@ const profile = ref<UserInfoVO>({
   status: 1,
   pwdResetRequired: 0,
 })
-const roles = ref<SysRole[]>([])
-const rolesLoading = ref(false)
 const savingProfile = ref(false)
 const savingPwd = ref(false)
 
@@ -334,12 +308,5 @@ onMounted(async () => {
   form.nickname = profile.value.nickname
   form.email = profile.value.email
   form.phone = profile.value.phone
-
-  rolesLoading.value = true
-  try {
-    roles.value = (await getMyRolesApi()).data ?? []
-  } finally {
-    rolesLoading.value = false
-  }
 })
 </script>

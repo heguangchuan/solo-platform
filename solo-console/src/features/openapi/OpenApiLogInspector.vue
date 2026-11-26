@@ -13,7 +13,7 @@ import Button from '@/components/ui/button/Button.vue'
 import { toast } from '@/lib/toast'
 import type { OpenApiLog } from '@/types/api'
 
-const props = defineProps<{ log?: OpenApiLog }>()
+defineProps<{ log?: OpenApiLog }>()
 defineEmits<{ close: [] }>()
 
 const isSuccess = (log?: OpenApiLog) => log?.bizCode === 200

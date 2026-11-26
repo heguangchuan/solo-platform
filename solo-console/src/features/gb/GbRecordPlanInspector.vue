@@ -59,7 +59,7 @@
             <!-- reka-ui 的 SelectItem 不允许空串 value，用 __default__ 占位，提交时还原成空串 -->
             <Select
               :model-value="form.transport || '__default__'"
-              @update:model-value="(v: string) => (form.transport = v === '__default__' ? '' : v)"
+              @update:model-value="(v) => (form.transport = v === '__default__' ? '' : String(v ?? ''))"
             >
               <SelectTrigger class="h-8 w-full text-xs">
                 <SelectValue placeholder="随设备" />
@@ -79,7 +79,7 @@
           <div class="flex-1">
             <Select
               :model-value="form.streamNumber || '__default__'"
-              @update:model-value="(v: string) => (form.streamNumber = v === '__default__' ? '' : v)"
+              @update:model-value="(v) => (form.streamNumber = v === '__default__' ? '' : String(v ?? ''))"
             >
               <SelectTrigger class="h-8 w-full text-xs">
                 <SelectValue placeholder="主码流" />

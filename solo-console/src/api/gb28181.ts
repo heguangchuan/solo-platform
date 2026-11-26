@@ -50,6 +50,7 @@ import type {
   GbPlatformPageRequest,
   GbRecordFile,
   GbRecordPlan,
+  GbRecordPlanPageRequest,
   GbViewRecord,
   PageResult,
 } from '@/types/api'

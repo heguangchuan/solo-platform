@@ -43,7 +43,7 @@ const hasCondition = computed(
 )
 
 /** 组装后端查询体（时间选择器的 2026-10-28T10:00 转成 2026-10-28 10:00:00） */
-const buildParams = (q: { page: number; pageSize: number }): OpenApiLogPageRequest => ({
+const buildParams = (q: OpenApiLogPageRequest): OpenApiLogPageRequest => ({
   ...q,
   appKey: appKey.value.trim() || undefined,
   path: path.value.trim() || undefined,

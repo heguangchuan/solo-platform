@@ -28,5 +28,9 @@
     "src/**/*.tsx",
     "src/**/*.vue",
     "vite.config.ts"
+  ],
+  "exclude": [
+    "src/pages/setting/**",
+    "src/pages/test/**"
   ]
 }

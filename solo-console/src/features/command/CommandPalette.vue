@@ -112,7 +112,7 @@ const searchedUsers = ref<SysUser[]>([])
 
 // 页面导航 + 固定动作
 const staticCommands = computed<CmdEntry[]>(() => {
-  const nav: CmdEntry[] = [homeModule, ...buildNavFromMenus(auth.menus)]
+  const nav: CmdEntry[] = [homeModule, ...buildNavFromMenus()]
     .flatMap((m) => m.items)
     .map((i) => ({
       id: `nav:${i.path}`,

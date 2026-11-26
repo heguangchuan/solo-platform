@@ -39,16 +39,6 @@ export function deleteUserBatchApi(ids: string[]) {
   return del<void>('/api/user/batch', { data: ids })
 }
 
-/** 查询用户已分配的角色 ID */
-export function getUserAssignedRolesApi(userId: string) {
-  return get<string[]>(`/api/user/r2u/${userId}`)
-}
-
-/** 给用户分配角色 */
-export function assignUserRolesApi(userId: string, roleIds: string[]) {
-  return post<void>('/api/user/r2u', { userId, roleIds })
-}
-
 /** 导出用户 Excel（blob），支持按筛选条件或选中 id 导出 */
 export function exportUserApi(data: UserExportRequest): Promise<AxiosResponse<Blob>> {
   return service.post('/api/user/export', data, { responseType: 'blob' })

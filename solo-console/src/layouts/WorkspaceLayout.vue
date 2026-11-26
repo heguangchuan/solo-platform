@@ -230,7 +230,7 @@ const hintIndex = ref(0)
 const searchHint = computed(() => searchHints[hintIndex.value])
 let hintTimer: ReturnType<typeof setInterval> | null = null
 
-const menuModules = computed(() => buildNavFromMenus(auth.menus))
+const menuModules = computed(() => buildNavFromMenus())
 const navModules = computed(() => [homeModule, ...menuModules.value])
 
 /** 判断路由是否命中某个导航项：首页 '/' 精确匹配；其余按路径段匹配，避免 /device 前缀命中 /device-channel */

@@ -192,7 +192,7 @@ const resolveSelected = async (channelId?: string) => {
 
 watch(
   () => [props.modelValue, props.deviceId],
-  ([v, d]) => resolveSelected(v as string | undefined, d as string | undefined),
+  ([v]) => resolveSelected(v as string | undefined),
   { immediate: true },
 )
 
