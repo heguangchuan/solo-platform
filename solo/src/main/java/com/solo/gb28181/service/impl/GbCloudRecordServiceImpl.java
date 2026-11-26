@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * ZLM 每切出一段 MP4 → on_record_mp4 → GbRecordFileServiceImpl 登记本地文件
  * stop / 设备 BYE / 流断 / RTP 超时：发 BYE（尽量）→ 关端口 → 释放 SSRC → 删会话
  *
- * 计划录制的 streamId 加 REC 前缀，是因为点播用的是裸 deviceId_channelId，边录边看时同流名会让
+ * 录制的 streamId 加 REC 前缀，是因为点播用的是裸 deviceId_channelId，边录边看时同流名会让
  * openRtpServer 撞车、hook 也分不清会话类型。加前缀后两路流在 ZLM 各自独立，
  * 代价是同一通道会被 INVITE 两次，主流设备都支持。
  */
@@ -104,11 +104,16 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         String streamId = GbCloudRecordService.manualStreamId(deviceId, channelId, streamNumber);
         String normalizedToken = GbCloudRecordService.normalizeToken(streamNumber);
 
-        // 幂等：已在录（READY/INVITING）直接复用，上层调度可能重复调用
+        // 断流后的 STOPPED 会话还会短暂留在 Redis，直接复用就不会再发 INVITE
         GbInviteSession existing = inviteSessionService.getByStreamId(streamId);
-        if (existing != null) {
+        if (existing != null && GbInviteSession.TYPE_RECORD.equals(existing.getSessionType())
+                && (GbInviteSession.STATUS_INVITING.equals(existing.getStatus())
+                || GbInviteSession.STATUS_READY.equals(existing.getStatus()))) {
             log.info("[{}] 会话已存在，复用 流ID:{} 状态:{}", LOG_TAG, streamId, existing.getStatus());
             return streamId;
+        }
+        if (existing != null) {
+            inviteCleanup.forceCleanup(existing);
         }
 
         MediaServer server = mediaServerSelector.pick();
@@ -188,6 +193,10 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             } else {
                 log.info("[{}] stop 流ID:{} 无对应会话 原因:已结束", LOG_TAG, streamId);
             }
+            return;
+        }
+        if (!GbInviteSession.TYPE_RECORD.equals(session.getSessionType())) {
+            log.warn("[{}] stop 忽略非录制会话 流ID:{} 类型:{}", LOG_TAG, streamId, session.getSessionType());
             return;
         }
         byeIfPossible(session);

@@ -317,6 +317,7 @@
             @saved="onSaved"
             @created="onCreated"
             @deleted="onDeleted"
+            @record-changed="onRecordChanged"
           />
         </div>
       </aside>
@@ -560,6 +561,21 @@ const onCreate = () => {
 }
 
 const onSaved = () => resource.search()
+const onRecordChanged = (
+  id: string,
+  streamId: string | undefined,
+  status: GbDeviceChannel['recordStatus'],
+) => {
+  const channel = resource.items.value.find((item) => item.id === id)
+  if (channel) {
+    channel.recordStreamId = streamId
+    channel.recordStatus = status
+  }
+  if (selected.value?.id === id) {
+    selected.value.recordStreamId = streamId
+    selected.value.recordStatus = status
+  }
+}
 const onCreated = () => {
   creating.value = false
   resource.search()

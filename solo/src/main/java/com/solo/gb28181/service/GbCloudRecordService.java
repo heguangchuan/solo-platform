@@ -17,7 +17,7 @@ public interface GbCloudRecordService {
     }
 
     static String manualStreamId(String deviceId, String channelId, String streamNumber) {
-        String base = deviceId + "_" + channelId;
+        String base = "REC_" + deviceId + "_" + channelId;
         String token = normalizeToken(streamNumber);
         return token == null ? base : base + "_" + token;
     }

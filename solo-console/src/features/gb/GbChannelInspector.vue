@@ -233,6 +233,35 @@
 
         <p v-if="playError" class="mt-1.5 text-[11px] text-destructive">{{ playError }}</p>
       </section>
+
+      <div class="my-4 h-px bg-border" />
+
+      <section>
+        <div class="mb-3 flex items-center justify-between">
+          <h4 class="text-[13px] font-medium">云端录制</h4>
+          <span
+            class="text-xs"
+            :class="channel.recordStreamId ? 'text-red-500' : 'text-muted-foreground'"
+          >
+            {{ channel.recordStatus === 'INVITING' ? '连接中' : channel.recordStreamId ? '录制中' : '未录制' }}
+          </span>
+        </div>
+        <p class="mb-3 text-[11px] text-muted-foreground">
+          录制主码流，录像文件可在云端录像中心查看。
+        </p>
+        <Button
+          size="sm"
+          class="w-full"
+          :variant="channel.recordStreamId ? 'destructive' : 'outline'"
+          :loading="recordLoading"
+          :disabled="!channel.recordStreamId && !canStartRecording"
+          @click="onToggleRecord"
+        >
+          <IconPlayerStopFilled v-if="!recordLoading && channel.recordStreamId" class="size-3.5" />
+          <IconPlayerRecordFilled v-else-if="!recordLoading" class="size-3.5" />
+          {{ channel.recordStreamId ? '停止录制' : '开启录制' }}
+        </Button>
+      </section>
     </template>
 
     <!-- 目录 / 上报信息（已有通道） -->
@@ -332,6 +361,8 @@ import {
   IconLoader2,
   IconArrowsMaximize,
   IconHistory,
+  IconPlayerRecordFilled,
+  IconPlayerStopFilled,
 } from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
 import { Input } from '@/components/ui/input'
@@ -343,6 +374,8 @@ import {
   deleteGbDeviceChannelApi,
   startGbPlayApi,
   stopGbPlayApi,
+  startCloudRecordApi,
+  stopCloudRecordApi,
 } from '@/api/gb28181'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
@@ -360,6 +393,7 @@ const emit = defineEmits<{
   saved: []
   created: []
   deleted: [channel: GbDeviceChannel]
+  recordChanged: [id: string, streamId: string | undefined, status: GbDeviceChannel['recordStatus']]
 }>()
 
 const PTZ_OPTIONS = [
@@ -574,6 +608,46 @@ const onSwitchTransport = (value: 'UDP' | 'TCP-passive' | 'TCP-active') => {
 }
 
 onBeforeUnmount(stopPlay)
+
+/* ---------------- 云端录制 ---------------- */
+const recordLoading = ref(false)
+const canStartRecording = computed(() => {
+  const channel = props.channel
+  return !!channel?.deviceId && channel.parental !== 1 && channel.status === 'ON'
+})
+
+const onToggleRecord = async () => {
+  const channel = props.channel
+  if (!channel || recordLoading.value) return
+  const streamId = channel.recordStreamId
+  if (!streamId && !canStartRecording.value) return
+  if (streamId) {
+    const ok = await confirm({
+      title: '停止云端录制',
+      description: `确定停止「${channelName.value}」的录制吗？已生成的录像文件会保留。`,
+      confirmText: '停止录制',
+    })
+    if (!ok) return
+  }
+
+  recordLoading.value = true
+  try {
+    if (streamId) {
+      await stopCloudRecordApi(streamId)
+      emit('recordChanged', channel.id, undefined, undefined)
+      toast.success('已停止云端录制')
+    } else {
+      const { data } = await startCloudRecordApi({
+        deviceId: channel.deviceId || '',
+        channelId: channel.channelId,
+      })
+      emit('recordChanged', channel.id, data, 'INVITING')
+      toast.success('已发起云端录制')
+    }
+  } finally {
+    recordLoading.value = false
+  }
+}
 
 /* ---------------- 大窗口监控 ---------------- */
 const monitorOpen = ref(false)

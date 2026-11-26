@@ -9,12 +9,14 @@ import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.constant.GbSource;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
+import com.solo.gb28181.entity.GbInviteSession;
 import com.solo.gb28181.mapper.GbDeviceChannelMapper;
 import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.request.GbDeviceChannelPageRequest;
 import com.solo.gb28181.response.GbChannelStatusCountVO;
 import com.solo.gb28181.response.GbDeviceChannelResponse;
 import com.solo.gb28181.service.GbDeviceChannelService;
+import com.solo.gb28181.service.GbInviteSessionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -33,6 +35,7 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
 
     private final GbDeviceMapper deviceMapper;
     private final Gb28181Properties properties;
+    private final GbInviteSessionService inviteSessionService;
 
     @Override
     public Page<GbDeviceChannelResponse> pageQuery(GbDeviceChannelPageRequest request) {
@@ -72,14 +75,47 @@ public class GbDeviceChannelServiceImpl extends ServiceImpl<GbDeviceChannelMappe
                 .orderByAsc(GbDeviceChannel::getChannelId);
         Page<GbDeviceChannel> raw = page(new Page<>(request.getPage(), request.getPageSize()), wrapper);
 
-        // 转 response + 直接透传 entity 字段（不回填任何冗余字段）
         List<GbDeviceChannelResponse> rows = raw.getRecords().stream()
                 .map(GbDeviceChannelServiceImpl::toResponse)
                 .collect(Collectors.toCollection(ArrayList::new));
+        fillRecordingState(rows);
 
         Page<GbDeviceChannelResponse> resp = new Page<>(raw.getCurrent(), raw.getSize(), raw.getTotal());
         resp.setRecords(rows);
         return resp;
+    }
+
+    void fillRecordingState(List<GbDeviceChannelResponse> rows) {
+        if (rows.isEmpty()) {
+            return;
+        }
+        Map<String, GbInviteSession> recordingByChannel = new HashMap<>();
+        for (GbInviteSession session : inviteSessionService.listAllActive()) {
+            if (!isActiveMainRecording(session)) {
+                continue;
+            }
+            recordingByChannel.putIfAbsent(channelKey(session.getDeviceId(), session.getChannelId()), session);
+        }
+        for (GbDeviceChannelResponse row : rows) {
+            GbInviteSession session = recordingByChannel.get(channelKey(row.getDeviceId(), row.getChannelId()));
+            if (session != null) {
+                row.setRecordStreamId(session.getStreamId());
+                row.setRecordStatus(session.getStatus());
+            }
+        }
+    }
+
+    private static boolean isActiveMainRecording(GbInviteSession session) {
+        if (!GbInviteSession.TYPE_RECORD.equals(session.getSessionType())
+                || session.getStreamNumber() != null && !session.getStreamNumber().isBlank()) {
+            return false;
+        }
+        return GbInviteSession.STATUS_INVITING.equals(session.getStatus())
+                || GbInviteSession.STATUS_READY.equals(session.getStatus());
+    }
+
+    private static String channelKey(String deviceId, String channelId) {
+        return deviceId + ":" + channelId;
     }
 
     private static GbDeviceChannelResponse toResponse(GbDeviceChannel src) {

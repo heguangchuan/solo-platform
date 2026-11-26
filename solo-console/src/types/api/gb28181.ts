@@ -164,6 +164,10 @@ export interface GbDeviceChannel {
   parentId?: string
   /** 数据来源：1 系统新增，2 表格导入，3 设备注册 */
   source?: number
+  /** 主码流云端录制会话 ID，未录制时为空 */
+  recordStreamId?: string
+  /** INVITING 连接中 / READY 录制中 */
+  recordStatus?: 'INVITING' | 'READY'
   createTime?: string
   updateTime?: string
 }
