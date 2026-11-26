@@ -162,7 +162,6 @@
       <section>
         <h4 class="mb-3.5 text-[13px] font-medium text-destructive">危险操作</h4>
         <Button
-          v-access="PERM.MEDIA_STREAM_PROXY_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -195,7 +194,6 @@ import {
   updateStreamProxyApi,
   deleteStreamProxyApi,
 } from '@/api/media'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

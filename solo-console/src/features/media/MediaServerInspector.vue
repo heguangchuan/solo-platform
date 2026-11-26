@@ -189,7 +189,6 @@
       <section>
         <h4 class="mb-3.5 text-[13px] font-medium text-destructive">危险操作</h4>
         <Button
-          v-access="PERM.MEDIA_SERVER_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -208,7 +207,6 @@ import { reactive, ref, watch } from 'vue'
 import { IconServer2, IconX, IconTrash } from '@tabler/icons-vue'
 import type { MediaServer, MediaServerRequest } from '@/types/api'
 import { saveMediaServerApi, deleteMediaServerApi } from '@/api/media'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

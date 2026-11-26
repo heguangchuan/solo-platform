@@ -33,7 +33,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.GB_DEVICE_SYNC"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -45,7 +44,6 @@
           <Radar v-else class="size-4" />
         </Button>
         <Button
-          v-access="PERM.GB_DEVICE_DELETE"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -58,7 +56,6 @@
         </Button>
 
         <Button
-          v-access="PERM.GB_DEVICE_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -317,7 +314,6 @@ import {
   detectGbDeviceApi,
 } from '@/api/gb28181'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import Button from '@/components/ui/button/Button.vue'

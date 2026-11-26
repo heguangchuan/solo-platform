@@ -19,7 +19,6 @@ import {
   exchangeBroadcastSdpApi,
   exchangeTalkPlaySdpApi,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 
 const deviceId = ref<string | undefined>(undefined)
@@ -391,7 +390,6 @@ onBeforeUnmount(() => {
                 size="icon"
                 title="开始语音播报"
                 :disabled="!canStart"
-                v-access="PERM.GB_BROADCAST_TALK"
                 @click="start('broadcast')"
               >
                 <Megaphone class="size-4" />
@@ -401,7 +399,6 @@ onBeforeUnmount(() => {
                 variant="secondary"
                 title="开始对讲"
                 :disabled="!canStart"
-                v-access="PERM.GB_BROADCAST_TALK"
                 @click="start('talk')"
               >
                 <Phone class="size-4" />
@@ -420,7 +417,6 @@ onBeforeUnmount(() => {
               variant="destructive"
               title="停止"
               :loading="phase === 'stopping'"
-              v-access="PERM.GB_BROADCAST_TALK"
               @click="stop"
             >
               <Square v-if="phase !== 'stopping'" class="size-4" />

@@ -11,7 +11,6 @@
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
 
         <Button
-          v-access="PERM.ONVIF_DEVICE_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -225,7 +224,6 @@ import OnvifDeviceInspector from '@/features/onvif/OnvifDeviceInspector.vue'
 import OnvifPlayPanel from '@/features/onvif/OnvifPlayPanel.vue'
 import { getOnvifDevicePageApi } from '@/api/onvif'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import Button from '@/components/ui/button/Button.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import { Select, SelectContent, SelectItem } from '@/components/ui/select'

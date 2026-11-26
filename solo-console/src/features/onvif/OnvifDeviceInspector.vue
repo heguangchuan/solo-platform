@@ -131,7 +131,6 @@
 
         <div class="mt-3">
           <Button
-            v-access="PERM.ONVIF_DEVICE_PROBE"
             variant="outline"
             size="sm"
             class="w-full"
@@ -153,7 +152,6 @@
       <section>
         <h4 class="mb-3.5 text-[13px] font-medium text-destructive">危险操作</h4>
         <Button
-          v-access="PERM.ONVIF_DEVICE_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -178,7 +176,6 @@ import {
   probeOnvifDeviceApi,
   deleteOnvifDeviceApi,
 } from '@/api/onvif'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

@@ -106,7 +106,6 @@
       <div class="mt-5 flex justify-end gap-2">
         <Button variant="outline" size="sm" @click="emit('close')">取消</Button>
         <Button
-          v-access="creating ? PERM.GB_PLATFORM_ADD : PERM.GB_PLATFORM_EDIT"
           size="sm"
           :loading="saving"
           @click="onSubmit"
@@ -125,7 +124,6 @@
           删除后该下级平台的接入登记将被移除。
         </p>
         <Button
-          v-access="PERM.GB_PLATFORM_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -158,7 +156,6 @@ import {
   updateGbPlatformApi,
   deleteGbPlatformApi,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import type { GbLocalPlatformInfo, GbPlatform } from '@/types/api'

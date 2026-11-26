@@ -8,7 +8,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.OPENAPI_APP_ADD"
           variant="ghost"
           size="sm"
           class="gap-1.5"
@@ -228,7 +227,6 @@ import { IconSearch, IconX, IconPlus, IconKey, IconLoader2, IconFilter } from '@
 import OpenAppInspector from '@/features/openapi/OpenAppInspector.vue'
 import { getOpenAppPageApi } from '@/api/openapi'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import Button from '@/components/ui/button/Button.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import { Select, SelectContent, SelectItem } from '@/components/ui/select'

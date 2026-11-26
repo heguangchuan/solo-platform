@@ -102,7 +102,6 @@
           删除会一并清理 ZLM 节点上的录像文件，操作不可恢复。
         </p>
         <Button
-          v-access="PERM.GB_RECORD_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -121,7 +120,6 @@ import { ref, watch } from 'vue'
 import { IconMovie, IconX, IconTrash, IconDownload, IconLoader2 } from '@tabler/icons-vue'
 import { Play } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import {

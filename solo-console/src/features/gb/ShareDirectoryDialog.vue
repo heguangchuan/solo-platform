@@ -23,7 +23,6 @@ import {
   clearAllSharesByPlatformApi,
   pushCatalogApi,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import type {
@@ -428,7 +427,6 @@ onBeforeUnmount(() => {
           <span class="text-xs font-medium">推送分组</span>
           <div class="flex-1" />
           <Button
-            v-access="PERM.GB_SHARE_GROUP_ADD"
             variant="ghost"
             size="icon-sm"
             title="新建顶级分组"
@@ -475,7 +473,6 @@ onBeforeUnmount(() => {
           </template>
           <div class="flex-1" />
           <Button
-            v-access="PERM.GB_PARENT_PLATFORM_DELETE"
             variant="ghost"
             size="icon-sm"
             title="清空平台全部挂载"
@@ -484,7 +481,6 @@ onBeforeUnmount(() => {
             <Eraser class="size-3.5" />
           </Button>
           <Button
-            v-access="PERM.GB_PARENT_PLATFORM_EDIT"
             variant="ghost"
             size="icon-sm"
             title="主动推送"
@@ -494,7 +490,6 @@ onBeforeUnmount(() => {
           </Button>
           <template v-if="selectedGroupId">
             <Button
-              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
               variant="ghost"
               size="icon-sm"
               title="删除"
@@ -503,7 +498,6 @@ onBeforeUnmount(() => {
               <Trash2 class="size-3.5" />
             </Button>
             <Button
-              v-access="PERM.GB_PARENT_PLATFORM_EDIT"
               variant="ghost"
               size="sm"
               class="h-7 text-xs"

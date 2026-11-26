@@ -117,7 +117,6 @@
       <section>
         <h4 class="mb-3.5 text-[13px] font-medium text-destructive">危险操作</h4>
         <Button
-          v-access="PERM.USER_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -136,7 +135,6 @@ import { reactive, ref, watch } from 'vue'
 import { X, Trash2, Info } from 'lucide-vue-next'
 import type { SysUser, UserRequest } from '@/types/api'
 import { addUserApi, editUserApi, deleteUserApi } from '@/api/user'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

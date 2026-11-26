@@ -11,7 +11,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.GB_PLATFORM_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -186,7 +185,6 @@ import { SelectTrigger as RawSelectTrigger } from 'reka-ui'
 import GbChildPlatformInspector from './GbChildPlatformInspector.vue'
 import { getGbPlatformPageApi, getGbLocalPlatformInfoApi } from '@/api/gb28181'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import type {
   GbLocalPlatformInfo,
   GbPlatform,

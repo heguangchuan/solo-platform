@@ -65,7 +65,6 @@
       <h4 class="mb-2 text-[13px] font-medium text-destructive">危险操作</h4>
       <p class="mb-3 text-[11px] text-muted-foreground">删除该位置点后不可恢复。</p>
       <Button
-        v-access="PERM.GB_POSITION_DELETE"
         variant="destructive"
         size="sm"
         class="w-full"
@@ -81,7 +80,6 @@
 <script setup lang="ts">
 import { IconRoute, IconX, IconTrash } from '@tabler/icons-vue'
 import Button from '@/components/ui/button/Button.vue'
-import { PERM } from '@/features/access/permissions'
 import type { GbMobilePosition } from '@/types/api'
 
 defineProps<{

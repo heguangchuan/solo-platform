@@ -15,7 +15,6 @@
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
 
         <Button
-          v-access="PERM.MEDIA_STREAM_PROXY_DELETE"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -28,7 +27,6 @@
         </Button>
 
         <Button
-          v-access="PERM.MEDIA_STREAM_PROXY_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -269,7 +267,6 @@ import {
   batchDeleteStreamProxyApi,
 } from '@/api/media'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

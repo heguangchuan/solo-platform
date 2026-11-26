@@ -150,7 +150,6 @@
       <div class="mt-4 flex justify-end gap-2">
         <Button size="sm" variant="outline" @click="emit('close')">取消</Button>
         <Button
-          v-access="creating ? PERM.GB_DEVICE_CHANNEL_ADD : PERM.GB_DEVICE_CHANNEL_EDIT"
           size="sm"
           :loading="saving"
           @click="onSave"
@@ -184,7 +183,6 @@
           >
             <template #toolbar-extra>
               <button
-                v-access="PERM.GB_PLAY"
                 title="回放"
                 class="grid h-7 w-7 place-items-center rounded text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                 @click="onOpenPlayback"
@@ -192,7 +190,6 @@
                 <IconHistory class="h-4 w-4" />
               </button>
               <button
-                v-access="PERM.GB_PLAY"
                 title="大窗口监控"
                 class="grid h-7 w-7 place-items-center rounded text-white/70 transition-colors hover:bg-white/10 hover:text-white"
                 @click="onOpenMonitor"
@@ -205,7 +202,6 @@
           <!-- 播放入口（未点播时） -->
           <template v-else>
             <button
-              v-access="PERM.GB_PLAY"
               title="播放"
               class="absolute inset-0 m-auto grid size-12 place-items-center rounded-full bg-black/50 text-white/85 transition-colors hover:bg-black/70 hover:text-white disabled:opacity-60"
               :disabled="playLoading"
@@ -217,7 +213,6 @@
 
             <!-- 回放：无需先点播即可进入 -->
             <button
-              v-access="PERM.GB_PLAY"
               title="回放"
               class="absolute bottom-2 right-12 grid h-8 w-8 place-items-center rounded text-white/70 transition-colors hover:text-white"
               @click="onOpenPlayback"
@@ -227,7 +222,6 @@
 
             <!-- 大窗口监控：无需先点播即可进入 -->
             <button
-              v-access="PERM.GB_PLAY"
               title="大窗口监控"
               class="absolute bottom-2 right-2 grid h-8 w-8 place-items-center rounded text-white/70 transition-colors hover:text-white"
               @click="onOpenMonitor"
@@ -300,7 +294,6 @@
           删除通道记录不影响设备实际目录，设备重新同步后该通道可能再次出现。
         </p>
         <Button
-          v-access="PERM.GB_DEVICE_CHANNEL_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -351,7 +344,6 @@ import {
   startGbPlayApi,
   stopGbPlayApi,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import GbPlayer from '@/features/gb/GbPlayer.vue'

@@ -35,7 +35,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.GB_DEVICE_CHANNEL_DELETE"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -48,7 +47,6 @@
         </Button>
 
         <Button
-          v-access="PERM.GB_DEVICE_CHANNEL_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -339,7 +337,6 @@ import {
   getGbChannelStatusCountApi,
 } from '@/api/gb28181'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import Button from '@/components/ui/button/Button.vue'

@@ -245,7 +245,6 @@
       <div class="mt-5 flex justify-end gap-2">
         <Button variant="outline" size="sm" @click="emit('close')">取消</Button>
         <Button
-          v-access="creating ? PERM.GB_PARENT_PLATFORM_ADD : PERM.GB_PARENT_PLATFORM_EDIT"
           size="sm"
           :loading="saving"
           @click="onSubmit"
@@ -289,7 +288,6 @@
           删除后本平台将不再向其注册和推送目录。
         </p>
         <Button
-          v-access="PERM.GB_PARENT_PLATFORM_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -322,7 +320,6 @@ import {
   updateGbParentPlatformApi,
   deleteGbParentPlatformApi,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import type { GbLocalPlatformInfo, GbParentPlatform } from '@/types/api'

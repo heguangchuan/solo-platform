@@ -69,12 +69,6 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 
 ![国标通道列表](img/gb-channel-list.jpg)
 
-### 录像计划
-
-按周编排录制时段（支持 7×24 全时段与跨午夜时段），TCP 主动 / 被动收流、主辅码流可配，保留天数自动清理。
-
-![录像计划](img/gb-record-plan.jpg)
-
 ### 云端录像中心
 
 ZLM 本地落盘，平台登记文件位置并签发限时访问链接，按设备 / 通道 / 时间 / 状态多维检索，在线播放与下载。
@@ -133,6 +127,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 - **监控大屏、电子地图打点 / 轨迹可视化**等呈现层
 - **多画面分屏、电视墙、分组轮巡**等播放编排
+- **录像计划编排与保留策略**：由业务系统实现，平台仅提供开始录制 / 停止录制 / 查询录制态的 OpenAPI
 - 人脸识别、客流统计、智能分析等行业业务逻辑
 - 面向具体客户的业务流程与页面定制
 
@@ -349,7 +344,6 @@ solo-platform/
 - [x] 多 ZLM 节点负载均衡 / SSRC Redis 化 / 拉流代理 / 推流鉴权
 - [x] ONVIF 摄像头接入与点播
 - [x] 用户管理、Web SSH、站内消息
-- [x] **录像计划**：按通道配置周计划（7×24 / 跨午夜时段），每分钟对账自动拉起、断流重拉、过时段停止
 - [x] **云端录像中心**：MP4 切片由 ZLM 本地落盘，hook 登记元数据，设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理、录制态探测补偿
 - [x] **语音广播**：网页麦克风 WebRTC 喊话，广播通知 + 设备反向 INVITE，裸 PCMA/PS 推流放音，UDP/TCP 自适应
 - [x] **开放 API**：第三方 HMAC-SHA256 签名鉴权接入，应用授权 / IP 白名单 / 限流 / 换钥过渡期 / 调用审计日志，已开放实时点播接口
@@ -370,7 +364,7 @@ solo-platform/
 
 | 项目 | 说明 |
 |---|---|
-| 当前开放能力 | 设备/通道详情、实时点播、历史回放、录像查询、云台控制 |
+| 当前开放能力 | 设备/通道详情、实时点播、历史回放、录像查询、云端录制控制、云台控制 |
 | 鉴权方式 | HMAC-SHA256 请求签名，无登录态 |
 | 请求方法 | 查询类使用 `GET`，控制类使用 `POST` + `application/json; charset=utf-8`；后续可能继续扩展 |
 | 响应格式 | 统一信封 `code` / `message` / `data` / `requestId` |
@@ -388,7 +382,12 @@ solo-platform/
 | 开始回放 | `POST` | `/open-api/v1/playback/start` | `gb:playback:ctrl` |
 | 停止回放 | `POST` | `/open-api/v1/playback/stop` | `gb:playback:ctrl` |
 | 回放控制 | `POST` | `/open-api/v1/playback/control` | `gb:playback:ctrl` |
+| 开始录制 | `POST` | `/open-api/v1/record/start` | `gb:record:ctrl` |
+| 停止录制 | `POST` | `/open-api/v1/record/stop` | `gb:record:ctrl` |
+| 查询录制态 | `POST` | `/open-api/v1/record/status` | `gb:record:read` |
 | 云台控制 | `POST` | `/open-api/v1/ptz/control` | `gb:ptz:ctrl` |
+
+> 新增应用的 `scopes` 必须显式包含 `gb:record:ctrl` 才能调用开始 / 停止录制；查询录制态复用 `gb:record:read`。scope 不存在时请求会被拒绝（`SCOPE_DENIED`）。
 
 **对接流程**
 

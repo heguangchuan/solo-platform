@@ -13,7 +13,6 @@
         <div class="flex-1" />
 
         <Button
-          v-access="PERM.MEDIA_STREAM_PUSH_DELETE"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -235,7 +234,6 @@ import {
   batchDeleteStreamPushApi,
 } from '@/api/media'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

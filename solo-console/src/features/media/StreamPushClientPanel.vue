@@ -7,7 +7,6 @@
         <span class="text-[13px] font-medium">推流方授权</span>
         <div class="flex-1" />
         <Button
-          v-access="PERM.MEDIA_STREAM_PUSH_CLIENT_ADD"
           variant="ghost"
           size="sm"
           class="gap-1.5"
@@ -180,7 +179,6 @@ import { IconCopy, IconLoader2, IconKey } from '@tabler/icons-vue'
 import { Plus } from 'lucide-vue-next'
 import StreamPushClientInspector from '@/features/media/StreamPushClientInspector.vue'
 import { getStreamPushClientPageApi } from '@/api/media'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import Button from '@/components/ui/button/Button.vue'
 import { DialogRoot, DialogContent } from '@/components/ui/dialog'

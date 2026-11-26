@@ -14,7 +14,6 @@ public class CloudRecordScheduledTasks {
 
     private final GbRecordFileService recordFileService;
     private final Gb28181Properties gb28181Properties;
-    private final RecordPlanReconciler recordPlanReconciler;
 
     @Scheduled(initialDelay = 60_000, fixedDelay = 60_000)
     public void retryRecordUpload() {
@@ -32,14 +31,5 @@ public class CloudRecordScheduledTasks {
         }
         int deleted = recordFileService.cleanExpired(retentionDays);
         log.info("[云端录像] 过期录像清理完成 retentionDays={} 删除条数={}", retentionDays, deleted);
-    }
-
-    @Scheduled(initialDelay = 20_000, fixedDelay = 60_000)
-    public void reconcileRecordPlan() {
-        try {
-            recordPlanReconciler.reconcile();
-        } catch (Exception e) {
-            log.error("[录像计划对账] 调度异常: {}", e.getMessage(), e);
-        }
     }
 }

@@ -8,7 +8,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.GB_PARENT_PLATFORM_ADD"
           variant="ghost"
           size="sm"
           class="ml-1 gap-1.5"
@@ -102,7 +101,6 @@
                 <span class="flex min-w-0 items-center gap-1">
                   <span class="min-w-0 truncate font-medium">{{ p.name }}</span>
                   <button
-                    v-access="PERM.GB_PARENT_PLATFORM_EDIT"
                     type="button"
                     class="hidden size-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground group-hover:flex"
                     title="推送目录"
@@ -229,7 +227,6 @@ import {
   getGbLocalPlatformInfoApi,
 } from '@/api/gb28181'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import type {
   GbLocalPlatformInfo,
   GbParentPlatform,

@@ -20,7 +20,6 @@ const router = createRouter({
         { path: '/gb28181/alarm', name: 'gb-alarm', component: () => import('@/pages/gb28181/alarm/index.vue') },
         { path: '/gb28181/position', name: 'gb-position', component: () => import('@/pages/gb28181/position/index.vue') },
         { path: '/gb28181/cloud-record', name: 'gb-cloud-record', component: () => import('@/pages/gb28181/cloud-record/index.vue') },
-        { path: '/gb28181/record-plan', name: 'gb-record-plan', component: () => import('@/pages/gb28181/record-plan/index.vue') },
         { path: '/gb28181/broadcast', name: 'gb-broadcast', component: () => import('@/pages/gb28181/broadcast/index.vue') },
         { path: '/gb28181/view-record', name: 'gb-view-record', component: () => import('@/pages/gb28181/view-record/index.vue') },
         { path: '/onvif/device', name: 'onvif-device', component: () => import('@/pages/onvif/device/index.vue') },

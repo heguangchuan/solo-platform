@@ -8,7 +8,6 @@
         <div class="flex-1" />
         <RefreshButton :loading="resource.loading" :on-refresh="onRefresh" />
         <Button
-          v-access="PERM.MEDIA_SERVER_SAVE"
           variant="ghost"
           size="sm"
           class="gap-1.5"
@@ -219,7 +218,6 @@ import {
 import MediaServerInspector from '@/features/media/MediaServerInspector.vue'
 import { getMediaServerPageApi } from '@/api/media'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import Button from '@/components/ui/button/Button.vue'
 import RefreshButton from '@/components/RefreshButton.vue'
 import { Select, SelectContent, SelectItem } from '@/components/ui/select'

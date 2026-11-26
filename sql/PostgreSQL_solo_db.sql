@@ -385,12 +385,6 @@ INSERT INTO sys_permission (id, permission_name, permission_code, url, type, par
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (133, '录像查询', 'gb28181:record:list', NULL, 2, 132, 1, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (134, '手动录制', 'gb28181:record:control', NULL, 2, 132, 2, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (135, '录像删除', 'gb28181:record:delete', NULL, 2, 132, 3, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (136, '录像计划', 'gb28181:record-plan', '/gb28181/record-plan', 1, 5, 10, 'IconCalendarTime', 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
-
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (137, '计划查询', 'gb28181:record:plan', NULL, 2, 136, 1, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (138, '计划新增', 'gb28181:record:plan:add', NULL, 2, 136, 2, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (139, '计划编辑', 'gb28181:record:plan:edit', NULL, 2, 136, 3, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
-INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (140, '计划删除', 'gb28181:record:plan:delete', NULL, 2, 136, 4, NULL, 1, 0, '2026-10-22 00:00:00', '2026-10-22 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (141, '设备控制', 'gb28181:device:control', NULL, 2, 92, 14, NULL, 1, 0, '2026-10-24 00:00:00', '2026-10-24 00:00:00');
 INSERT INTO sys_permission (id, permission_name, permission_code, url, type, parent_id, sort, icon, status, deleted, create_time, update_time) VALUES (142, '远程重启', 'gb28181:device:reboot', NULL, 2, 92, 15, NULL, 1, 0, '2026-10-24 00:00:00', '2026-10-24 00:00:00');
 DROP TABLE IF EXISTS sys_role;
@@ -1048,54 +1042,6 @@ CREATE UNIQUE INDEX uk_hook_key ON gb_record_file (hook_key);
 CREATE INDEX idx_gb_record_file_device_channel ON gb_record_file (device_id, channel_id);
 CREATE INDEX idx_start_time ON gb_record_file (start_time);
 CREATE INDEX idx_status_create ON gb_record_file (status, create_time);
-
-DROP TABLE IF EXISTS gb_record_plan;
-CREATE TABLE gb_record_plan
-(
-    id              bigint NOT NULL,
-    name            varchar(100) DEFAULT NULL,
-    device_id       varchar(50) NOT NULL,
-    channel_id      varchar(50) NOT NULL,
-    enabled         smallint NOT NULL DEFAULT 1,
-    transport       varchar(20) DEFAULT NULL,
-    stream_number   varchar(20) DEFAULT NULL,
-    retention_days  int NOT NULL DEFAULT 30,
-    create_time     timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    update_time     timestamp(0) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (id)
-);
-COMMENT ON TABLE gb_record_plan IS '云端录像计划（周计划）';
-COMMENT ON COLUMN gb_record_plan.id IS '主键ID';
-COMMENT ON COLUMN gb_record_plan.name IS '计划名称';
-COMMENT ON COLUMN gb_record_plan.device_id IS '设备国标ID';
-COMMENT ON COLUMN gb_record_plan.channel_id IS '通道国标ID';
-COMMENT ON COLUMN gb_record_plan.enabled IS '是否启用 0停 1启';
-COMMENT ON COLUMN gb_record_plan.transport IS '传输模式 UDP/TCP-active/TCP-passive，空随设备';
-COMMENT ON COLUMN gb_record_plan.stream_number IS '码流token（空=主码流）';
-COMMENT ON COLUMN gb_record_plan.retention_days IS '本计划录像保留天数，0=跟随全局';
-COMMENT ON COLUMN gb_record_plan.create_time IS '创建时间';
-COMMENT ON COLUMN gb_record_plan.update_time IS '更新时间';
-CREATE INDEX idx_gb_record_plan_device_channel ON gb_record_plan (device_id, channel_id);
-CREATE INDEX idx_enabled ON gb_record_plan (enabled);
-
-DROP TABLE IF EXISTS gb_record_plan_period;
-CREATE TABLE gb_record_plan_period
-(
-    id           bigint NOT NULL,
-    plan_id      bigint NOT NULL,
-    day_of_week  smallint NOT NULL,
-    start_time   varchar(8) NOT NULL,
-    end_time     varchar(8) NOT NULL,
-    PRIMARY KEY (id)
-);
-COMMENT ON TABLE gb_record_plan_period IS '录像计划周时段';
-COMMENT ON COLUMN gb_record_plan_period.id IS '主键ID';
-COMMENT ON COLUMN gb_record_plan_period.plan_id IS '所属录像计划ID';
-COMMENT ON COLUMN gb_record_plan_period.day_of_week IS '星期 1周一 ... 7周日';
-COMMENT ON COLUMN gb_record_plan_period.start_time IS '开始时间 HH:mm（支持跨午夜，如23:00-06:00）';
-COMMENT ON COLUMN gb_record_plan_period.end_time IS '结束时间 HH:mm，跨午夜时早于开始时间';
-CREATE UNIQUE INDEX uk_plan_day_start ON gb_record_plan_period (plan_id, day_of_week, start_time);
-CREATE INDEX idx_plan ON gb_record_plan_period (plan_id);
 
 DROP TABLE IF EXISTS gb_view_record;
 CREATE TABLE gb_view_record

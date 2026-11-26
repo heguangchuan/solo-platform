@@ -47,6 +47,7 @@ public interface OpenApiConstants {
     String SCOPE_PLAY_WRITE = "gb:play:write";
     String SCOPE_PLAYBACK_CTRL = "gb:playback:ctrl";
     String SCOPE_RECORD_READ = "gb:record:read";
+    String SCOPE_RECORD_CTRL = "gb:record:ctrl";
     String SCOPE_DOWNLOAD_CTRL = "gb:download:ctrl";
     String SCOPE_PTZ_CTRL = "gb:ptz:ctrl";
     String SCOPE_CONTROL_CTRL = "gb:control:ctrl";

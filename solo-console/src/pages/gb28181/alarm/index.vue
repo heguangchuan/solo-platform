@@ -216,7 +216,6 @@
               <td class="px-3 py-2">
                 <div class="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
-                    v-access="PERM.GB_ALARM_HANDLE"
                     class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-emerald-400"
                     title="处置"
                     @click.stop="openHandle(a)"
@@ -224,7 +223,6 @@
                     <CheckCheck class="size-3.5" />
                   </button>
                   <button
-                    v-access="PERM.GB_ALARM_DELETE"
                     class="flex size-6 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-red-400"
                     title="删除"
                     @click.stop="onDelete(a)"
@@ -372,7 +370,6 @@ import {
   PopoverClose,
 } from 'reka-ui'
 import { useResource } from '@/shared/composables/useResource'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import {

@@ -99,7 +99,6 @@
     <div class="my-4 h-px bg-border" />
     <section class="space-y-4">
       <Button
-        v-access="PERM.GB_ALARM_HANDLE"
         variant="outline"
         size="sm"
         class="w-full"
@@ -113,7 +112,6 @@
         <h4 class="mb-2 text-[13px] font-medium text-destructive">危险操作</h4>
         <p class="mb-3 text-[11px] text-muted-foreground">删除报警记录后不可恢复。</p>
         <Button
-          v-access="PERM.GB_ALARM_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -131,7 +129,6 @@
 import { IconBell, IconX, IconTrash } from '@tabler/icons-vue'
 import { CheckCheck } from 'lucide-vue-next'
 import Button from '@/components/ui/button/Button.vue'
-import { PERM } from '@/features/access/permissions'
 import type { GbDeviceAlarm } from '@/types/api'
 
 defineProps<{

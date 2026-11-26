@@ -35,11 +35,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 云端录制会话编排：
  *
- * startPlan / startManual：校验设备通道 → 选节点 → 申请 SSRC、开 RTP 端口 →
+ * startManual：校验设备通道 → 选节点 → 申请 SSRC、开 RTP 端口 →
  * 存会话(TYPE_RECORD, INVITING) → 发实时 INVITE（和点播同一码流池）
  * on_stream_changed(regist=true) → onStreamReady：调 ZLM startRecord 开 MP4 切片，
  * max_second 给个保底值，正常切片靠 ZLM 跨天或流停时自己收尾
- * ZLM 每切出一段 MP4 → on_record_mp4 → GbRecordFileServiceImpl 落 S3
+ * ZLM 每切出一段 MP4 → on_record_mp4 → GbRecordFileServiceImpl 登记本地文件
  * stop / 设备 BYE / 流断 / RTP 超时：发 BYE（尽量）→ 关端口 → 释放 SSRC → 删会话
  *
  * 计划录制的 streamId 加 REC 前缀，是因为点播用的是裸 deviceId_channelId，边录边看时同流名会让
@@ -75,16 +75,10 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
 
     @Override
     public String startManual(String deviceId, String channelId, String transport, String streamNumber) {
-        return start(deviceId, channelId, transport, streamNumber, false);
+        return start(deviceId, channelId, transport, streamNumber);
     }
 
-    @Override
-    public String startPlan(String deviceId, String channelId, String transport, String streamNumber) {
-        return start(deviceId, channelId, transport, streamNumber, true);
-    }
-
-    private String start(String deviceId, String channelId, String transport,
-                         String streamNumber, boolean fromPlan) {
+    private String start(String deviceId, String channelId, String transport, String streamNumber) {
         if (deviceId == null || channelId == null) {
             throw new ServiceException("deviceId / channelId 不能为空");
         }
@@ -107,12 +101,10 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             throw new ServiceException("通道离线，无法录制");
         }
 
-        String streamId = fromPlan
-                ? GbCloudRecordService.planStreamId(deviceId, channelId, streamNumber)
-                : GbCloudRecordService.manualStreamId(deviceId, channelId, streamNumber);
+        String streamId = GbCloudRecordService.manualStreamId(deviceId, channelId, streamNumber);
         String normalizedToken = GbCloudRecordService.normalizeToken(streamNumber);
 
-        // 幂等：已在录（READY/INVITING）直接复用，对账和手动接口每分钟可能重复打到这里
+        // 幂等：已在录（READY/INVITING）直接复用，上层调度可能重复调用
         GbInviteSession existing = inviteSessionService.getByStreamId(streamId);
         if (existing != null) {
             log.info("[{}] 会话已存在，复用 流ID:{} 状态:{}", LOG_TAG, streamId, existing.getStatus());
@@ -178,8 +170,8 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             throw new ServiceException("INVITE 异常: " + e.getMessage());
         }
 
-        log.info("[{}] 已发起录制 流ID:{} 来源:{} 设备:{} 通道:{}",
-                LOG_TAG, streamId, fromPlan ? "计划" : "手动", deviceId, channelId);
+        log.info("[{}] 已发起录制 流ID:{} 来源:手动 设备:{} 通道:{}",
+                LOG_TAG, streamId, deviceId, channelId);
         return streamId;
     }
 
@@ -204,13 +196,6 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         lastRecordingCheckAt.remove(streamId);
         log.info("[{}] 停止录制 流ID:{}", LOG_TAG, streamId);
     }
-
-    @Override
-    public void stopPlanRecord(String deviceId, String channelId, String streamNumber) {
-        // 计划流 streamId 带 REC 前缀；同一通道只可能有一路（对账保证）
-        stop(GbCloudRecordService.planStreamId(deviceId, channelId, streamNumber));
-    }
-
 
     @Override
     public void onStreamReady(String app, String stream, String mediaServerId) {

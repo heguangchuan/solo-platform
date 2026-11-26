@@ -164,9 +164,7 @@
 
       <div class="mt-4 flex justify-end gap-2">
         <Button size="sm" variant="outline" @click="emit('close')">取消</Button>
-        <Button v-access="creating ? PERM.OPENAPI_APP_ADD : PERM.OPENAPI_APP_EDIT" size="sm" :loading="saving" @click="onSave">
-          保存
-        </Button>
+        <Button size="sm" :loading="saving" @click="onSave">保存</Button>
       </div>
 
       <!-- 已有应用：状态与密钥操作 -->
@@ -202,7 +200,6 @@
         <section class="space-y-2">
           <h4 class="mb-1 text-[13px] font-medium">密钥与启停</h4>
           <Button
-            v-access="PERM.OPENAPI_APP_ROTATE"
             variant="outline"
             size="sm"
             class="w-full"
@@ -215,7 +212,6 @@
 
           <Button
             v-if="app.status === 1"
-            v-access="PERM.OPENAPI_APP_EDIT"
             variant="outline"
             size="sm"
             class="w-full"
@@ -226,7 +222,6 @@
           </Button>
           <Button
             v-else
-            v-access="PERM.OPENAPI_APP_EDIT"
             size="sm"
             class="w-full"
             @click="onToggle(true)"
@@ -260,7 +255,6 @@ import {
   disableOpenAppApi,
   rotateOpenAppSecretApi,
 } from '@/api/openapi'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'

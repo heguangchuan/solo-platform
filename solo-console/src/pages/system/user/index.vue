@@ -36,7 +36,6 @@
           <Upload class="size-4" />
         </Button>
         <Button
-          v-access="PERM.USER_EXPORT"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -48,7 +47,6 @@
           <Download v-else class="size-4" />
         </Button>
         <Button
-          v-access="PERM.USER_DELETE"
           variant="ghost"
           size="icon"
           class="size-8"
@@ -60,7 +58,7 @@
           <Trash2 v-else class="size-4" />
         </Button>
 
-        <Button v-access="PERM.USER_ADD" variant="ghost" size="sm" class="ml-1 gap-1.5" @click="onCreate">
+        <Button variant="ghost" size="sm" class="ml-1 gap-1.5" @click="onCreate">
           <Plus class="size-3.5" />
           新建
           <kbd class="rounded border border-border bg-muted px-1 text-[10px] text-muted-foreground"
@@ -177,8 +175,7 @@
               <td class="px-3 py-2">
                 <button
                   class="flex items-center gap-1.5 text-xs"
-                  :disabled="!can(USER_SWITCH)"
-                  :title="can(USER_SWITCH) ? '点击切换状态' : ''"
+                  title="点击切换状态"
                   @click.stop="onToggleStatus(u)"
                 >
                   <span :class="u.status === 1 ? 'text-emerald-500' : 'text-muted-foreground'">
@@ -288,8 +285,6 @@ import {
   exportUserApi,
 } from '@/api/user'
 import { useResource } from '@/shared/composables/useResource'
-import { useAccess } from '@/features/access/useAccess'
-import { PERM } from '@/features/access/permissions'
 import { toast } from '@/lib/toast'
 import { confirm } from '@/lib/confirm'
 import Button from '@/components/ui/button/Button.vue'
@@ -299,8 +294,6 @@ import AvatarImage from '@/components/ui/avatar/AvatarImage.vue'
 import AvatarFallback from '@/components/ui/avatar/AvatarFallback.vue'
 import type { SysUser, UserPageRequest } from '@/types/api'
 
-const { can } = useAccess()
-const USER_SWITCH = PERM.USER_SWITCH
 
 /* ---------- 搜索条件（严格对应后端 UserPageRequest） ---------- */
 const username = ref('')
@@ -538,7 +531,6 @@ const onSaved = () => {
 /* ---------------- 状态切换 ---------------- */
 /* 点击状态点切换 */
 const onToggleStatus = async (u: SysUser) => {
-  if (!can(USER_SWITCH)) return
   const next = u.status === 1 ? 0 : 1
   await switchUserStatusApi(u.id, next)
   u.status = next
@@ -622,7 +614,7 @@ const onGlobalKeydown = (e: KeyboardEvent) => {
     case 'Delete':
     case 'Backspace':
       e.preventDefault()
-      if (can(PERM.USER_DELETE) && list[cursor.value]) onDeleteRow(list[cursor.value])
+      if (list[cursor.value]) onDeleteRow(list[cursor.value])
       break
     case 'Escape':
       onCloseInspector()

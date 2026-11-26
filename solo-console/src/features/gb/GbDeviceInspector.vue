@@ -153,7 +153,6 @@
       <div class="mt-4 flex justify-end gap-2">
         <Button size="sm" variant="outline" @click="emit('close')">取消</Button>
         <Button
-          v-access="creating ? PERM.GB_DEVICE_ADD : PERM.GB_DEVICE_EDIT"
           size="sm"
           :loading="saving"
           @click="onSave"
@@ -222,7 +221,6 @@
           <div class="flex items-center gap-1">
             <!-- 同步按钮（纯图标） -->
             <Button
-              v-access="PERM.GB_DEVICE_SYNC"
               variant="outline"
               size="icon-sm"
               class="h-7 w-7"
@@ -236,7 +234,6 @@
             <!-- 同步中：旁边显示取消按钮 -->
             <Button
               v-if="syncStatus?.status === 'RUNNING'"
-              v-access="PERM.GB_DEVICE_SYNC"
               variant="ghost"
               size="icon-sm"
               class="h-7 w-7"
@@ -311,7 +308,6 @@
           删除设备记录不影响实际设备，设备重新注册后会再次出现。
         </p>
         <Button
-          v-access="PERM.GB_DEVICE_DELETE"
           variant="destructive"
           size="sm"
           class="w-full"
@@ -350,7 +346,6 @@ import {
   getDeviceSyncStatusApi,
   parseSyncStatus,
 } from '@/api/gb28181'
-import { PERM } from '@/features/access/permissions'
 import { confirm } from '@/lib/confirm'
 import { toast } from '@/lib/toast'
 import type { GbDevice } from '@/types/api'

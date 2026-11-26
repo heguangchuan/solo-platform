@@ -49,8 +49,6 @@ import type {
   GbPlatform,
   GbPlatformPageRequest,
   GbRecordFile,
-  GbRecordPlan,
-  GbRecordPlanPageRequest,
   GbViewRecord,
   PageResult,
 } from '@/types/api'
@@ -580,30 +578,4 @@ export const getViewRecordPageApi = (params: {
   size?: number
 }) => get<PageResult<GbViewRecord>>('/api/gb28181/view-record/page', { params })
 
-/* ===== 云端录像计划 ===== */
 
-/** 录像计划分页列表（可按设备/通道/启用状态过滤） */
-export const getRecordPlanPageApi = (data: GbRecordPlanPageRequest) =>
-  post<PageResult<GbRecordPlan>>('/api/gb28181/record-plan/page', data)
-
-/** 录像计划详情（含周时段） */
-export const getRecordPlanApi = (id: string) =>
-  get<GbRecordPlan>(`/api/gb28181/record-plan/${id}`)
-
-/** 新增录像计划 */
-export const saveRecordPlanApi = (data: GbRecordPlan) =>
-  post<void>('/api/gb28181/record-plan/save', data)
-
-/** 编辑录像计划（周时段整体覆盖） */
-export const updateRecordPlanApi = (data: GbRecordPlan) =>
-  post<void>('/api/gb28181/record-plan/update', data)
-
-/** 删除录像计划 */
-export const deleteRecordPlanApi = (id: string) =>
-  del<void>(`/api/gb28181/record-plan/delete/${id}`)
-
-/** 启用/停用录像计划 */
-export const toggleRecordPlanApi = (id: string, enabled: boolean) =>
-  post<void>(
-    `/api/gb28181/record-plan/toggle/${id}?enabled=${enabled ? 'true' : 'false'}`,
-  )
