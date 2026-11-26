@@ -6,7 +6,6 @@ project:
   # 数据库独立部署时改成实际地址，并在 pg_hba.conf 放行本平台 IP。
   db: localhost
   redis: localhost
-  s3: 172.16.202.200
   media: 172.16.202.200
 
 server:
@@ -32,16 +31,6 @@ jwt:
   access-expiration: 1800000
   refresh-expiration: 604800000
 
-# region 是 AWS SDK 必填项；自托管 RustFS/MinIO/Ceph 一般用 us-east-1 + path-style
-# 云厂商按实际 region 填
-s3:
-  endpoint-override: http://${project.s3}:9000
-  region: us-east-1
-  access-key: rustfsadmin
-  secret-key: rustfsadmin
-  bucket: solo
-  public-url:
-  path-style-access: true
 
 gb28181:
   # 留空监听所有网卡

@@ -99,7 +99,7 @@
       <section>
         <h4 class="mb-2 text-[13px] font-medium text-destructive">危险操作</h4>
         <p class="mb-3 text-[11px] text-muted-foreground">
-          删除会一并清理云端存储对象，操作不可恢复。
+          删除会一并清理 ZLM 节点上的录像文件，操作不可恢复。
         </p>
         <Button
           v-access="PERM.GB_RECORD_DELETE"

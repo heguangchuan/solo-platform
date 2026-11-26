@@ -54,10 +54,6 @@ CREATE TABLE sys_dict_data
     KEY         idx_dict_type (dict_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='字典数据表';
 
-INSERT INTO sys_dict_data (id, dict_type, dict_label, dict_value, sort, status, deleted, create_time, update_time)
-VALUES (2066820557811949570, 'sys_file_types', 'mp4', '1', 2, 1, 0, '2026-06-16 17:49:55', '2026-06-16 17:49:55'),
-       (2066820617408815105, 'sys_file_types', 'png', '2', 1, 1, 0, '2026-06-16 17:49:10', '2026-06-16 17:50:10');
-
 DROP TABLE IF EXISTS sys_dict_type;
 CREATE TABLE sys_dict_type
 (
@@ -72,26 +68,6 @@ CREATE TABLE sys_dict_type
     UNIQUE KEY uk_dict_type (dict_type),
     KEY         idx_dict_type (dict_type)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='字典类型表';
-
-DROP TABLE IF EXISTS sys_file;
-CREATE TABLE sys_file
-(
-    id            bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '文件ID',
-    original_name varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '上传时的原始文件名',
-    storage_name  varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '存储路径名（含哈希，避免重名）',
-    url           varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '可访问URL（相对路径或绝对URL）',
-    ext           varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci           DEFAULT NULL COMMENT '扩展名（小写，不带点）',
-    mime_type     varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci          DEFAULT NULL COMMENT 'Content-Type',
-    size          bigint                                                        NOT NULL COMMENT '字节数',
-    uploader_id   bigint                                                                 DEFAULT NULL COMMENT '上传人ID',
-    uploader_name varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci           DEFAULT NULL COMMENT '上传人账号',
-    deleted       tinyint                                                       NOT NULL DEFAULT '0' COMMENT '逻辑删除: 0未删除 1已删除',
-    create_time   datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-    update_time   datetime                                                      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
-    PRIMARY KEY (id),
-    KEY           idx_uploader (uploader_id),
-    KEY           idx_create_time (create_time)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文件管理表';
 
 DROP TABLE IF EXISTS sys_server;
 CREATE TABLE sys_server
@@ -757,8 +733,8 @@ CREATE TABLE gb_record_file
     end_time      datetime              DEFAULT NULL COMMENT '录像段结束时间',
     duration      double                DEFAULT NULL COMMENT '时长(秒)',
     file_size     bigint                DEFAULT NULL COMMENT '文件大小(字节)',
-    object_name   varchar(500)          DEFAULT NULL COMMENT 'S3对象名(gb28181/record/...mp4)',
-    thumb_object_name varchar(500)        DEFAULT NULL COMMENT '缩略图S3对象名(截图抓拍，预留)',
+    object_name   varchar(500)          DEFAULT NULL COMMENT 'ZLM录像相对路径(record/rtp/...mp4)',
+    thumb_object_name varchar(500)        DEFAULT NULL COMMENT '缩略图路径(截图抓拍，预留)',
     status        tinyint      NOT NULL DEFAULT 0 COMMENT '状态 0上传中 1成功 2失败',
     fail_reason   varchar(500)          DEFAULT NULL COMMENT '最近一次失败原因',
     retry_count   int          NOT NULL DEFAULT 0 COMMENT '已重试次数',

@@ -2,7 +2,6 @@ package com.solo.gb28181.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.solo.common.ServiceException;
-import com.solo.common.storage.FileStorage;
 import com.solo.gb28181.config.Gb28181Properties;
 import com.solo.gb28181.entity.GbDevice;
 import com.solo.gb28181.entity.GbDeviceChannel;
@@ -16,6 +15,7 @@ import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.support.DownloadTask;
 import com.solo.gb28181.support.DownloadTaskRegistry;
+import com.solo.gb28181.support.RecordFileLinkSigner;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.transmit.cmd.SipRequestHeaderProvider;
@@ -31,16 +31,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import javax.sip.header.CallIdHeader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -48,7 +38,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.ThreadPoolExecutor;
 
-// start 发完 INVITE 就返回，流就绪后开 MP4 录制，on_record_mp4 再下载到对象存储并标 READY。
+// start 发完 INVITE 就返回，流就绪后开 MP4 录制，on_record_mp4 直接签发 ZLM 本地文件访问链接。
 // 一段录像可能要下几十分钟，HTTP 不能一直吊着；任务只放内存，SSRC 跟回放共用。
 @Slf4j
 @Service
@@ -61,8 +51,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     private static final DateTimeFormatter UI_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     private static final DateTimeFormatter COMPACT_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-    private static final String OBJECT_PREFIX = "gb28181/download/";
-    private static final int PRESIGNED_EXPIRY_SEC = 3600;
+    private static final int LINK_EXPIRY_SEC = 3600;
 
     private final Gb28181Properties sipProperties;
     private final MediaProperties mediaProperties;
@@ -77,12 +66,8 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     private final GbInviteSessionService inviteSessionService;
     private final GbInviteSessionCleanupService inviteCleanup;
     private final DownloadTaskRegistry taskRegistry;
-    private final FileStorage fileStorage;
+    private final RecordFileLinkSigner linkSigner;
     private final ThreadPoolExecutor gb28181BizExecutor;
-
-    private final HttpClient downloadHttpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(10))
-            .build();
 
 
     @Override
@@ -343,7 +328,7 @@ public class GbDownloadServiceImpl implements GbDownloadService {
             return; // 已就绪
         }
         // 异步执行 HTTP 下载 + MinIO 上传，不阻塞 ZLM 回调线程（避免 ZLM 重试）
-        gb28181BizExecutor.execute(() -> downloadAndUpload(t, url, fileSize));
+        gb28181BizExecutor.execute(() -> prepareDownload(t, url));
         log.info("[{}] on_record_mp4 触发下载 流ID:{} URL:{} 大小:{}B 时长:{}s",
                 LOG_TAG, stream, url, fileSize, duration);
     }
@@ -381,56 +366,23 @@ public class GbDownloadServiceImpl implements GbDownloadService {
     }
 
 
-    private void downloadAndUpload(DownloadTask t, String zlmUrl, long declaredSize) {
+    private void prepareDownload(DownloadTask t, String zlmUrl) {
         String streamId = t.getStreamId();
-        Path tmpFile = null;
         try {
-            // hook 给的是相对路径（record/rtp/...），按产生切片的节点补成绝对下载地址
-            String absoluteUrl = ZlmRestClient.resolveDownloadUrl(t.getMediaServer(), zlmUrl);
-            HttpRequest req = HttpRequest.newBuilder(URI.create(absoluteUrl))
-                    .timeout(Duration.ofMinutes(5))
-                    .GET()
-                    .build();
-            HttpResponse<InputStream> resp = downloadHttpClient.send(req, HttpResponse.BodyHandlers.ofInputStream());
-            if (resp.statusCode() != 200) {
-                log.warn("[{}] ZLM 文件下载失败 流ID:{} 状态码:{} URL:{}",
-                        LOG_TAG, streamId, resp.statusCode(), zlmUrl);
-                taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED,
-                        "ZLM 返回 " + resp.statusCode());
-                cleanupForTask(t, true);
-                return;
-            }
-            tmpFile = Files.createTempFile("gb-dl-", ".mp4");
-            try (InputStream in = resp.body()) {
-                long bytes = Files.copy(in, tmpFile, StandardCopyOption.REPLACE_EXISTING);
-                log.info("[{}] ZLM MP4 已拉取到临时文件 流ID:{} 大小:{}B URL:{}",
-                        LOG_TAG, streamId, bytes, zlmUrl);
-            }
-            // 真实大小（用 Files.size，不信 ZLM 回调给的）
-            long realSize = Files.size(tmpFile);
-            String objectName = buildObjectName(t);
-            // 走 S3 兼容存储上传（FileStorage.upload 接收 InputStream 不关流）
-            try (InputStream in = Files.newInputStream(tmpFile)) {
-                fileStorage.upload(in, realSize, "video/mp4", objectName);
-            }
-            String presigned = fileStorage.presignedUrl(objectName, PRESIGNED_EXPIRY_SEC);
-            t.setObjectName(objectName);
-            t.setDownloadUrl(presigned);
+            String serverId = t.getMediaServer() == null ? null : t.getMediaServer().getServerId();
+            String signed = linkSigner.sign(serverId, zlmUrl, LINK_EXPIRY_SEC);
+            t.setObjectName(zlmUrl);
+            t.setDownloadUrl(signed);
             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_READY, null);
-            log.info("[{}] MP4 已落存储 流ID:{} 对象:{} 大小:{}B URL有效期:{}s",
-                    LOG_TAG, streamId, objectName, realSize, PRESIGNED_EXPIRY_SEC);
-            // 资源清扫：会话记录 + SSRC + ZLM 端口都释放，文件本身已落存储
+            log.info("[{}] MP4 已就绪 流ID:{} 文件:{} 链接有效期:{}s",
+                    LOG_TAG, streamId, zlmUrl, LINK_EXPIRY_SEC);
             cleanupForTask(t, true);
         } catch (Exception e) {
-            log.error("[{}] 下载/上传失败 流ID:{} URL:{} 错误:{}",
+            log.error("[{}] 生成下载链接失败 流ID:{} URL:{} 错误:{}",
                     LOG_TAG, streamId, zlmUrl, e.getMessage(), e);
             taskRegistry.markStatus(streamId, DownloadResultResponse.STATUS_FAILED,
-                    "下载/上传失败: " + e.getMessage());
+                    "生成下载链接失败: " + e.getMessage());
             cleanupForTask(t, true);
-        } finally {
-            if (tmpFile != null) {
-                try { Files.deleteIfExists(tmpFile); } catch (IOException ignore) { /* best effort */ }
-            }
         }
     }
 
@@ -460,11 +412,6 @@ public class GbDownloadServiceImpl implements GbDownloadService {
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(streamId);
     }
-
-    private String buildObjectName(DownloadTask t) {
-        return OBJECT_PREFIX + t.getStreamId() + ".mp4";
-    }
-
 
     private static int transportToTcpMode(String transport) {
         if (SdpBuilder.TRANSPORT_TCP_PASSIVE.equalsIgnoreCase(transport)) return 1;

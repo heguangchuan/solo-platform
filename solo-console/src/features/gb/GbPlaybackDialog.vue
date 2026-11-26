@@ -871,7 +871,7 @@ function onPlayerTimeout() {
             </div>
 
             <div v-if="downloadInfo?.status === 'READY' && downloadInfo.downloadUrl" class="space-y-2">
-              <div class="text-sm text-muted-foreground">下载链接（MinIO 预签名，1 小时内有效）</div>
+              <div class="text-sm text-muted-foreground">下载链接（平台签名，1 小时内有效）</div>
               <div class="flex gap-2">
                 <Input :value="downloadInfo.downloadUrl" readonly size="sm" class="flex-1 font-mono text-xs" />
                 <Button size="sm" variant="outline" @click="copyDownloadLink">复制</Button>

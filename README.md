@@ -44,7 +44,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 │  收流 · 转封装 · 分发 · 录像  │
 └───────────┬─────────────────┘
             ▼
-   MySQL / PostgreSQL · Redis · RustFS（S3 兼容存储）
+   MySQL / PostgreSQL · Redis
 ```
 
 ## 界面截图
@@ -77,7 +77,7 @@ Solo 是一套**开箱即用**的国标视频监控平台：从设备注册鉴�
 
 ### 云端录像中心
 
-MP4 切片自动上传对象存储，按设备 / 通道 / 时间 / 状态多维检索，直接在线播放与下载。
+ZLM 本地落盘，平台登记文件位置并签发限时访问链接，按设备 / 通道 / 时间 / 状态多维检索，在线播放与下载。
 
 ![云端录像中心](img/gb-cloud-record.jpg)
 
@@ -127,7 +127,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 - 设备注册鉴权、目录同步、实时点播、录像回放 / 下载、云台控制、报警事件、GPS 移动位置、语音广播、国标级联
 - 多流媒体节点负载均衡、拉流代理、推流鉴权
-- RBAC 权限、操作日志、Web SSH、对象存储文件等系统支撑能力
+- 用户、操作日志、Web SSH 等系统支撑能力
 
 **平台不做（由业务系统自行实现）**
 
@@ -146,8 +146,8 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - **通道目录**：注册后自动拉取 Catalog，分片合并入库，支持超大目录；设备信息（厂商/型号/固件）自动同步
 - **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；播放地址携带绑定节点、流和协议的限时签名令牌；按需拉流（无观看自动断流节能）
 - **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
-- **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 落对象存储，预签名 URL 直接下载，失败自动重试
-- **云端录像**：按通道配置周计划（支持 7×24、跨午夜时段），定时对账自动拉起 / 停止录制，MP4 切片经 hook 自动上传对象存储；云端录像中心支持按设备 / 通道 / 时间 / 状态检索、在线回放、预签名下载、保留期自动清理；READY 会话周期性探测 ZLM 真实录制态（isRecording），外部误调 stopRecord 或 ZLM 丢录制态时自动补发 startRecord
+- **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 由 ZLM 本地落盘，平台签发限时链接下载
+- **云端录像**：按通道配置周计划（支持 7×24、跨午夜时段），定时对账自动拉起 / 停止录制，MP4 切片由 ZLM 本地落盘并经 hook 登记；云端录像中心支持按设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理；READY 会话周期性探测 ZLM 真实录制态（isRecording），外部误调 stopRecord 或 ZLM 丢录制态时自动补发 startRecord
 - **云台控制**：八方向 + 变倍 + 聚焦 + 光圈 + 雨刷；预置位管理；巡航路线（巡航点编排、速度/停留时间、启停）；拉框放大/缩小（画面上直接框选）、看守位（预置位面板内设置）
 - **设备控制**：布防 / 撤防、报警复位、设备本地录像开关、强制关键帧、远程重启（重启单独授权）
 - **报警中心**：报警落库 + WebSocket 实时推送，支持前端处置闭环
@@ -173,7 +173,6 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - 用户 / 角色 / 菜单**按钮级权限**，JWT 双 Token 认证，首次登录强制改密
 - 数据字典、参数配置、操作日志（`@OperationLog` 注解）、登录在线用户管理
 - 服务器管理：**Web SSH 终端**（JSch + xterm.js）、服务器监控
-- 文件管理：基于 RustFS 的对象存储统一接入（S3 协议，可替换为 OSS/COS/OBS 等）
 - 站内消息：WebSocket 实时推送
 - 限流、防重复提交、XSS 消毒等 AOP 安全能力
 
@@ -191,7 +190,7 @@ ONVIF 摄像头维护与实时点播，手写 SOAP（dom4j + Java 21 HttpClient�
 |---|---|
 | 后端 | Spring Boot 4.1 · Java 21 · MyBatis-Plus 3.5 · JAIN-SIP · jjwt · dom4j · JSch |
 | 前端 | Vue 3.5 · TypeScript 5.7 · Vite 6 · Tailwind CSS 4 · shadcn-vue / reka-ui · Pinia · xterm.js · Jessibuca / mpegts.js |
-| 基础设施 | MySQL 8 / PostgreSQL · Redis 6+ · ZLMediaKit · RustFS（S3 兼容对象存储） |
+| 基础设施 | MySQL 8 / PostgreSQL · Redis 6+ · ZLMediaKit |
 
 ## 快速开始
 
@@ -209,7 +208,6 @@ cd solo-platform
 - JDK 21+、Maven 3.8+、Node.js 18+、Redis 6+
 - MySQL 8+ 或 PostgreSQL（二选一，初始化脚本与后端 profile 须保持一致）
 - ZLMediaKit（视频功能必需，可用 Docker 部署）
-- RustFS（S3 兼容对象存储，录像下载 / 文件管理必需；亦可使用其他 S3 兼容实现）
 
 ### 1. 初始化数据库
 
@@ -237,11 +235,10 @@ mysql -uroot -p < sql/MySQL_solo_db.sql
 
 在对应 profile 文件中检查以下配置：
 
-- `project.*`：平台、数据库、Redis、对象存储和 ZLM 的部署地址。
+- `project.*`：平台、数据库、Redis 和 ZLM 的部署地址。
 - `spring.datasource` / `spring.data.redis`：数据库与 Redis 连接，须与所选数据库匹配。
 - `gb28181.*`：SIP 端口（默认 5060）、平台国标编码、域、注册密码。**生产环境必须设置 `gb28181.password`，留空会进入不校验身份的开放模式。**
 - `media.*`：ZLM 节点地址 / 密钥 / 点播超时 / SSRC 段，以及下述强制播放鉴权配置。
-- `s3.*`：RustFS 的 endpoint、`access-key` / `secret-key`、`bucket`（默认 `path-style-access=true`）。
 
 播放访问控制在 `pg`、`local`、`mock` 和自定义 profile 中都强制开启，没有环境关闭开关：
 
@@ -351,9 +348,9 @@ solo-platform/
 - [x] 云台拉框缩放 / 看守位（后端接口 + 前端入口）
 - [x] 多 ZLM 节点负载均衡 / SSRC Redis 化 / 拉流代理 / 推流鉴权
 - [x] ONVIF 摄像头接入与点播
-- [x] RBAC 权限底座、Web SSH、站内消息、S3 文件管理
+- [x] 用户管理、Web SSH、站内消息
 - [x] **录像计划**：按通道配置周计划（7×24 / 跨午夜时段），每分钟对账自动拉起、断流重拉、过时段停止
-- [x] **云端录像中心**：MP4 切片 hook 自动上传对象存储，设备 / 通道 / 时间 / 状态检索、在线回放、预签名下载、保留期自动清理、录制态探测补偿
+- [x] **云端录像中心**：MP4 切片由 ZLM 本地落盘，hook 登记元数据，设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理、录制态探测补偿
 - [x] **语音广播**：网页麦克风 WebRTC 喊话，广播通知 + 设备反向 INVITE，裸 PCMA/PS 推流放音，UDP/TCP 自适应
 - [x] **开放 API**：第三方 HMAC-SHA256 签名鉴权接入，应用授权 / IP 白名单 / 限流 / 换钥过渡期 / 调用审计日志，已开放实时点播接口
 - [x] 全新 shadcn 风格控制台（`solo-console/`，Vue 3 + Tailwind + shadcn-vue）

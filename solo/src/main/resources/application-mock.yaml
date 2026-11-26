@@ -4,7 +4,6 @@ project:
   # 数据库地址
   db: ${project.ip}
   redis: ${project.ip}
-  s3: 192.168.1.200
   media: 192.168.1.201
 
 server:
@@ -28,16 +27,6 @@ jwt:
   access-expiration: 1800000
   refresh-expiration: 604800000
 
-# region 是 AWS SDK 必填项；自托管 RustFS/MinIO/Ceph 一般用 us-east-1 + path-style
-# 云厂商按实际 region 填
-s3:
-  endpoint-override: http://${project.s3}:9000
-  region: us-east-1
-  access-key: rustfsadmin
-  secret-key: rustfsadmin
-  bucket: solo_mock
-  public-url:
-  path-style-access: true
 
 gb28181:
   # 留空监听所有网卡
