@@ -63,6 +63,11 @@ public interface GbRedisKeys {
     // 所有活跃会话的全集 Set
     String INVITE_ALL_ACTIVE = INVITE_PREFIX + "all";
 
+    // ===== 云端录像 =====
+
+    // 录像归属档案：s:{streamId} → 设备/通道/节点。在录不过期，停止后保留 10 分钟等尾片回调
+    String RECORD_STREAM = "gb28181:record:s:";
+
     // ===== 级联推流会话（作为下级被上级点播，sendRtp 往上推）=====
 
     String CASCADE_SEND_PREFIX = "gb28181:cascade:send:";

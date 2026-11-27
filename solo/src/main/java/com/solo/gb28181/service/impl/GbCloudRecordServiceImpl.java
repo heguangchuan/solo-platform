@@ -11,6 +11,7 @@ import com.solo.gb28181.mapper.GbDeviceMapper;
 import com.solo.gb28181.service.GbCloudRecordService;
 import com.solo.gb28181.service.GbInviteSessionCleanupService;
 import com.solo.gb28181.service.GbInviteSessionService;
+import com.solo.gb28181.support.RecordStreamRegistry;
 import com.solo.gb28181.transmit.cmd.SdpBuilder;
 import com.solo.gb28181.transmit.cmd.SipCommander;
 import com.solo.gb28181.transmit.cmd.SipRequestHeaderProvider;
@@ -72,6 +73,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
     private final GbDeviceChannelMapper channelMapper;
     private final GbInviteSessionService inviteSessionService;
     private final GbInviteSessionCleanupService inviteCleanup;
+    private final RecordStreamRegistry recordStreamRegistry;
 
     @Override
     public String startManual(String deviceId, String channelId, String transport, String streamNumber) {
@@ -199,6 +201,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             log.warn("[{}] stop 忽略非录制会话 流ID:{} 类型:{}", LOG_TAG, streamId, session.getSessionType());
             return;
         }
+        recordStreamRegistry.retire(session);
         byeIfPossible(session);
         inviteCleanup.cleanupZlm(session);
         inviteSessionService.removeByStreamId(streamId);
@@ -224,10 +227,13 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             log.error("[{}] 流就绪但节点丢失 节点ID:{} 流ID:{}", LOG_TAG, session.getServerId(), stream);
             return;
         }
+        // 先登记归属再开录，避免极短切片赶在档案写入前回调
+        recordStreamRegistry.register(session);
         // period 只影响 ZLM 切片文件的目录日期，按天切；跨天 ZLM 会自动换段
         String period = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         boolean ok = zlmRestClient.startRecord(server, APP, stream, period, MAX_SEGMENT_SECONDS);
         if (!ok) {
+            recordStreamRegistry.retire(session);
             log.warn("[{}] startRecord 失败，清扫 流ID:{}", LOG_TAG, stream);
             inviteCleanup.failSession(session, LOG_TAG, "ZLM 启动录制失败");
             return;
@@ -277,6 +283,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         }
         if (!online) {
             // ZLM 里流已经没了（ZLM 重启 / 设备停推但 BYE 没送达）：转 STOPPED，下一轮对账走断流重拉
+            recordStreamRegistry.retire(session);
             session.setStatus(GbInviteSession.STATUS_STOPPED);
             session.setStopTime(LocalDateTime.now());
             inviteSessionService.update(session);
@@ -290,6 +297,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         }
 
         // 流在、IDLE：外部手动 stopRecord 或 ZLM 丢了录制态，补发 startRecord
+        recordStreamRegistry.register(session);
         String period = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
         boolean ok = zlmRestClient.startRecord(server, APP, streamId, period, MAX_SEGMENT_SECONDS);
         if (!ok) {
@@ -314,6 +322,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         // 删会话会让那段录像找不到 session 而被丢弃。延迟 3 分钟再清，给 hook 留足时间。
         // 先打 STOPPED 标记：对账靠它识别"流已死，需要重拉"，同时延迟任务也只清 STOPPED 的，
         // 万一这期间又有一路同名流就绪（READY）不会被误删。
+        recordStreamRegistry.retire(session);
         session.setStatus(GbInviteSession.STATUS_STOPPED);
         session.setStopTime(LocalDateTime.now());
         inviteSessionService.update(session);
@@ -360,6 +369,7 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
             return;
         }
         log.warn("[{}] RTP 端口超时 流ID:{}", LOG_TAG, streamId);
+        recordStreamRegistry.retire(session);
         byeIfPossible(session);
         // 端口 ZLM 已自行回收，只需释放 SSRC + 删会话；计划流由对账下一分钟重新拉起
         ssrcFactory.release(session.getServerId(), session.getSsrc());
@@ -371,8 +381,9 @@ public class GbCloudRecordServiceImpl implements GbCloudRecordService {
         if (session == null) {
             return;
         }
-        // 同 onStreamStopped：最后一段切片回调可能还没到，延迟清
+        // 同 onStreamStopped：最后一段切片回调可能还没到，录像档案延迟过期
         log.info("[{}] 设备主动 BYE 流ID:{}", LOG_TAG, session.getStreamId());
+        recordStreamRegistry.retire(session);
         final GbInviteSession snapshot = session;
         try {
             Thread.startVirtualThread(() -> delayedCleanup(snapshot));

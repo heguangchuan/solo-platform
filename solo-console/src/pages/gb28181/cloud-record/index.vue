@@ -73,9 +73,9 @@
                     </RawSelectTrigger>
                     <SelectContent>
                       <SelectItem value="__all__">全部状态</SelectItem>
-                      <SelectItem value="1">上传成功</SelectItem>
-                      <SelectItem value="0">上传中</SelectItem>
-                      <SelectItem value="2">上传失败</SelectItem>
+                      <SelectItem value="1">成功</SelectItem>
+                      <SelectItem value="0">处理中</SelectItem>
+                      <SelectItem value="2">失败</SelectItem>
                     </SelectContent>
                   </Select>
                 </span>
@@ -119,11 +119,8 @@
               <td class="px-3 py-2 text-xs text-muted-foreground">
                 {{ f.fileSize != null ? fmtSize(f.fileSize) : '—' }}
               </td>
-              <td class="px-3 py-2">
-                <span
-                  class="inline-flex items-center rounded-full border px-2 py-0.5 text-xs"
-                  :class="statusView(f.status).cls"
-                >
+              <td class="px-3 py-2 text-xs">
+                <span :class="statusView(f.status).cls">
                   {{ statusView(f.status).text }}
                 </span>
               </td>
@@ -189,7 +186,7 @@
 <script setup lang="ts">
 /**
  * 云端录像中心
- * - 分页查询 S3 上的录像文件（无限滚动）
+ * - 分页查询录像文件（无限滚动）
  * - 行点击打开右侧 Inspector：在线回放 / 下载预签名地址 / 元数据 / 删除
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
@@ -285,9 +282,9 @@ const onDeleted = (f: GbRecordFile) => {
 
 /* ---------------- 展示辅助 ---------------- */
 const statusView = (status: number) => {
-  if (status === 1) return { text: '上传成功', cls: 'border-transparent bg-green-50 text-green-600' }
-  if (status === 2) return { text: '上传失败', cls: 'border-transparent bg-red-50 text-red-600' }
-  return { text: '上传中', cls: 'border-transparent bg-blue-50 text-blue-600' }
+  if (status === 1) return { text: '成功', cls: 'text-green-600' }
+  if (status === 2) return { text: '失败', cls: 'text-red-600' }
+  return { text: '处理中', cls: 'text-muted-foreground' }
 }
 
 function fmtDuration(sec: number) {

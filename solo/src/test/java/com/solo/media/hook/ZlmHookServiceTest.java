@@ -233,6 +233,25 @@ class ZlmHookServiceTest {
         assertThat(code(hookService.onHttpAccess(httpBody("/rtp/device_channel.live.flv", null)))).isZero();
     }
 
+    @Test
+    void recordHookStillRegistersTailAfterInviteSessionWasDeleted() {
+        Map<String, Object> body = new HashMap<>();
+        body.put("app", "rtp");
+        body.put("stream", "REC_device_channel");
+        body.put("url", "record/rtp/REC_device_channel/tail.mp4");
+        body.put("path", "/zlm/record/rtp/REC_device_channel/tail.mp4");
+        body.put("start_time", 1_764_269_746L);
+        body.put("file_size", 43_037L);
+        body.put("time_len", 0.601);
+
+        assertThat(code(hookService.onRecordMp4(body))).isZero();
+
+        verify(recordFileService).onRecordMp4("rtp", "REC_device_channel",
+                "record/rtp/REC_device_channel/tail.mp4", "/zlm/record/rtp/REC_device_channel/tail.mp4",
+                1_764_269_746L, 43_037L, 0.601);
+        verifyNoInteractions(downloadService);
+    }
+
     private static Map<String, Object> playBody(String token) {
         Map<String, Object> body = new HashMap<>();
         body.put("id", "reader-1");

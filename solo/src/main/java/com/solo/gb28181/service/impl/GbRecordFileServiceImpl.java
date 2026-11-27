@@ -16,6 +16,7 @@ import com.solo.gb28181.response.GbRecordFileVO;
 import com.solo.gb28181.service.GbInviteSessionService;
 import com.solo.gb28181.service.GbRecordFileService;
 import com.solo.gb28181.support.RecordFileLinkSigner;
+import com.solo.gb28181.support.RecordStreamRegistry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
     private final GbDeviceChannelMapper channelMapper;
     private final GbInviteSessionService inviteSessionService;
     private final RecordFileLinkSigner linkSigner;
+    private final RecordStreamRegistry recordStreamRegistry;
 
     @Override
     public void onRecordMp4(String app, String stream, String url, String path, Long startTime,
@@ -54,9 +56,17 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         if (!APP.equals(app) || stream == null) {
             return;
         }
-        GbInviteSession session = inviteSessionService.getByStreamId(stream);
-        if (session == null || !GbInviteSession.TYPE_RECORD.equals(session.getSessionType())) {
-            log.info("[{}] on_record_mp4 非录制流/无 session，跳过 stream={}", LOG_TAG, stream);
+        RecordStreamRegistry.Context context = recordStreamRegistry.get(stream);
+        if (context == null) {
+            // 兼容升级前已经在录的流：它们还没写独立档案，活跃会话仍能补齐归属
+            GbInviteSession session = inviteSessionService.getByStreamId(stream);
+            if (session != null && GbInviteSession.TYPE_RECORD.equals(session.getSessionType())) {
+                context = new RecordStreamRegistry.Context(
+                        session.getDeviceId(), session.getChannelId(), session.getServerId());
+            }
+        }
+        if (context == null) {
+            log.info("[{}] on_record_mp4 无录像档案，跳过 stream={}", LOG_TAG, stream);
             return;
         }
 
@@ -73,11 +83,11 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
         LocalDateTime start = resolveStart(startTime, duration, end);
         boolean ready = url != null && !url.isBlank();
         GbRecordFile record = new GbRecordFile();
-        record.setDeviceId(session.getDeviceId());
-        record.setChannelId(session.getChannelId());
+        record.setDeviceId(context.deviceId());
+        record.setChannelId(context.channelId());
         record.setStreamId(stream);
         record.setApp(app);
-        record.setServerId(session.getServerId());
+        record.setServerId(context.serverId());
         record.setDuration(duration);
         record.setFileSize(fileSize > 0 ? fileSize : null);
         record.setStartTime(start);
@@ -97,7 +107,7 @@ public class GbRecordFileServiceImpl implements GbRecordFileService {
             return;
         }
         log.info("[{}] 登记切片 流ID:{} 设备:{} 通道:{} 时长:{}s 文件:{}",
-                LOG_TAG, stream, session.getDeviceId(), session.getChannelId(), duration, url);
+                LOG_TAG, stream, context.deviceId(), context.channelId(), duration, url);
     }
 
     private LocalDateTime resolveStart(Long startUnixSeconds, double duration, LocalDateTime fallbackEnd) {

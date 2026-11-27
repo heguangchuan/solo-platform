@@ -674,7 +674,7 @@ export interface GbPlatformPageRequest extends PageRequest {
 
 /* ----------------------- 云端录像中心 ----------------------- */
 
-/** 云端录像文件视图（status 0上传中 1成功 2失败） */
+/** 云端录像文件视图（status 0处理中 1成功 2失败） */
 export interface GbRecordFile {
   id: string
   deviceId?: string

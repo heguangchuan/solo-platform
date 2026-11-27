@@ -22,7 +22,7 @@
 
     <div class="my-4 h-px bg-border" />
 
-    <!-- 回放（仅上传成功） -->
+    <!-- 仅成功的录像可回放 -->
     <template v-if="file && file.status === 1">
       <section>
         <div class="mb-3 flex items-center justify-between">
@@ -63,10 +63,7 @@
       <div class="space-y-2 text-xs">
         <div class="flex items-center justify-between gap-3">
           <span class="shrink-0 text-muted-foreground">状态</span>
-          <span
-            class="inline-flex items-center rounded-full border px-2 py-0.5"
-            :class="statusView(file.status).cls"
-          >
+          <span :class="statusView(file.status).cls">
             {{ statusView(file.status).text }}
           </span>
         </div>
@@ -196,9 +193,9 @@ const onDelete = async () => {
 }
 
 const statusView = (status: number) => {
-  if (status === 1) return { text: '上传成功', cls: 'border-transparent bg-green-50 text-green-600' }
-  if (status === 2) return { text: '上传失败', cls: 'border-transparent bg-red-50 text-red-600' }
-  return { text: '上传中', cls: 'border-transparent bg-blue-50 text-blue-600' }
+  if (status === 1) return { text: '成功', cls: 'text-green-600' }
+  if (status === 2) return { text: '失败', cls: 'text-red-600' }
+  return { text: '处理中', cls: 'text-muted-foreground' }
 }
 
 function fmtDuration(sec: number) {

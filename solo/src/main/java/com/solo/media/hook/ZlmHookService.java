@@ -557,11 +557,12 @@ public class ZlmHookService {
             return HookResult.ok();
         }
         GbInviteSession session = inviteSessionService.getByStreamId(stream);
-        if (session == null) {
-            log.info("[ZLM 回调] on_record_mp4 无 session，跳过 stream={}", stream);
-            return HookResult.ok();
-        }
         try {
+            if (session == null) {
+                // 停止录制会先删 INVITE 会话，尾片由独立录像档案确认归属
+                recordFileService.onRecordMp4(app, stream, url, path, startTime, fileSize, duration);
+                return HookResult.ok();
+            }
             String type = session.getSessionType();
             if (GbInviteSession.TYPE_DOWNLOAD.equals(type)) {
                 downloadService.onRecordMp4(app, stream, url, fileSize, duration);
