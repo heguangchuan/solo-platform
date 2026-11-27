@@ -190,6 +190,7 @@
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   TriangleAlert,
   ShieldAlert,
@@ -212,7 +213,11 @@ import {
   changePasswordApi,
 } from '@/api/auth'
 import type { UserInfoVO } from '@/types/api'
+import { useAuthStore } from '@/stores/auth'
 import { toast } from '@/lib/toast'
+
+const auth = useAuthStore()
+const router = useRouter()
 
 const profile = ref<UserInfoVO>({
   id: '',
@@ -258,20 +263,11 @@ const onSaveProfile = async () => {
   }
 }
 
-/** 与后端 requireStrong 保持一致的强度校验 */
+/** 与后端 requireStrong 保持一致：四类字符至少三类 */
 const isStrong = (v: string) => {
   if (v.length < 8 || v.length > 32 || /\s/.test(v)) return false
-  let upper = false
-  let lower = false
-  let digit = false
-  let special = false
-  for (const ch of v) {
-    if (ch >= 'A' && ch <= 'Z') upper = true
-    else if (ch >= 'a' && ch <= 'z') lower = true
-    else if (ch >= '0' && ch <= '9') digit = true
-    else special = true
-  }
-  return upper && lower && digit && special
+  const kinds = [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/]
+  return kinds.filter((pattern) => pattern.test(v)).length >= 3
 }
 
 const onChangePassword = async () => {
@@ -279,7 +275,7 @@ const onChangePassword = async () => {
   pwdErrors.newPassword = !pwd.newPassword
     ? '请输入新密码'
     : !isStrong(pwd.newPassword)
-      ? '需 8-32 位，包含大小写字母、数字与特殊字符'
+      ? '需 8-32 位，四类字符至少包含三类'
       : pwd.newPassword === pwd.oldPassword
         ? '新密码不能与原密码相同'
         : ''
@@ -293,11 +289,9 @@ const onChangePassword = async () => {
       oldPassword: pwd.oldPassword,
       newPassword: pwd.newPassword,
     })
-    toast.success('密码修改成功')
-    pwd.oldPassword = ''
-    pwd.newPassword = ''
-    pwd.confirmPassword = ''
-    profile.value = (await getProfileApi()).data
+    toast.success('密码修改成功，请重新登录')
+    auth.logout()
+    await router.replace({ name: 'login' })
   } finally {
     savingPwd.value = false
   }

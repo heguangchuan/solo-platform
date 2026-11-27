@@ -27,13 +27,9 @@
 
       <div
         v-if="creating"
-        class="mb-3.5 flex items-start gap-2 rounded-md border border-primary/25 bg-primary/10 px-3 py-2 text-xs leading-relaxed text-foreground"
+        class="mb-3.5 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground"
       >
-        <Info class="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
-        <span>
-          初始密码为「<strong>{{ (form.username || '账号').trim() }}@123456</strong
-          >」，首次登录将强制修改密码。
-        </span>
+        请设置初始密码，用户首次登录后必须修改。
       </div>
 
       <div class="space-y-3">
@@ -50,6 +46,24 @@
             />
             <p v-if="errors.username" class="mt-1 text-[11px] text-destructive">
               {{ errors.username }}
+            </p>
+          </div>
+        </div>
+
+        <div v-if="creating" class="flex items-center gap-3">
+          <Label class="w-14 shrink-0 text-xs text-muted-foreground">
+            初始密码<span class="ml-0.5 text-destructive">*</span>
+          </Label>
+          <div class="flex-1">
+            <Input
+              v-model="form.initialPassword"
+              type="password"
+              class="h-8 text-xs"
+              placeholder="8-32 位，四类字符至少包含三类"
+              autocomplete="new-password"
+            />
+            <p v-if="errors.initialPassword" class="mt-1 text-[11px] text-destructive">
+              {{ errors.initialPassword }}
             </p>
           </div>
         </div>
@@ -132,7 +146,7 @@
 
 <script setup lang="ts">
 import { reactive, ref, watch } from 'vue'
-import { X, Trash2, Info } from 'lucide-vue-next'
+import { X, Trash2 } from 'lucide-vue-next'
 import type { SysUser, UserRequest } from '@/types/api'
 import { addUserApi, editUserApi, deleteUserApi } from '@/api/user'
 import { toast } from '@/lib/toast'
@@ -155,6 +169,7 @@ const emit = defineEmits<{
 
 const form = reactive<UserRequest>({
   username: props.user?.username ?? '',
+  initialPassword: '',
   nickname: props.user?.nickname ?? '',
   email: props.user?.email ?? '',
   phone: props.user?.phone ?? '',
@@ -162,8 +177,9 @@ const form = reactive<UserRequest>({
   status: props.user?.status ?? 1,
 })
 const saving = ref(false)
-const errors = reactive<{ username: string; nickname: string; email: string }>({
+const errors = reactive({
   username: '',
+  initialPassword: '',
   nickname: '',
   email: '',
 })
@@ -173,12 +189,19 @@ const validateEmail = () => {
     form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email) ? '邮箱格式不正确' : ''
 }
 
+const isStrong = (value: string) => {
+  if (value.length < 8 || value.length > 32 || /\s/.test(value)) return false
+  const kinds = [/[A-Z]/, /[a-z]/, /\d/, /[^A-Za-z0-9]/]
+  return kinds.filter((pattern) => pattern.test(value)).length >= 3
+}
+
 watch(
   () => props.user?.id,
   () => {
     if (props.creating || !props.user) {
       Object.assign(form, {
         username: '',
+        initialPassword: '',
         nickname: '',
         email: '',
         phone: '',
@@ -186,12 +209,14 @@ watch(
         status: 1,
       })
       errors.username = ''
+      errors.initialPassword = ''
       errors.nickname = ''
       errors.email = ''
       return
     }
     Object.assign(form, {
       username: props.user.username,
+      initialPassword: '',
       nickname: props.user.nickname,
       email: props.user.email,
       phone: props.user.phone,
@@ -199,6 +224,7 @@ watch(
       status: props.user.status,
     })
     errors.username = ''
+    errors.initialPassword = ''
     errors.nickname = ''
     errors.email = ''
   },
@@ -207,9 +233,12 @@ watch(
 
 const validate = (): boolean => {
   errors.username = form.username?.trim() ? '' : '请输入登录账号'
+  errors.initialPassword = props.creating && !isStrong(form.initialPassword || '')
+    ? '需 8-32 位且无空格，四类字符至少包含三类'
+    : ''
   errors.nickname = form.nickname?.trim() ? '' : '请输入昵称'
   validateEmail()
-  return !errors.username && !errors.nickname && !errors.email
+  return !errors.username && !errors.initialPassword && !errors.nickname && !errors.email
 }
 
 const onSave = async () => {
@@ -221,7 +250,9 @@ const onSave = async () => {
       toast.success('用户创建成功')
       emit('created')
     } else if (props.user) {
-      await editUserApi(props.user.id, form)
+      const payload = { ...form }
+      delete payload.initialPassword
+      await editUserApi(props.user.id, payload)
       toast.success('已保存')
       emit('saved')
     }

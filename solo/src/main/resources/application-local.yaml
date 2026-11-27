@@ -24,7 +24,7 @@ spring:
       port: 6379
 
 jwt:
-  secret: c2VjcmV0LWZvci1qd3QtdG9rZW4tZ2VuZXJhdGlvbi1wbGFoZXUtdXNlLTEtbG9uZy1zZWNyZXQ=
+  secret: ${JWT_SECRET:e8dc03c7a328ed54dae9325bc31623799dbc47a172df3bccefa933936042ba3d}
   access-expiration: 1800000
   refresh-expiration: 604800000
 

@@ -16,6 +16,8 @@ export interface UserExportRequest extends UserPageRequest {
 /** 用户表单（新增/编辑） */
 export interface UserRequest {
   username?: string
+  /** 仅新建用户使用，编辑时忽略 */
+  initialPassword?: string
   nickname: string
   email: string
   phone: string

@@ -1,6 +1,6 @@
 spring:
   profiles:
-    active: pg
+    active: local
   application:
     name: solo
   servlet:
@@ -19,7 +19,7 @@ mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
 
-# 只有直连地址命中可信代理才信 X-Forwarded-For/X-Real-IP。
+# 登录限流与开放 API 共用。只有直连地址命中可信代理才信 X-Forwarded-For/X-Real-IP。
 # 直连留空；nginx 同机填 127.0.0.1,::1，异机填代理实际网段。
 openapi:
   trusted-proxies: 

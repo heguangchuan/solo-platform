@@ -2,12 +2,15 @@ package com.solo.system.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
+import tools.jackson.databind.annotation.JsonSerialize;
+import tools.jackson.databind.ser.std.ToStringSerializer;
 
 @Schema(description = "用户信息 VO")
 @Data
 public class UserInfoVO {
 
     @Schema(description = "用户 ID")
+    @JsonSerialize(using = ToStringSerializer.class)
     private Long id;
 
     @Schema(description = "登录用户名")

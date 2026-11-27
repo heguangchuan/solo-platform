@@ -54,6 +54,13 @@ public class JwtInterceptor implements HandlerInterceptor {
         if (user == null) {
             return handleNotLogin(response, "用户不存在");
         }
+        if (!Integer.valueOf(SystemConstants.STATUS_ENABLED).equals(user.getStatus())) {
+            return handleNotLogin(response, "账号已被禁用");
+        }
+        if (sysUserService.isPasswordResetRequired(user) && !isPasswordResetEndpoint(request)) {
+            return handleResponse(response, HttpServletResponse.SC_FORBIDDEN,
+                    SystemConstants.HTTP_FORBIDDEN, "请先修改初始密码");
+        }
         request.setAttribute("currentUserId", user.getId());
         request.setAttribute("currentUsername", user.getUsername());
         request.setAttribute("currentUser", user);
@@ -61,10 +68,21 @@ public class JwtInterceptor implements HandlerInterceptor {
         return true;
     }
 
+    private boolean isPasswordResetEndpoint(HttpServletRequest request) {
+        String path = request.getRequestURI().substring(request.getContextPath().length());
+        return ("POST".equals(request.getMethod()) && "/api/auth/password".equals(path))
+                || ("GET".equals(request.getMethod()) && "/api/auth/profile".equals(path));
+    }
+
     private boolean handleNotLogin(HttpServletResponse response, String message) throws Exception {
-        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+        return handleResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                SystemConstants.HTTP_UNAUTHORIZED, message);
+    }
+
+    private boolean handleResponse(HttpServletResponse response, int status, int code, String message) throws Exception {
+        response.setStatus(status);
         response.setContentType(SystemConstants.CONTENT_TYPE_JSON);
-        response.getWriter().write(String.format("{\"code\":%d,\"message\":\"%s\"}", SystemConstants.HTTP_UNAUTHORIZED, message));
+        response.getWriter().write(String.format("{\"code\":%d,\"message\":\"%s\"}", code, message));
         return false;
     }
 }

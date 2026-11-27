@@ -4,6 +4,7 @@ import com.solo.common.ServiceException;
 import com.solo.system.constant.SystemConstants;
 import com.solo.common.utils.UserHolderUtils;
 import com.solo.common.utils.WebUtils;
+import com.solo.openapi.auth.OpenApiClientIpResolver;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +14,15 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.core.DefaultParameterNameDiscoverer;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
+import org.springframework.expression.spel.support.StandardEvaluationContext;
 import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.util.Collections;
+import java.util.Locale;
 
 @Slf4j
 @Aspect
@@ -25,6 +31,10 @@ import java.util.Collections;
 public class RateLimiterAspect {
 
     private final StringRedisTemplate redisTemplate;
+    private final OpenApiClientIpResolver clientIpResolver;
+
+    private final ExpressionParser expressionParser = new SpelExpressionParser();
+    private final DefaultParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
     private DefaultRedisScript<Long> rateLimitScript;
 
@@ -111,7 +121,7 @@ public class RateLimiterAspect {
             return joinPoint.proceed();
         }
 
-        String limitKey = buildLimitKey(rateLimiter, method);
+        String limitKey = buildLimitKey(rateLimiter, method, joinPoint);
         long now = System.currentTimeMillis();
         long windowMs = rateLimiter.timeUnit().toMillis(rateLimiter.time());
         long windowStart = now - windowMs;
@@ -150,16 +160,38 @@ public class RateLimiterAspect {
         return joinPoint.proceed();
     }
 
-    private String buildLimitKey(RateLimiter rateLimiter, Method method) {
+    private String buildLimitKey(RateLimiter rateLimiter, Method method, ProceedingJoinPoint joinPoint) {
         // 带上包名，免得不同包的同名方法共用一个额度
         String methodKey = method.getDeclaringClass().getCanonicalName() + "." + method.getName();
-        String baseKey = rateLimiter.key() + methodKey;
+        String baseKey = rateLimiter.key() + methodKey + evaluateSubject(rateLimiter, method, joinPoint);
 
         return switch (rateLimiter.limitType()) {
-            case IP -> baseKey + ":ip:" + WebUtils.getClientIp();
+            // 与开放 API 共用可信代理配置；直连部署不信任客户端伪造的转发头
+            case IP -> baseKey + ":ip:" + clientIpResolver.resolve(WebUtils.currentRequest());
             case USER -> baseKey + ":user:" + getCurrentUsernameSafe();
             case GLOBAL -> baseKey + ":global";
         };
+    }
+
+    private String evaluateSubject(RateLimiter rateLimiter, Method method, ProceedingJoinPoint joinPoint) {
+        if (rateLimiter.keyExpression().isBlank()) {
+            return "";
+        }
+        StandardEvaluationContext context = new StandardEvaluationContext();
+        String[] names = parameterNameDiscoverer.getParameterNames(method);
+        Object[] args = joinPoint.getArgs();
+        if (names != null) {
+            for (int i = 0; i < names.length && i < args.length; i++) {
+                context.setVariable(names[i], args[i]);
+            }
+        }
+        Object value = expressionParser.parseExpression(rateLimiter.keyExpression()).getValue(context);
+        String subject = value == null ? "anonymous" : value.toString().trim().toLowerCase(Locale.ROOT);
+        if (subject.isEmpty()) {
+            subject = "anonymous";
+        }
+        // 参数校验在 AOP 之后，先截断，避免超长用户名撑大 Redis key
+        return ":subject:" + subject.substring(0, Math.min(subject.length(), 64));
     }
 
     private String getCurrentUsernameSafe() {

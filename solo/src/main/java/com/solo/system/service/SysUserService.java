@@ -40,4 +40,6 @@ public interface SysUserService extends IService<SysUser> {
     UserInfoVO getProfile(Long userId);
 
     void updateProfile(Long userId, ProfileUpdateRequest request);
+
+    boolean isPasswordResetRequired(SysUser user);
 }

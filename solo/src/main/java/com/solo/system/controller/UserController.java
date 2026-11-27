@@ -3,11 +3,13 @@ package com.solo.system.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.solo.common.PageResult;
 import com.solo.common.Result;
+import com.solo.common.ServiceException;
 import com.solo.system.entity.SysUser;
 import com.solo.system.request.UserExportRequest;
 import com.solo.system.request.UserPageRequest;
 import com.solo.system.request.UserRequest;
 import com.solo.system.response.UserExcelResponse;
+import com.solo.system.response.UserListVO;
 import com.solo.system.response.UserStatusCountVO;
 import com.solo.system.service.SysUserService;
 import com.solo.common.utils.ExcelUtils;
@@ -16,6 +18,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,14 +33,16 @@ import java.util.List;
 public class UserController {
 
     private static final DateTimeFormatter DATE_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final long EXPORT_MAX_ROWS = 10_000L;
 
     private final SysUserService sysUserService;
 
     @Operation(summary = "分页查询用户列表")
     @PostMapping("/page")
-    public Result<PageResult<SysUser>> getPage(@RequestBody UserPageRequest req) {
+    public Result<PageResult<UserListVO>> getPage(@Valid @RequestBody UserPageRequest req) {
         Page<SysUser> page = sysUserService.pageQuery(req);
-        return Result.success(new PageResult<>(page.getTotal(), page.getRecords()));
+        List<UserListVO> rows = page.getRecords().stream().map(this::toListResponse).toList();
+        return Result.success(new PageResult<>(page.getTotal(), rows));
     }
 
     @Operation(summary = "按状态统计用户数")
@@ -48,7 +53,7 @@ public class UserController {
 
     @Operation(summary = "导出用户为 Excel")
     @PostMapping("/export")
-    public void export(@RequestBody UserExportRequest request, HttpServletResponse response) throws IOException {
+    public void export(@Valid @RequestBody UserExportRequest request, HttpServletResponse response) throws IOException {
         List<SysUser> users = queryExportUsers(request);
         List<UserExcelResponse> data = users.stream().map(this::toExcelResponse).toList();
         ExcelUtils.export(response, "用户列表", "用户列表", data, UserExcelResponse.class);
@@ -59,8 +64,26 @@ public class UserController {
             return sysUserService.listByIds(request.getIds());
         }
         request.setPage(1L);
-        request.setPageSize(Long.MAX_VALUE);
-        return sysUserService.pageQuery(request).getRecords();
+        request.setPageSize(EXPORT_MAX_ROWS + 1);
+        Page<SysUser> page = sysUserService.pageQuery(request);
+        if (page.getTotal() > EXPORT_MAX_ROWS) {
+            throw new ServiceException("单次导出不能超过 " + EXPORT_MAX_ROWS + " 条，请缩小筛选范围");
+        }
+        return page.getRecords();
+    }
+
+    private UserListVO toListResponse(SysUser user) {
+        UserListVO response = new UserListVO();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setNickname(user.getNickname());
+        response.setEmail(user.getEmail());
+        response.setPhone(user.getPhone());
+        response.setAvatar(user.getAvatar());
+        response.setStatus(user.getStatus());
+        response.setCreateTime(user.getCreateTime());
+        response.setUpdateTime(user.getUpdateTime());
+        return response;
     }
 
     private UserExcelResponse toExcelResponse(SysUser user) {
@@ -77,7 +100,7 @@ public class UserController {
 
     @Operation(summary = "新增用户")
     @PostMapping
-    public Result<Void> save(@RequestBody UserRequest request) {
+    public Result<Void> save(@Valid @RequestBody UserRequest request) {
         sysUserService.createUser(request);
         return Result.success();
     }
@@ -85,7 +108,7 @@ public class UserController {
     @Operation(summary = "修改用户信息")
     @Parameter(name = "id", description = "用户主键 ID", in = ParameterIn.PATH)
     @PutMapping("/{id}")
-    public Result<Void> update(@PathVariable Long id, @RequestBody UserRequest request) {
+    public Result<Void> update(@PathVariable Long id, @Valid @RequestBody UserRequest request) {
         sysUserService.updateUser(id, request);
         return Result.success();
     }

@@ -32,7 +32,7 @@ CREATE TABLE sys_user
 
 INSERT INTO sys_user (id, username, password, nickname, email, phone, avatar, status, pwd_reset_required, deleted,
                       create_time, update_time)
-VALUES (1, 'admin', '0192023a7bbd73250516f069df18b500', '管理员', NULL, NULL, NULL, 1, 0, 0, '2026-06-14 22:35:02',
+VALUES (1, 'admin', '0192023a7bbd73250516f069df18b500', '管理员', NULL, NULL, NULL, 1, 1, 0, '2026-06-14 22:35:02',
         '2026-06-14 22:35:02');
 
 DROP TABLE IF EXISTS gb_device;

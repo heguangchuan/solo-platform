@@ -2,6 +2,7 @@ package com.solo.system.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 import tools.jackson.databind.annotation.JsonSerialize;
@@ -23,6 +24,7 @@ public class SysUser {
     private String username;
 
     @Schema(description = "密码（BCrypt 哈希）")
+    @JsonIgnore
     private String password;
 
     @Schema(description = "昵称")

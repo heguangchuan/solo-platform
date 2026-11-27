@@ -13,6 +13,7 @@ import com.solo.system.response.UserInfoVO;
 import com.solo.system.service.SysUserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,21 +29,22 @@ public class AuthController {
 
     @Operation(summary = "用户登录")
     @PostMapping("/login")
-    @RateLimiter(maxCount = 5, time = 1, timeUnit = TimeUnit.MINUTES, message = "登录次数过多，请1分钟后再试")
-    public Result<LoginResponse> login(@RequestBody LoginRequest loginRequest) {
+    @RateLimiter(key = "rate_limit:login:", keyExpression = "#loginRequest.username",
+            maxCount = 5, time = 1, timeUnit = TimeUnit.MINUTES, message = "登录次数过多，请1分钟后再试")
+    public Result<LoginResponse> login(@Valid @RequestBody LoginRequest loginRequest) {
         return Result.success(sysUserService.login(loginRequest.getUsername(), loginRequest.getPassword()));
     }
 
     @Operation(summary = "刷新 Token")
     @PostMapping("/refresh")
     @RateLimiter(maxCount = 10, time = 1, timeUnit = TimeUnit.MINUTES, message = "刷新过于频繁，请稍后再试")
-    public Result<RefreshTokenResponse> refresh(@RequestBody RefreshTokenRequest request) {
+    public Result<RefreshTokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         return Result.success(sysUserService.refresh(request.getRefreshToken()));
     }
 
     @Operation(summary = "修改当前登录用户的密码")
     @PostMapping("/password")
-    public Result<Void> changePassword(@RequestBody ChangePasswordRequest request) {
+    public Result<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         sysUserService.changePassword(
                 UserHolderUtils.getCurrentUserId(),
                 request.getOldPassword(),
@@ -58,7 +60,7 @@ public class AuthController {
 
     @Operation(summary = "当前登录用户更新自身资料")
     @PutMapping("/profile")
-    public Result<Void> updateProfile(@RequestBody ProfileUpdateRequest request) {
+    public Result<Void> updateProfile(@Valid @RequestBody ProfileUpdateRequest request) {
         sysUserService.updateProfile(UserHolderUtils.getCurrentUserId(), request);
         return Result.success();
     }

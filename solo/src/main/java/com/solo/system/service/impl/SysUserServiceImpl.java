@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.solo.common.ServiceException;
 import com.solo.common.utils.JwtUtils;
 import com.solo.common.utils.PasswordUtils;
+import com.solo.common.utils.UserHolderUtils;
 import com.solo.system.constant.SystemConstants;
 import com.solo.system.entity.SysUser;
 import com.solo.system.mapper.SysUserMapper;
@@ -36,27 +37,38 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
 
     @Override
     public LoginResponse login(String username, String password) {
-        SysUser user = getByUsername(username);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
+        if (username == null || username.isBlank() || password == null) {
+            throw unauthorized();
         }
-        if (user.getStatus() == SystemConstants.STATUS_DISABLED) {
-            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "账户已被禁用");
+        SysUser user = getByUsername(username.trim());
+        // 不存在、禁用、密码错误统一口径，避免枚举账号状态
+        if (user == null || !Integer.valueOf(SystemConstants.STATUS_ENABLED).equals(user.getStatus())
+                || !PasswordUtils.matches(password, user.getPassword())) {
+            throw unauthorized();
         }
-        if (!PasswordUtils.md5(password).equals(user.getPassword())) {
-            throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
-        }
+        upgradeLegacyPassword(user, password);
+
         LoginResponse loginResponse = new LoginResponse();
         String token = jwtUtils.generateToken(user.getUsername());
         String refreshToken = jwtUtils.generateRefreshToken(user.getUsername());
         loginResponse.setToken(token);
         loginResponse.setRefreshToken(refreshToken);
         loginResponse.setUser(buildUserInfoVO(user));
-        // 当前 access token 存入 Redis，JWT 拦截器会逐请求比对，重新登录后旧 token 立即失效
         jwtUtils.saveToken(user.getUsername(), token);
-        // 单独保存 refresh token，TTL 与 refresh 有效期一致，每次刷新会被覆盖（滚动失效）
         jwtUtils.saveRefreshToken(user.getUsername(), refreshToken);
         return loginResponse;
+    }
+
+    private void upgradeLegacyPassword(SysUser user, String rawPassword) {
+        if (!PasswordUtils.isLegacyMd5(user.getPassword())) {
+            return;
+        }
+        // 先判断旧默认密码再换哈希，否则随机 salt 会让旧检测逻辑失效
+        if (PasswordUtils.isDefaultPassword(user.getUsername(), user.getPassword())) {
+            user.setPwdResetRequired(SystemConstants.PWD_RESET_REQUIRED);
+        }
+        user.setPassword(PasswordUtils.encode(rawPassword));
+        updateById(user);
     }
 
     @Override
@@ -64,23 +76,19 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (refreshToken == null || refreshToken.isBlank()) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
-        // 解析用户名（签名/格式异常 → 401）
         String username;
         try {
             username = jwtUtils.getUsernameFromToken(refreshToken);
         } catch (Exception e) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
-        // 校验签名 + 过期 + type=refresh + Redis 一致性
         if (!jwtUtils.validateRefreshToken(refreshToken, username)) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
-        // 用户仍存在且未被禁用
         SysUser user = getByUsername(username);
-        if (user == null || user.getStatus() == SystemConstants.STATUS_DISABLED) {
+        if (user == null || !Integer.valueOf(SystemConstants.STATUS_ENABLED).equals(user.getStatus())) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "登录已过期，请重新登录");
         }
-        // 滚动：换发一对全新的 access / refresh token，旧 refresh 因 Redis 被覆盖而失效
         String newAccess = jwtUtils.generateToken(username);
         String newRefresh = jwtUtils.generateRefreshToken(username);
         jwtUtils.saveToken(username, newAccess);
@@ -95,6 +103,9 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     public Page<SysUser> pageQuery(UserPageRequest req) {
         Long page = req.getPage() != null ? req.getPage() : 1L;
         Long pageSize = req.getPageSize() != null ? req.getPageSize() : 10L;
+        if (page < 1 || pageSize < 1 || pageSize > 20_000L) {
+            throw new ServiceException("分页参数不合法");
+        }
         Page<SysUser> pageParam = new Page<>(page, pageSize);
         LambdaQueryWrapper<SysUser> wrapper = new LambdaQueryWrapper<>();
         if (req.getUsername() != null && !req.getUsername().isBlank()) {
@@ -118,13 +129,18 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     @Override
     @Transactional
     public void createUser(UserRequest request) {
-        SysUser existing = getByUsername(request.getUsername());
+        String username = request.getUsername() == null ? "" : request.getUsername().trim();
+        if (username.isEmpty() || username.length() > 50) {
+            throw new ServiceException("用户名不能为空且长度不能超过 50 位");
+        }
+        PasswordUtils.requireStrong(request.getInitialPassword());
+        SysUser existing = getByUsername(username);
         if (existing != null) {
             throw new ServiceException("用户名已存在");
         }
         SysUser user = new SysUser();
-        user.setUsername(request.getUsername());
-        user.setPassword(PasswordUtils.defaultPasswordHashOf(request.getUsername()));
+        user.setUsername(username);
+        user.setPassword(PasswordUtils.encode(request.getInitialPassword()));
         user.setNickname(request.getNickname());
         user.setEmail(request.getEmail());
         user.setPhone(request.getPhone());
@@ -135,51 +151,70 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
     }
 
     @Override
+    @Transactional
     public void updateUser(Long id, UserRequest request) {
-        SysUser user = getById(id);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
-        }
+        SysUser user = requireUser(id);
         if (request.getNickname() != null) user.setNickname(request.getNickname());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
         if (request.getPhone() != null) user.setPhone(request.getPhone());
         if (request.getAvatar() != null) user.setAvatar(request.getAvatar());
-        if (request.getStatus() != null) user.setStatus(request.getStatus());
+        if (request.getStatus() != null) {
+            requireValidStatus(request.getStatus());
+            if (request.getStatus() == SystemConstants.STATUS_DISABLED) {
+                ensureCanDisableOrDelete(user);
+            }
+            user.setStatus(request.getStatus());
+        }
         updateById(user);
-        if (request.getStatus() != null && request.getStatus() == SystemConstants.STATUS_DISABLED) {
+        if (Integer.valueOf(SystemConstants.STATUS_DISABLED).equals(request.getStatus())) {
             jwtUtils.removeToken(user.getUsername());
         }
     }
 
     @Override
+    @Transactional
     public void switchStatus(Long id, Integer status) {
-        SysUser user = getById(id);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        requireValidStatus(status);
+        SysUser user = requireUser(id);
+        if (status == SystemConstants.STATUS_DISABLED) {
+            ensureCanDisableOrDelete(user);
         }
         user.setStatus(status);
         updateById(user);
-        if (status != null && status == SystemConstants.STATUS_DISABLED) {
+        if (status == SystemConstants.STATUS_DISABLED) {
             jwtUtils.removeToken(user.getUsername());
         }
     }
 
     @Override
+    @Transactional
     public void deleteUser(Long id) {
-        SysUser user = getById(id);
+        SysUser user = requireUser(id);
+        ensureCanDisableOrDelete(user);
         removeById(id);
-        if (user != null) {
-            jwtUtils.removeToken(user.getUsername());
-        }
+        jwtUtils.removeToken(user.getUsername());
     }
 
     @Override
+    @Transactional
     public void deleteBatch(List<Long> ids) {
         if (ids == null || ids.isEmpty()) {
             return;
         }
-        List<SysUser> users = listByIds(ids);
-        removeByIds(ids);
+        if (ids.size() > 1000) {
+            throw new ServiceException("单次最多删除 1000 个用户");
+        }
+        List<Long> distinctIds = ids.stream().distinct().toList();
+        Long currentUserId = currentUserId();
+        if (currentUserId != null && distinctIds.contains(currentUserId)) {
+            throw new ServiceException("不能删除当前登录账号");
+        }
+        List<SysUser> users = listByIds(distinctIds);
+        if (users.isEmpty()) {
+            return;
+        }
+        ensureRemainingEnabledUser(distinctIds);
+        removeByIds(distinctIds);
         users.forEach(user -> jwtUtils.removeToken(user.getUsername()));
     }
 
@@ -188,11 +223,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (userId == null) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
         }
-        SysUser user = getById(userId);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
-        }
-        return buildUserInfoVO(user);
+        return buildUserInfoVO(requireUser(userId));
     }
 
     @Override
@@ -200,10 +231,7 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (userId == null) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
         }
-        SysUser user = getById(userId);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
-        }
+        SysUser user = requireUser(userId);
         if (request.getNickname() != null) user.setNickname(request.getNickname());
         if (request.getEmail() != null) user.setEmail(request.getEmail());
         if (request.getPhone() != null) user.setPhone(request.getPhone());
@@ -217,20 +245,72 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         if (userId == null) {
             throw new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "未登录");
         }
-        SysUser user = getById(userId);
-        if (user == null) {
-            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
-        }
-        if (oldPassword == null || !PasswordUtils.md5(oldPassword).equals(user.getPassword())) {
+        SysUser user = requireUser(userId);
+        if (!PasswordUtils.matches(oldPassword, user.getPassword())) {
             throw new ServiceException("原密码不正确");
         }
         if (newPassword != null && newPassword.equals(oldPassword)) {
             throw new ServiceException("新密码不能与原密码相同");
         }
         PasswordUtils.requireStrong(newPassword);
-        user.setPassword(PasswordUtils.md5(newPassword));
+        user.setPassword(PasswordUtils.encode(newPassword));
         user.setPwdResetRequired(SystemConstants.PWD_RESET_NOT_REQUIRED);
         updateById(user);
+        // 改密后旧 access/refresh 都不能再继续使用
+        jwtUtils.removeToken(user.getUsername());
+    }
+
+    @Override
+    public boolean isPasswordResetRequired(SysUser user) {
+        return Integer.valueOf(SystemConstants.PWD_RESET_REQUIRED).equals(user.getPwdResetRequired())
+                || PasswordUtils.isDefaultPassword(user.getUsername(), user.getPassword());
+    }
+
+    private SysUser requireUser(Long id) {
+        SysUser user = id == null ? null : getById(id);
+        if (user == null) {
+            throw new ServiceException(SystemConstants.HTTP_NOT_FOUND, "用户不存在");
+        }
+        return user;
+    }
+
+    private void ensureCanDisableOrDelete(SysUser user) {
+        Long currentUserId = currentUserId();
+        if (currentUserId != null && currentUserId.equals(user.getId())) {
+            throw new ServiceException("不能禁用或删除当前登录账号");
+        }
+        if (Integer.valueOf(SystemConstants.STATUS_ENABLED).equals(user.getStatus())) {
+            ensureRemainingEnabledUser(List.of(user.getId()));
+        }
+    }
+
+    private void ensureRemainingEnabledUser(List<Long> excludedIds) {
+        Long remaining = lambdaQuery()
+                .eq(SysUser::getStatus, SystemConstants.STATUS_ENABLED)
+                .notIn(SysUser::getId, excludedIds)
+                .count();
+        if (remaining == 0) {
+            throw new ServiceException("至少需要保留一个可用账号");
+        }
+    }
+
+    private Long currentUserId() {
+        try {
+            return UserHolderUtils.getCurrentUserId();
+        } catch (IllegalStateException e) {
+            return null;
+        }
+    }
+
+    private static void requireValidStatus(Integer status) {
+        if (status == null || (status != SystemConstants.STATUS_DISABLED
+                && status != SystemConstants.STATUS_ENABLED)) {
+            throw new ServiceException("用户状态只能是 0 或 1");
+        }
+    }
+
+    private static ServiceException unauthorized() {
+        return new ServiceException(SystemConstants.HTTP_UNAUTHORIZED, "用户名或密码错误");
     }
 
     private UserInfoVO buildUserInfoVO(SysUser user) {
@@ -242,11 +322,8 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         vo.setPhone(user.getPhone());
         vo.setAvatar(user.getAvatar());
         vo.setStatus(user.getStatus());
-        Integer flag = user.getPwdResetRequired();
-        // 兜底：若 DB 标记为 0 但密码仍是默认密码，仍视为需要强制改密
-        boolean required = flag != null && flag == SystemConstants.PWD_RESET_REQUIRED
-                || PasswordUtils.isDefaultPassword(user.getUsername(), user.getPassword());
-        vo.setPwdResetRequired(required ? SystemConstants.PWD_RESET_REQUIRED : SystemConstants.PWD_RESET_NOT_REQUIRED);
+        vo.setPwdResetRequired(isPasswordResetRequired(user)
+                ? SystemConstants.PWD_RESET_REQUIRED : SystemConstants.PWD_RESET_NOT_REQUIRED);
         return vo;
     }
 }

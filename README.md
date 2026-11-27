@@ -142,7 +142,7 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 - **实时点播**：主/子码流切换，UDP / TCP 被动 / TCP 主动三档收流；HTTP-FLV / WS-FLV / HLS / WebRTC 多协议播放；播放地址携带绑定节点、流和协议的限时签名令牌；按需拉流（无观看自动断流节能）
 - **历史回放**：录像检索、时间轴回放、暂停 / 续播 / 拖动 / 倍速（SIP INFO + MANSRTSP）
 - **录像下载**：DOWNLOAD INVITE 倍速下载，MP4 由 ZLM 本地落盘，平台签发限时链接下载
-- **云端录像**：按通道配置周计划（支持 7×24、跨午夜时段），定时对账自动拉起 / 停止录制，MP4 切片由 ZLM 本地落盘并经 hook 登记；云端录像中心支持按设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理；READY 会话周期性探测 ZLM 真实录制态（isRecording），外部误调 stopRecord 或 ZLM 丢录制态时自动补发 startRecord
+- **云端录像**：通过控制台或 OpenAPI 开始 / 停止录制，MP4 切片由 ZLM 本地落盘并经 hook 登记；云端录像中心支持按设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理；录像归属独立于 INVITE 会话，停止后的尾片回调仍能正常登记
 - **云台控制**：八方向 + 变倍 + 聚焦 + 光圈 + 雨刷；预置位管理；巡航路线（巡航点编排、速度/停留时间、启停）；拉框放大/缩小（画面上直接框选）、看守位（预置位面板内设置）
 - **设备控制**：布防 / 撤防、报警复位、设备本地录像开关、强制关键帧、远程重启（重启单独授权）
 - **报警中心**：报警落库、历史查询与前端处置闭环
@@ -165,9 +165,10 @@ Solo 定位为**视频能力底座（中台）**：专注把 GB/T 28181 设备�
 
 ### 用户与登录认证
 
-- 用户列表、新建、编辑、启停、删除和导出，不区分角色权限
-- JWT 双 Token 登录、当前用户资料与修改密码、首次登录强制改密
-- 登录限流、XSS 消毒等安全能力
+- 用户列表、新建、编辑、启停、删除和导出，不区分角色权限；新建用户必须设置初始密码
+- 密码使用 BCrypt（随机 salt 内嵌于哈希），旧 MD5 用户成功登录后自动升级；修改密码后旧双 Token 立即失效
+- JWT 双 Token 登录、当前用户资料与修改密码；首次登录强制改密由后端限制，不依赖前端弹窗
+- 登录按用户名 + 可信客户端 IP 限流，禁用 / 删除账号时撤销令牌，并防止禁用或删除当前账号及最后一个可用账号；请求参数统一校验并进行 XSS 消毒
 
 ### ONVIF 模块
 
@@ -206,7 +207,7 @@ cd solo-platform
 
 全新部署一个脚本装完（用户 + 国标 + ONVIF + 开放 API + 语音播报）。**两个脚本都会重建全部表，仅用于全新部署，已有数据请先备份。**
 
-**PostgreSQL（默认）**：脚本不会自动创建数据库，先建库再执行：
+**PostgreSQL**：脚本不会自动创建数据库，先建库再执行：
 
 ```bash
 psql -U postgres -c "CREATE DATABASE solo_db"
@@ -221,10 +222,11 @@ mysql -uroot -p < sql/MySQL_solo_db.sql
 
 ### 2. 配置并启动后端
 
-`solo/src/main/resources/application.yaml` 默认设置 `spring.profiles.active: pg`，实际连接信息位于对应 profile 文件：
+`solo/src/main/resources/application.yaml` 当前设置 `spring.profiles.active: local`，实际连接信息位于对应 profile 文件：
 
-- PostgreSQL：编辑 `application-pg.yaml`。
-- MySQL：将 active profile 改为 `local`，再编辑 `application-local.yaml`。
+- MySQL 本地调试：编辑 `application-local.yaml`。
+- PostgreSQL：将 active profile 改为 `pg`，再编辑 `application-pg.yaml`。
+- 腾讯云部署：将 active profile 改为 `txy`，检查 `application-txy.yaml` 中的部署地址、连接信息和国标参数。
 
 在对应 profile 文件中检查以下配置：
 
@@ -249,11 +251,14 @@ media:
 
 多实例必须共用相同的播放密钥。旧版仅绑定 stream 的令牌和裸播放地址不能用于新起播放；地址过期或重连失败后，重新调用原点播/播放地址 API 获取完整新 URL，不要手工复制或修改 `wt`。
 
+profile 中的 `JWT_SECRET` 默认值仅供本机调试。**生产环境必须显式设置独立随机密钥**（至少 32 字节，并在重启、多实例间保持不变）：
+
 ```bash
+export JWT_SECRET='请替换为至少 32 字节的随机密钥'
 cd solo && mvn spring-boot:run
 ```
 
-服务端口 `8080`，SIP 同时监听 UDP/TCP `5060`，等待 ZLM hook 回调。
+`pg` / `local` 默认服务端口为 `8080`，SIP 同时监听 UDP/TCP `5060`；`txy` 等自定义 profile 以各自文件为准。启动后等待 ZLM hook 回调。
 
 ### 3. 配置并启动 ZLMediaKit
 
@@ -282,7 +287,7 @@ cd solo && mvn spring-boot:run
 cd solo-console && npm install && npm run dev
 ```
 
-访问 `http://127.0.0.1:5173`，`/api` 已代理到 `localhost:8080`。本地体验账号 `admin / admin123`（**生产环境请务必修改默认密码**）。
+访问 `http://127.0.0.1:5173`。`/api` 代理目标位于 `solo-console/vite.config.ts`，当前指向腾讯云调试环境；联调本机后端时改为 `http://localhost:8080`。本地体验账号 `admin / admin123`，首次登录必须修改初始密码；生产环境请使用独立随机密码。
 
 ### 5. 接入摄像头
 
@@ -341,7 +346,7 @@ solo-platform/
 - [x] 多 ZLM 节点负载均衡 / SSRC Redis 化 / 拉流代理 / 推流鉴权
 - [x] ONVIF 摄像头接入与点播
 - [x] 用户管理、登录认证与当前用户管理
-- [x] **云端录像中心**：MP4 切片由 ZLM 本地落盘，hook 登记元数据，设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理、录制态探测补偿
+- [x] **云端录像中心**：MP4 切片由 ZLM 本地落盘，hook 登记元数据，设备 / 通道 / 时间 / 状态检索、在线回放、限时链接下载、保留期自动清理、停止后尾片登记
 - [x] **语音广播**：网页麦克风 WebRTC 喊话，广播通知 + 设备反向 INVITE，裸 PCMA/PS 推流放音，UDP/TCP 自适应
 - [x] **开放 API**：第三方 HMAC-SHA256 签名鉴权接入，应用授权 / IP 白名单 / 限流 / 换钥过渡期 / 调用审计日志，已开放实时点播接口
 - [x] 全新 shadcn 风格控制台（`solo-console/`，Vue 3 + Tailwind + shadcn-vue）
@@ -403,7 +408,7 @@ solo-platform/
 - 按需配置 IP 白名单：只接受字面量 IP / CIDR（如 `203.0.113.10`、`10.0.0.0/8`、`2001:db8::/32`），保存时校验；留空表示不限制来源，应用列表会标为「不限」
 - 按需设置 QPS 与日调用量配额
 
-> 平台部署在反向代理之后时，需在 `application.yaml` 的 `openapi.trusted-proxies` 填入代理地址（同机 nginx 填 `127.0.0.1,::1`）。未配置时客户端 IP 一律取 TCP 源地址，`X-Forwarded-For` / `X-Real-IP` 不会被采信，白名单才能挡住伪造来源头。
+> 平台部署在反向代理之后时，需在 `application.yaml` 的 `openapi.trusted-proxies` 填入代理地址（同机 nginx 填 `127.0.0.1,::1`）。该配置同时用于开放 API 白名单和登录限流。未配置时客户端 IP 一律取 TCP 源地址，`X-Forwarded-For` / `X-Real-IP` 不会被采信，避免伪造来源头绕过限制。
 
 ### 2. 请求约定
 
